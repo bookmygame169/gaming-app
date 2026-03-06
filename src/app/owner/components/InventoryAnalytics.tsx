@@ -47,6 +47,17 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
   const getDateRange = useCallback((range: string) => {
     const now = new Date();
+    
+    // Helper to get local timezone offset string (e.g. +05:30)
+    const getTimezoneOffset = (date: Date) => {
+      const offset = date.getTimezoneOffset();
+      const sign = offset > 0 ? '-' : '+';
+      const absOffset = Math.abs(offset);
+      const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+      const minutes = String(absOffset % 60).padStart(2, '0');
+      return `${sign}${hours}:${minutes}`;
+    };
+
     const toLocalISODate = (date: Date) => {
       const offset = date.getTimezoneOffset();
       const localDate = new Date(date.getTime() - (offset * 60 * 1000));
@@ -121,41 +132,42 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
     setLoading(true);
     try {
       const { startDate, endDate, prevStartDate, prevEndDate } = getDateRange(dateRange);
+      const now = new Date();
 
-      // First, get booking IDs for this cafe
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('id')
-        .eq('cafe_id', cafeId)
-        .neq('status', 'cancelled');
+      // Helper to get local timezone offset string (e.g. +05:30)
+      const getTimezoneOffset = (date: Date) => {
+        const offset = date.getTimezoneOffset();
+        const sign = offset > 0 ? '-' : '+';
+        const absOffset = Math.abs(offset);
+        const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+        const minutes = String(absOffset % 60).padStart(2, '0');
+        return `${sign}${hours}:${minutes}`;
+      };
 
-      const bookingIds = bookings?.map(b => b.id) || [];
 
-      if (bookingIds.length === 0) {
-        setOrders([]);
-        setPreviousOrders([]);
-        setLoading(false);
-        return;
-      }
 
-      // Fetch current period orders
-      const { data: currentOrders } = await supabase
+      // Fetch current period orders using inner join to avoid max limit of 1000 IDs in `.in()`
+      const { data: currentOrders, error: currentError } = await supabase
         .from('booking_orders')
-        .select('*')
-        .in('booking_id', bookingIds)
-        .gte('ordered_at', `${startDate}T00:00:00`)
-        .lte('ordered_at', `${endDate}T23:59:59`);
+        .select('*, bookings!inner(id, cafe_id)')
+        .eq('bookings.cafe_id', cafeId)
+        .neq('bookings.status', 'cancelled')
+        .gte('ordered_at', `${startDate}T00:00:00.000${getTimezoneOffset(now)}`)
+        .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`);
 
+      if (currentError) console.error("Error fetching current orders:", currentError);
       setOrders(currentOrders || []);
 
-      // Fetch previous period orders
-      const { data: prevOrders } = await supabase
+      // Fetch previous period orders using inner join
+      const { data: prevOrders, error: prevError } = await supabase
         .from('booking_orders')
-        .select('*')
-        .in('booking_id', bookingIds)
-        .gte('ordered_at', `${prevStartDate}T00:00:00`)
-        .lte('ordered_at', `${prevEndDate}T23:59:59`);
+        .select('*, bookings!inner(id, cafe_id)')
+        .eq('bookings.cafe_id', cafeId)
+        .neq('bookings.status', 'cancelled')
+        .gte('ordered_at', `${prevStartDate}T00:00:00.000${getTimezoneOffset(now)}`)
+        .lte('ordered_at', `${prevEndDate}T23:59:59.999${getTimezoneOffset(now)}`);
 
+      if (prevError) console.error("Error fetching previous orders:", prevError);
       setPreviousOrders(prevOrders || []);
 
       // Fetch inventory items with cost_price

@@ -137,8 +137,8 @@ export default function Inventory({ cafeId }: InventoryProps) {
       setError("Name is required");
       return;
     }
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      setError("Valid price is required");
+    if (formData.price === "" || parseFloat(formData.price) < 0) {
+      setError("Valid price is required (can be 0 for free items)");
       return;
     }
 
