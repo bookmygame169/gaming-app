@@ -15,7 +15,6 @@ import {
     X,
     Menu,
     Package,
-    Wallet,
 } from 'lucide-react';
 
 // Nav items configuration
@@ -27,7 +26,6 @@ const NAV_ITEMS = [
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'stations', label: 'Stations', icon: Gamepad2 },
     { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'cash-drawer', label: 'Cash Drawer', icon: Wallet },
     { id: 'memberships', label: 'Memberships', icon: Ticket },
     { id: 'coupons', label: 'Coupons', icon: Ticket },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
