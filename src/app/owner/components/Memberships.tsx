@@ -217,6 +217,7 @@ export function Memberships({
                     hours_purchased: selectedPlan.hours || 24,
                     hours_remaining: selectedPlan.hours || 24,
                     amount_paid: parseFloat(subAmountPaid) || selectedPlan.price,
+                    payment_mode: subPaymentMode,
                     purchase_date: now.toISOString(),
                     expiry_date: expiryDate.toISOString(),
                     status: 'active',
