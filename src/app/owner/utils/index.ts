@@ -1,5 +1,10 @@
 // Helper functions for time conversion
 
+export const getLocalDateString = (date: Date = new Date()): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+
 export function convertTo24Hour(timeStr: string): string {
   if (!timeStr) return "";
 
