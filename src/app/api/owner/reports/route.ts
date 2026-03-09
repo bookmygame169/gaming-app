@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
       `)
       .eq('cafe_id', cafeId)
       .neq('status', 'cancelled')
-      .gte('booking_date', `${startDate}T00:00:00`)
-      .lte('booking_date', `${endDate}T23:59:59`)
+      .gte('booking_date', startDate)
+      .lte('booking_date', endDate)
       .order('booking_date', { ascending: true });
 
     if (currentError) {
@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
       .select('id, total_amount, booking_date, status, payment_mode')
       .eq('cafe_id', cafeId)
       .neq('status', 'cancelled')
-      .gte('booking_date', `${prevStartDate}T00:00:00`)
-      .lte('booking_date', `${prevEndDate}T23:59:59`);
+      .gte('booking_date', prevStartDate)
+      .lte('booking_date', prevEndDate);
 
     // Fetch current period subscriptions
     const { data: currentSubscriptions, error: currentSubError } = await supabase

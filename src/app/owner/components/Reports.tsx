@@ -109,9 +109,10 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             const fourteenDaysAgo = new Date(now);
             fourteenDaysAgo.setDate(now.getDate() - 13);
             prevStartDate = toLocalISODate(fourteenDaysAgo);
-            const eightDaysAgo = new Date(now);
-            eightDaysAgo.setDate(now.getDate() - 7);
-            prevEndDate = toLocalISODate(eightDaysAgo);
+            // Previous period ends the day before the current period starts (no overlap)
+            const dayBeforeCurrent = new Date(now);
+            dayBeforeCurrent.setDate(now.getDate() - 7);
+            prevEndDate = toLocalISODate(dayBeforeCurrent);
         } else if (range === '30d') {
             const thirtyDaysAgo = new Date(now);
             thirtyDaysAgo.setDate(now.getDate() - 29);
@@ -120,9 +121,10 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             const sixtyDaysAgo = new Date(now);
             sixtyDaysAgo.setDate(now.getDate() - 59);
             prevStartDate = toLocalISODate(sixtyDaysAgo);
-            const thirtyOneDaysAgo = new Date(now);
-            thirtyOneDaysAgo.setDate(now.getDate() - 30);
-            prevEndDate = toLocalISODate(thirtyOneDaysAgo);
+            // Previous period ends the day before the current period starts (no overlap)
+            const dayBeforeCurrent30 = new Date(now);
+            dayBeforeCurrent30.setDate(now.getDate() - 30);
+            prevEndDate = toLocalISODate(dayBeforeCurrent30);
         } else if (range === 'month') {
             const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
             startDate = toLocalISODate(firstDay);
@@ -187,10 +189,10 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
         const prevBookings = previousBookings.length;
         const prevAov = prevBookings > 0 ? prevRevenue / prevBookings : 0;
 
-        // Calculate percentage changes
-        const revenueChange = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
-        const bookingsChange = prevBookings > 0 ? ((totalBookings - prevBookings) / prevBookings) * 100 : 0;
-        const aovChange = prevAov > 0 ? ((avgOrderValue - prevAov) / prevAov) * 100 : 0;
+        // Calculate percentage changes — null when no prev data (shows '—' instead of a fake 0%)
+        const revenueChange = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : null;
+        const bookingsChange = prevBookings > 0 ? ((totalBookings - prevBookings) / prevBookings) * 100 : null;
+        const aovChange = prevAov > 0 ? ((avgOrderValue - prevAov) / prevAov) * 100 : null;
 
         return {
             revenue: totalRevenue,
@@ -204,12 +206,14 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
 
     // --- Chart Data Preparation ---
 
-    // 1. Revenue over time
+    // 1. Revenue over time — parse date string directly to avoid UTC-to-local timezone shift
+    //    e.g. new Date("2024-01-15") = Jan 14 at 18:30 IST (UTC midnight) → wrong day in charts
     const revenueTrendData = useMemo(() => {
         const daily: Record<string, number> = {};
         bookings.forEach(b => {
-            const dateObj = new Date(b.booking_date);
-            // Include weekday name: "Wed 15 Jan"
+            // Parse YYYY-MM-DD directly without Date constructor to avoid timezone shift
+            const [year, month, day] = b.booking_date.split('-').map(Number);
+            const dateObj = new Date(year, month - 1, day); // local midnight, correct
             const date = dateObj.toLocaleDateString('en-IN', {
                 weekday: 'short',
                 day: 'numeric',
@@ -424,7 +428,8 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
     };
 
     // Growth indicator component
-    const GrowthIndicator = ({ value, suffix = '%' }: { value: number; suffix?: string }) => {
+    const GrowthIndicator = ({ value, suffix = '%' }: { value: number | null; suffix?: string }) => {
+        if (value === null) return <span className="text-slate-500 text-xs">No prev. data</span>;
         if (value === 0) return <span className="text-slate-500 text-xs">No change</span>;
         const isPositive = value > 0;
         return (
