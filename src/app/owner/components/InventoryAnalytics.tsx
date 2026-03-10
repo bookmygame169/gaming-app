@@ -23,6 +23,7 @@ import {
   CATEGORY_LABELS,
   ItemSalesData,
 } from '@/types/inventory';
+import { getTimezoneOffset } from '../utils';
 
 interface InventoryAnalyticsProps {
   cafeId: string;
@@ -47,16 +48,6 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
   const getDateRange = useCallback((range: string) => {
     const now = new Date();
-    
-    // Helper to get local timezone offset string (e.g. +05:30)
-    const getTimezoneOffset = (date: Date) => {
-      const offset = date.getTimezoneOffset();
-      const sign = offset > 0 ? '-' : '+';
-      const absOffset = Math.abs(offset);
-      const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
-      const minutes = String(absOffset % 60).padStart(2, '0');
-      return `${sign}${hours}:${minutes}`;
-    };
 
     const toLocalISODate = (date: Date) => {
       const offset = date.getTimezoneOffset();
@@ -133,16 +124,6 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
     try {
       const { startDate, endDate, prevStartDate, prevEndDate } = getDateRange(dateRange);
       const now = new Date();
-
-      // Helper to get local timezone offset string (e.g. +05:30)
-      const getTimezoneOffset = (date: Date) => {
-        const offset = date.getTimezoneOffset();
-        const sign = offset > 0 ? '-' : '+';
-        const absOffset = Math.abs(offset);
-        const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
-        const minutes = String(absOffset % 60).padStart(2, '0');
-        return `${sign}${hours}:${minutes}`;
-      };
 
 
 

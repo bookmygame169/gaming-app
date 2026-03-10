@@ -1,4 +1,4 @@
-// Inventory Management Component - Can be removed along with inventory feature
+// Inventory Management Component
 "use client";
 
 import { useState, useEffect, useCallback } from "react";

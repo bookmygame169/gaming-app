@@ -1,4 +1,4 @@
-// Inventory Types - Can be removed along with inventory feature
+// Inventory Types
 
 export type InventoryCategory = 'snacks' | 'cold_drinks' | 'hot_drinks' | 'combo';
 
