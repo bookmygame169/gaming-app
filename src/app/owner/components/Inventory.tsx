@@ -248,19 +248,44 @@ export default function Inventory({ cafeId }: InventoryProps) {
     }
   }
 
-  // Update stock
+  // Update stock (Atomic with optimistic UI)
   async function updateStock(item: InventoryItem, change: number) {
-    const newStock = Math.max(0, item.stock_quantity + change);
+    // Prevent decrementing below 0 on the UI immediately
+    if (change < 0 && item.stock_quantity <= 0) return;
+
+    // 1. Optimistic UI update for instant feedback
+    const optimisticStock = Math.max(0, item.stock_quantity + change);
+    setItems((currentItems) =>
+      currentItems.map((i) =>
+        i.id === item.id ? { ...i, stock_quantity: optimisticStock } : i
+      )
+    );
+
     try {
-      const { error } = await supabase
-        .from("inventory_items")
-        .update({ stock_quantity: newStock })
-        .eq("id", item.id);
+      // 2. Atomic database update via RPC
+      const { data: authoritativeStock, error } = await supabase.rpc(
+        "increment_inventory_stock",
+        {
+          row_id: item.id,
+          amount: change,
+        }
+      );
 
       if (error) throw error;
-      loadItems();
+
+      // 3. Sync authoritative stock if different from our optimistic guess
+      // (e.g., if someone else updated it at the exact same time)
+      if (typeof authoritativeStock === 'number' && authoritativeStock !== optimisticStock) {
+        setItems((currentItems) =>
+          currentItems.map((i) =>
+            i.id === item.id ? { ...i, stock_quantity: authoritativeStock } : i
+          )
+        );
+      }
     } catch (err) {
       console.error("Error updating stock:", err);
+      // Revert optimistic update on failure
+      loadItems();
     }
   }
 
