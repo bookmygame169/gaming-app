@@ -219,7 +219,6 @@ export default function Inventory({ cafeId }: InventoryProps) {
         .eq("id", item.id)
         .select();
 
-      console.log("Delete result:", { error, data, itemId: item.id });
 
       if (error) {
         console.error("Delete error details:", JSON.stringify(error, null, 2));

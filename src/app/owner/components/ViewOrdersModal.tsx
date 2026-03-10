@@ -197,9 +197,6 @@ export default function ViewOrdersModal({
         };
       });
 
-      console.log("Cart snapshot:", cartSnapshot);
-      console.log("Order records to insert:", orderRecords);
-      console.log("Total to add:", totalToAdd);
 
       const { error: orderError } = await supabase
         .from("booking_orders")
@@ -221,7 +218,6 @@ export default function ViewOrdersModal({
 
         if (currentItem) {
           const newStock = currentItem.stock_quantity - cartItem.quantity;
-          console.log(`Updating stock for ${cartItem.item.name}: ${currentItem.stock_quantity} - ${cartItem.quantity} = ${newStock}`);
 
           const { error: stockError } = await supabase
             .from("inventory_items")
@@ -252,7 +248,6 @@ export default function ViewOrdersModal({
       if (booking) {
         const currentAmount = Number(booking.total_amount) || 0;
         const newTotal = currentAmount + totalToAdd;
-        console.log("Updating booking total:", { currentAmount, totalToAdd, newTotal, bookingId });
 
         const { error: updateError } = await supabase
           .from("bookings")
