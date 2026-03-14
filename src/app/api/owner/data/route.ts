@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
     const plansPromise = supabase
       .from('membership_plans')
       .select('*')
+      .in('cafe_id', cafeIds)
       .eq('is_active', true)
       .order('price');
 

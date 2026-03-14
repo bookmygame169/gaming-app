@@ -7,6 +7,46 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+type MembershipPlanPayload = {
+  cafe_id?: string;
+  console_type?: string;
+  description?: string | null;
+  hours?: number | null;
+  name?: string;
+  plan_type?: string;
+  player_count?: string;
+  price?: number;
+  validity_days?: number;
+};
+
+function normalizePlanType(planType?: string | null): "day_pass" | "hourly_package" {
+  return planType === "day_pass" ? "day_pass" : "hourly_package";
+}
+
+function sanitizeMembershipPlanPayload(
+  payload: MembershipPlanPayload,
+  cafeId?: string
+) {
+  const sanitized = {
+    name: payload.name?.trim(),
+    description: payload.description?.trim() || null,
+    price: payload.price,
+    hours:
+      normalizePlanType(payload.plan_type) === "day_pass"
+        ? null
+        : payload.hours ?? null,
+    validity_days: payload.validity_days,
+    plan_type: normalizePlanType(payload.plan_type),
+    console_type: payload.console_type,
+    player_count: payload.player_count,
+    ...(cafeId ? { cafe_id: cafeId } : {}),
+  };
+
+  return Object.fromEntries(
+    Object.entries(sanitized).filter(([, value]) => value !== undefined)
+  );
+}
+
 // POST /api/owner/membership-plans — create or update (body has id for update)
 export async function POST(request: NextRequest) {
   const auth = await requireOwnerContext(request);
@@ -29,8 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Membership plan not found" }, { status: 404 });
     }
 
-    const updates = { ...payload };
-    delete updates.cafe_id;
+    const updates = sanitizeMembershipPlanPayload(payload, ownedCafeId);
     const { error } = await supabase
       .from('membership_plans')
       .update(updates)
@@ -50,7 +89,8 @@ export async function POST(request: NextRequest) {
       return accessResponse;
     }
 
-    const { error } = await supabase.from('membership_plans').insert([payload]);
+    const insertPayload = sanitizeMembershipPlanPayload(payload, payload.cafe_id);
+    const { error } = await supabase.from('membership_plans').insert([insertPayload]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

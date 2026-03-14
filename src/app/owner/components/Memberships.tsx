@@ -4,20 +4,24 @@ import { useState, useMemo } from 'react';
 import { Card, Button, Input, Select } from './ui';
 import { Search, Filter, Clock, Calendar, CheckCircle, XCircle, Plus, Edit2, Trash2, Smartphone, Monitor, User, Users } from 'lucide-react';
 
+type MembershipPlanType = 'day_pass' | 'hourly_package';
+
 interface MembershipPlan {
     id: string;
+    cafe_id: string;
     name: string;
-    description?: string;
+    description?: string | null;
     price: number;
-    hours: number;
+    hours: number | null;
     validity_days: number;
-    plan_type: 'day_pass' | 'hourly_bundle';
+    plan_type: MembershipPlanType | 'hourly_bundle';
     console_type: string;
     player_count: 'single' | 'double';
 }
 
 interface Subscription {
     id: string;
+    cafe_id: string;
     user_id: string;
     membership_plan_id: string;
     hours_purchased: number;
@@ -29,7 +33,7 @@ interface Subscription {
     payment_mode: string;
     customer_name: string;
     customer_phone: string;
-    membership_plans: MembershipPlan;
+    membership_plans: MembershipPlan | null;
 }
 
 interface MembershipsProps {
@@ -49,6 +53,18 @@ interface MembershipsProps {
 function parseClosingTime(openingHours: string): string | null {
     const match = openingHours.match(/(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
     return match ? match[2].trim() : null;
+}
+
+function normalizePlanType(planType?: string | null): MembershipPlanType {
+    return planType === 'day_pass' ? 'day_pass' : 'hourly_package';
+}
+
+function isHourlyPlan(planType?: string | null): boolean {
+    return normalizePlanType(planType) === 'hourly_package';
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
 }
 
 export function Memberships({
@@ -97,13 +113,21 @@ export function Memberships({
     const [newPlanPrice, setNewPlanPrice] = useState('');
     const [newPlanHours, setNewPlanHours] = useState('');
     const [newPlanValidity, setNewPlanValidity] = useState('30');
-    const [newPlanType, setNewPlanType] = useState('hourly_bundle');
+    const [newPlanType, setNewPlanType] = useState<MembershipPlanType>('hourly_package');
     const [newPlanConsoleType, setNewPlanConsoleType] = useState('PC');
     const [newPlanPlayerCount, setNewPlanPlayerCount] = useState('single');
 
+    const cafeMembershipPlans = useMemo(() => {
+        return membershipPlans.filter(plan => !cafeId || plan.cafe_id === cafeId);
+    }, [membershipPlans, cafeId]);
+
+    const cafeSubscriptions = useMemo(() => {
+        return subscriptions.filter(sub => !cafeId || sub.cafe_id === cafeId);
+    }, [subscriptions, cafeId]);
+
     // Filter Logic
     const filteredSubscriptions = useMemo(() => {
-        return subscriptions.filter(sub => {
+        return cafeSubscriptions.filter(sub => {
             const matchesSearch = !search ||
                 sub.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
                 sub.customer_phone?.includes(search);
@@ -112,7 +136,7 @@ export function Memberships({
 
             return matchesSearch && matchesStatus && matchesPlan;
         });
-    }, [subscriptions, search, statusFilter, planFilter]);
+    }, [cafeSubscriptions, search, statusFilter, planFilter]);
 
     // Handlers
     const handleSavePlan = async () => {
@@ -121,31 +145,34 @@ export function Memberships({
             return;
         }
 
+        if (isHourlyPlan(newPlanType) && !newPlanHours) {
+            alert('Please enter hours for an hourly plan');
+            return;
+        }
+
         try {
             setSavingPlan(true);
             const planData = {
                 name: newPlanName,
-                description: newPlanDescription,
+                description: newPlanDescription || null,
                 price: parseFloat(newPlanPrice),
-                hours: newPlanHours ? parseFloat(newPlanHours) : null,
+                hours: isHourlyPlan(newPlanType) && newPlanHours ? parseFloat(newPlanHours) : null,
                 validity_days: parseInt(newPlanValidity),
-                plan_type: newPlanType,
+                plan_type: normalizePlanType(newPlanType),
                 console_type: newPlanConsoleType,
                 player_count: newPlanPlayerCount,
-                cafe_id: null // We'll set this below
             };
 
             if (!cafeId) throw new Error('No cafe selected');
 
-            const upsertData = {
-                ...planData,
-                cafe_id: cafeId,
-            };
+            const requestBody = editingPlan
+                ? { id: editingPlan.id, ...planData }
+                : { ...planData, cafe_id: cafeId };
 
             const res = await fetch('/api/owner/membership-plans', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editingPlan ? { id: editingPlan.id, ...planData } : upsertData),
+                body: JSON.stringify(requestBody),
             });
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Failed to save plan');
@@ -155,8 +182,8 @@ export function Memberships({
             onRefresh();
             resetForm();
 
-        } catch (error: any) {
-            alert('Error saving plan: ' + error.message);
+        } catch (error: unknown) {
+            alert('Error saving plan: ' + getErrorMessage(error));
         } finally {
             setSavingPlan(false);
         }
@@ -180,7 +207,7 @@ export function Memberships({
         setNewPlanPrice('');
         setNewPlanHours('');
         setNewPlanValidity('30');
-        setNewPlanType('hourly_bundle');
+        setNewPlanType('hourly_package');
         setNewPlanConsoleType('PC');
         setNewPlanPlayerCount('single');
     };
@@ -191,7 +218,7 @@ export function Memberships({
             return;
         }
 
-        const selectedPlan = membershipPlans.find(p => p.id === subSelectedPlanId);
+        const selectedPlan = cafeMembershipPlans.find(p => p.id === subSelectedPlanId);
         if (!selectedPlan) {
             alert('Please select a valid plan');
             return;
@@ -234,8 +261,8 @@ export function Memberships({
             setSubAmountPaid('');
             setSubPaymentMode('cash');
             onRefresh();
-        } catch (error: any) {
-            alert('Error creating subscription: ' + error.message);
+        } catch (error: unknown) {
+            alert('Error creating subscription: ' + getErrorMessage(error));
         } finally {
             setSavingSub(false);
         }
@@ -249,8 +276,8 @@ export function Memberships({
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Failed to delete subscription');
             onRefresh();
-        } catch (error: any) {
-            alert('Error deleting subscription: ' + error.message);
+        } catch (error: unknown) {
+            alert('Error deleting subscription: ' + getErrorMessage(error));
         }
     };
 
@@ -261,9 +288,9 @@ export function Memberships({
         setNewPlanPrice(plan.price.toString());
         setNewPlanHours(plan.hours?.toString() || '');
         setNewPlanValidity(plan.validity_days.toString());
-        setNewPlanType(plan.plan_type);
+        setNewPlanType(normalizePlanType(plan.plan_type));
         setNewPlanConsoleType(plan.console_type || 'PC');
-        setNewPlanPlayerCount(plan.player_count as any || 'single');
+        setNewPlanPlayerCount(plan.player_count || 'single');
         setShowPlanModal(true);
     };
 
@@ -288,7 +315,7 @@ export function Memberships({
                 >
                     Plans
                     <span className="bg-slate-800 text-slate-400 text-[10px] px-1.5 py-0.5 rounded-md">
-                        {membershipPlans.length}
+                        {cafeMembershipPlans.length}
                     </span>
                     {subTab === 'plans' && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-full" />
@@ -328,7 +355,7 @@ export function Memberships({
                                     onChange={setPlanFilter}
                                     options={[
                                         { value: 'all', label: 'All Plans' },
-                                        ...membershipPlans.map(p => ({ value: p.id, label: p.name }))
+                                        ...cafeMembershipPlans.map(p => ({ value: p.id, label: p.name }))
                                     ]}
                                     className="w-40"
                                 />
@@ -338,8 +365,8 @@ export function Memberships({
                                     onClick={() => {
                                         setSubCustomerName('');
                                         setSubCustomerPhone('');
-                                        setSubSelectedPlanId(membershipPlans[0]?.id || '');
-                                        setSubAmountPaid(membershipPlans[0]?.price?.toString() || '');
+                                        setSubSelectedPlanId(cafeMembershipPlans[0]?.id || '');
+                                        setSubAmountPaid(cafeMembershipPlans[0]?.price?.toString() || '');
                                         setSubPaymentMode('cash');
                                         setSuggestions([]);
                                         setShowSuggestions(false);
@@ -474,7 +501,7 @@ export function Memberships({
             {subTab === 'plans' && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {membershipPlans.map((plan, i) => {
+                        {cafeMembershipPlans.map((plan, i) => {
                             const colors = plan.plan_type === 'day_pass'
                                 ? { bg: 'bg-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-400', icon: '☀️' }
                                 : i % 3 === 0
@@ -504,7 +531,7 @@ export function Memberships({
 
                                         <div className="flex items-baseline gap-1 mb-4">
                                             <span className="text-2xl font-bold text-white">₹{plan.price}</span>
-                                            {plan.plan_type !== 'day_pass' && (
+                                            {isHourlyPlan(plan.plan_type) && (
                                                 <span className="text-xs text-slate-500">/ {plan.hours}h</span>
                                             )}
                                         </div>
@@ -606,13 +633,13 @@ export function Memberships({
                                 <Select
                                     label="Type"
                                     value={newPlanType}
-                                    onChange={setNewPlanType}
+                                    onChange={(value) => setNewPlanType(normalizePlanType(value))}
                                     options={[
-                                        { value: 'hourly_bundle', label: 'Hourly Bundle' },
+                                        { value: 'hourly_package', label: 'Hourly Bundle' },
                                         { value: 'day_pass', label: 'Day Pass' }
                                     ]}
                                 />
-                                {newPlanType === 'hourly_bundle' && (
+                                {isHourlyPlan(newPlanType) && (
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Hours</label>
                                         <input
@@ -760,10 +787,10 @@ export function Memberships({
                                 value={subSelectedPlanId}
                                 onChange={(val) => {
                                     setSubSelectedPlanId(val);
-                                    const plan = membershipPlans.find(p => p.id === val);
+                                    const plan = cafeMembershipPlans.find(p => p.id === val);
                                     if (plan) setSubAmountPaid(plan.price.toString());
                                 }}
-                                options={membershipPlans.map(p => ({
+                                options={cafeMembershipPlans.map(p => ({
                                     value: p.id,
                                     label: `${p.name} - ₹${p.price} (${p.hours || 'Day'}${p.hours ? 'h' : ' Pass'})`
                                 }))}
@@ -791,7 +818,7 @@ export function Memberships({
                             </div>
 
                             {subSelectedPlanId && (() => {
-                                const plan = membershipPlans.find(p => p.id === subSelectedPlanId);
+                                const plan = cafeMembershipPlans.find(p => p.id === subSelectedPlanId);
                                 if (!plan) return null;
                                 return (
                                     <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
