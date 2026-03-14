@@ -54,6 +54,12 @@ const getLocalDateString = (date: Date = new Date()): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(...args);
+  }
+};
+
 
 
 
@@ -585,7 +591,7 @@ export default function OwnerDashboardPage() {
       : null;
 
     // Allow editing all bookings, not just walk-ins
-    console.log('[handleEditBooking] Opening edit modal for booking:', {
+    debugLog('[handleEditBooking] Opening edit modal for booking:', {
       id: actualBooking.id?.slice(0, 8),
       start_time_raw: actualBooking.start_time,
       booking_date: actualBooking.booking_date,
@@ -660,11 +666,11 @@ export default function OwnerDashboardPage() {
     try {
       setSaving(true);
 
-      console.log('[handleSaveBooking] ===== SAVE BOOKING START =====');
-      console.log('[handleSaveBooking] Raw editAmount value:', editAmount, 'Type:', typeof editAmount);
-      console.log('[handleSaveBooking] editDuration:', editDuration);
-      console.log('[handleSaveBooking] editConsole:', editConsole);
-      console.log('[handleSaveBooking] editControllers:', editControllers);
+      debugLog('[handleSaveBooking] ===== SAVE BOOKING START =====');
+      debugLog('[handleSaveBooking] Raw editAmount value:', editAmount, 'Type:', typeof editAmount);
+      debugLog('[handleSaveBooking] editDuration:', editDuration);
+      debugLog('[handleSaveBooking] editConsole:', editConsole);
+      debugLog('[handleSaveBooking] editControllers:', editControllers);
 
       // Convert 24-hour time (HH:MM) to 12-hour format for DB (e.g., "10:30 am")
       const [hours, minutes] = editStartTime.split(':').map(Number);
@@ -681,8 +687,8 @@ export default function OwnerDashboardPage() {
         return;
       }
 
-      console.log('[handleSaveBooking] Parsed amount:', updatedAmount);
-      console.log('[handleSaveBooking] Booking ID:', editingBooking.id);
+      debugLog('[handleSaveBooking] Parsed amount:', updatedAmount);
+      debugLog('[handleSaveBooking] Booking ID:', editingBooking.id);
 
       // Update booking via server API route (bypasses ISP block)
       const bookingItemId = editingBooking.booking_items?.[0]?.id;
@@ -743,7 +749,7 @@ export default function OwnerDashboardPage() {
         )
       );
 
-      console.log('[handleSaveBooking] ✓ Update complete - Local state updated');
+      debugLog('[handleSaveBooking] Update complete - local state updated');
 
       setEditingBooking(null);
       setEditingBookingItemId(null);
@@ -751,7 +757,7 @@ export default function OwnerDashboardPage() {
 
       // Force a refresh after 1 second to ensure UI shows updated data from database
       setTimeout(() => {
-        console.log('[handleSaveBooking] Triggering delayed refresh to sync with database');
+        debugLog('[handleSaveBooking] Triggering delayed refresh to sync with database');
         refreshData();
       }, 1000);
     } catch (err) {
@@ -768,10 +774,10 @@ export default function OwnerDashboardPage() {
     try {
       setDeletingBooking(true);
 
-      console.log('[handleDeleteBooking] ===== DELETE BOOKING START =====');
-      console.log('[handleDeleteBooking] Booking ID:', editingBooking.id);
-      console.log('[handleDeleteBooking] Specific item ID:', editingBookingItemId);
-      console.log('[handleDeleteBooking] Booking details:', {
+      debugLog('[handleDeleteBooking] ===== DELETE BOOKING START =====');
+      debugLog('[handleDeleteBooking] Booking ID:', editingBooking.id);
+      debugLog('[handleDeleteBooking] Specific item ID:', editingBookingItemId);
+      debugLog('[handleDeleteBooking] Booking details:', {
         customer: editingBooking.customer_name,
         amount: editingBooking.total_amount,
         date: editingBooking.booking_date,
@@ -842,7 +848,7 @@ export default function OwnerDashboardPage() {
         alert("Booking deleted successfully!");
       }
 
-      console.log('[handleDeleteBooking] ===== DELETE BOOKING COMPLETE =====');
+      debugLog('[handleDeleteBooking] ===== DELETE BOOKING COMPLETE =====');
 
       setEditingBooking(null);
       setEditingBookingItemId(null);
@@ -858,10 +864,10 @@ export default function OwnerDashboardPage() {
 
   // Subscription timer handlers
   async function handleStartTimer(subscriptionId: string) {
-    console.log('[Timer] Starting timer for subscription:', subscriptionId);
+    debugLog('[Timer] Starting timer for subscription:', subscriptionId);
     // Don't start if already running
     if (activeTimers.has(subscriptionId)) {
-      console.log('[Timer] Timer already running for:', subscriptionId);
+      debugLog('[Timer] Timer already running for:', subscriptionId);
       return;
     }
 
@@ -935,7 +941,7 @@ export default function OwnerDashboardPage() {
       return;
     }
 
-    console.log('[Timer] Assigning console station:', assignedStation);
+    debugLog('[Timer] Assigning console station:', assignedStation);
 
     // Save timer state and assigned console to database
     try {
@@ -974,27 +980,27 @@ export default function OwnerDashboardPage() {
 
     // Set local timer state
     setActiveTimers(prev => new Map(prev).set(subscriptionId, startTime));
-    console.log('[Timer] Timer started successfully');
+    debugLog('[Timer] Timer started successfully');
   }
 
   async function handleStopTimer(subscriptionId: string) {
-    console.log('[Timer] Stopping timer for subscription:', subscriptionId);
+    debugLog('[Timer] Stopping timer for subscription:', subscriptionId);
     const startTime = activeTimers.get(subscriptionId);
     if (!startTime) {
-      console.log('[Timer] No timer found for:', subscriptionId);
+      debugLog('[Timer] No timer found for:', subscriptionId);
       return;
     }
 
     // Calculate total elapsed time in hours
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000); // Calculate directly from start time
     const elapsedHours = elapsedSeconds / 3600; // convert seconds to hours
-    console.log('[Timer] Elapsed:', elapsedSeconds, 'seconds =', elapsedHours.toFixed(4), 'hours');
+    debugLog('[Timer] Elapsed:', elapsedSeconds, 'seconds =', elapsedHours.toFixed(4), 'hours');
 
     // Update subscription hours in database
     const subscription = subscriptions.find(s => s.id === subscriptionId);
     if (subscription) {
       const newHoursRemaining = Math.max(0, (subscription.hours_remaining || 0) - elapsedHours);
-      console.log('[Timer] Updating hours:', subscription.hours_remaining, '->', newHoursRemaining);
+      debugLog('[Timer] Updating hours:', subscription.hours_remaining, '->', newHoursRemaining);
 
       try {
         // Save usage history
@@ -1030,7 +1036,7 @@ export default function OwnerDashboardPage() {
           return;
         }
 
-        console.log('[Timer] Database updated successfully');
+        debugLog('[Timer] Database updated successfully');
 
         // Update local state
         setSubscriptions(prev => prev.map(s =>
@@ -1052,7 +1058,7 @@ export default function OwnerDashboardPage() {
           return newMap;
         });
 
-        console.log('[Timer] Timer stopped successfully');
+        debugLog('[Timer] Timer stopped successfully');
         const hours = Math.floor(elapsedHours);
         const minutes = Math.floor((elapsedHours - hours) * 60);
         const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -1094,18 +1100,18 @@ export default function OwnerDashboardPage() {
 
   // Restore active timers from database on mount or when subscriptions change
   useEffect(() => {
-    console.log('[Timer] Checking for active timers to restore...');
+    debugLog('[Timer] Checking for active timers to restore...');
     subscriptions.forEach(subscription => {
       // Check if this subscription has an active timer in the database
       if (subscription.timer_active && subscription.timer_start_time && !activeTimers.has(subscription.id)) {
-        console.log('[Timer] Restoring timer for subscription:', subscription.id);
+        debugLog('[Timer] Restoring timer for subscription:', subscription.id);
 
         const dbStartTime = new Date(subscription.timer_start_time).getTime();
 
         // Add to active timers
         setActiveTimers(prev => new Map(prev).set(subscription.id, dbStartTime));
 
-        console.log('[Timer] Timer restored.');
+        debugLog('[Timer] Timer restored.');
       }
     });
   }, [subscriptions, activeTimers]); // Run when subscriptions are loaded/updated
@@ -1118,7 +1124,7 @@ export default function OwnerDashboardPage() {
         return;
       }
 
-      console.log('[UsageHistory] Fetching usage history for subscription:', viewingSubscription.id);
+      debugLog('[UsageHistory] Fetching usage history for subscription:', viewingSubscription.id);
       setLoadingUsageHistory(true);
       const response = await fetch(
         `/api/owner/subscriptions/usage?subscriptionId=${viewingSubscription.id}`
@@ -1129,7 +1135,7 @@ export default function OwnerDashboardPage() {
         console.error('[UsageHistory] Error fetching usage history:', payload);
         setSubscriptionUsageHistory([]);
       } else {
-        console.log('[UsageHistory] Fetched usage history:', payload.usageHistory);
+        debugLog('[UsageHistory] Fetched usage history:', payload.usageHistory);
         setSubscriptionUsageHistory(payload.usageHistory || []);
       }
       setLoadingUsageHistory(false);
@@ -1192,7 +1198,7 @@ export default function OwnerDashboardPage() {
       }
 
       if (!viewingCustomer.phone) {
-        console.log('No phone number for customer:', viewingCustomer);
+        debugLog('No phone number for customer:', viewingCustomer);
         setCustomerBookings([]);
         setLoadingCustomerData(false);
         return;
@@ -1200,7 +1206,7 @@ export default function OwnerDashboardPage() {
 
       setLoadingCustomerData(true);
 
-      console.log('Fetching bookings for phone:', viewingCustomer.phone, 'cafe:', selectedCafeId);
+      debugLog('Fetching bookings for phone:', viewingCustomer.phone, 'cafe:', selectedCafeId);
 
       const response = await fetch(
         `/api/owner/customers/bookings?cafeId=${selectedCafeId}&phone=${encodeURIComponent(viewingCustomer.phone)}`
@@ -1211,7 +1217,7 @@ export default function OwnerDashboardPage() {
         console.error('Error fetching bookings:', payload);
         setCustomerBookings([]);
       } else {
-        console.log('Successfully fetched bookings:', payload.bookings?.length || 0, 'bookings');
+        debugLog('Successfully fetched bookings:', payload.bookings?.length || 0, 'bookings');
         setCustomerBookings(payload.bookings || []);
       }
       setLoadingCustomerData(false);
