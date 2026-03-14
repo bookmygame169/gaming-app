@@ -32,6 +32,8 @@ export default function OverviewTab({
   bookings,
   setActiveTab
 }: OverviewTabProps) {
+  const [cafe] = cafes;
+
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }}>
       {/* Quick Stats Grid */}
@@ -64,7 +66,7 @@ export default function OverviewTab({
             transition: "all 0.2s ease",
           }}
           onMouseEnter={(e) => {
-            if (cafes.length > 0) {
+            if (cafe) {
               e.currentTarget.style.transform = "translateY(-4px)";
               e.currentTarget.style.boxShadow = "0 8px 24px rgba(99, 102, 241, 0.2)";
             }
@@ -93,16 +95,16 @@ export default function OverviewTab({
             <p
               style={{
                 fontFamily: fonts.heading,
-                fontSize: cafes.length > 0 ? (isMobile ? 16 : 20) : (isMobile ? 24 : 36),
+                fontSize: cafe ? (isMobile ? 16 : 20) : (isMobile ? 24 : 36),
                 margin: isMobile ? "6px 0" : "8px 0",
                 color: "#818cf8",
                 lineHeight: 1.2,
               }}
             >
-              {loadingData ? "..." : cafes.length > 0 ? cafes[0].name || "Your Café" : "0"}
+              {loadingData ? "..." : cafe?.name || (cafe ? "Your Café" : "0")}
             </p>
             <p style={{ fontSize: isMobile ? 11 : 13, color: "#818cf8B3", marginTop: isMobile ? 6 : 8 }}>
-              {cafes.length > 0 ? "Click to manage" : "No café assigned"}
+              {cafe ? "Click to manage" : "No café assigned"}
             </p>
           </div>
         </div>

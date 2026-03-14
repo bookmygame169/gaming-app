@@ -67,6 +67,8 @@ export default function SettingsTab({
   galleryImages,
   handleGalleryPhotoDelete,
 }: SettingsTabProps) {
+  const [cafe] = cafes;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease-out" }}>
       {/* Café Information Section */}
@@ -96,7 +98,7 @@ export default function SettingsTab({
           </p>
         </div>
 
-        {cafes.length > 0 && (
+        {cafe && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Café Name */}
             <div>
@@ -113,7 +115,7 @@ export default function SettingsTab({
               </label>
               <input
                 type="text"
-                value={cafes[0].name || ''}
+                value={cafe.name || ''}
                 readOnly
                 style={{
                   width: "100%",
@@ -1027,10 +1029,10 @@ export default function SettingsTab({
                 Profile Photo
               </label>
 
-              {cafes[0].cover_url ? (
+              {cafe.cover_url ? (
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
                   <img
-                    src={cafes[0].cover_url}
+                    src={cafe.cover_url}
                     alt="Profile"
                     style={{
                       width: 200,

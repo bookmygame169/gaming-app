@@ -29,6 +29,15 @@ interface InventoryAnalyticsProps {
   cafeId: string;
 }
 
+const formatLocalDate = (date: Date): string => (
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+);
+
+const parseLocalDate = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const CATEGORY_COLORS: Record<InventoryCategory, { bg: string; text: string; bar: string }> = {
   snacks: { bg: 'bg-amber-500/10', text: 'text-amber-500', bar: 'bg-amber-500' },
   cold_drinks: { bg: 'bg-cyan-500/10', text: 'text-cyan-500', bar: 'bg-cyan-500' },
@@ -48,14 +57,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
   const getDateRange = useCallback((range: string) => {
     const now = new Date();
-
-    const toLocalISODate = (date: Date) => {
-      const offset = date.getTimezoneOffset();
-      const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-      return localDate.toISOString().slice(0, 10);
-    };
-
-    const todayStr = toLocalISODate(now);
+    const todayStr = formatLocalDate(now);
     let startDate = todayStr;
     let endDate = todayStr;
     let prevStartDate = todayStr;
@@ -66,39 +68,39 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
       endDate = todayStr;
       const yesterday = new Date(now);
       yesterday.setDate(now.getDate() - 1);
-      prevStartDate = toLocalISODate(yesterday);
+      prevStartDate = formatLocalDate(yesterday);
       prevEndDate = prevStartDate;
     } else if (range === '7d') {
       const sevenDaysAgo = new Date(now);
       sevenDaysAgo.setDate(now.getDate() - 6);
-      startDate = toLocalISODate(sevenDaysAgo);
+      startDate = formatLocalDate(sevenDaysAgo);
       endDate = todayStr;
       const fourteenDaysAgo = new Date(now);
       fourteenDaysAgo.setDate(now.getDate() - 13);
-      prevStartDate = toLocalISODate(fourteenDaysAgo);
+      prevStartDate = formatLocalDate(fourteenDaysAgo);
       const eightDaysAgo = new Date(now);
       eightDaysAgo.setDate(now.getDate() - 7);
-      prevEndDate = toLocalISODate(eightDaysAgo);
+      prevEndDate = formatLocalDate(eightDaysAgo);
     } else if (range === '30d') {
       const thirtyDaysAgo = new Date(now);
       thirtyDaysAgo.setDate(now.getDate() - 29);
-      startDate = toLocalISODate(thirtyDaysAgo);
+      startDate = formatLocalDate(thirtyDaysAgo);
       endDate = todayStr;
       const sixtyDaysAgo = new Date(now);
       sixtyDaysAgo.setDate(now.getDate() - 59);
-      prevStartDate = toLocalISODate(sixtyDaysAgo);
+      prevStartDate = formatLocalDate(sixtyDaysAgo);
       const thirtyOneDaysAgo = new Date(now);
       thirtyOneDaysAgo.setDate(now.getDate() - 30);
-      prevEndDate = toLocalISODate(thirtyOneDaysAgo);
+      prevEndDate = formatLocalDate(thirtyOneDaysAgo);
     } else if (range === 'month') {
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      startDate = toLocalISODate(firstDay);
+      startDate = formatLocalDate(firstDay);
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      endDate = toLocalISODate(lastDay);
+      endDate = formatLocalDate(lastDay);
       const prevFirstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      prevStartDate = toLocalISODate(prevFirstDay);
+      prevStartDate = formatLocalDate(prevFirstDay);
       const prevLastDay = new Date(now.getFullYear(), now.getMonth(), 0);
-      prevEndDate = toLocalISODate(prevLastDay);
+      prevEndDate = formatLocalDate(prevLastDay);
     } else if (range === 'all') {
       startDate = '2020-01-01';
       endDate = todayStr;
@@ -107,13 +109,13 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
     } else if (range === 'custom' && customStart) {
       startDate = customStart;
       endDate = customEnd || customStart;
-      const start = new Date(customStart);
-      const end = new Date(customEnd || customStart);
+      const start = parseLocalDate(customStart);
+      const end = parseLocalDate(customEnd || customStart);
       const duration = end.getTime() - start.getTime();
       const prevEnd = new Date(start.getTime() - 1);
       const prevStart = new Date(prevEnd.getTime() - duration);
-      prevStartDate = toLocalISODate(prevStart);
-      prevEndDate = toLocalISODate(prevEnd);
+      prevStartDate = formatLocalDate(prevStart);
+      prevEndDate = formatLocalDate(prevEnd);
     }
 
     return { startDate, endDate, prevStartDate, prevEndDate };
@@ -328,7 +330,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `inventory_analytics_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `inventory_analytics_${dateRange}_${formatLocalDate(new Date())}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

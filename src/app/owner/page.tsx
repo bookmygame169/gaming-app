@@ -125,6 +125,8 @@ export default function OwnerDashboardPage() {
 
   // Multi-café support
   const [selectedCafeId, setSelectedCafeId] = useState<string>('');
+  const currentCafe = cafes.find(c => c.id === selectedCafeId) || cafes[0] || null;
+  const currentCafeId = currentCafe?.id || '';
 
   // Subscription timer state
   const [activeTimers, setActiveTimers] = useState<Map<string, number>>(new Map()); // Now storing start time (epoch seconds or ms)
@@ -281,7 +283,7 @@ export default function OwnerDashboardPage() {
     selectedCafeId,
     consolePricing,
     stationPricing,
-    cafeData: cafes.find(c => c.id === selectedCafeId) || cafes[0] || null,
+    cafeData: currentCafe,
   });
 
 
@@ -436,8 +438,8 @@ export default function OwnerDashboardPage() {
 
   // Populate editedCafe when cafes data loads
   useEffect(() => {
-    if (cafes.length > 0) {
-      const cafe = cafes[0];
+    if (currentCafe) {
+      const cafe = currentCafe;
       // Parse opening_hours if it exists (format: "Mon-Sun: 10:00 AM - 11:00 PM")
       let openingTime = '09:00 AM';
       let closingTime = '11:00 PM';
@@ -467,11 +469,11 @@ export default function OwnerDashboardPage() {
         accessories_details: cafe.accessories_details || '',
       });
     }
-  }, [cafes]);
+  }, [currentCafe]);
 
   // Initialize selected café when cafes load
   useEffect(() => {
-    if (cafes.length > 0 && !selectedCafeId) {
+    if (cafes.length > 0 && (!selectedCafeId || !cafes.some(cafe => cafe.id === selectedCafeId))) {
       setSelectedCafeId(cafes[0].id);
     }
   }, [cafes, selectedCafeId]);
@@ -479,9 +481,12 @@ export default function OwnerDashboardPage() {
   // Fetch gallery images when cafes data loads
   useEffect(() => {
     async function fetchGalleryImages() {
-      if (cafes.length === 0) return;
+      if (!currentCafeId) {
+        setGalleryImages([]);
+        return;
+      }
 
-      const res = await fetch(`/api/owner/gallery?cafeId=${cafes[0].id}`);
+      const res = await fetch(`/api/owner/gallery?cafeId=${currentCafeId}`);
       if (!res.ok) {
         console.error('Error fetching gallery images');
         return;
@@ -491,7 +496,7 @@ export default function OwnerDashboardPage() {
     }
 
     fetchGalleryImages();
-  }, [cafes]);
+  }, [currentCafeId]);
 
   // Realtime subscription removed — ISP blocks WebSocket to Supabase (ERR_CERT_COMMON_NAME_INVALID)
   // Mutations call refreshData() directly to keep UI in sync
@@ -618,7 +623,7 @@ export default function OwnerDashboardPage() {
     }
     // If no console type, try to get first available console from cafe
     if (!consoleType && cafes.length > 0) {
-      const cafe = cafes.find(c => c.id === actualBooking.cafe_id) || cafes[0];
+      const cafe = cafes.find(c => c.id === actualBooking.cafe_id) || currentCafe;
       if (cafe?.ps5_count && cafe.ps5_count > 0) consoleType = 'ps5';
       else if (cafe?.ps4_count && cafe.ps4_count > 0) consoleType = 'ps4';
       else if (cafe?.xbox_count && cafe.xbox_count > 0) consoleType = 'xbox';
@@ -1387,7 +1392,7 @@ export default function OwnerDashboardPage() {
 
   // Handle settings save
   const handleSaveSettings = async () => {
-    if (cafes.length === 0) return;
+    if (!currentCafeId) return;
 
     setSavingSettings(true);
     try {
@@ -1398,7 +1403,7 @@ export default function OwnerDashboardPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cafeId: cafes[0].id,
+          cafeId: currentCafeId,
           updates: {
             address: editedCafe.address,
             phone: editedCafe.phone,
@@ -1419,7 +1424,7 @@ export default function OwnerDashboardPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to save settings'); }
 
       // Update local state
-      setCafes(prev => prev.map((c, i) => i === 0 ? {
+      setCafes(prev => prev.map((c) => c.id === currentCafeId ? {
         ...c,
         address: editedCafe.address,
         phone: editedCafe.phone,
@@ -1448,23 +1453,23 @@ export default function OwnerDashboardPage() {
 
   // Handle add new station
   const handleAddStation = async () => {
-    if (cafes.length === 0 || newStationCount < 1) return;
+    if (!currentCafe || newStationCount < 1) return;
 
     setAddingStation(true);
     try {
       const columnName = `${newStationType}_count`;
-      const currentCount = (cafes[0] as any)[columnName] || 0;
+      const currentCount = (currentCafe as any)[columnName] || 0;
       const newCount = currentCount + newStationCount;
 
       const res = await fetch('/api/owner/cafes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cafeId: cafes[0].id, updates: { [columnName]: newCount } }),
+        body: JSON.stringify({ cafeId: currentCafeId, updates: { [columnName]: newCount } }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to add station'); }
 
       // Update local state
-      setCafes(prev => prev.map((c, i) => i === 0 ? {
+      setCafes(prev => prev.map((c) => c.id === currentCafeId ? {
         ...c,
         [columnName]: newCount,
       } : c));
@@ -1497,19 +1502,19 @@ export default function OwnerDashboardPage() {
 
   // Handle profile photo upload
   const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || cafes.length === 0) return;
+    if (!event.target.files || event.target.files.length === 0 || !currentCafe) return;
 
     const file = event.target.files[0];
     const fileExt = file.name.split('.').pop();
-    const fileName = `${cafes[0].id}/profile-${Date.now()}.${fileExt}`;
+    const fileName = `${currentCafeId}/profile-${Date.now()}.${fileExt}`;
 
     setUploadingProfilePhoto(true);
     try {
       // Delete old profile photo if exists
-      if (cafes[0].cover_url) {
-        const oldPath = cafes[0].cover_url.split('/').pop();
+      if (currentCafe.cover_url) {
+        const oldPath = currentCafe.cover_url.split('/').pop();
         if (oldPath) {
-          await supabase.storage.from('cafe_images').remove([`${cafes[0].id}/${oldPath}`]);
+          await supabase.storage.from('cafe_images').remove([`${currentCafeId}/${oldPath}`]);
         }
       }
 
@@ -1529,12 +1534,12 @@ export default function OwnerDashboardPage() {
       const updateRes = await fetch('/api/owner/cafes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cafeId: cafes[0].id, updates: { cover_url: publicUrl } }),
+        body: JSON.stringify({ cafeId: currentCafeId, updates: { cover_url: publicUrl } }),
       });
       if (!updateRes.ok) { const d = await updateRes.json(); throw new Error(d.error || 'Failed to update photo'); }
 
       // Update local state
-      setCafes(prev => prev.map((c, i) => i === 0 ? { ...c, cover_url: publicUrl } : c));
+      setCafes(prev => prev.map((c) => c.id === currentCafeId ? { ...c, cover_url: publicUrl } : c));
       alert('Profile photo updated successfully!');
     } catch (error) {
       console.error('Error uploading profile photo:', error);
@@ -1548,26 +1553,26 @@ export default function OwnerDashboardPage() {
 
   // Handle profile photo delete
   const handleProfilePhotoDelete = async () => {
-    if (cafes.length === 0 || !cafes[0].cover_url) return;
+    if (!currentCafe || !currentCafe.cover_url) return;
 
     if (!confirm('Are you sure you want to delete the profile photo?')) return;
 
     try {
-      const oldPath = cafes[0].cover_url.split('/').pop();
+      const oldPath = currentCafe.cover_url.split('/').pop();
       if (oldPath) {
-        await supabase.storage.from('cafe_images').remove([`${cafes[0].id}/${oldPath}`]);
+        await supabase.storage.from('cafe_images').remove([`${currentCafeId}/${oldPath}`]);
       }
 
       // Update database via API
       const delRes = await fetch('/api/owner/cafes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cafeId: cafes[0].id, updates: { cover_url: null } }),
+        body: JSON.stringify({ cafeId: currentCafeId, updates: { cover_url: null } }),
       });
       if (!delRes.ok) { const d = await delRes.json(); throw new Error(d.error || 'Failed to delete photo'); }
 
       // Update local state
-      setCafes(prev => prev.map((c, i) => i === 0 ? { ...c, cover_url: null } : c));
+      setCafes(prev => prev.map((c) => c.id === currentCafeId ? { ...c, cover_url: null } : c));
       alert('Profile photo deleted successfully!');
     } catch (error) {
       console.error('Error deleting profile photo:', error);
@@ -1577,11 +1582,11 @@ export default function OwnerDashboardPage() {
 
   // Handle gallery photo upload
   const handleGalleryPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || cafes.length === 0) return;
+    if (!event.target.files || event.target.files.length === 0 || !currentCafeId) return;
 
     const file = event.target.files[0];
     const fileExt = file.name.split('.').pop();
-    const fileName = `${cafes[0].id}/gallery-${Date.now()}.${fileExt}`;
+    const fileName = `${currentCafeId}/gallery-${Date.now()}.${fileExt}`;
 
     setUploadingGalleryPhoto(true);
     try {
@@ -1601,7 +1606,7 @@ export default function OwnerDashboardPage() {
       const galleryRes = await fetch('/api/owner/gallery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cafeId: cafes[0].id, imageUrl: publicUrl }),
+        body: JSON.stringify({ cafeId: currentCafeId, imageUrl: publicUrl }),
       });
       if (!galleryRes.ok) { const d = await galleryRes.json(); throw new Error(d.error || 'Failed to save gallery image'); }
       const { image } = await galleryRes.json();
@@ -1650,13 +1655,13 @@ export default function OwnerDashboardPage() {
 
   // Handle delete station
   const handleDeleteStation = async () => {
-    if (!stationToDelete || cafes.length === 0) return;
+    if (!stationToDelete || !currentCafe) return;
 
     setDeletingStation(true);
     try {
       // Map station type to column name (e.g., "PS5" -> "ps5_count")
       const columnName = `${stationToDelete.type.toLowerCase().replace(/\s+/g, '_')}_count`;
-      const currentCount = (cafes[0] as any)[columnName] || 0;
+      const currentCount = (currentCafe as any)[columnName] || 0;
 
       if (currentCount <= 0) {
         alert('No stations to delete');
@@ -1669,12 +1674,12 @@ export default function OwnerDashboardPage() {
       const res = await fetch('/api/owner/cafes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cafeId: cafes[0].id, updates: { [columnName]: newCount } }),
+        body: JSON.stringify({ cafeId: currentCafeId, updates: { [columnName]: newCount } }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete station'); }
 
       // Update local state
-      setCafes(prev => prev.map((c, i) => i === 0 ? {
+      setCafes(prev => prev.map((c) => c.id === currentCafeId ? {
         ...c,
         [columnName]: newCount,
       } : c));
@@ -1831,7 +1836,7 @@ export default function OwnerDashboardPage() {
       <DashboardLayout
         activeTab={activeTab}
         onTabChange={(tab: string) => setActiveTab(tab as NavTab)}
-        cafeName={cafes.length > 0 ? cafes[0].name || "Your Café" : "Loading..."}
+        cafeName={currentCafe?.name || (cafes.length > 0 ? "Your Café" : "Loading...")}
         isMobile={isMobile}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
@@ -1957,7 +1962,7 @@ export default function OwnerDashboardPage() {
               theme={theme}
               fonts={fonts}
               loadingData={loadingData}
-              cafes={cafes}
+              cafes={currentCafe ? [currentCafe] : []}
               stats={stats}
               revenueFilter={revenueFilter}
               setRevenueFilter={setRevenueFilter}
@@ -2012,7 +2017,7 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
 
-              <LiveStatus cafeId={selectedCafeId || cafes[0].id} isMobile={isMobile} />
+              <LiveStatus cafeId={currentCafeId} isMobile={isMobile} />
             </div>
           )}
 
@@ -2122,18 +2127,18 @@ export default function OwnerDashboardPage() {
                       🏪
                     </div>
                     <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, color: theme.textPrimary }}>
-                      {cafes[0].name || "Your Gaming Café"}
+                      {currentCafe?.name || "Your Gaming Café"}
                     </h2>
-                    {cafes[0].address && (
+                    {currentCafe?.address && (
                       <div style={{ fontSize: 15, color: theme.textSecondary, display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
                         <span>📍</span>
-                        {cafes[0].address}
+                        {currentCafe.address}
                       </div>
                     )}
                   </div>
 
                   {/* Café Description */}
-                  {cafes[0].description && (
+                  {currentCafe?.description && (
                     <div style={{
                       fontSize: 14,
                       color: theme.textSecondary,
@@ -2144,13 +2149,16 @@ export default function OwnerDashboardPage() {
                       borderRadius: 12,
                       border: `1px solid ${theme.border}`,
                     }}>
-                      {cafes[0].description}
+                      {currentCafe.description}
                     </div>
                   )}
 
                   {/* Action Button */}
                   <button
-                    onClick={() => router.push(`/owner/cafes/${cafes[0].id}`)}
+                    onClick={() => {
+                      if (!currentCafeId) return;
+                      router.push(`/owner/cafes/${currentCafeId}`);
+                    }}
                     style={{
                       width: "100%",
                       padding: "18px 32px",
@@ -2454,7 +2462,7 @@ export default function OwnerDashboardPage() {
                   <tbody>
                     {/* Dynamically generate station rows from cafe console counts */}
                     {(() => {
-                      const cafe = cafes[0];
+                      const cafe = currentCafe;
                       const allStations: any[] = [];
 
                       // Console type configurations
@@ -2482,6 +2490,7 @@ export default function OwnerDashboardPage() {
 
                       // Generate stations for each console type
                       consoleTypes.forEach((consoleType) => {
+                        if (!cafe) return;
                         const count = cafe[consoleType.key as keyof CafeRow] as number || 0;
                         for (let i = 1; i <= count; i++) {
                           const stationName = `${consoleType.name}-${String(i).padStart(2, '0')}`;
@@ -2719,8 +2728,8 @@ export default function OwnerDashboardPage() {
           {activeTab === 'memberships' && (
             <Memberships
               isMobile={isMobile}
-              cafeId={selectedCafeId || cafes[0]?.id || ''}
-              cafeOpeningHours={cafes.find(c => c.id === (selectedCafeId || cafes[0]?.id))?.opening_hours || ''}
+              cafeId={currentCafeId}
+              cafeOpeningHours={currentCafe?.opening_hours || ''}
               subscriptions={subscriptions}
               membershipPlans={membershipPlans}
               activeTimers={activeTimers}
@@ -2735,7 +2744,7 @@ export default function OwnerDashboardPage() {
           {activeTab === 'coupons' && (
             <Coupons
               isMobile={isMobile}
-              cafeId={selectedCafeId || cafes[0]?.id || ''}
+              cafeId={currentCafeId}
               onRefresh={() => refreshData()}
             />
           )}
@@ -2743,16 +2752,16 @@ export default function OwnerDashboardPage() {
           {/* Reports Tab */}
           {activeTab === 'reports' && (
             <Reports
-              cafeId={selectedCafeId || cafes[0]?.id || ''}
+              cafeId={currentCafeId}
               isMobile={isMobile}
-              openingHours={cafes[0]?.opening_hours ?? undefined}
+              openingHours={currentCafe?.opening_hours ?? undefined}
             />
           )}
 
           {/* Inventory Tab */}
           {activeTab === 'inventory' && (
             <Inventory
-              cafeId={selectedCafeId || cafes[0]?.id || ''}
+              cafeId={currentCafeId}
             />
           )}
 
@@ -2760,10 +2769,10 @@ export default function OwnerDashboardPage() {
 
           {activeTab === 'billing' && (
             <Billing
-              cafeId={selectedCafeId || cafes[0]?.id}
+              cafeId={currentCafeId}
               cafes={cafes}
               isMobile={isMobile}
-              pricingData={consolePricing[selectedCafeId || cafes[0]?.id]}
+              pricingData={consolePricing[currentCafeId]}
               stationPricingList={Object.values(stationPricing)}
               onSuccess={() => {
                 refreshData();
@@ -2778,7 +2787,7 @@ export default function OwnerDashboardPage() {
             <SettingsTab
               theme={theme}
               fonts={fonts}
-              cafes={cafes}
+              cafes={currentCafe ? [currentCafe] : []}
               editedCafe={editedCafe}
               setEditedCafe={setEditedCafe}
               settingsChanged={settingsChanged}
@@ -2802,7 +2811,7 @@ export default function OwnerDashboardPage() {
         isOpen={addItemsModalOpen}
         onClose={() => setAddItemsModalOpen(false)}
         bookingId={addItemsBookingId}
-        cafeId={selectedCafeId || cafes[0]?.id || ''}
+        cafeId={currentCafeId}
         customerName={addItemsCustomerName}
         onItemsAdded={() => {
           refreshData();
@@ -2814,7 +2823,7 @@ export default function OwnerDashboardPage() {
         isOpen={viewOrdersModalOpen}
         onClose={() => setViewOrdersModalOpen(false)}
         bookingId={viewOrdersBookingId}
-        cafeId={selectedCafeId || cafes[0]?.id || ''}
+        cafeId={currentCafeId}
         customerName={viewOrdersCustomerName}
         onOrdersUpdated={() => {
           refreshData();
@@ -3274,34 +3283,34 @@ export default function OwnerDashboardPage() {
                           onBlur={(e) => e.target.style.borderColor = theme.border}
                         >
                           <option value="">Select Console</option>
-                          {cafes.length > 0 && cafes[0].ps5_count && cafes[0].ps5_count > 0 && (
+                          {currentCafe?.ps5_count && currentCafe.ps5_count > 0 && (
                             <option value="ps5">🎮 PS5</option>
                           )}
-                          {cafes.length > 0 && cafes[0].ps4_count && cafes[0].ps4_count > 0 && (
+                          {currentCafe?.ps4_count && currentCafe.ps4_count > 0 && (
                             <option value="ps4">🎮 PS4</option>
                           )}
-                          {cafes.length > 0 && cafes[0].xbox_count && cafes[0].xbox_count > 0 && (
+                          {currentCafe?.xbox_count && currentCafe.xbox_count > 0 && (
                             <option value="xbox">🎮 Xbox</option>
                           )}
-                          {cafes.length > 0 && cafes[0].pc_count && cafes[0].pc_count > 0 && (
+                          {currentCafe?.pc_count && currentCafe.pc_count > 0 && (
                             <option value="pc">💻 PC</option>
                           )}
-                          {cafes.length > 0 && cafes[0].pool_count && cafes[0].pool_count > 0 && (
+                          {currentCafe?.pool_count && currentCafe.pool_count > 0 && (
                             <option value="pool">🎱 Pool</option>
                           )}
-                          {cafes.length > 0 && cafes[0].snooker_count && cafes[0].snooker_count > 0 && (
+                          {currentCafe?.snooker_count && currentCafe.snooker_count > 0 && (
                             <option value="snooker">🎱 Snooker</option>
                           )}
-                          {cafes.length > 0 && cafes[0].arcade_count && cafes[0].arcade_count > 0 && (
+                          {currentCafe?.arcade_count && currentCafe.arcade_count > 0 && (
                             <option value="arcade">🕹️ Arcade</option>
                           )}
-                          {cafes.length > 0 && cafes[0].vr_count && cafes[0].vr_count > 0 && (
+                          {currentCafe?.vr_count && currentCafe.vr_count > 0 && (
                             <option value="vr">🥽 VR</option>
                           )}
-                          {cafes.length > 0 && cafes[0].steering_wheel_count && cafes[0].steering_wheel_count > 0 && (
+                          {currentCafe?.steering_wheel_count && currentCafe.steering_wheel_count > 0 && (
                             <option value="steering_wheel">🏎️ Steering Wheel</option>
                           )}
-                          {cafes.length > 0 && (cafes[0] as any).racing_sim_count && (cafes[0] as any).racing_sim_count > 0 && (
+                          {currentCafe && (currentCafe as any).racing_sim_count && (currentCafe as any).racing_sim_count > 0 && (
                             <option value="racing_sim">🏁 Racing Sim</option>
                           )}
                         </select>
@@ -4377,7 +4386,7 @@ export default function OwnerDashboardPage() {
                 </button>
                 <button
                   onClick={async () => {
-                    if (!cafes[0]?.id) return;
+                    if (!currentCafeId || !currentCafe) return;
 
                     setSavingPricing(true);
                     try {
@@ -4386,7 +4395,7 @@ export default function OwnerDashboardPage() {
 
                       // Prepare pricing data
                       const pricingData: any = {
-                        cafe_id: cafes[0].id,
+                        cafe_id: currentCafeId,
                         station_type: editingStation.type,
                         station_number: stationNumber,
                         station_name: editingStation.name,
@@ -4439,7 +4448,7 @@ export default function OwnerDashboardPage() {
                       // Apply to all stations of same type if checkbox is checked
                       if (applyToAll) {
                         // Get console count for this type - map display name to DB column
-                        const cafe = cafes[0];
+                        const cafe = currentCafe;
                         const typeToDbKey: Record<string, string> = {
                           'PC': 'pc_count', 'PS5': 'ps5_count', 'PS4': 'ps4_count',
                           'Xbox': 'xbox_count', 'VR': 'vr_count', 'Pool': 'pool_count',
@@ -4480,7 +4489,7 @@ export default function OwnerDashboardPage() {
                       const { data: updatedPricing } = await supabase
                         .from("station_pricing")
                         .select("*")
-                        .eq("cafe_id", cafes[0].id);
+                        .eq("cafe_id", currentCafeId);
 
                       if (updatedPricing) {
                         const pricingMap: Record<string, any> = {};

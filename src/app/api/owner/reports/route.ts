@@ -6,6 +6,17 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+const getIndiaDateString = (date: Date = new Date()): string => {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(date);
+};
+
 // POST /api/owner/reports — fetch booking data for reports
 export async function POST(request: NextRequest) {
   try {
@@ -145,8 +156,8 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(now.getDate() - 30);
-    const startDate = thirtyDaysAgo.toISOString().slice(0, 10);
-    const endDate = now.toISOString().slice(0, 10);
+    const startDate = getIndiaDateString(thirtyDaysAgo);
+    const endDate = getIndiaDateString(now);
 
     const { data, error } = await supabase
       .from('bookings')
