@@ -1,110 +1,204 @@
 'use client';
 
-import { BookingRow } from '@/types/database';
+import { useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { StatCard } from './ui';
-import { Card } from './ui';
-import { TrendingUp, Users, Clock, Calendar, DollarSign } from 'lucide-react';
 
-// Helper function to get local date string (YYYY-MM-DD) instead of UTC
+const REVENUE_VISIBILITY_KEY = 'owner-dashboard-revenue-visible';
+
 const getLocalDateString = (date: Date = new Date()): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 interface DashboardStatsProps {
-    bookings: any[];
-    subscriptions: any[];
-    activeTimers: Map<string, any>;
-    loadingData: boolean;
-    isMobile: boolean;
+  bookings: DashboardBooking[];
+  subscriptions: DashboardSubscription[];
+  activeTimers: Map<string, number>;
+  loadingData: boolean;
+  isMobile: boolean;
+}
+
+interface DashboardBooking {
+  booking_date?: string | null;
+  payment_mode?: string | null;
+  status?: string | null;
+  total_amount?: number | null;
+}
+
+interface DashboardSubscription {
+  amount_paid?: number | string | null;
+  id: string;
+  purchase_date?: string | null;
 }
 
 export function DashboardStats({
-    bookings,
-    subscriptions,
-    activeTimers,
-    loadingData,
-    isMobile,
+  bookings,
+  subscriptions,
+  activeTimers,
+  loadingData,
+  isMobile,
 }: DashboardStatsProps) {
-    // Logic for Active Now
-    const activeBookingsCount = bookings.filter(
-        (b) =>
-            b.status === 'in-progress' &&
-            b.booking_date === getLocalDateString()
-    ).length;
+  const [showRevenue, setShowRevenue] = useState(false);
+  const [loadedPreference, setLoadedPreference] = useState(false);
 
-    const activeSubscriptionsCount = subscriptions.filter((sub) =>
-        activeTimers.has(sub.id)
-    ).length;
+  useEffect(() => {
+    try {
+      setShowRevenue(localStorage.getItem(REVENUE_VISIBILITY_KEY) === 'true');
+    } catch {
+      setShowRevenue(false);
+    } finally {
+      setLoadedPreference(true);
+    }
+  }, []);
 
-    const activeNow = activeBookingsCount + activeSubscriptionsCount;
+  const toggleRevenueVisibility = () => {
+    setShowRevenue((current) => {
+      const next = !current;
 
-    // Logic for Today's Revenue - Exclude cancelled bookings
-    const todayStr = getLocalDateString();
-    const todayBookings = bookings.filter((b) =>
-        b.booking_date === todayStr && b.status !== 'cancelled'
-    );
-    const todaySubscriptions = subscriptions.filter((sub) => {
-        const purchaseDate = sub.purchase_date
-            ? getLocalDateString(new Date(sub.purchase_date))
-            : null;
-        return purchaseDate === todayStr;
+      try {
+        localStorage.setItem(REVENUE_VISIBILITY_KEY, String(next));
+      } catch {
+        // Ignore storage failures and keep the in-memory toggle working.
+      }
+
+      return next;
     });
+  };
 
-    const cashRevenue = todayBookings
-        .filter((b) => b.payment_mode?.toLowerCase() === 'cash')
-        .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+  const activeBookingsCount = bookings.filter(
+    (b) => b.status === 'in-progress' && b.booking_date === getLocalDateString()
+  ).length;
 
-    const onlineRevenue = todayBookings
-        .filter((b) => {
-            const mode = b.payment_mode?.toLowerCase();
-            return mode === 'online' || mode === 'upi';
-        })
-        .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+  const activeSubscriptionsCount = subscriptions.filter((sub) =>
+    activeTimers.has(sub.id)
+  ).length;
 
-    const membershipRevenue = todaySubscriptions.reduce(
-        (sum, sub) => sum + (parseFloat(sub.amount_paid) || 0),
-        0
-    );
+  const activeNow = activeBookingsCount + activeSubscriptionsCount;
 
-    const totalRevenue = cashRevenue + onlineRevenue + membershipRevenue;
+  const todayStr = getLocalDateString();
+  const todayBookings = bookings.filter(
+    (b) => b.booking_date === todayStr && b.status !== 'cancelled'
+  );
+  const todaySubscriptions = subscriptions.filter((sub) => {
+    const purchaseDate = sub.purchase_date
+      ? getLocalDateString(new Date(sub.purchase_date))
+      : null;
 
-    // Logic for Today's Sessions - Count all including cancelled for reference
-    const todaySessions = bookings.filter((b) =>
-        b.booking_date === todayStr && b.status !== 'cancelled'
-    ).length;
+    return purchaseDate === todayStr;
+  });
 
-    return (
-        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8`}>
-            {/* Active Now Card */}
-            <StatCard
-                title="Active Now"
-                value={loadingData ? '...' : activeNow}
-                icon="▶️"
-                gradient="radial-gradient(circle at top right, rgba(239, 68, 68, 0.15), transparent 70%), linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))"
-                color="#ef4444"
-                isMobile={isMobile}
-            />
+  const cashRevenue = todayBookings
+    .filter((b) => b.payment_mode?.toLowerCase() === 'cash')
+    .reduce((sum, b) => sum + (b.total_amount || 0), 0);
 
-            {/* Today's Revenue Card */}
-            <StatCard
-                title="Today's Revenue"
-                value={`₹${loadingData ? '...' : totalRevenue}`}
-                subtitle={`Cash: ₹${cashRevenue} • Online: ₹${onlineRevenue} • Memberships: ₹${membershipRevenue}`}
-                icon="₹"
-                gradient="radial-gradient(circle at top right, rgba(34, 197, 94, 0.15), transparent 70%), linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))"
-                color="#22c55e"
-                isMobile={isMobile}
-            />
+  const onlineRevenue = todayBookings
+    .filter((b) => {
+      const mode = b.payment_mode?.toLowerCase();
+      return mode === 'online' || mode === 'upi';
+    })
+    .reduce((sum, b) => sum + (b.total_amount || 0), 0);
 
-            {/* Today's Sessions Card */}
-            <StatCard
-                title="Today's Sessions"
-                value={loadingData ? '...' : todaySessions}
-                icon="🕐"
-                gradient="radial-gradient(circle at top right, rgba(249, 115, 22, 0.15), transparent 70%), linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))"
-                color="#f97316"
-                isMobile={isMobile}
-            />
+  const membershipRevenue = todaySubscriptions.reduce(
+    (sum, sub) => sum + (parseFloat(sub.amount_paid) || 0),
+    0
+  );
+
+  const totalRevenue = cashRevenue + onlineRevenue + membershipRevenue;
+  const revenueVisible = loadedPreference && showRevenue;
+
+  const todaySessions = bookings.filter(
+    (b) => b.booking_date === todayStr && b.status !== 'cancelled'
+  ).length;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-3 md:gap-6">
+      <StatCard
+        title="Active Now"
+        value={loadingData ? '...' : activeNow}
+        icon="▶️"
+        gradient="radial-gradient(circle at top right, rgba(239, 68, 68, 0.15), transparent 70%), linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))"
+        color="#ef4444"
+        isMobile={isMobile}
+      />
+
+      <div
+        className={`
+          relative overflow-hidden rounded-2xl border
+          ${isMobile ? 'p-4' : 'p-6'}
+        `}
+        style={{
+          background:
+            'radial-gradient(circle at top right, rgba(34, 197, 94, 0.15), transparent 70%), linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))',
+          borderColor: '#22c55e40',
+        }}
+      >
+        <div
+          className="absolute -top-5 right-12 opacity-10"
+          style={{ fontSize: isMobile ? 60 : 80 }}
+        >
+          ₹
         </div>
-    );
+
+        <button
+          type="button"
+          onClick={toggleRevenueVisibility}
+          className={`
+            absolute right-3 top-3 z-20 inline-flex items-center justify-center rounded-full
+            border border-emerald-500/30 bg-slate-950/70 text-emerald-400 transition-colors
+            hover:bg-slate-900
+            ${isMobile ? 'h-9 w-9' : 'h-10 w-10'}
+          `}
+          aria-label={revenueVisible ? 'Hide today revenue' : 'Show today revenue'}
+          aria-pressed={revenueVisible}
+          title={revenueVisible ? 'Hide today revenue' : 'Show today revenue'}
+        >
+          {revenueVisible ? <EyeOff size={isMobile ? 16 : 18} /> : <Eye size={isMobile ? 16 : 18} />}
+        </button>
+
+        <div className="relative z-10">
+          <p
+            className={`
+              uppercase tracking-wider font-semibold
+              ${isMobile ? 'text-[9px] mb-1.5' : 'text-[11px] mb-2'}
+            `}
+            style={{ color: '#22c55eE6' }}
+          >
+            Today&apos;s Revenue
+          </p>
+          <p
+            className={`
+              font-bold leading-none
+              ${isMobile ? 'text-2xl my-1.5' : 'text-4xl my-2'}
+            `}
+            style={{ color: '#22c55e' }}
+          >
+            {loadingData
+              ? '...'
+              : revenueVisible
+                ? `₹${totalRevenue}`
+                : '••••••'}
+          </p>
+          <p
+            className={`${isMobile ? 'text-[11px] mt-1.5' : 'text-[13px] mt-2'}`}
+            style={{ color: '#22c55eB3' }}
+          >
+            {loadingData
+              ? 'Loading revenue...'
+              : revenueVisible
+                ? `Cash: ₹${cashRevenue} • Online: ₹${onlineRevenue} • Memberships: ₹${membershipRevenue}`
+                : 'Hidden. Tap the eye icon to reveal.'}
+          </p>
+        </div>
+      </div>
+
+      <StatCard
+        title="Today's Sessions"
+        value={loadingData ? '...' : todaySessions}
+        icon="🕐"
+        gradient="radial-gradient(circle at top right, rgba(249, 115, 22, 0.15), transparent 70%), linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))"
+        color="#f97316"
+        isMobile={isMobile}
+      />
+    </div>
+  );
 }
