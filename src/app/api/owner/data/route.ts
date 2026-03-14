@@ -3,6 +3,25 @@ import { requireOwnerContext } from "@/lib/ownerAuth";
 
 export const dynamic = 'force-dynamic';
 
+function getIndiaDateString(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new Error("Failed to format India date string");
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireOwnerContext(request);
@@ -11,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { ownerId, supabase } = auth.context;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
 
     // 1. Fetch Cafes
     const { data: cafeRows, error: cafesError } = await supabase

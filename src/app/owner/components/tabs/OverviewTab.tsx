@@ -45,7 +45,7 @@ export default function OverviewTab({
       >
         <StatCard
           title="Today&apos;s Revenue"
-          value={`₹${loadingData ? "..." : stats?.revenueToday ?? 0}`}
+          value={`₹${loadingData ? "..." : stats?.todayRevenue ?? 0}`}
           subtitle="Total earnings today"
           icon="💵"
           gradient="linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.1))"
