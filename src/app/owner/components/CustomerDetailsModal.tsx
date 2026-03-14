@@ -2,24 +2,20 @@
 import React from 'react';
 import { theme } from '../utils/theme';
 import { convertTo12Hour } from '../utils';
-import { X, Phone, Mail, Calendar, Clock, CreditCard, ChevronRight, Play, Star, History, Award } from 'lucide-react';
+import { X, Phone, Mail, Clock, CreditCard, ChevronRight, Play, Star, History, Award } from 'lucide-react';
 
 type CustomerDetailsModalProps = {
     customer: any;
     customerBookings: any[];
-    loadingCustomerData: boolean;
     isMobile: boolean;
     onClose: () => void;
-    onBackToSubscription: (sub: any) => void;
 };
 
 export default function CustomerDetailsModal({
     customer,
     customerBookings,
-    loadingCustomerData,
     isMobile,
     onClose,
-    onBackToSubscription
 }: CustomerDetailsModalProps) {
     if (!customer) return null;
 
@@ -29,8 +25,22 @@ export default function CustomerDetailsModal({
         ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
         : (customer.name?.[0] || 'U').toUpperCase();
 
-    const totalSpent = customerBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+    const totalSpent = typeof customer.totalSpent === 'number'
+        ? customer.totalSpent
+        : customerBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
     const totalHours = customerBookings.reduce((sum, b) => sum + (b.duration ? b.duration / 60 : 0), 0);
+    const activeSubscription = customer.activeSubscription;
+    const purchasedHours = Number(
+        activeSubscription?.hours_purchased ??
+        activeSubscription?.membership_plans?.hours ??
+        0
+    );
+    const remainingHours = Number(activeSubscription?.hours_remaining ?? purchasedHours);
+    const usedHours = Math.max(0, purchasedHours - remainingHours);
+    const usagePercent = purchasedHours > 0 ? Math.min(100, (usedHours / purchasedHours) * 100) : 0;
+    const expiryLabel = activeSubscription?.expiry_date
+        ? new Date(activeSubscription.expiry_date).toLocaleDateString()
+        : 'No expiry';
 
     return (
         <div
@@ -233,7 +243,7 @@ export default function CustomerDetailsModal({
                     <div style={{ flex: 1, padding: isMobile ? 24 : 32, overflowY: 'auto' }}>
 
                         {/* Active Subscription Banner */}
-                        {customer.activeSubscription ? (
+                        {activeSubscription ? (
                             <div style={{
                                 background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0) 100%)',
                                 border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -259,10 +269,10 @@ export default function CustomerDetailsModal({
                                     </div>
                                     <div>
                                         <h3 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 4 }}>
-                                            {customer.activeSubscription.membership_plans?.name || 'Membership'}
+                                            {activeSubscription.membership_plans?.name || 'Membership'}
                                         </h3>
                                         <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                                            Expires {new Date(customer.activeSubscription.end_date).toLocaleDateString()}
+                                            Expires {expiryLabel}
                                         </p>
                                     </div>
                                 </div>
@@ -272,12 +282,14 @@ export default function CustomerDetailsModal({
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                                         <span style={{ color: '#e2e8f0' }}>Usage</span>
                                         <span style={{ color: '#94a3b8' }}>
-                                            {Math.floor((customer.activeSubscription.minutes_used || 0) / 60)}h / {customer.activeSubscription.membership_plans?.hours_limit || 0}h
+                                            {purchasedHours > 0
+                                                ? `${usedHours.toFixed(1)}h used / ${purchasedHours}h`
+                                                : 'Active pass'}
                                         </span>
                                     </div>
                                     <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 10, overflow: 'hidden' }}>
                                         <div style={{
-                                            width: `${Math.min(100, ((customer.activeSubscription.minutes_used || 0) / ((customer.activeSubscription.membership_plans?.hours_limit || 1) * 60)) * 100)}%`,
+                                            width: `${usagePercent}%`,
                                             height: '100%',
                                             background: '#3b82f6',
                                             borderRadius: 10
@@ -302,7 +314,7 @@ export default function CustomerDetailsModal({
                                     </div>
                                     <div>
                                         <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 4 }}>No active subscription</h3>
-                                        <p style={{ fontSize: 13, color: '#64748b' }}>Customer doesn't have an active plan</p>
+                                        <p style={{ fontSize: 13, color: '#64748b' }}>Customer doesn&apos;t have an active plan</p>
                                     </div>
                                 </div>
                                 <ChevronRight size={20} color="#64748b" />

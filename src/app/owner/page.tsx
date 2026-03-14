@@ -1225,17 +1225,28 @@ export default function OwnerDashboardPage() {
     fetchCustomerData();
   }, [viewingCustomer, selectedCafeId]);
 
-  const handleViewCustomer = (customer: { name: string; phone?: string | null; email?: string | null }) => {
-    // Try to find active subscription
-    const activeSub = customer.phone ? subscriptions.find(s =>
-      (s.customer_phone === customer.phone || s.user?.phone === customer.phone) &&
-      s.status === 'active' &&
-      new Date(s.end_date) > new Date()
-    ) : null;
+  const handleViewCustomer = (customer: {
+    activeSubscription?: any;
+    email?: string | null;
+    lastVisit?: string;
+    name: string;
+    phone?: string | null;
+    sessions?: number;
+    totalSpent?: number;
+  }) => {
+    const activeSub = customer.activeSubscription || (
+      customer.phone
+        ? subscriptions.find((subscription) =>
+          (subscription.customer_phone === customer.phone || subscription.customer_name === customer.name) &&
+          subscription.status === 'active' &&
+          (!subscription.expiry_date || new Date(subscription.expiry_date) > new Date())
+        )
+        : null
+    );
 
     setViewingCustomer({
       ...customer,
-      activeSubscription: activeSub
+      activeSubscription: activeSub || null,
     });
   };
 
@@ -2244,7 +2255,6 @@ export default function OwnerDashboardPage() {
               customerSortOrder={customerSortOrder}
               setCustomerSortOrder={setCustomerSortOrder}
               subscriptions={subscriptions}
-              setViewingCustomer={setViewingCustomer}
               handleViewCustomer={handleViewCustomer}
             />
           )}
@@ -4896,13 +4906,8 @@ export default function OwnerDashboardPage() {
           <CustomerDetailsModal
             customer={viewingCustomer}
             customerBookings={customerBookings}
-            loadingCustomerData={loadingCustomerData}
             isMobile={isMobile}
             onClose={() => setViewingCustomer(null)}
-            onBackToSubscription={(sub: any) => {
-              setViewingSubscription(sub);
-              setViewingCustomer(null);
-            }}
           />
         )
       }
