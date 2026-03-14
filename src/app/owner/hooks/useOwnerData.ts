@@ -18,7 +18,6 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
 
   // Pagination state (internal to hook for now, or expose if needed)
   const [bookingPage, setBookingPage] = useState(1);
-  const bookingsPerPage = 50;
 
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
@@ -108,7 +107,7 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
     }
 
     loadData();
-  }, [allowed, ownerId, refreshTrigger, bookingPage, bookingsPerPage]);
+  }, [allowed, ownerId, refreshTrigger]);
 
   return {
     stats,

@@ -4,7 +4,7 @@ import { convertTo12Hour, getLocalDateString } from '../../utils';
 import { getEndTime } from '@/lib/timeUtils';
 
 type SessionsTabProps = {
-  theme: any;
+  theme: Record<string, string>;
   isMobile: boolean;
   loadingData: boolean;
   flattenedFilteredBookings: BookingRow[];
@@ -137,6 +137,10 @@ export default function SessionsTab({
             }}
           >
             <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
 

@@ -1759,6 +1759,16 @@ export default function OwnerDashboardPage() {
     }));
   });
 
+  const filteredBookingsCount = flattenedFilteredBookings.length;
+  const paginatedFlattenedFilteredBookings = flattenedFilteredBookings.slice(
+    (bookingPage - 1) * bookingsPerPage,
+    bookingPage * bookingsPerPage
+  );
+
+  useEffect(() => {
+    setBookingPage(1);
+  }, [searchQuery, statusFilter, dateFilter, dateRangeFilter, customStartDate, customEndDate, setBookingPage]);
+
   // Loading state
   if (checkingRole) {
     return (
@@ -2195,7 +2205,7 @@ export default function OwnerDashboardPage() {
               theme={theme}
               isMobile={isMobile}
               loadingData={loadingData}
-              flattenedFilteredBookings={flattenedFilteredBookings}
+              flattenedFilteredBookings={paginatedFlattenedFilteredBookings}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               statusFilter={statusFilter}
@@ -2205,7 +2215,7 @@ export default function OwnerDashboardPage() {
               bookingPage={bookingPage}
               setBookingPage={setBookingPage}
               bookingsPerPage={bookingsPerPage}
-              totalBookingsCount={totalBookingsCount}
+              totalBookingsCount={filteredBookingsCount}
               handleConfirmBooking={handleConfirmBooking}
               handleStartBooking={handleStartBooking}
               handleEditBooking={handleEditBooking}
