@@ -11,7 +11,12 @@ async function verifyOwnerSession(request: NextRequest) {
   const session = getOwnerSessionFromRequest(request);
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({
+      userId: null,
+      username: null,
+      role: null,
+      isOwner: false,
+    });
   }
 
   try {
@@ -32,8 +37,12 @@ async function verifyOwnerSession(request: NextRequest) {
 
     if (!isOwner) {
       const response = NextResponse.json(
-        { error: "Owner session is no longer valid" },
-        { status: 401 }
+        {
+          userId: null,
+          username: null,
+          role,
+          isOwner: false,
+        }
       );
       clearOwnerSessionCookie(response);
       return response;

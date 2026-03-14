@@ -26,13 +26,27 @@ type OwnerAuthResult =
 
 let cachedSupabaseAdmin: SupabaseClient | null = null;
 
+function getSupabaseServerKey(): string {
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!key) {
+    throw new Error(
+      "Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY."
+    );
+  }
+
+  return key;
+}
+
 function getOwnerSessionSecret(): string {
   const secret =
-    process.env.OWNER_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.OWNER_SESSION_SECRET || getSupabaseServerKey();
 
   if (!secret) {
     throw new Error(
-      "Missing OWNER_SESSION_SECRET or SUPABASE_SERVICE_ROLE_KEY for owner sessions."
+      "Missing OWNER_SESSION_SECRET or Supabase key for owner sessions."
     );
   }
 
@@ -154,11 +168,11 @@ export function getSupabaseAdmin(): SupabaseClient {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = getSupabaseServerKey();
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY."
+      "Missing NEXT_PUBLIC_SUPABASE_URL."
     );
   }
 
