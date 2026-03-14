@@ -26,9 +26,18 @@ export default function OwnerLoginPage() {
     let cancelled = false;
 
     async function checkOwnerSession() {
-      const res = await fetch('/api/owner/verify', { method: 'GET' });
-      if (!cancelled && res.ok) {
-        router.push("/owner");
+      try {
+        const res = await fetch('/api/owner/verify', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!cancelled && res.ok && data.isOwner) {
+          router.replace("/owner");
+        }
+      } catch (err) {
+        console.error("Owner session check failed:", err);
       }
     }
 

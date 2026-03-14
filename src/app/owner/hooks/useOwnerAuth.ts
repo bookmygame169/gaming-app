@@ -13,7 +13,10 @@ export function useOwnerAuth() {
 
     async function checkRole() {
       try {
-        const res = await fetch('/api/owner/verify', { method: 'GET' });
+        const res = await fetch('/api/owner/verify', {
+          method: 'GET',
+          cache: 'no-store',
+        });
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || !data.isOwner) {
@@ -21,7 +24,7 @@ export function useOwnerAuth() {
             setAllowed(false);
             setCheckingRole(false);
           }
-          router.push("/owner/login");
+          router.replace("/owner/login");
           return;
         }
 
@@ -37,7 +40,7 @@ export function useOwnerAuth() {
           setAllowed(false);
           setCheckingRole(false);
         }
-        router.push("/owner/login");
+        router.replace("/owner/login");
       }
     }
 
