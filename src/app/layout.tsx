@@ -5,6 +5,43 @@ import LoadingBar from "@/components/LoadingBar";
 import { Inter, Roboto_Mono, Orbitron, Rajdhani } from "next/font/google";
 import "./globals.css";
 
+const localhostServiceWorkerCleanupScript = `
+(() => {
+  if (typeof window === "undefined") return;
+
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "::1";
+
+  if (!isLocalhost || !("serviceWorker" in navigator)) return;
+
+  const cleanupFlag = "__bmg_local_sw_cleanup_v2";
+  if (sessionStorage.getItem(cleanupFlag) === "done") return;
+
+  const clearCaches = async () => {
+    if (!("caches" in window)) return;
+    const cacheKeys = await caches.keys();
+    await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+  };
+
+  navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+    if (registrations.length === 0) {
+      sessionStorage.setItem(cleanupFlag, "done");
+      return;
+    }
+
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+    await clearCaches();
+
+    sessionStorage.setItem(cleanupFlag, "done");
+    window.location.reload();
+  }).catch(() => {
+    sessionStorage.setItem(cleanupFlag, "done");
+  });
+})();
+`;
+
 const geistSans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -86,6 +123,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: localhostServiceWorkerCleanupScript }} />
         <link rel="preconnect" href="https://zlwqbmcgrrqrbyxdpqgn.supabase.co" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         {/* iOS Splash Screens - using available splash as fallback */}
