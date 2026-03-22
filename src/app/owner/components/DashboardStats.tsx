@@ -23,6 +23,10 @@ interface DashboardBooking {
   payment_mode?: string | null;
   status?: string | null;
   total_amount?: number | null;
+  booking_orders?: Array<{
+    id: string;
+    total_price: number | null;
+  }>;
 }
 
 interface DashboardSubscription {
@@ -111,6 +115,12 @@ export function DashboardStats({
   );
 
   const totalRevenue = cashRevenue + onlineRevenue + membershipRevenue;
+  
+  const snacksRevenue = todayBookings.reduce((sum, b) => {
+    const orderSum = b.booking_orders?.reduce((s, order) => s + (order.total_price || 0), 0) || 0;
+    return sum + orderSum;
+  }, 0);
+
   const revenueVisible = loadedPreference && showRevenue;
 
   const todaySessions = bookings.filter(
@@ -192,7 +202,7 @@ export function DashboardStats({
             {loadingData
               ? 'Loading revenue...'
               : revenueVisible
-                ? `Cash: ₹${cashRevenue} • Online: ₹${onlineRevenue} • Memberships: ₹${membershipRevenue}`
+                ? `Cash: ₹${cashRevenue} • Online: ₹${onlineRevenue} • Memberships: ₹${membershipRevenue} • Snacks: ₹${snacksRevenue}`
                 : 'Hidden. Tap the eye icon to reveal.'}
           </p>
         </div>

@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
       .select(`
         id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
         source, payment_mode, created_at, customer_name, customer_phone,
-        booking_items (id, console, quantity, price)
+        booking_items (id, console, quantity, price),
+        booking_orders (id, total_price)
       `)
       .in("cafe_id", cafeIds)
       .order("created_at", { ascending: false })
