@@ -3138,85 +3138,8 @@ export default function OwnerDashboardPage() {
                       </div>
                     </div>
 
-                    {/* Duration */}
-                    <div style={{ marginTop: 16 }}>
-                      <label style={{ fontSize: 12, color: theme.textMuted, display: "block", marginBottom: 8, fontWeight: 600 }}>
-                        Duration *
-                      </label>
-                      <select
-                        value={editDuration}
-                        onChange={(e) => setEditDuration(parseInt(e.target.value))}
-                        style={{
-                          width: "100%",
-                          padding: "14px",
-                          background: theme.background,
-                          border: `2px solid ${theme.border}`,
-                          borderRadius: 10,
-                          color: theme.textPrimary,
-                          fontSize: 14,
-                          fontFamily: fonts.body,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = "#6366f1"}
-                        onBlur={(e) => e.target.style.borderColor = theme.border}
-                      >
-                        <option value={30}>30 Minutes</option>
-                        <option value={60}>1 Hour</option>
-                        <option value={90}>1.5 Hours</option>
-                        <option value={120}>2 Hours</option>
-                        <option value={150}>2.5 Hours</option>
-                        <option value={180}>3 Hours</option>
-                        <option value={210}>3.5 Hours</option>
-                        <option value={240}>4 Hours</option>
-                        <option value={270}>4.5 Hours</option>
-                        <option value={300}>5 Hours</option>
-                      </select>
-                    </div>
-
-                    {/* Duration Quick Actions */}
-                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                      <button
-                        type="button"
-                        onClick={() => handleExtendSession(30)}
-                        style={{
-                          flex: 1,
-                          padding: "8px",
-                          background: "rgba(99, 102, 241, 0.1)",
-                          border: `1px solid rgba(99, 102, 241, 0.3)`,
-                          borderRadius: 8,
-                          color: "#818cf8",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.2)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.1)"; }}
-                      >
-                        +30 Min
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleExtendSession(60)}
-                        style={{
-                          flex: 1,
-                          padding: "8px",
-                          background: "rgba(99, 102, 241, 0.1)",
-                          border: `1px solid rgba(99, 102, 241, 0.3)`,
-                          borderRadius: 8,
-                          color: "#818cf8",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.2)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.1)"; }}
-                      >
-                        +1 Hour
-                      </button>
+                    {/* Duration hidden as it's now per-item. editDuration is still used as internal default */}
+                    <div style={{ display: "none" }}>
                     </div>
 
                     {/* End Time */}
@@ -3263,7 +3186,13 @@ export default function OwnerDashboardPage() {
                           const period = hours >= 12 ? 'pm' : 'am';
                           const hours12 = hours % 12 || 12;
                           const startTime12h = `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
-                          const endTime = getEndTime(startTime12h, editDuration);
+                          
+                          // Use maximum duration among all editItems for end time calculation
+                          const maxDuration = editItems.length > 0
+                            ? editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0)
+                            : (editDuration || 60);
+                          
+                          const endTime = getEndTime(startTime12h, maxDuration);
                           // Format consistently with uppercase AM/PM
                           return endTime.replace(/\s*(am|pm)$/i, (match) => ` ${match.trim().toUpperCase()}`);
                         })()}
