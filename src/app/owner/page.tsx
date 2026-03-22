@@ -501,6 +501,56 @@ export default function OwnerDashboardPage() {
   // Realtime subscription removed — ISP blocks WebSocket to Supabase (ERR_CERT_COMMON_NAME_INVALID)
   // Mutations call refreshData() directly to keep UI in sync
 
+  // Quick Actions for Editing Bookings
+  const handleExtendSession = (minutes: number) => {
+    setEditDuration(prev => prev + minutes);
+    setEditAmountManuallyEdited(false);
+  };
+
+  const handleEndSessionNow = () => {
+    if (!editingBooking?.start_time) return;
+    
+    // Calculate minutes elapsed since start_time today
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    const timeMatch = editingBooking.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+    if (!timeMatch) return;
+    
+    let hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
+    const period = timeMatch[3]?.toLowerCase();
+    
+    if (period === 'pm' && hours !== 12) hours += 12;
+    else if (period === 'am' && hours === 12) hours = 0;
+    
+    const startMinutes = hours * 60 + minutes;
+    const elapsedMinutes = Math.max(0, currentMinutes - startMinutes);
+    
+    // Round up to nearest 30 mins (minimum 30 mins)
+    const roundedDuration = Math.max(30, Math.ceil(elapsedMinutes / 30) * 30);
+    
+    setEditDuration(roundedDuration);
+    setEditStatus('completed');
+    setEditAmountManuallyEdited(false);
+  };
+
+  // Auto-calculate editAmount when inputs change
+  useEffect(() => {
+    if (editingBooking && !editAmountManuallyEdited) {
+      if (editConsole && editDuration) {
+        // Calculate console price
+        const consolePrice = getBillingPrice(editConsole as ConsoleId, editControllers, editDuration);
+        
+        // Add snacks price attached to this booking
+        const snacksPrice = editingBooking.booking_orders?.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0) || 0;
+        
+        setEditAmount((consolePrice + snacksPrice).toString());
+      }
+    }
+  }, [editConsole, editControllers, editDuration, editingBooking, editAmountManuallyEdited, getBillingPrice]);
+
+
   // Handle confirm booking (pending -> confirmed)
   async function handleConfirmBooking(booking: BookingRow) {
     if (booking.status !== "pending") {
@@ -3191,11 +3241,78 @@ export default function OwnerDashboardPage() {
                       </select>
                     </div>
 
+                    {/* Duration Quick Actions */}
+                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleExtendSession(30)}
+                        style={{
+                          flex: 1,
+                          padding: "8px",
+                          background: "rgba(99, 102, 241, 0.1)",
+                          border: `1px solid rgba(99, 102, 241, 0.3)`,
+                          borderRadius: 8,
+                          color: "#818cf8",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.2)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.1)"; }}
+                      >
+                        +30 Min
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExtendSession(60)}
+                        style={{
+                          flex: 1,
+                          padding: "8px",
+                          background: "rgba(99, 102, 241, 0.1)",
+                          border: `1px solid rgba(99, 102, 241, 0.3)`,
+                          borderRadius: 8,
+                          color: "#818cf8",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.2)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(99, 102, 241, 0.1)"; }}
+                      >
+                        +1 Hour
+                      </button>
+                    </div>
+
                     {/* End Time */}
                     <div style={{ marginTop: 16 }}>
-                      <label style={{ fontSize: 12, color: theme.textMuted, display: "block", marginBottom: 8, fontWeight: 600 }}>
-                        End Time <span style={{ color: theme.textSecondary, fontSize: 11 }}>(Auto-calculated)</span>
-                      </label>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <label style={{ fontSize: 12, color: theme.textMuted, margin: 0, fontWeight: 600 }}>
+                          End Time <span style={{ color: theme.textSecondary, fontSize: 11 }}>(Auto-calculated)</span>
+                        </label>
+                        {editingBooking.status === 'in-progress' && (
+                          <button
+                            type="button"
+                            onClick={handleEndSessionNow}
+                            style={{
+                              padding: "4px 10px",
+                              background: "rgba(239, 68, 68, 0.1)",
+                              border: `1px solid rgba(239, 68, 68, 0.3)`,
+                              borderRadius: 6,
+                              color: "#ef4444",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"; }}
+                          >
+                            End Now
+                          </button>
+                        )}
+                      </div>
                       <div style={{
                         padding: "14px",
                         background: "rgba(100, 116, 139, 0.1)",
@@ -3346,6 +3463,82 @@ export default function OwnerDashboardPage() {
                           <option value={4}>4 Controllers</option>
                         </select>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* F&B / Snacks Summary Section */}
+                  <div style={{
+                    background: "rgba(234, 179, 8, 0.05)",
+                    border: "1px solid rgba(234, 179, 8, 0.1)",
+                    borderRadius: 14,
+                    padding: 20,
+                  }}>
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 12,
+                      paddingBottom: 12,
+                      borderBottom: "1px solid rgba(234, 179, 8, 0.1)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{
+                          fontSize: 20,
+                          background: "rgba(234, 179, 8, 0.15)",
+                          width: 36,
+                          height: 36,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 10,
+                        }}>🍔</span>
+                        <h3 style={{
+                          fontSize: 13,
+                          color: "#94a3b8",
+                          fontWeight: 700,
+                          margin: 0,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.8px",
+                        }}>
+                          Attached Snacks & Drinks
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewOrdersBookingId(editingBooking.id);
+                          setViewOrdersCustomerName(editingBooking.customer_name || "");
+                          setViewOrdersModalOpen(true);
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          background: "rgba(234, 179, 8, 0.15)",
+                          border: "1px solid rgba(234, 179, 8, 0.3)",
+                          borderRadius: 6,
+                          color: "#eab308",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(234, 179, 8, 0.25)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(234, 179, 8, 0.15)"; }}
+                      >
+                        Manage Snacks
+                      </button>
+                    </div>
+                    
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {editingBooking.booking_orders?.length ? (
+                        editingBooking.booking_orders.map(order => (
+                          <div key={order.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: theme.textSecondary }}>
+                            <span>📝 Order #{order.id.slice(0,8).toUpperCase()}</span>
+                            <span style={{ fontWeight: 600, color: theme.textPrimary }}>₹{order.total_price}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: 13, color: theme.textMuted }}>No snacks attached to this session.</span>
+                      )}
                     </div>
                   </div>
 
