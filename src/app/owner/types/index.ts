@@ -75,6 +75,7 @@ export type BookingRow = {
     console: string | null;
     quantity: number | null;
     price: number | null;
+    title?: string | null;
   }>;
   booking_orders?: Array<{
     id: string;

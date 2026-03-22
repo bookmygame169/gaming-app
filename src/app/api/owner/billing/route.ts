@@ -77,7 +77,8 @@ export async function PUT(request: NextRequest) {
             .update({
               console: it.console,
               quantity: it.quantity,
-              price: it.price
+              price: it.price,
+              title: it.title
             })
             .eq("id", it.id)
             .eq("booking_id", bookingId);
@@ -89,7 +90,8 @@ export async function PUT(request: NextRequest) {
               booking_id: bookingId,
               console: it.console,
               quantity: it.quantity,
-              price: it.price
+              price: it.price,
+              title: it.title
             });
         }
       }

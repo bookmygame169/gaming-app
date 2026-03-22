@@ -220,10 +220,33 @@ export default function OwnerDashboardPage() {
   const [editDate, setEditDate] = useState<string>("");
   const [editStartTime, setEditStartTime] = useState<string>(""); // Store as "HH:MM" 24-hour format
   const [editDuration, setEditDuration] = useState<number>(60);
-  const [editItems, setEditItems] = useState<Array<{ id?: string, console: string, quantity: number, price?: number }>>([]);
+  const [editItems, setEditItems] = useState<Array<{ id?: string, console: string, quantity: number, duration: number, price?: number }>>([]);
   const [saving, setSaving] = useState(false);
   const [deletingBooking, setDeletingBooking] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Helper functions for editing multiple items
+  const addEditItem = () => {
+    let defaultConsole = "ps5";
+    const cafe = cafes.find(c => c.id === (editingBooking?.cafe_id)) || (cafes.length > 0 ? cafes[0] : null);
+    if (cafe) {
+      if (cafe?.ps5_count && cafe.ps5_count > 0) defaultConsole = 'ps5';
+      else if (cafe?.pc_count && cafe.pc_count > 0) defaultConsole = 'pc';
+    }
+    setEditItems(prev => [...prev, { console: defaultConsole, quantity: 1, duration: editDuration || 60 }]);
+    setEditAmountManuallyEdited(false);
+  };
+
+  const removeEditItem = (index: number) => {
+    if (editItems.length <= 1) return;
+    setEditItems(prev => prev.filter((_, i) => i !== index));
+    setEditAmountManuallyEdited(false);
+  };
+
+  const updateEditItem = (index: number, updates: Partial<{ console: string, quantity: number, duration: number }>) => {
+    setEditItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item));
+    setEditAmountManuallyEdited(false);
+  };
 
 
 
@@ -537,14 +560,13 @@ export default function OwnerDashboardPage() {
   // Auto-calculate editAmount when inputs change
   useEffect(() => {
     if (editingBooking && !editAmountManuallyEdited) {
-      const isMultiItem = editingBooking.booking_items && editingBooking.booking_items.length > 1;
       const snacksPrice = editingBooking.booking_orders?.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0) || 0;
 
-      if (editItems.length > 0 && editDuration) {
-        // Calculate sum of all items in editItems array
+      if (editItems.length > 0) {
+        // Calculate sum of all items in editItems array using their specific durations
         let totalConsolesPrice = 0;
         editItems.forEach((item) => {
-          totalConsolesPrice += getBillingPrice(item.console as ConsoleId, item.quantity || 1, editDuration);
+          totalConsolesPrice += getBillingPrice(item.console as ConsoleId, item.quantity || 1, item.duration || editDuration || 60);
         });
         setEditAmount((totalConsolesPrice + snacksPrice).toString());
       }
@@ -669,15 +691,21 @@ export default function OwnerDashboardPage() {
     setEditCustomerPhone(actualBooking.user_phone || actualBooking.customer_phone || "");
     setEditDate(actualBooking.booking_date || "");
     setEditDuration(actualBooking.duration || 60);
-    // Populate editItems array
     if (actualBooking.booking_items && actualBooking.booking_items.length > 0) {
       setEditItems(actualBooking.booking_items.map(item => {
         let consoleType = item.console || "";
         if (consoleType === 'steering') consoleType = 'steering_wheel';
+        
+        // Try to get duration from title (stored as string like "60")
+        let itemDuration = actualBooking.duration || 60;
+        if (item.title && !isNaN(parseInt(item.title))) {
+          itemDuration = parseInt(item.title);
+        }
         return {
           id: item.id,
           console: consoleType,
           quantity: item.quantity || 1,
+          duration: itemDuration,
           price: item.price ?? undefined
         };
       }));
@@ -686,36 +714,12 @@ export default function OwnerDashboardPage() {
       const cafe = cafes.find(c => c.id === actualBooking.cafe_id) || currentCafe;
       if (cafe) {
         if (cafe?.ps5_count && cafe.ps5_count > 0) defaultConsole = 'ps5';
-        else if (cafe?.ps4_count && cafe.ps4_count > 0) defaultConsole = 'ps4';
-        else if (cafe?.xbox_count && cafe.xbox_count > 0) defaultConsole = 'xbox';
         else if (cafe?.pc_count && cafe.pc_count > 0) defaultConsole = 'pc';
       }
-      setEditItems([{ console: defaultConsole, quantity: 1 }]);
+      setEditItems([{ console: defaultConsole, quantity: 1, duration: actualBooking.duration || 60 }]);
     }
-    // Helper functions for editing multiple items
-    const addEditItem = () => {
-      let defaultConsole = "ps5";
-      const cafe = cafes.find(c => c.id === actualBooking.cafe_id) || currentCafe;
-      if (cafe) {
-        if (cafe?.ps5_count && cafe.ps5_count > 0) defaultConsole = 'ps5';
-        else if (cafe?.ps4_count && cafe.ps4_count > 0) defaultConsole = 'ps4';
-        else if (cafe?.xbox_count && cafe.xbox_count > 0) defaultConsole = 'xbox';
-        else if (cafe?.pc_count && cafe.pc_count > 0) defaultConsole = 'pc';
-      }
-      setEditItems(prev => [...prev, { console: defaultConsole, quantity: 1 }]);
-      setEditAmountManuallyEdited(false);
-    };
 
-    const removeEditItem = (index: number) => {
-      if (editItems.length <= 1) return;
-      setEditItems(prev => prev.filter((_, i) => i !== index));
-      setEditAmountManuallyEdited(false);
-    };
-
-    const updateEditItem = (index: number, updates: Partial<{ console: string, quantity: number }>) => {
-      setEditItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item));
-      setEditAmountManuallyEdited(false);
-    };
+    // Helper functions removed from here (now at component level)
 
     // Parse booking time to 24-hour format for time input
     if (actualBooking.start_time) {
@@ -787,13 +791,14 @@ export default function OwnerDashboardPage() {
             customer_phone: editCustomerPhone,
             booking_date: editDate,
             start_time: startTime12h,
-            duration: editDuration,
+            duration: editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0),
           },
           items: editItems.map(item => ({
             id: item.id,
             console: item.console,
             quantity: item.quantity,
-            price: getBillingPrice(item.console as ConsoleId, item.quantity, editDuration) || 0
+            title: (item.duration || 60).toString(),
+            price: getBillingPrice(item.console as ConsoleId, item.quantity, item.duration || 60) || 0
           })),
         }),
       });
@@ -818,13 +823,14 @@ export default function OwnerDashboardPage() {
               user_phone: editCustomerPhone,
               booking_date: editDate,
               start_time: startTime12h,
-              duration: editDuration,
+              duration: editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0),
               booking_items: editItems.map((item, idx) => ({
                 id: item.id || `temp-item-${idx}`,
                 booking_id: b.id,
                 console: item.console,
                 quantity: item.quantity,
-                price: getBillingPrice(item.console as ConsoleId, item.quantity, editDuration) || 0
+                title: (item.duration || 60).toString(),
+                price: getBillingPrice(item.console as ConsoleId, item.quantity, item.duration || 60) || 0
               }))
             }
             : b
@@ -3339,7 +3345,7 @@ export default function OwnerDashboardPage() {
                             </button>
                           )}
                           
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                             {/* Console */}
                             <div>
                               <label style={{ fontSize: 11, color: theme.textMuted, display: "block", marginBottom: 6, fontWeight: 600 }}>
@@ -3348,10 +3354,7 @@ export default function OwnerDashboardPage() {
                               <select
                                 value={item.console}
                                 onChange={(e) => {
-                                  const newItems = [...editItems];
-                                  newItems[index] = { ...newItems[index], console: e.target.value };
-                                  setEditItems(newItems);
-                                  setEditAmountManuallyEdited(false);
+                                  updateEditItem(index, { console: e.target.value });
                                 }}
                                 style={{
                                   width: "100%",
@@ -3377,6 +3380,33 @@ export default function OwnerDashboardPage() {
                               </select>
                             </div>
 
+                            {/* Duration */}
+                            <div>
+                              <label style={{ fontSize: 11, color: theme.textMuted, display: "block", marginBottom: 6, fontWeight: 600 }}>
+                                Duration
+                              </label>
+                              <select
+                                value={item.duration}
+                                onChange={(e) => {
+                                  updateEditItem(index, { duration: parseInt(e.target.value) });
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "10px",
+                                  background: theme.background,
+                                  border: `1px solid ${theme.border}`,
+                                  borderRadius: 8,
+                                  color: theme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {[30, 60, 90, 120, 150, 180, 240, 300].map(m => (
+                                  <option key={m} value={m}>{m} Mins</option>
+                                ))}
+                              </select>
+                            </div>
+
                             {/* Controllers / Quantity */}
                             <div>
                               <label style={{ fontSize: 11, color: theme.textMuted, display: "block", marginBottom: 6, fontWeight: 600 }}>
@@ -3385,10 +3415,7 @@ export default function OwnerDashboardPage() {
                               <select
                                 value={item.quantity}
                                 onChange={(e) => {
-                                  const newItems = [...editItems];
-                                  newItems[index] = { ...newItems[index], quantity: parseInt(e.target.value) };
-                                  setEditItems(newItems);
-                                  setEditAmountManuallyEdited(false);
+                                  updateEditItem(index, { quantity: parseInt(e.target.value) });
                                 }}
                                 style={{
                                   width: "100%",
@@ -3418,7 +3445,7 @@ export default function OwnerDashboardPage() {
                             if (cafe.ps5_count) defaultConsole = 'ps5';
                             else if (cafe.pc_count) defaultConsole = 'pc';
                           }
-                          setEditItems(prev => [...prev, { console: defaultConsole, quantity: 1 }]);
+                          setEditItems(prev => [...prev, { console: defaultConsole, quantity: 1, duration: editDuration || 60 }]);
                           setEditAmountManuallyEdited(false);
                         }}
                         style={{
