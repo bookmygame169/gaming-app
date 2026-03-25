@@ -150,7 +150,7 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
-      // Delete only a specific booking_item from a bulk booking
+      // Hard-delete individual booking_item (items are not soft-deleted)
       const { error: itemError } = await supabase
         .from("booking_items")
         .delete()
@@ -172,21 +172,10 @@ export async function DELETE(request: NextRequest) {
         }
       }
     } else {
-      // Delete all booking_items first, then the booking
-      if (bookingItemIds && bookingItemIds.length > 0) {
-        const { error: itemsError } = await supabase
-          .from("booking_items")
-          .delete()
-          .in("id", bookingItemIds);
-
-        if (itemsError) {
-          return NextResponse.json({ error: itemsError.message }, { status: 500 });
-        }
-      }
-
+      // Soft-delete the full booking by setting deleted_at timestamp
       const { error } = await supabase
         .from("bookings")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", bookingId);
 
       if (error) {

@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
               booking_orders (id, quantity, total_price)
             `)
             .in("cafe_id", cafeIds)
+            .is("deleted_at", null)
             .order("created_at", { ascending: false })
             .limit(FULL_BOOKING_LIMIT)
         : supabase
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest) {
               booking_orders (id, quantity, total_price)
             `)
             .in("cafe_id", cafeIds)
+            .is("deleted_at", null)
             .gte("booking_date", dashboardStartDate)
             .order("created_at", { ascending: false })
             .limit(DASHBOARD_BOOKING_LIMIT);

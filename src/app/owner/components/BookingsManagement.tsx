@@ -3,6 +3,7 @@ import { BookingsTable } from './BookingsTable';
 import { Card, Button, Input, Select, StatusBadge } from './ui';
 import { Download, Filter, RefreshCw, Calendar, Search } from 'lucide-react';
 import { BookingRow } from '@/types/database';
+import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 
 interface BookingsManagementProps {
     bookings: any[]; // Using any[] to be safe with Supabase types, ideally BookingRow
@@ -158,6 +159,9 @@ export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, 
                 title={`Booking List (${filteredBookings.length})`}
                 showActions={true}
             />
+
+            {/* Deleted Bookings */}
+            <DeletedBookingsPanel />
         </div>
     );
 }
