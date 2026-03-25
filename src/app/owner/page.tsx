@@ -5,7 +5,7 @@
 // Note: This file contains complex React event handlers and UI code where explicit any types
 // are used for flexibility. These can be refactored incrementally with proper typing.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { fonts, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from "@/lib/constants";
@@ -31,7 +31,8 @@ import {
   Card,
   Memberships,
   Coupons,
-  Reports
+  Reports,
+  StationsTab
 } from './components';
 import Inventory from './components/Inventory';
 import AddItemsModal from './components/AddItemsModal';
@@ -63,6 +64,16 @@ const debugLog = (...args: unknown[]) => {
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<NavTab>(() => {
+    // Restore active tab from localStorage
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('ownerActiveTab');
+      if (savedTab) {
+        return savedTab as NavTab;
+      }
+    }
+    return 'dashboard';
+  });
 
   const { ownerId, ownerUsername, allowed, checkingRole } = useOwnerAuth();
 
@@ -87,20 +98,10 @@ export default function OwnerDashboardPage() {
     setCafes,
     setStationPricing,
     setConsolePricing
-  } = useOwnerData(ownerId, allowed);
+  } = useOwnerData(ownerId, allowed, activeTab);
 
   // Constants
   const bookingsPerPage = 50;
-  const [activeTab, setActiveTab] = useState<NavTab>(() => {
-    // Restore active tab from localStorage
-    if (typeof window !== 'undefined') {
-      const savedTab = localStorage.getItem('ownerActiveTab');
-      if (savedTab) {
-        return savedTab as NavTab;
-      }
-    }
-    return 'dashboard';
-  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -398,6 +399,17 @@ export default function OwnerDashboardPage() {
       localStorage.setItem('ownerActiveTab', activeTab);
     }
   }, [activeTab]);
+
+  // Initialize poweredOffStations from stationPricing
+  useEffect(() => {
+    const offStations = new Set<string>();
+    Object.values(stationPricing).forEach((pricing: any) => {
+      if (pricing.is_active === false) {
+        offStations.add(pricing.station_name);
+      }
+    });
+    setPoweredOffStations(offStations);
+  }, [stationPricing]);
 
   // Save membership sub-tab to localStorage when it changes
 
@@ -1499,18 +1511,59 @@ export default function OwnerDashboardPage() {
   };
 
   // Handle toggle station power
-  const handleTogglePower = (stationName: string) => {
+  const handleTogglePower = async (stationName: string) => {
+    const isCurrentlyOff = poweredOffStations.has(stationName);
+    
+    // Optimistic update
     setPoweredOffStations(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(stationName)) {
+      if (isCurrentlyOff) {
         newSet.delete(stationName);
       } else {
         newSet.add(stationName);
       }
       return newSet;
     });
-  };
 
+    try {
+      // Persist to database via upsert in station-pricing API
+      // We need to match the naming convention (e.g. 'PS5-01')
+      const [type, numberStr] = stationName.split('-');
+      const stationNumber = parseInt(numberStr);
+      
+      const res = await fetch('/api/station-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          pricingData: {
+            cafe_id: currentCafeId,
+            station_name: stationName,
+            station_type: type,
+            station_number: stationNumber,
+            is_active: isCurrentlyOff // if it was off, we are turning it on (is_active = true)
+          }
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update power state');
+      
+      // Refresh to ensure everything is in sync
+      refreshData();
+    } catch (error) {
+      console.error('Error toggling power:', error);
+      // Revert optimistic update on error
+      setPoweredOffStations(prev => {
+        const newSet = new Set(prev);
+        if (isCurrentlyOff) {
+          newSet.add(stationName);
+        } else {
+          newSet.delete(stationName);
+        }
+        return newSet;
+      });
+      alert('Failed to update station power status. Please try again.');
+    }
+  };
   // Handle profile photo upload
   const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !currentCafe) return;
@@ -1709,94 +1762,100 @@ export default function OwnerDashboardPage() {
   };
 
   // Filter bookings
-  const filteredBookings = bookings.filter((booking) => {
-    // Status filter
-    if (statusFilter !== "all" && booking.status?.toLowerCase() !== statusFilter) {
-      return false;
-    }
-
-    // Specific date filter (for date picker)
-    if (dateFilter && booking.booking_date) {
-      if (booking.booking_date !== dateFilter) return false;
-    }
-
-    // Date Range filter
-    if (dateRangeFilter !== "all" && booking.booking_date) {
-      const bookingDate = new Date(booking.booking_date + 'T00:00:00');
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-      if (dateRangeFilter === "today") {
-        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-        if (bookingDate < todayStart || bookingDate > todayEnd) return false;
-      } else if (dateRangeFilter === "week") {
-        const weekAgo = new Date(todayStart);
-        weekAgo.setDate(todayStart.getDate() - 7);
-        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-        if (bookingDate < weekAgo || bookingDate > todayEnd) return false;
-      } else if (dateRangeFilter === "month") {
-        const monthAgo = new Date(todayStart);
-        monthAgo.setMonth(todayStart.getMonth() - 1);
-        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-        if (bookingDate < monthAgo || bookingDate > todayEnd) return false;
-      } else if (dateRangeFilter === "quarter") {
-        const quarterAgo = new Date(todayStart);
-        quarterAgo.setMonth(todayStart.getMonth() - 3);
-        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-        if (bookingDate < quarterAgo || bookingDate > todayEnd) return false;
-      } else if (dateRangeFilter === "custom") {
-        if (customStartDate) {
-          const startDate = new Date(customStartDate + 'T00:00:00');
-          if (bookingDate < startDate) return false;
-        }
-        if (customEndDate) {
-          const endDate = new Date(customEndDate + 'T23:59:59');
-          if (bookingDate > endDate) return false;
-        }
-      }
-    }
-
-    // Search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesId = booking.id.toLowerCase().includes(query);
-      const matchesName = (booking.customer_name || booking.user_name || "").toLowerCase().includes(query);
-      const matchesEmail = (booking.user_email || "").toLowerCase().includes(query);
-      const matchesPhone = (booking.customer_phone || booking.user_phone || "").toLowerCase().includes(query);
-      if (!matchesId && !matchesName && !matchesEmail && !matchesPhone) {
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      // Status filter
+      if (statusFilter !== "all" && booking.status?.toLowerCase() !== statusFilter) {
         return false;
       }
-    }
 
-    return true;
-  });
+      // Specific date filter (for date picker)
+      if (dateFilter && booking.booking_date) {
+        if (booking.booking_date !== dateFilter) return false;
+      }
+
+      // Date Range filter
+      if (dateRangeFilter !== "all" && booking.booking_date) {
+        const bookingDate = new Date(booking.booking_date + 'T00:00:00');
+        const today = new Date();
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        if (dateRangeFilter === "today") {
+          const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+          if (bookingDate < todayStart || bookingDate > todayEnd) return false;
+        } else if (dateRangeFilter === "week") {
+          const weekAgo = new Date(todayStart);
+          weekAgo.setDate(todayStart.getDate() - 7);
+          const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+          if (bookingDate < weekAgo || bookingDate > todayEnd) return false;
+        } else if (dateRangeFilter === "month") {
+          const monthAgo = new Date(todayStart);
+          monthAgo.setMonth(todayStart.getMonth() - 1);
+          const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+          if (bookingDate < monthAgo || bookingDate > todayEnd) return false;
+        } else if (dateRangeFilter === "quarter") {
+          const quarterAgo = new Date(todayStart);
+          quarterAgo.setMonth(todayStart.getMonth() - 3);
+          const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+          if (bookingDate < quarterAgo || bookingDate > todayEnd) return false;
+        } else if (dateRangeFilter === "custom") {
+          if (customStartDate) {
+            const startDate = new Date(customStartDate + 'T00:00:00');
+            if (bookingDate < startDate) return false;
+          }
+          if (customEndDate) {
+            const endDate = new Date(customEndDate + 'T23:59:59');
+            if (bookingDate > endDate) return false;
+          }
+        }
+      }
+
+      // Search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesId = booking.id.toLowerCase().includes(query);
+        const matchesName = (booking.customer_name || booking.user_name || "").toLowerCase().includes(query);
+        const matchesEmail = (booking.user_email || "").toLowerCase().includes(query);
+        const matchesPhone = (booking.customer_phone || booking.user_phone || "").toLowerCase().includes(query);
+        if (!matchesId && !matchesName && !matchesEmail && !matchesPhone) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [bookings, customEndDate, customStartDate, dateFilter, dateRangeFilter, searchQuery, statusFilter]);
 
   // Flatten filtered bookings so each booking_item appears as a separate row
   // This handles bulk bookings where one booking has multiple consoles
-  const flattenedFilteredBookings = filteredBookings.flatMap(booking => {
-    const items = booking.booking_items || [];
-    if (items.length <= 1) {
-      // Single item or no items - keep as is
-      return [booking];
-    }
-    // Multiple items - create a separate entry for each
-    return items.map((item, itemIndex) => ({
-      ...booking,
-      // Create a unique ID for each flattened entry
-      id: `${booking.id}-item-${itemIndex}`,
-      originalBookingId: booking.id,
-      // Replace booking_items with just this single item
-      booking_items: [item],
-      // Use item price for display
-      total_amount: item.price || (booking.total_amount || 0) / items.length,
-    }));
-  });
+  const flattenedFilteredBookings = useMemo(() => {
+    return filteredBookings.flatMap(booking => {
+      const items = booking.booking_items || [];
+      if (items.length <= 1) {
+        // Single item or no items - keep as is
+        return [booking];
+      }
+      // Multiple items - create a separate entry for each
+      return items.map((item, itemIndex) => ({
+        ...booking,
+        // Create a unique ID for each flattened entry
+        id: `${booking.id}-item-${itemIndex}`,
+        originalBookingId: booking.id,
+        // Replace booking_items with just this single item
+        booking_items: [item],
+        // Use item price for display
+        total_amount: item.price || (booking.total_amount || 0) / items.length,
+      }));
+    });
+  }, [filteredBookings]);
 
   const filteredBookingsCount = flattenedFilteredBookings.length;
-  const paginatedFlattenedFilteredBookings = flattenedFilteredBookings.slice(
-    (bookingPage - 1) * bookingsPerPage,
-    bookingPage * bookingsPerPage
-  );
+  const paginatedFlattenedFilteredBookings = useMemo(() => {
+    return flattenedFilteredBookings.slice(
+      (bookingPage - 1) * bookingsPerPage,
+      bookingPage * bookingsPerPage
+    );
+  }, [bookingPage, bookingsPerPage, flattenedFilteredBookings]);
 
   useEffect(() => {
     setBookingPage(1);
@@ -2212,438 +2271,21 @@ export default function OwnerDashboardPage() {
 
           {/* Stations Tab */}
           {activeTab === 'stations' && cafes.length > 0 && (
-            <div>
-              {/* Header with Stats and Add Button */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <div>
-                  <h2 style={{ fontSize: 28, fontWeight: 700, color: theme.textPrimary, margin: 0, marginBottom: 8 }}>
-                    Gaming Stations
-                  </h2>
-                  <p style={{ fontSize: 14, color: theme.textMuted, margin: 0 }}>
-                    Configure pricing for all your gaming stations
-                  </p>
-                </div>
-
-                {/* Add New Station Button */}
-                <button
-                  onClick={() => {
-                    setNewStationType('ps5');
-                    setNewStationCount(1);
-                    setShowAddStationModal(true);
-                  }}
-                  style={{
-                    padding: '12px 24px',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                    border: 'none',
-                    borderRadius: 12,
-                    color: '#ffffff',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    transition: 'all 0.2s',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <span style={{ fontSize: 18 }}>+</span>
-                  Add New Station
-                </button>
-              </div>
-
-              {/* Search and Filters */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 16,
-                  border: `1px solid ${theme.border}`,
-                  padding: '20px',
-                  marginBottom: 24,
-                }}
-              >
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  {/* Search */}
-                  <div style={{ flex: 1, position: 'relative' }}>
-                    <input
-                      type="text"
-                      placeholder="Search stations..."
-                      value={stationSearch}
-                      onChange={(e) => setStationSearch(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px 12px 44px',
-                        background: 'rgba(15,23,42,0.6)',
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 10,
-                        color: theme.textPrimary,
-                        fontSize: 14,
-                        outline: 'none',
-                      }}
-                    />
-                    <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 18, opacity: 0.5 }}>🔍</span>
-                  </div>
-
-                  {/* Type Filter */}
-                  <select
-                    value={stationTypeFilter}
-                    onChange={(e) => setStationTypeFilter(e.target.value)}
-                    style={{
-                      padding: '12px 16px',
-                      background: 'rgba(15,23,42,0.6)',
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 10,
-                      color: theme.textPrimary,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      minWidth: 140,
-                    }}
-                  >
-                    <option value="all">All Types</option>
-                    <option value="PC">PC</option>
-                    <option value="PS5">PS5</option>
-                    <option value="PS4">PS4</option>
-                    <option value="Xbox">Xbox</option>
-                    <option value="VR">VR</option>
-                    <option value="Steering">Steering Wheel</option>
-                    <option value="Racing Sim">Racing Sim</option>
-                  </select>
-
-                  {/* Status Filter */}
-                  <select
-                    value={stationStatusFilter}
-                    onChange={(e) => setStationStatusFilter(e.target.value)}
-                    style={{
-                      padding: '12px 16px',
-                      background: 'rgba(15,23,42,0.6)',
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 10,
-                      color: theme.textPrimary,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      minWidth: 140,
-                    }}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-
-                  {/* View Toggle */}
-                  <div style={{ display: 'flex', gap: 4, background: 'rgba(15,23,42,0.6)', borderRadius: 8, padding: 4, border: `1px solid ${theme.border}` }}>
-                    <button
-                      style={{
-                        padding: '8px 12px',
-                        background: 'rgba(59, 130, 246, 0.2)',
-                        border: 'none',
-                        borderRadius: 6,
-                        color: '#3b82f6',
-                        cursor: 'pointer',
-                        fontSize: 18,
-                      }}
-                    >
-                      ☰
-                    </button>
-                    <button
-                      style={{
-                        padding: '8px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: 6,
-                        color: theme.textMuted,
-                        cursor: 'pointer',
-                        fontSize: 18,
-                      }}
-                    >
-                      ▦
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stations Table */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 16,
-                  border: `1px solid ${theme.border}`,
-                  overflow: 'hidden',
-                }}
-              >
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'rgba(15,23,42,0.8)', borderBottom: `1px solid ${theme.border}` }}>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                        Station ↕️
-                      </th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                        Type ↕️
-                      </th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                        Rate ↕️
-                      </th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                        Sessions ↕️
-                      </th>
-                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                        Status
-                      </th>
-                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Dynamically generate station rows from cafe console counts */}
-                    {(() => {
-                      const cafe = currentCafe;
-                      const allStations: any[] = [];
-
-                      // Console type configurations
-                      const consoleTypes = [
-                        { key: 'pc_count', name: 'PC', icon: '🖥️', bgColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', rate: '₹100/hr' },
-                        { key: 'ps5_count', name: 'PS5', icon: '🎮', bgColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', rate: '₹150 Single / ₹300 Multi' },
-                        { key: 'ps4_count', name: 'PS4', icon: '🎮', bgColor: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6', rate: '₹100 Single / ₹200 Multi' },
-                        { key: 'xbox_count', name: 'Xbox', icon: '🎮', bgColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', rate: '₹120 Single / ₹240 Multi' },
-                        { key: 'vr_count', name: 'VR', icon: '🥽', bgColor: 'rgba(236, 72, 153, 0.15)', color: '#ec4899', rate: '₹200/hr' },
-                        { key: 'steering_wheel_count', name: 'Steering Wheel', icon: '🏎️', bgColor: 'rgba(251, 146, 60, 0.15)', color: '#fb923c', rate: '₹150/hr' },
-                        { key: 'racing_sim_count', name: 'Racing Sim', icon: '🏁', bgColor: 'rgba(255, 69, 0, 0.15)', color: '#ff4500', rate: '₹150/hr' },
-                        { key: 'pool_count', name: 'Pool', icon: '🎱', bgColor: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9', rate: '₹80/hr' },
-                        { key: 'snooker_count', name: 'Snooker', icon: '🎱', bgColor: 'rgba(132, 204, 22, 0.15)', color: '#84cc16', rate: '₹80/hr' },
-                        { key: 'arcade_count', name: 'Arcade', icon: '🕹️', bgColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', rate: '₹50/hr' },
-                      ];
-
-                      // Calculate session count per station from bookings
-                      const stationSessionCounts = new Map<string, number>();
-                      bookings.forEach(booking => {
-                        const console = booking.booking_items?.[0]?.console;
-                        if (console) {
-                          stationSessionCounts.set(console, (stationSessionCounts.get(console) || 0) + 1);
-                        }
-                      });
-
-                      // Generate stations for each console type
-                      consoleTypes.forEach((consoleType) => {
-                        if (!cafe) return;
-                        const count = cafe[consoleType.key as keyof CafeRow] as number || 0;
-                        for (let i = 1; i <= count; i++) {
-                          const stationName = `${consoleType.name}-${String(i).padStart(2, '0')}`;
-                          allStations.push({
-                            id: stationName,
-                            name: stationName,
-                            type: consoleType.name,
-                            icon: consoleType.icon,
-                            bgColor: consoleType.bgColor,
-                            color: consoleType.color,
-                            rate: consoleType.rate,
-                            sessions: stationSessionCounts.get(stationName) || 0,
-                            status: 'Active',
-                          });
-                        }
-                      });
-
-                      if (allStations.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={6} style={{ padding: '60px 20px', textAlign: 'center' }}>
-                              <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>🎮</div>
-                              <p style={{ fontSize: 16, color: theme.textSecondary, marginBottom: 6, fontWeight: 500 }}>
-                                No stations configured
-                              </p>
-                              <p style={{ fontSize: 14, color: theme.textMuted }}>
-                                Add your first gaming station to get started
-                              </p>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return allStations.map((station, index) => {
-                        const isPoweredOff = poweredOffStations.has(station.name);
-                        const stationStatus = isPoweredOff ? 'Inactive' : 'Active';
-
-                        return (
-                          <tr key={station.id} style={{ borderBottom: index < allStations.length - 1 ? `1px solid ${theme.border}` : 'none' }}>
-                            <td style={{ padding: '16px 20px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div
-                                  style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 10,
-                                    background: station.bgColor,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 20,
-                                    opacity: isPoweredOff ? 0.4 : 1,
-                                  }}
-                                >
-                                  {station.icon}
-                                </div>
-                                <span style={{ fontSize: 15, fontWeight: 600, color: theme.textPrimary, opacity: isPoweredOff ? 0.5 : 1 }}>{station.name}</span>
-                              </div>
-                            </td>
-                            <td style={{ padding: '16px 20px' }}>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  padding: '6px 12px',
-                                  borderRadius: 6,
-                                  background: station.bgColor,
-                                  color: station.color,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  opacity: isPoweredOff ? 0.5 : 1,
-                                }}
-                              >
-                                {station.type}
-                              </span>
-                            </td>
-                            <td style={{ padding: '16px 20px' }}>
-                              <div style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 1.6, opacity: isPoweredOff ? 0.5 : 1 }}>
-                                {(() => {
-                                  const savedPricing = stationPricing[station.name];
-
-                                  // PS5/Xbox - Show base pricing only (half hour and full hour)
-                                  if (['PS5', 'Xbox'].includes(station.type)) {
-                                    const c1Half = savedPricing?.controller_1_half_hour || 75;
-                                    const c1Full = savedPricing?.controller_1_full_hour || 150;
-
-                                    return (
-                                      <div>
-                                        <span style={{ fontWeight: 600 }}>
-                                          ₹{c1Half}/30m · ₹{c1Full}/hr
-                                        </span>
-                                      </div>
-                                    );
-                                  } else if (['PS4'].includes(station.type)) {
-                                    // PS4 - Show single/multi
-                                    const singleHalf = savedPricing?.single_player_half_hour_rate || 75;
-                                    const singleFull = savedPricing?.single_player_rate || 150;
-                                    const multiHalf = savedPricing?.multi_player_half_hour_rate || 150;
-                                    const multiFull = savedPricing?.multi_player_rate || 300;
-
-                                    return (
-                                      <>
-                                        <div style={{ marginBottom: 4 }}>
-                                          <span style={{ color: theme.textMuted, fontSize: 11 }}>Single: </span>
-                                          <span style={{ fontWeight: 600 }}>₹{singleHalf}/30m · ₹{singleFull}/hr</span>
-                                        </div>
-                                        <div>
-                                          <span style={{ color: theme.textMuted, fontSize: 11 }}>Multi: </span>
-                                          <span style={{ fontWeight: 600 }}>₹{multiHalf}/30m · ₹{multiFull}/hr</span>
-                                        </div>
-                                      </>
-                                    );
-                                  } else {
-                                    const defaults: Record<string, { half: number, full: number }> = {
-                                      'PC': { half: 50, full: 100 },
-                                      'VR': { half: 100, full: 200 },
-                                      'Steering': { half: 75, full: 150 },
-                                      'Pool': { half: 40, full: 80 },
-                                      'Snooker': { half: 40, full: 80 },
-                                      'Arcade': { half: 40, full: 80 },
-                                    };
-                                    const stationDefaults = defaults[station.type] || { half: 40, full: 80 };
-                                    const halfRate = savedPricing?.half_hour_rate || stationDefaults.half;
-                                    const fullRate = savedPricing?.hourly_rate || stationDefaults.full;
-
-                                    return (
-                                      <div>
-                                        <span style={{ fontWeight: 600 }}>
-                                          ₹{halfRate}/30m · ₹{fullRate}/hr
-                                        </span>
-                                      </div>
-                                    );
-                                  }
-                                })()}
-                              </div>
-                            </td>
-                            <td style={{ padding: '16px 20px', fontSize: 14, color: theme.textSecondary, opacity: isPoweredOff ? 0.5 : 1 }}>
-                              {station.sessions}
-                            </td>
-                            <td style={{ padding: '16px 20px' }}>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  padding: '6px 12px',
-                                  borderRadius: 6,
-                                  background: stationStatus === 'Active' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                  color: stationStatus === 'Active' ? '#10b981' : '#ef4444',
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {stationStatus}
-                              </span>
-                            </td>
-                            <td style={{ padding: '16px 20px' }}>
-                              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                                <button
-                                  style={{
-                                    padding: '8px',
-                                    background: 'transparent',
-                                    border: `1px solid ${theme.border}`,
-                                    borderRadius: 6,
-                                    color: theme.textSecondary,
-                                    cursor: 'pointer',
-                                    fontSize: 16,
-                                  }}
-                                  title="Edit"
-                                  onClick={() => setEditingStation(station)}
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  style={{
-                                    padding: '8px',
-                                    background: 'transparent',
-                                    border: `1px solid ${theme.border}`,
-                                    borderRadius: 6,
-                                    color: isPoweredOff ? '#ef4444' : '#10b981',
-                                    cursor: 'pointer',
-                                    fontSize: 16,
-                                  }}
-                                  title={isPoweredOff ? 'Power On' : 'Power Off'}
-                                  onClick={() => handleTogglePower(station.name)}
-                                >
-                                  🔌
-                                </button>
-                                <button
-                                  style={{
-                                    padding: '8px',
-                                    background: 'transparent',
-                                    border: `1px solid ${theme.border}`,
-                                    borderRadius: 6,
-                                    color: '#ef4444',
-                                    cursor: 'pointer',
-                                    fontSize: 16,
-                                  }}
-                                  title="Delete"
-                                  onClick={() => setStationToDelete({ name: station.name, type: station.type })}
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <StationsTab
+              currentCafe={currentCafe}
+              bookings={bookings}
+              stationPricing={stationPricing}
+              poweredOffStations={poweredOffStations}
+              onTogglePower={handleTogglePower}
+              onEditPricing={(station) => setEditingStation(station)}
+              onDeleteStation={(station) => setStationToDelete(station)}
+              onAddStation={() => {
+                setNewStationType('ps5');
+                setNewStationCount(1);
+                setShowAddStationModal(true);
+              }}
+              theme={theme}
+            />
           )}
 
           {/* Tournament Tab */}

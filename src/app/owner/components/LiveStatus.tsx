@@ -44,7 +44,7 @@ type BookingData = {
 type ConsoleStatus = {
     id: string;
     consoleNumber: number;
-    status: "free" | "busy" | "ending_soon";
+    status: "free" | "busy" | "ending_soon" | "inactive";
     booking?: {
         customerName: string;
         startTime: string;
@@ -78,7 +78,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         try {
             const res = await fetch(`/api/owner/live-status?cafeId=${cafeId}`);
             if (!res.ok) throw new Error('Failed to fetch live status');
-            const { cafe, bookings, activeSubscriptions } = await res.json();
+            const { cafe, bookings, activeSubscriptions, stationPricing } = await res.json();
 
             if (!cafe) {
                 setLoading(false);
@@ -86,7 +86,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             }
 
             // Build summaries
-            const summaries = buildConsoleSummaries(cafe, bookings || [], activeSubscriptions || []);
+            const summaries = buildConsoleSummaries(cafe, bookings || [], activeSubscriptions || [], stationPricing || []);
             setConsoleData(summaries);
             setLastUpdated(new Date());
 
@@ -97,7 +97,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         }
     };
 
-    const buildConsoleSummaries = (cafe: CafeConsoleCounts, bookings: BookingData[], memberships: any[]): ConsoleSummary[] => {
+    const buildConsoleSummaries = (cafe: CafeConsoleCounts, bookings: BookingData[], memberships: any[], stationPricing: any[]): ConsoleSummary[] => {
         const consoleTypes: Array<{ id: ConsoleId; key: string }> = [
             { id: "ps5", key: "ps5_count" },
             { id: "ps4", key: "ps4_count" },
@@ -178,6 +178,17 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             // Assign units
             for (let unit = 1; unit <= total; unit++) {
                 const stationId = `${id}-${unit.toString().padStart(2, '0')}`;
+                
+                // Check if station is powered off in database
+                const pricingInfo = stationPricing.find((p: any) => p.station_name === stationId);
+                const isInactive = pricingInfo && pricingInfo.is_active === false;
+
+                if (isInactive) {
+                    statuses.push({ id: stationId, consoleNumber: unit, status: 'inactive' });
+                    continue; // Skip further checks for this unit
+                }
+
+                // Check membership
 
                 // Check membership
                 const membership = consoleMemberships.find(m => m.assigned_console_station === stationId);
@@ -299,6 +310,10 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                         <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                         <span className="text-amber-500">Ending Soon</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                        <span className="text-slate-500">Powered Off</span>
+                    </div>
                 </div>
             </div>
 
@@ -330,7 +345,8 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                                     relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg
                                     ${isFree ? 'border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40' : ''}
                                     ${isEnding ? 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40' : ''}
-                                    ${!isFree && !isEnding ? 'border-red-500/20 bg-red-500/5 hover:border-red-500/40' : ''}
+                                    ${station.status === 'inactive' ? 'border-slate-500/20 bg-slate-500/5 grayscale opacity-60' : ''}
+                                    ${!isFree && !isEnding && station.status !== 'inactive' ? 'border-red-500/20 bg-red-500/5 hover:border-red-500/40' : ''}
                                 `}>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
@@ -377,6 +393,11 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                                                 </span>
                                             </div>
                                         </div>
+                                    ) : station.status === 'inactive' ? (
+                                        <div className="py-4 flex flex-col items-center justify-center text-slate-500/50">
+                                            <AlertCircle size={32} strokeWidth={1.5} />
+                                            <span className="text-xs font-medium text-slate-500 mt-2">Powered Off</span>
+                                        </div>
                                     ) : (
                                         <div className="py-4 flex flex-col items-center justify-center text-emerald-500/50">
                                             <MonitorPlay size={32} strokeWidth={1.5} />
@@ -393,12 +414,15 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
     );
 }
 
-function Badge({ status }: { status: 'free' | 'busy' | 'ending_soon' }) {
+function Badge({ status }: { status: 'free' | 'busy' | 'ending_soon' | 'inactive' }) {
     if (status === 'free') {
         return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase">Free</span>;
     }
     if (status === 'busy') {
         return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20 uppercase">Busy</span>;
+    }
+    if (status === 'inactive') {
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20 uppercase">Off</span>;
     }
     return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase">Ending</span>;
 }

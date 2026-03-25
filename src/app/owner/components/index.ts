@@ -20,3 +20,4 @@ export {
 export { Memberships } from './Memberships';
 export { Coupons } from './Coupons';
 export { Reports } from './Reports';
+export { StationsTab } from './StationsTab';

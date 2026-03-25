@@ -1,7 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
 
 export const dynamic = 'force-dynamic';
+
+type OwnerDataScope = "dashboard" | "full";
+
+const DASHBOARD_BOOKING_LOOKBACK_DAYS = 7;
+const DASHBOARD_BOOKING_LIMIT = 300;
+const FULL_BOOKING_LIMIT = 2000;
 
 function getIndiaDateString(date: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -22,8 +29,25 @@ function getIndiaDateString(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+function getIndiaDateDaysAgo(daysAgo: number): string {
+  const date = new Date();
+  date.setUTCHours(12, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  return getIndiaDateString(date);
+}
+
+async function getRequestedScope(request: NextRequest): Promise<OwnerDataScope> {
+  try {
+    const body = await request.json();
+    return body?.scope === "full" ? "full" : "dashboard";
+  } catch {
+    return "dashboard";
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const scope = await getRequestedScope(request);
     const auth = await requireOwnerContext(request);
     if (auth.response) {
       return auth.response;
@@ -31,6 +55,7 @@ export async function POST(request: NextRequest) {
 
     const { ownerId, supabase } = auth.context;
     const todayStr = getIndiaDateString();
+    const dashboardStartDate = getIndiaDateDaysAgo(DASHBOARD_BOOKING_LOOKBACK_DAYS);
 
     // 1. Fetch Cafes
     const { data: cafeRows, error: cafesError } = await supabase
@@ -71,22 +96,31 @@ export async function POST(request: NextRequest) {
       .select("cafe_id, console_type, quantity, duration_minutes, price")
       .in("cafe_id", cafeIds);
 
-    const bookingCountPromise = supabase
-      .from("bookings")
-      .select("*", { count: 'exact', head: true })
-      .in("cafe_id", cafeIds);
-
-    const bookingsPromise = supabase
-      .from("bookings")
-      .select(`
-        id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
-        source, payment_mode, created_at, customer_name, customer_phone,
-        booking_items (id, console, quantity, price),
-        booking_orders (id, quantity, total_price)
-      `)
-      .in("cafe_id", cafeIds)
-      .order("created_at", { ascending: false })
-      .limit(2000);
+    const bookingsPromise =
+      scope === "full"
+        ? supabase
+            .from("bookings")
+            .select(`
+              id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+              source, payment_mode, created_at, customer_name, customer_phone,
+              booking_items (id, console, quantity, price),
+              booking_orders (id, quantity, total_price)
+            `)
+            .in("cafe_id", cafeIds)
+            .order("created_at", { ascending: false })
+            .limit(FULL_BOOKING_LIMIT)
+        : supabase
+            .from("bookings")
+            .select(`
+              id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+              source, payment_mode, created_at, customer_name, customer_phone,
+              booking_items (id, console, quantity, price),
+              booking_orders (id, quantity, total_price)
+            `)
+            .in("cafe_id", cafeIds)
+            .gte("booking_date", dashboardStartDate)
+            .order("created_at", { ascending: false })
+            .limit(DASHBOARD_BOOKING_LIMIT);
 
     const plansPromise = supabase
       .from('membership_plans')
@@ -105,14 +139,12 @@ export async function POST(request: NextRequest) {
     const [
       stationPricingRes,
       consolePricingRes,
-      bookingCountRes,
       bookingsRes,
       plansRes,
       subscriptionsRes
     ] = await Promise.all([
       stationPricingPromise,
       consolePricingPromise,
-      bookingCountPromise,
       bookingsPromise,
       plansPromise,
       subscriptionsPromise
@@ -218,7 +250,7 @@ export async function POST(request: NextRequest) {
       availableConsoleTypes: uniqueTypes,
       membershipPlans: plansRes.data || [],
       subscriptions: subscriptionsRes.data || [],
-      totalBookingsCount: bookingCountRes.count || 0,
+      totalBookingsCount: scope === "full" ? enrichedBookings.length : 0,
     });
   } catch (err: any) {
     console.error("Error loading owner data:", err);

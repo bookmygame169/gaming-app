@@ -1,8 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useMemo } from 'react';
-import { OwnerStats, CafeRow, BookingRow } from '../types';
+import { OwnerStats, CafeRow, BookingRow, NavTab } from '../types';
 
-export function useOwnerData(ownerId: string | null, allowed: boolean) {
+type OwnerDataScope = 'dashboard' | 'full';
+
+const FULL_BOOKING_TABS = new Set<NavTab>(['bookings', 'customers', 'stations']);
+const AUTO_REFRESH_TABS = new Set<NavTab>(['dashboard']);
+
+function getOwnerDataScope(activeTab: NavTab): OwnerDataScope {
+  return FULL_BOOKING_TABS.has(activeTab) ? 'full' : 'dashboard';
+}
+
+export function useOwnerData(ownerId: string | null, allowed: boolean, activeTab: NavTab) {
   const [cafes, setCafes] = useState<CafeRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -18,8 +27,12 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
 
   // Pagination state (internal to hook for now, or expose if needed)
   const [bookingPage, setBookingPage] = useState(1);
+  const [loadedScope, setLoadedScope] = useState<OwnerDataScope>('dashboard');
 
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
+  const dataScope = useMemo(() => getOwnerDataScope(activeTab), [activeTab]);
+  const shouldAutoRefresh = useMemo(() => AUTO_REFRESH_TABS.has(activeTab), [activeTab]);
+  const isScopeUpgrade = dataScope === 'full' && loadedScope !== 'full';
 
   // Derive stats from bookings and cafes - Exclude cancelled bookings from revenue
   const stats = useMemo<OwnerStats | null>(() => {
@@ -64,25 +77,31 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
 
   // Auto-refresh bookings based on timer
   useEffect(() => {
-    if (!allowed || !ownerId) return;
+    if (!allowed || !ownerId || !shouldAutoRefresh) return;
 
     const interval = setInterval(() => {
       setRefreshTrigger(prev => prev + 1);
     }, 10000); // 10 seconds
 
     return () => clearInterval(interval);
-  }, [allowed, ownerId]);
+  }, [allowed, ownerId, shouldAutoRefresh]);
 
   useEffect(() => {
     if (!allowed || !ownerId) return;
 
+    let cancelled = false;
+
     async function loadData() {
       try {
-        if (refreshTrigger === 0) setLoadingData(true);
+        if (refreshTrigger === 0 || isScopeUpgrade) {
+          setLoadingData(true);
+        }
         setError(null);
 
         const res = await fetch('/api/owner/data', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope: dataScope }),
           credentials: 'include',
           cache: 'no-store',
         });
@@ -90,6 +109,7 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Failed to load data');
+        if (cancelled) return;
 
         setCafes(data.cafes as CafeRow[]);
         setBookings(data.bookings as BookingRow[]);
@@ -100,8 +120,10 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
         setMembershipPlans(data.membershipPlans);
         setSubscriptions(data.subscriptions);
         setTotalBookingsCount(data.totalBookingsCount);
+        setLoadedScope(dataScope);
         setLoadingData(false);
       } catch (err: any) {
+        if (cancelled) return;
         console.error("Error loading data:", err);
         setError(err.message);
         setLoadingData(false);
@@ -109,7 +131,11 @@ export function useOwnerData(ownerId: string | null, allowed: boolean) {
     }
 
     loadData();
-  }, [allowed, ownerId, refreshTrigger]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allowed, ownerId, refreshTrigger, dataScope, isScopeUpgrade]);
 
   return {
     stats,

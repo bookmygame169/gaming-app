@@ -91,10 +91,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: subsError.message }, { status: 500 });
     }
 
+    // Fetch station pricing for power status (is_active)
+    const { data: stationPricing } = await supabase
+      .from("station_pricing")
+      .select("station_name, is_active")
+      .eq("cafe_id", cafeId);
+
     return NextResponse.json({
       cafe,
       bookings: enrichedBookings,
       activeSubscriptions: activeSubscriptions || [],
+      stationPricing: stationPricing || [],
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to fetch live status" }, { status: 500 });
