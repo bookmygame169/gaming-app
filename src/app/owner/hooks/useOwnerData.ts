@@ -92,7 +92,9 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
 
     async function loadData() {
       try {
-        setLoadingData(true);
+        // Show spinner only on first load or when upgrading from dashboard→full scope
+        const needsSpinner = !hasLoadedData || (dataScope === 'full' && loadedScope !== 'full');
+        if (needsSpinner) setLoadingData(true);
         setError(null);
 
         const res = await fetch('/api/owner/data', {
