@@ -33,8 +33,6 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
   const dataScope = useMemo(() => getOwnerDataScope(activeTab), [activeTab]);
   const shouldAutoRefresh = useMemo(() => AUTO_REFRESH_TABS.has(activeTab), [activeTab]);
-  const isScopeUpgrade = dataScope === 'full' && loadedScope !== 'full';
-
   // Derive stats from bookings and cafes - Exclude cancelled bookings from revenue
   const stats = useMemo<OwnerStats | null>(() => {
     if (!cafes.length) return null;
@@ -94,9 +92,7 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
 
     async function loadData() {
       try {
-        if (refreshTrigger === 0 || isScopeUpgrade) {
-          setLoadingData(true);
-        }
+        setLoadingData(true);
         setError(null);
 
         const res = await fetch('/api/owner/data', {
@@ -137,7 +133,7 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
     return () => {
       cancelled = true;
     };
-  }, [canFetch, refreshTrigger, dataScope, isScopeUpgrade]);
+  }, [canFetch, refreshTrigger, dataScope]);
 
   return {
     stats,
