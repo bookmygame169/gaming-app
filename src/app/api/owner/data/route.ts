@@ -9,6 +9,7 @@ type OwnerDataScope = "dashboard" | "full";
 const DASHBOARD_BOOKING_LOOKBACK_DAYS = 7;
 const DASHBOARD_BOOKING_LIMIT = 300;
 const FULL_BOOKING_LIMIT = 2000;
+const DASHBOARD_RECENT_BOOKINGS_PREVIEW = 10;
 
 function getIndiaDateString(date: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -137,11 +138,22 @@ export async function POST(request: NextRequest) {
           .order('price')
       : Promise.resolve({ data: [], error: null });
 
-    const subscriptionsPromise = supabase
-      .from('subscriptions')
-      .select('*, membership_plans(*)')
-      .in('cafe_id', cafeIds)
-      .order('created_at', { ascending: false });
+    const subscriptionsPromise =
+      scope === "full"
+        ? supabase
+            .from('subscriptions')
+            .select('*, membership_plans(*)')
+            .in('cafe_id', cafeIds)
+            .order('created_at', { ascending: false })
+        : supabase
+            .from('subscriptions')
+            .select(`
+              id, amount_paid, purchase_date, customer_name, assigned_console_station,
+              timer_active, timer_start_time, membership_plans(name, console_type)
+            `)
+            .in('cafe_id', cafeIds)
+            .or(`timer_active.eq.true,purchase_date.eq.${todayStr}`)
+            .order('created_at', { ascending: false });
 
     // Await all parallel fetches
     const [
@@ -222,7 +234,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Process User Profiles
-    const userIds = [...new Set(ownerBookings.map((b: any) => b.user_id).filter(Boolean))];
+    const profileBookingSource =
+      scope === "full"
+        ? ownerBookings
+        : [
+            ...ownerBookings.filter((b: any) => b.booking_date === todayStr),
+            ...ownerBookings.slice(0, DASHBOARD_RECENT_BOOKINGS_PREVIEW),
+          ];
+
+    const userIds = [...new Set(profileBookingSource.map((b: any) => b.user_id).filter(Boolean))];
     const userProfiles = new Map();
 
     if (userIds.length > 0) {

@@ -6,6 +6,7 @@
 // are used for flexibility. These can be refactored incrementally with proper typing.
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { fonts, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from "@/lib/constants";
@@ -25,28 +26,29 @@ import {
   DashboardStats,
   BookingsTable,
   ActiveSessions,
-  LiveStatus,
-  Billing,
-  BookingsManagement,
   Card,
-  Memberships,
-  Coupons,
-  Reports,
-  StationsTab
 } from './components';
-import Inventory from './components/Inventory';
-import AddItemsModal from './components/AddItemsModal';
-import ViewOrdersModal from './components/ViewOrdersModal';
-import SettingsTab from './components/tabs/SettingsTab';
-import CustomersTab from './components/tabs/CustomersTab';
 import OwnerPWAInstaller from './components/OwnerPWAInstaller';
-import SubscriptionDetailsModal from './components/SubscriptionDetailsModal';
-import CustomerDetailsModal from './components/CustomerDetailsModal';
-import { SessionEndedPopup } from './components/SessionEndedPopup';
 import StatCard from './components/StatCard';
 import { useBilling } from "./hooks/useBilling";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
 import { useOwnerData } from "./hooks/useOwnerData";
+
+const LiveStatus = dynamic(() => import('./components/LiveStatus').then((mod) => mod.LiveStatus), { ssr: false });
+const Billing = dynamic(() => import('./components/Billing').then((mod) => mod.Billing), { ssr: false });
+const BookingsManagement = dynamic(() => import('./components/BookingsManagement').then((mod) => mod.BookingsManagement), { ssr: false });
+const Memberships = dynamic(() => import('./components/Memberships').then((mod) => mod.Memberships), { ssr: false });
+const Coupons = dynamic(() => import('./components/Coupons').then((mod) => mod.Coupons), { ssr: false });
+const Reports = dynamic(() => import('./components/Reports').then((mod) => mod.Reports), { ssr: false });
+const StationsTab = dynamic(() => import('./components/StationsTab').then((mod) => mod.StationsTab), { ssr: false });
+const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
+const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
+const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
+const AddItemsModal = dynamic(() => import('./components/AddItemsModal'), { ssr: false });
+const ViewOrdersModal = dynamic(() => import('./components/ViewOrdersModal'), { ssr: false });
+const SubscriptionDetailsModal = dynamic(() => import('./components/SubscriptionDetailsModal'), { ssr: false });
+const CustomerDetailsModal = dynamic(() => import('./components/CustomerDetailsModal'), { ssr: false });
+const SessionEndedPopup = dynamic(() => import('./components/SessionEndedPopup').then((mod) => mod.SessionEndedPopup), { ssr: false });
 
 // Helper function to get local date string (YYYY-MM-DD) instead of UTC
 const getLocalDateString = (date: Date = new Date()): string => {
