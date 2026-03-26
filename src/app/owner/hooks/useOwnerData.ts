@@ -5,6 +5,7 @@ import { OwnerStats, CafeRow, BookingRow, NavTab } from '../types';
 type OwnerDataScope = 'dashboard' | 'full';
 
 const FULL_BOOKING_TABS = new Set<NavTab>(['bookings', 'customers', 'stations']);
+const PRICING_ONLY_TABS = new Set<NavTab>(['billing']);
 const AUTO_REFRESH_TABS = new Set<NavTab>(['dashboard']);
 
 function getOwnerDataScope(activeTab: NavTab): OwnerDataScope {
@@ -110,16 +111,20 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
         if (!res.ok) throw new Error(data.error || 'Failed to load data');
         if (cancelled) return;
 
+        const isPricingOnly = PRICING_ONLY_TABS.has(activeTab);
         setCafes(data.cafes as CafeRow[]);
-        setBookings(data.bookings as BookingRow[]);
+        // Don't overwrite bookings/subscriptions on billing-only fetches (avoids state poisoning)
+        if (!isPricingOnly) {
+          setBookings(data.bookings as BookingRow[]);
+          setSubscriptions(data.subscriptions);
+          setTotalBookingsCount(data.totalBookingsCount);
+          setLoadedScope(dataScope);
+        }
         setStationPricing(data.stationPricing);
         setConsolePricing(data.consolePricing);
         setCafeConsoles(data.cafeConsoles);
         setAvailableConsoleTypes(data.availableConsoleTypes);
         setMembershipPlans(data.membershipPlans);
-        setSubscriptions(data.subscriptions);
-        setTotalBookingsCount(data.totalBookingsCount);
-        setLoadedScope(dataScope);
         setHasLoadedData(true);
         setLoadingData(false);
       } catch (err: any) {
@@ -135,7 +140,7 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
     return () => {
       cancelled = true;
     };
-  }, [canFetch, refreshTrigger, dataScope]);
+  }, [canFetch, refreshTrigger, dataScope, activeTab]);
 
   return {
     stats,
