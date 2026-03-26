@@ -19,7 +19,6 @@ interface Booking {
   booking_date: string;
   start_time?: string | null;
   payment_mode?: string | null;
-  source?: string | null;
   booking_orders?: SnackOrder[];
 }
 
@@ -29,8 +28,8 @@ interface TodaySnackOrdersProps {
   onNewSale?: () => void;
 }
 
-function PaymentBadge({ mode, source }: { mode?: string | null; source?: string | null }) {
-  if (source === 'owner-use') {
+function PaymentBadge({ mode }: { mode?: string | null }) {
+  if (mode === 'owner') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20">
         <Lock size={10} /> Owner Use
@@ -68,7 +67,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
 
   const totalRevenue = useMemo(() =>
     ordersToday
-      .filter(b => b.source !== 'owner-use')
+      .filter(b => b.payment_mode !== 'owner')
       .reduce((sum, b) =>
         sum + (b.booking_orders?.reduce((s, o) => s + (o.total_price || 0), 0) || 0), 0),
     [ordersToday]
@@ -132,7 +131,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
             const orderTotal = booking.booking_orders!.reduce((s, o) => s + (o.total_price || 0), 0);
 
             return (
-              <div key={booking.id} className={`px-5 py-3.5 transition-colors ${booking.source === 'owner-use' ? 'bg-purple-500/5 hover:bg-purple-500/8' : 'hover:bg-slate-700/20'}`}>
+              <div key={booking.id} className={`px-5 py-3.5 transition-colors ${booking.payment_mode === 'owner' ? 'bg-purple-500/5 hover:bg-purple-500/8' : 'hover:bg-slate-700/20'}`}>
                 {/* Row top: customer + payment + total */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -147,8 +146,8 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <PaymentBadge mode={booking.payment_mode} source={booking.source} />
-                    {booking.source === 'owner-use'
+                    <PaymentBadge mode={booking.payment_mode} />
+                    {booking.payment_mode === 'owner'
                       ? <span className="text-sm font-semibold text-purple-400">Owner</span>
                       : <span className="text-sm font-semibold text-orange-400">₹{orderTotal.toLocaleString()}</span>
                     }

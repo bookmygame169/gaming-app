@@ -48,16 +48,19 @@ export async function POST(request: NextRequest) {
         customer_phone: customerPhone || null,
         booking_date: bookingDate,
         start_time: startTime,
-        duration: 0,
+        duration: 30,
         total_amount: totalAmount,
         status: "completed",
-        source: isOwnerUse ? "owner-use" : "snack-only",
-        payment_mode: paymentMode || "cash",
+        source: "walk-in",
+        payment_mode: isOwnerUse ? "owner" : (paymentMode || "cash"),
       })
       .select("id")
       .single();
 
-    if (bookingError) throw bookingError;
+    if (bookingError) {
+      console.error("Booking insert error:", bookingError);
+      throw new Error(bookingError.message || JSON.stringify(bookingError));
+    }
 
     // 2. Insert booking_orders
     const orders = items.map((item: {
@@ -76,7 +79,10 @@ export async function POST(request: NextRequest) {
     }));
 
     const { error: ordersError } = await supabase.from("booking_orders").insert(orders);
-    if (ordersError) throw ordersError;
+    if (ordersError) {
+      console.error("Orders insert error:", ordersError);
+      throw new Error(ordersError.message || JSON.stringify(ordersError));
+    }
 
     // 3. Decrement stock
     for (const item of items) {
