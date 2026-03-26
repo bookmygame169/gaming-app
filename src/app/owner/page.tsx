@@ -1758,13 +1758,14 @@ export default function OwnerDashboardPage() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete station'); }
 
-      // Update local state
+      // Update local state immediately (optimistic), then cancel any
+      // in-flight background fetch so it can't overwrite with old DB data
       setCafes(prev => prev.map((c) => c.id === currentCafeId ? {
         ...c,
         [columnName]: newCount,
       } : c));
-
       setStationToDelete(null);
+      refreshData(); // cancels in-flight fetch, starts fresh one with updated DB
     } catch (error) {
       console.error('Error deleting station:', error);
       alert('Failed to delete station. Please try again.');
