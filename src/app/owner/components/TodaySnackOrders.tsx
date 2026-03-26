@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ShoppingBag, Banknote, Smartphone, CreditCard, TrendingUp } from 'lucide-react';
+import { ShoppingBag, Banknote, Smartphone, CreditCard, TrendingUp, Plus } from 'lucide-react';
 
 interface SnackOrder {
   id: string;
@@ -25,6 +25,7 @@ interface Booking {
 interface TodaySnackOrdersProps {
   bookings: Booking[];
   todayStr: string;
+  onNewSale?: () => void;
 }
 
 function PaymentBadge({ mode }: { mode?: string | null }) {
@@ -50,7 +51,7 @@ function PaymentBadge({ mode }: { mode?: string | null }) {
   );
 }
 
-export function TodaySnackOrders({ bookings, todayStr }: TodaySnackOrdersProps) {
+export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOrdersProps) {
   const ordersToday = useMemo(() => {
     return bookings
       .filter(b => b.booking_date === todayStr && b.booking_orders && b.booking_orders.length > 0)
@@ -83,8 +84,16 @@ export function TodaySnackOrders({ bookings, todayStr }: TodaySnackOrdersProps) 
           </div>
         </div>
 
-        {/* Summary chips */}
+        {/* New sale button + summary chips */}
         <div className="flex items-center gap-2">
+          {onNewSale && (
+            <button
+              onClick={onNewSale}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-xs font-medium transition-all"
+            >
+              <Plus size={11} /> New Sale
+            </button>
+          )}
           <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-700/60 text-slate-400 border border-slate-600/40">
             {ordersToday.length} {ordersToday.length === 1 ? 'booking' : 'bookings'}
           </span>

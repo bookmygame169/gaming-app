@@ -34,6 +34,7 @@ import { useBilling } from "./hooks/useBilling";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
 import { useOwnerData } from "./hooks/useOwnerData";
 import { TodaySnackOrders } from "./components/TodaySnackOrders";
+import SnackSaleModal from "./components/SnackSaleModal";
 
 const LiveStatus = dynamic(() => import('./components/LiveStatus').then((mod) => mod.LiveStatus), { ssr: false });
 const Billing = dynamic(() => import('./components/Billing').then((mod) => mod.Billing), { ssr: false });
@@ -255,6 +256,9 @@ export default function OwnerDashboardPage() {
   };
 
 
+
+  // Snack Sale Modal state (standalone snack sales without a session)
+  const [snackSaleModalOpen, setSnackSaleModalOpen] = useState(false);
 
   // Add Items Modal state (for F&B items)
   const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
@@ -1999,6 +2003,7 @@ export default function OwnerDashboardPage() {
                 <TodaySnackOrders
                   bookings={bookings as any[]}
                   todayStr={getLocalDateString()}
+                  onNewSale={() => setSnackSaleModalOpen(true)}
                 />
               </div>
 
@@ -2373,17 +2378,28 @@ export default function OwnerDashboardPage() {
           {/* Billing Tab - Quick Booking Interface */}
 
           {activeTab === 'billing' && (
-            <Billing
-              cafeId={currentCafeId}
-              cafes={cafes}
-              isMobile={isMobile}
-              pricingData={consolePricing[currentCafeId]}
-              stationPricingList={Object.values(stationPricing)}
-              onSuccess={() => {
-                refreshData();
-                setActiveTab('dashboard');
-              }}
-            />
+            <div>
+              {/* Snack-only sale shortcut */}
+              <div className="mb-4 flex justify-end">
+                <button
+                  onClick={() => setSnackSaleModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-sm font-medium transition-all"
+                >
+                  🧃 Snack-Only Sale
+                </button>
+              </div>
+              <Billing
+                cafeId={currentCafeId}
+                cafes={cafes}
+                isMobile={isMobile}
+                pricingData={consolePricing[currentCafeId]}
+                stationPricingList={Object.values(stationPricing)}
+                onSuccess={() => {
+                  refreshData();
+                  setActiveTab('dashboard');
+                }}
+              />
+            </div>
           )}
 
 
@@ -2410,6 +2426,14 @@ export default function OwnerDashboardPage() {
           )}
         </div>
       </DashboardLayout>
+
+      {/* Snack-Only Sale Modal */}
+      <SnackSaleModal
+        isOpen={snackSaleModalOpen}
+        onClose={() => setSnackSaleModalOpen(false)}
+        cafeId={currentCafeId}
+        onSaleComplete={() => refreshData()}
+      />
 
       {/* Add Items Modal (F&B) */}
       <AddItemsModal
