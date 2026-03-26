@@ -372,11 +372,12 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             if (!items || !Array.isArray(items) || items.length === 0) return;
 
             const seenInThisBooking = new Set<string>();
+            const totalAmount = b.total_amount || 0;
 
-            // Sum stored item prices; if all are 0/null fall back to total_amount split
+            // Use item prices as weight ratios to allocate total_amount proportionally.
+            // This ensures console revenues always sum to Total Revenue (snacks included pro-rata).
             const itemPriceSum = items.reduce((s, it) =>
                 s + (typeof it.price === 'number' && it.price > 0 ? it.price : 0), 0);
-            const fallbackPerItem = (b.total_amount || 0) / items.length;
 
             items.forEach((item: BookingItem) => {
                 const consoleName = item.console || 'Unknown';
@@ -388,13 +389,12 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                     seenInThisBooking.add(consoleName);
                     consoles[consoleName].count += 1;
                 }
-                // Use stored item price when available; otherwise proportionally split total_amount
-                const itemRevenue = (typeof item.price === 'number' && item.price > 0)
-                    ? item.price
-                    : itemPriceSum === 0
-                        ? fallbackPerItem
-                        : 0; // other items in this booking have prices — this one is genuinely 0
-                consoles[consoleName].revenue += itemRevenue;
+                // Allocate total_amount proportionally by item price weight.
+                // Falls back to equal split when no prices are stored.
+                const weight = (itemPriceSum > 0 && typeof item.price === 'number' && item.price > 0)
+                    ? item.price / itemPriceSum
+                    : 1 / items.length;
+                consoles[consoleName].revenue += totalAmount * weight;
             });
         });
 
