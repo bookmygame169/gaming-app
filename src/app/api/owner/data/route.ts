@@ -51,6 +51,8 @@ async function getRequestedScope(request: NextRequest): Promise<{ scope: OwnerDa
 
 // Tabs that only need bookings — skip subscriptions, pricing, profiles
 const BOOKINGS_ONLY_TABS = new Set(['bookings', 'customers']);
+// Tabs that only need pricing — skip bookings, subscriptions, profiles
+const PRICING_ONLY_TABS = new Set(['billing']);
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,6 +68,8 @@ export async function POST(request: NextRequest) {
 
     // bookings/customers tabs only need bookings data — skip everything else
     const isBookingsOnlyTab = scope === "full" && BOOKINGS_ONLY_TABS.has(tab);
+    // billing tab only needs pricing data — skip bookings, subscriptions, profiles
+    const isPricingOnlyTab = scope === "full" && PRICING_ONLY_TABS.has(tab);
 
     // 1. Fetch Cafes
     const { data: cafeRows, error: cafesError } = await supabase
@@ -113,7 +117,9 @@ export async function POST(request: NextRequest) {
       : Promise.resolve({ data: [], error: null });
 
     const bookingsPromise =
-      scope === "full"
+      isPricingOnlyTab
+        ? Promise.resolve({ data: [], error: null })
+        : scope === "full"
         ? supabase
             .from("bookings")
             .select(`
@@ -149,7 +155,7 @@ export async function POST(request: NextRequest) {
       : Promise.resolve({ data: [], error: null });
 
     const subscriptionsPromise =
-      isBookingsOnlyTab
+      isBookingsOnlyTab || isPricingOnlyTab
         ? Promise.resolve({ data: [], error: null })
         : scope === "full"
         ? supabase
@@ -248,7 +254,7 @@ export async function POST(request: NextRequest) {
     // Process User Profiles — skip for bookings/customers tabs (customer_name already on row)
     const userProfiles = new Map();
 
-    if (!isBookingsOnlyTab) {
+    if (!isBookingsOnlyTab && !isPricingOnlyTab) {
       const profileBookingSource =
         scope === "full"
           ? ownerBookings
