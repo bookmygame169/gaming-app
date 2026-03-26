@@ -1550,7 +1550,8 @@ export default function OwnerDashboardPage() {
       const res = await fetch('/api/station-pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        credentials: 'include',
+        body: JSON.stringify({
           pricingData: {
             cafe_id: currentCafeId,
             station_name: stationName,
@@ -4219,6 +4220,7 @@ export default function OwnerDashboardPage() {
                         const res = await fetch('/api/station-pricing', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
                           body: JSON.stringify({ applyToAll: true, allPricingData }),
                         });
                         const result = await res.json();
@@ -4228,6 +4230,7 @@ export default function OwnerDashboardPage() {
                         const res = await fetch('/api/station-pricing', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
                           body: JSON.stringify({ pricingData }),
                         });
                         const result = await res.json();
