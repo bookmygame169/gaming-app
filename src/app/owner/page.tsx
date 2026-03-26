@@ -33,6 +33,7 @@ import StatCard from './components/StatCard';
 import { useBilling } from "./hooks/useBilling";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
 import { useOwnerData } from "./hooks/useOwnerData";
+import { TodaySnackOrders } from "./components/TodaySnackOrders";
 
 const LiveStatus = dynamic(() => import('./components/LiveStatus').then((mod) => mod.LiveStatus), { ssr: false });
 const Billing = dynamic(() => import('./components/Billing').then((mod) => mod.Billing), { ssr: false });
@@ -1990,6 +1991,14 @@ export default function OwnerDashboardPage() {
                     setViewOrdersCustomerName(customerName);
                     setViewOrdersModalOpen(true);
                   }}
+                />
+              </div>
+
+              {/* Today's Snack Orders */}
+              <div style={{ marginTop: isMobile ? 20 : 24 }}>
+                <TodaySnackOrders
+                  bookings={bookings as any[]}
+                  todayStr={getLocalDateString()}
                 />
               </div>
 

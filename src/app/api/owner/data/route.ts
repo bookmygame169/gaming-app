@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
               id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
               source, payment_mode, created_at, customer_name, customer_phone, deleted_at,
               booking_items (id, console, quantity, price),
-              booking_orders (id, quantity, total_price)
+              booking_orders (id, item_name, quantity, total_price)
             `)
             .in("cafe_id", cafeIds)
             .gte("booking_date", dashboardStartDate)
