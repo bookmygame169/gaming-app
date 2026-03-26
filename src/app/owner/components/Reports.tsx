@@ -372,12 +372,12 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             if (!items || !Array.isArray(items) || items.length === 0) return;
 
             const seenInThisBooking = new Set<string>();
-            const totalAmount = b.total_amount || 0;
 
-            // Use item prices as weight ratios to allocate total_amount proportionally.
-            // This ensures console revenues always sum to Total Revenue (snacks included pro-rata).
+            // Check if any item has a stored price so we know whether to use prices or equal split
             const itemPriceSum = items.reduce((s, it) =>
                 s + (typeof it.price === 'number' && it.price > 0 ? it.price : 0), 0);
+            // Only use total_amount split as fallback when NO item prices are stored at all
+            const fallbackPerItem = (b.total_amount || 0) / items.length;
 
             items.forEach((item: BookingItem) => {
                 const consoleName = item.console || 'Unknown';
@@ -389,12 +389,12 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                     seenInThisBooking.add(consoleName);
                     consoles[consoleName].count += 1;
                 }
-                // Allocate total_amount proportionally by item price weight.
-                // Falls back to equal split when no prices are stored.
-                const weight = (itemPriceSum > 0 && typeof item.price === 'number' && item.price > 0)
-                    ? item.price / itemPriceSum
-                    : 1 / items.length;
-                consoles[consoleName].revenue += totalAmount * weight;
+                // Use stored item price (gaming only, excludes snacks).
+                // Fall back to equal split of total_amount only when no prices are stored at all.
+                const itemRevenue = itemPriceSum > 0
+                    ? (typeof item.price === 'number' && item.price > 0 ? item.price : 0)
+                    : fallbackPerItem;
+                consoles[consoleName].revenue += itemRevenue;
             });
         });
 
@@ -781,7 +781,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                         </div>
                         {consoleData.length > 0 && (
                             <div className="text-right">
-                                <p className="text-xs text-slate-500">Total</p>
+                                <p className="text-xs text-slate-500">Gaming Revenue</p>
                                 <p className="text-base font-bold text-white">
                                     ₹{Math.round(consoleData.reduce((s, c) => s + c.revenue, 0)).toLocaleString('en-IN')}
                                 </p>
