@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   X, Plus, Minus, ShoppingCart, Search, Loader2, Check,
-  Coffee, Cookie, Gift, GlassWater, Banknote, Smartphone, User, Lock, AlertCircle,
+  Coffee, Cookie, Gift, GlassWater, Banknote, Smartphone, User, Lock, AlertCircle, ChevronRight,
 } from "lucide-react";
 import { InventoryItem, InventoryCategory, CartItem, CATEGORY_LABELS } from "@/types/inventory";
 
@@ -34,6 +34,11 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
   const [customerPhone, setCustomerPhone] = useState("");
   const [paymentMode, setPaymentMode] = useState<"cash" | "online">("cash");
 
+  // Customer autocomplete
+  const [suggestions, setSuggestions] = useState<{ name: string; phone: string | null }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
   // Owner-use state
   const [isOwnerUse, setIsOwnerUse] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
@@ -53,6 +58,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
       setSearchQuery("");
       setCustomerName("");
       setCustomerPhone("");
+      setSuggestions([]);
+      setShowSuggestions(false);
       setPaymentMode("cash");
       setDone(false);
       setIsOwnerUse(false);
@@ -81,6 +88,60 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
       setLoading(false);
     }
   }
+
+  const searchCustomers = useCallback(async (query: string) => {
+    if (query.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    const [bookingsRes, profilesRes] = await Promise.all([
+      supabase
+        .from("bookings")
+        .select("customer_name, customer_phone")
+        .eq("cafe_id", cafeId)
+        .ilike("customer_name", `%${query}%`)
+        .not("customer_name", "is", null)
+        .limit(8),
+      supabase
+        .from("profiles")
+        .select("first_name, last_name, phone")
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
+        .limit(5),
+    ]);
+
+    const seen = new Set<string>();
+    const results: { name: string; phone: string | null }[] = [];
+
+    profilesRes.data?.forEach((p) => {
+      const name = [p.first_name, p.last_name].filter(Boolean).join(" ");
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        results.push({ name, phone: p.phone || null });
+      }
+    });
+
+    bookingsRes.data?.forEach((b) => {
+      if (b.customer_name && !seen.has(b.customer_name.toLowerCase())) {
+        seen.add(b.customer_name.toLowerCase());
+        results.push({ name: b.customer_name, phone: b.customer_phone || null });
+      }
+    });
+
+    setSuggestions(results);
+    setShowSuggestions(results.length > 0);
+  }, [cafeId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => searchCustomers(customerName), 300);
+    return () => clearTimeout(timer);
+  }, [customerName, searchCustomers]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -275,15 +336,40 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
+                  <div className="relative" ref={suggestionsRef}>
                     <label className="text-[11px] text-slate-500 font-medium uppercase tracking-wide block mb-1.5">Customer Name (optional)</label>
                     <input
                       type="text"
                       value={customerName}
-                      onChange={e => setCustomerName(e.target.value)}
+                      onChange={e => { setCustomerName(e.target.value); setShowSuggestions(true); }}
+                      onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                       placeholder="Walk-in customer"
+                      autoComplete="off"
                       className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600/50 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
                     />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="absolute z-10 left-0 right-0 mt-1 rounded-xl bg-slate-800 border border-slate-600/60 shadow-xl overflow-hidden">
+                        {suggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => {
+                              setCustomerName(s.name);
+                              setCustomerPhone(s.phone || "");
+                              setShowSuggestions(false);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-700/60 transition-colors border-b border-slate-700/30 last:border-0"
+                          >
+                            <div>
+                              <p className="text-sm text-slate-200 font-medium">{s.name}</p>
+                              {s.phone && <p className="text-[11px] text-slate-500">{s.phone}</p>}
+                            </div>
+                            <ChevronRight size={12} className="text-slate-600 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="text-[11px] text-slate-500 font-medium uppercase tracking-wide block mb-1.5">Phone (optional)</label>
