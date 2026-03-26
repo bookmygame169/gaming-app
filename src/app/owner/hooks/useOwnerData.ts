@@ -8,6 +8,14 @@ const FULL_BOOKING_TABS = new Set<NavTab>(['bookings', 'customers', 'stations'])
 const PRICING_ONLY_TABS = new Set<NavTab>(['billing']);
 const AUTO_REFRESH_TABS = new Set<NavTab>(['dashboard']);
 
+// Compute a stable "fetch key" so switching between same-scope tabs
+// does NOT trigger a re-fetch (prevents race conditions on stations/bookings).
+// Only billing gets a unique key so it always fetches fresh pricing.
+function getFetchKey(scope: OwnerDataScope, tab: NavTab): string {
+  if (PRICING_ONLY_TABS.has(tab)) return `pricing:${tab}`;
+  return scope;
+}
+
 function getOwnerDataScope(activeTab: NavTab): OwnerDataScope {
   return FULL_BOOKING_TABS.has(activeTab) ? 'full' : 'dashboard';
 }
@@ -33,6 +41,7 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
 
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
   const dataScope = useMemo(() => getOwnerDataScope(activeTab), [activeTab]);
+  const fetchKey = useMemo(() => getFetchKey(dataScope, activeTab), [dataScope, activeTab]);
   const shouldAutoRefresh = useMemo(() => AUTO_REFRESH_TABS.has(activeTab), [activeTab]);
   // Derive stats from bookings and cafes - Exclude cancelled bookings from revenue
   const stats = useMemo<OwnerStats | null>(() => {
@@ -140,7 +149,7 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
     return () => {
       cancelled = true;
     };
-  }, [canFetch, refreshTrigger, dataScope, activeTab]);
+  }, [canFetch, refreshTrigger, fetchKey]);
 
   return {
     stats,
