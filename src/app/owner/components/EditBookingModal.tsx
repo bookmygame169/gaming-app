@@ -65,7 +65,6 @@ const STATUS_OPTIONS = [
 const PAYMENT_OPTIONS = [
   { value: 'cash', label: 'Cash', icon: '💵', active: 'border-emerald-500 bg-emerald-500/10 text-emerald-300', inactive: 'border-slate-700 bg-slate-800/50 text-slate-400' },
   { value: 'upi', label: 'UPI', icon: '📱', active: 'border-indigo-500 bg-indigo-500/10 text-indigo-300', inactive: 'border-slate-700 bg-slate-800/50 text-slate-400' },
-  { value: 'owner', label: 'Owner Use', icon: '🔑', active: 'border-purple-500 bg-purple-500/10 text-purple-300', inactive: 'border-slate-700 bg-slate-800/50 text-slate-400' },
 ];
 
 function calcEndTime(startTime24: string, items: EditItem[], fallbackDuration: number): string {
@@ -518,7 +517,7 @@ export function EditBookingModal({
               {/* Payment Method */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment Method *</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {PAYMENT_OPTIONS.map(p => (
                     <button
                       key={p.value}
