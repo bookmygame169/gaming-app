@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, Button, Select, StatCard } from './ui';
+import { supabase } from '@/lib/supabaseClient';
+import { getTimezoneOffset } from '../utils';
+import {
+    InventoryItem,
+    BookingOrder as InventoryBookingOrder,
+    InventoryCategory,
+    CATEGORY_LABELS,
+    ItemSalesData,
+} from '@/types/inventory';
 import {
     TrendingUp,
     TrendingDown,
@@ -16,6 +25,14 @@ import {
     Users,
     Globe,
     Store,
+    Package,
+    DollarSign,
+    ShoppingCart,
+    Percent,
+    BarChart3,
+    Receipt,
+    User,
+    Phone,
 } from 'lucide-react';
 
 interface ReportsProps {
@@ -60,6 +77,37 @@ interface PreviousBookingData {
     payment_mode: string;
 }
 
+interface EnrichedSnackOrder extends InventoryBookingOrder {
+    bookings?: {
+        id: string;
+        customer_name?: string | null;
+        customer_phone?: string | null;
+        booking_date?: string | null;
+        start_time?: string | null;
+        payment_mode?: string | null;
+        status?: string | null;
+    };
+}
+
+interface SnackTransaction {
+    bookingId: string;
+    customerName: string;
+    customerPhone: string | null;
+    date: string;
+    time: string | null;
+    paymentMode: string;
+    items: { name: string; quantity: number; price: number }[];
+    totalAmount: number;
+    isOwnerUse: boolean;
+}
+
+const CATEGORY_COLORS: Record<InventoryCategory, { bg: string; text: string; bar: string }> = {
+    snacks:      { bg: 'bg-amber-500/10',  text: 'text-amber-500',  bar: 'bg-amber-500' },
+    cold_drinks: { bg: 'bg-cyan-500/10',   text: 'text-cyan-500',   bar: 'bg-cyan-500' },
+    hot_drinks:  { bg: 'bg-red-500/10',    text: 'text-red-500',    bar: 'bg-red-500' },
+    combo:       { bg: 'bg-purple-500/10', text: 'text-purple-500', bar: 'bg-purple-500' },
+};
+
 const formatLocalDate = (date: Date): string => (
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 );
@@ -81,12 +129,18 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const [cafeHours, setCafeHours] = useState<{ openHour: number; closeHour: number }>({ openHour: 10, closeHour: 23 });
     const [expandedChart, setExpandedChart] = useState(false);
 
+    // F&B / Snack analytics state (fetched directly from Supabase like InventoryAnalytics)
+    const [snackOrders, setSnackOrders] = useState<EnrichedSnackOrder[]>([]);
+    const [snackInventoryItems, setSnackInventoryItems] = useState<InventoryItem[]>([]);
+    const [snackLoading, setSnackLoading] = useState(false);
+
     // Fetch data based on range — skip until cafeId is available
     useEffect(() => {
         if (!cafeId) return;
         fetchReportsData();
         fetchCafeHours();
         fetchPeakHoursData();
+        fetchSnackData();
     }, [dateRange, cafeId, customStart, customEnd]);
 
     const getDateRange = (range: string) => {
@@ -190,6 +244,46 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             console.error('Error fetching reports:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchSnackData = async () => {
+        if (!cafeId) return;
+        setSnackLoading(true);
+        try {
+            const { startDate, endDate } = getDateRange(dateRange);
+            const now = new Date();
+
+            // Step 1: get cafe's inventory items (for cost/category data)
+            const { data: items } = await supabase
+                .from('inventory_items')
+                .select('*')
+                .eq('cafe_id', cafeId);
+
+            setSnackInventoryItems(items || []);
+            const itemIds = (items || []).map((i: any) => i.id);
+
+            if (itemIds.length === 0) {
+                setSnackOrders([]);
+                return;
+            }
+
+            // Step 2: get booking_orders for those item IDs in the date range
+            const { data: orders, error } = await supabase
+                .from('booking_orders')
+                .select('*, bookings!inner(id, customer_name, customer_phone, booking_date, start_time, payment_mode, status)')
+                .in('inventory_item_id', itemIds)
+                .neq('bookings.status', 'cancelled')
+                .gte('ordered_at', `${startDate}T00:00:00.000${getTimezoneOffset(now)}`)
+                .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`)
+                .order('ordered_at', { ascending: false });
+
+            if (error) console.error('Error fetching snack orders:', error);
+            setSnackOrders((orders as EnrichedSnackOrder[]) || []);
+        } catch (err) {
+            console.error('Error fetching snack data:', err);
+        } finally {
+            setSnackLoading(false);
         }
     };
 
@@ -488,6 +582,98 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         billableBookings.filter(b => !b.booking_items || b.booking_items.length === 0).length,
         [billableBookings]
     );
+
+    // --- F&B Analytics (from direct Supabase query, same as InventoryAnalytics) ---
+    const snackStats = useMemo(() => {
+        const totalRevenue = snackOrders.reduce((s, o) => s + (o.total_price || 0), 0);
+        const totalItemsSold = snackOrders.reduce((s, o) => s + (o.quantity || 0), 0);
+        const totalOrders = snackOrders.length;
+        const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        let totalCost = 0;
+        snackOrders.forEach(o => {
+            const item = snackInventoryItems.find(i => i.id === o.inventory_item_id);
+            if (item?.cost_price) totalCost += item.cost_price * o.quantity;
+        });
+        const totalProfit = totalRevenue - totalCost;
+        const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+        return { totalRevenue, totalItemsSold, totalOrders, avgOrderValue, totalCost, totalProfit, profitMargin };
+    }, [snackOrders, snackInventoryItems]);
+
+    const snackTopItems = useMemo((): ItemSalesData[] => {
+        const map: Record<string, ItemSalesData> = {};
+        snackOrders.forEach(o => {
+            const key = o.inventory_item_id || o.item_name;
+            const inv = snackInventoryItems.find(i => i.id === o.inventory_item_id);
+            if (!map[key]) map[key] = {
+                itemId: key, itemName: o.item_name,
+                category: inv?.category || 'snacks',
+                quantitySold: 0, revenue: 0, cost: 0, profit: 0, profitMargin: 0,
+            };
+            map[key].quantitySold += o.quantity;
+            map[key].revenue += o.total_price;
+            if (inv?.cost_price) {
+                const cost = inv.cost_price * o.quantity;
+                map[key].cost += cost;
+                map[key].profit = map[key].revenue - map[key].cost;
+                map[key].profitMargin = map[key].revenue > 0 ? (map[key].profit / map[key].revenue) * 100 : 0;
+            }
+        });
+        return Object.values(map).sort((a, b) => b.quantitySold - a.quantitySold).slice(0, 10);
+    }, [snackOrders, snackInventoryItems]);
+
+    const snackCategoryBreakdown = useMemo(() => {
+        const cats: Record<InventoryCategory, { qty: number; revenue: number; profit: number }> = {
+            snacks: { qty: 0, revenue: 0, profit: 0 },
+            cold_drinks: { qty: 0, revenue: 0, profit: 0 },
+            hot_drinks: { qty: 0, revenue: 0, profit: 0 },
+            combo: { qty: 0, revenue: 0, profit: 0 },
+        };
+        snackOrders.forEach(o => {
+            const inv = snackInventoryItems.find(i => i.id === o.inventory_item_id);
+            const cat = inv?.category || 'snacks';
+            cats[cat].qty += o.quantity;
+            cats[cat].revenue += o.total_price;
+            cats[cat].profit += inv?.cost_price
+                ? o.total_price - inv.cost_price * o.quantity
+                : o.total_price;
+        });
+        const totalRev = snackStats.totalRevenue || 1;
+        return Object.entries(cats)
+            .map(([c, d]) => ({ category: c as InventoryCategory, ...d, percentage: (d.revenue / totalRev) * 100 }))
+            .filter(c => c.revenue > 0)
+            .sort((a, b) => b.revenue - a.revenue);
+    }, [snackOrders, snackInventoryItems, snackStats.totalRevenue]);
+
+    const snackRevenueTrend = useMemo(() => {
+        const daily: Record<string, number> = {};
+        snackOrders.forEach(o => {
+            const date = new Date(o.ordered_at).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+            daily[date] = (daily[date] || 0) + (o.total_price || 0);
+        });
+        return Object.entries(daily).map(([date, amount]) => ({ date, amount }));
+    }, [snackOrders]);
+
+    const snackTransactions = useMemo((): SnackTransaction[] => {
+        const grouped: Record<string, SnackTransaction> = {};
+        snackOrders.forEach(o => {
+            const bk = o.bookings;
+            const id = o.booking_id;
+            if (!grouped[id]) grouped[id] = {
+                bookingId: id,
+                customerName: bk?.customer_name || 'Walk-in',
+                customerPhone: bk?.customer_phone || null,
+                date: bk?.booking_date || o.ordered_at.split('T')[0],
+                time: bk?.start_time || null,
+                paymentMode: bk?.payment_mode || 'cash',
+                items: [],
+                totalAmount: 0,
+                isOwnerUse: bk?.payment_mode === 'owner',
+            };
+            grouped[id].items.push({ name: o.item_name, quantity: o.quantity, price: o.total_price });
+            grouped[id].totalAmount += o.total_price;
+        });
+        return Object.values(grouped).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [snackOrders]);
 
     // Export to CSV
     const exportToCSV = () => {
@@ -1129,144 +1315,298 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 </Card>
             </div>
 
-            {/* F&B / Snacks Breakdown — always visible */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Top Snack Items */}
-                    <Card className="min-h-[280px]">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <Store size={20} className="text-orange-500" />
-                                    F&B Top Items
-                                </h3>
-                                <p className="text-sm text-slate-400">Best-selling snacks & drinks</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs text-slate-500">Snack Revenue</p>
-                                <p className="text-base font-bold text-orange-400">
-                                    ₹{Math.round(stats.snackRevenue).toLocaleString('en-IN')}
-                                </p>
-                            </div>
+            {/* ── F&B Analytics Section (mirrors InventoryAnalytics) ── */}
+            <div className="space-y-6">
+                {/* Section header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Store className="w-5 h-5 text-orange-500" />
+                            F&B Analytics
+                        </h2>
+                        <p className="text-slate-400 text-sm mt-0.5">Snack & drink performance for this period</p>
+                    </div>
+                    {/* Revenue Split pill */}
+                    <div className="hidden sm:flex items-center gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-2">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                            <span className="text-xs text-slate-400">Gaming</span>
+                            <span className="text-xs font-semibold text-emerald-400 ml-1">₹{Math.round(stats.gamingRevenue).toLocaleString('en-IN')}</span>
                         </div>
-                        {loading ? (
-                            <div className="flex items-center justify-center h-40 text-slate-500 text-sm">Loading...</div>
-                        ) : snackData.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-40 gap-2">
-                                <Store size={32} className="text-slate-700" />
-                                <p className="text-slate-500 text-sm">No snack sales in this period</p>
-                                <p className="text-slate-600 text-xs">{snackBookingCount} snack booking{snackBookingCount !== 1 ? 's' : ''} found · {billableBookings.length} total</p>
-                                <button
-                                    onClick={() => setDateRange('all')}
-                                    className="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
-                                >
-                                    Try All Time
-                                </button>
-                            </div>
-                        ) : (
-                        <div className="space-y-4">
-                            {snackData.map((item, index) => {
-                                const maxRevenue = snackData[0]?.revenue || 1;
-                                const widthPercent = (item.revenue / maxRevenue) * 100;
-                                const colors = ['bg-orange-500', 'bg-amber-500', 'bg-yellow-500', 'bg-red-400', 'bg-pink-500'];
-                                const textColors = ['text-orange-400', 'text-amber-400', 'text-yellow-400', 'text-red-400', 'text-pink-400'];
-                                return (
-                                    <div key={item.name} className="flex items-center gap-3">
-                                        <span className="text-slate-500 text-xs w-4">{index + 1}</span>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="text-sm font-medium text-white truncate max-w-[160px]">{item.name}</span>
-                                                <span className="text-sm text-slate-400">{item.qty} sold</span>
-                                            </div>
-                                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full ${colors[index % colors.length]} rounded-full transition-all duration-500`}
-                                                    style={{ width: `${widthPercent}%` }}
-                                                />
-                                            </div>
-                                            <p className={`text-xs mt-1 ${textColors[index % textColors.length]}`}>
-                                                ₹{Math.round(item.revenue).toLocaleString()} revenue · {item.transactions} orders
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        <div className="w-px h-4 bg-slate-700" />
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                            <span className="text-xs text-slate-400">F&B</span>
+                            <span className="text-xs font-semibold text-orange-400 ml-1">₹{Math.round(snackStats.totalRevenue).toLocaleString('en-IN')}</span>
                         </div>
-                        )}
-                    </Card>
-
-                    {/* Snack Revenue vs Gaming Revenue */}
-                    <Card className="min-h-[280px]">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <TrendingUp size={20} className="text-emerald-500" />
-                                    Revenue Split
-                                </h3>
-                                <p className="text-sm text-slate-400">Gaming vs F&B contribution</p>
-                            </div>
-                        </div>
-                        <div className="space-y-5">
-                            {/* Gaming */}
-                            <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                                        <span className="text-sm font-medium text-white">Gaming</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-sm font-semibold text-emerald-400">₹{Math.round(stats.gamingRevenue).toLocaleString('en-IN')}</span>
-                                        <span className="text-xs text-slate-500 ml-2">
-                                            {stats.revenue > 0 ? ((stats.gamingRevenue / stats.revenue) * 100).toFixed(0) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-emerald-500 rounded-full transition-all duration-700"
-                                        style={{ width: `${stats.revenue > 0 ? (stats.gamingRevenue / stats.revenue) * 100 : 0}%` }}
-                                    />
-                                </div>
-                            </div>
-                            {/* F&B */}
-                            <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-orange-500" />
-                                        <span className="text-sm font-medium text-white">F&B / Snacks</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-sm font-semibold text-orange-400">₹{Math.round(stats.snackRevenue).toLocaleString('en-IN')}</span>
-                                        <span className="text-xs text-slate-500 ml-2">
-                                            {stats.revenue > 0 ? ((stats.snackRevenue / stats.revenue) * 100).toFixed(0) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-orange-500 rounded-full transition-all duration-700"
-                                        style={{ width: `${stats.revenue > 0 ? (stats.snackRevenue / stats.revenue) * 100 : 0}%` }}
-                                    />
-                                </div>
-                            </div>
-                            {/* Divider + totals */}
-                            <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
-                                <span className="text-sm text-slate-400">Total Revenue</span>
-                                <span className="text-lg font-bold text-white">₹{Math.round(stats.revenue).toLocaleString('en-IN')}</span>
-                            </div>
-                            {/* Snack item count */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-slate-800/50 rounded-xl p-3 text-center">
-                                    <p className="text-xl font-bold text-white">{snackData.reduce((s, i) => s + i.qty, 0)}</p>
-                                    <p className="text-xs text-slate-400 mt-0.5">Snack units sold</p>
-                                </div>
-                                <div className="bg-slate-800/50 rounded-xl p-3 text-center">
-                                    <p className="text-xl font-bold text-white">{snackData.reduce((s, i) => s + i.transactions, 0)}</p>
-                                    <p className="text-xs text-slate-400 mt-0.5">Snack orders</p>
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
+                    </div>
                 </div>
+
+                {snackLoading ? (
+                    <div className="flex items-center justify-center py-16 text-slate-500 text-sm gap-2">
+                        <div className="w-4 h-4 border-2 border-slate-600 border-t-orange-500 rounded-full animate-spin" />
+                        Loading F&B data...
+                    </div>
+                ) : snackOrders.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-14 gap-3 bg-slate-800/20 rounded-2xl border border-slate-800">
+                        <Store size={36} className="text-slate-700" />
+                        <p className="text-slate-400 text-sm font-medium">No F&B sales in this period</p>
+                        <p className="text-slate-600 text-xs">{snackInventoryItems.length} inventory items configured</p>
+                        <button onClick={() => setDateRange('all')} className="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
+                            Try All Time
+                        </button>
+                    </div>
+                ) : (
+                <>
+                    {/* Key Metrics */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-slate-800">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-400 mb-1">F&B Revenue</p>
+                                    <p className="text-2xl font-bold text-white">₹{snackStats.totalRevenue.toLocaleString()}</p>
+                                    <p className="text-xs text-slate-500 mt-1">{snackStats.totalOrders} orders</p>
+                                </div>
+                                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+                                    <DollarSign size={18} />
+                                </div>
+                            </div>
+                        </Card>
+                        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-slate-800">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-400 mb-1">F&B Profit</p>
+                                    <p className="text-2xl font-bold text-white">₹{snackStats.totalProfit.toLocaleString()}</p>
+                                    <p className="text-xs text-slate-500 mt-1">{snackStats.profitMargin.toFixed(1)}% margin</p>
+                                </div>
+                                <div className="p-2 rounded-xl bg-green-500/10 text-green-500">
+                                    <TrendingUp size={18} />
+                                </div>
+                            </div>
+                        </Card>
+                        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-slate-800">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-400 mb-1">Items Sold</p>
+                                    <p className="text-2xl font-bold text-white">{snackStats.totalItemsSold}</p>
+                                    <p className="text-xs text-slate-500 mt-1">Total units</p>
+                                </div>
+                                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
+                                    <ShoppingCart size={18} />
+                                </div>
+                            </div>
+                        </Card>
+                        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-slate-800">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-400 mb-1">Avg Order</p>
+                                    <p className="text-2xl font-bold text-white">₹{Math.round(snackStats.avgOrderValue)}</p>
+                                    <p className="text-xs text-slate-500 mt-1">Per transaction</p>
+                                </div>
+                                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+                                    <Percent size={18} />
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Top Items + Category Breakdown */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Top Selling Items */}
+                        <Card className="min-h-[300px]">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                        <Package size={20} className="text-cyan-500" />
+                                        Top Selling Items
+                                    </h3>
+                                    <p className="text-sm text-slate-400">By quantity sold</p>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {snackTopItems.slice(0, 5).map((item, index) => {
+                                    const colors = CATEGORY_COLORS[item.category];
+                                    const maxQty = snackTopItems[0]?.quantitySold || 1;
+                                    return (
+                                        <div key={item.itemId} className="flex items-center gap-3">
+                                            <span className="text-slate-500 text-sm w-5">{index + 1}</span>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-sm font-medium text-white truncate max-w-[150px]">{item.itemName}</span>
+                                                    <span className="text-sm text-slate-400">{item.quantitySold} sold</span>
+                                                </div>
+                                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                    <div className={`h-full ${colors.bar} rounded-full transition-all duration-500`} style={{ width: `${(item.quantitySold / maxQty) * 100}%` }} />
+                                                </div>
+                                                <div className="flex justify-between mt-1">
+                                                    <span className={`text-xs ${colors.text}`}>{CATEGORY_LABELS[item.category]}</span>
+                                                    <span className="text-xs text-slate-500">₹{item.revenue.toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </Card>
+
+                        {/* Sales by Category */}
+                        <Card className="min-h-[300px]">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                        <BarChart3 size={20} className="text-purple-500" />
+                                        Sales by Category
+                                    </h3>
+                                    <p className="text-sm text-slate-400">Revenue breakdown</p>
+                                </div>
+                            </div>
+                            {snackCategoryBreakdown.length === 0 ? (
+                                <div className="flex items-center justify-center h-48 text-slate-500 text-sm">No category data</div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {snackCategoryBreakdown.map((cat) => {
+                                        const colors = CATEGORY_COLORS[cat.category];
+                                        return (
+                                            <div key={cat.category} className="flex items-center gap-4">
+                                                <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
+                                                    <Package size={18} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-sm font-medium text-white">{CATEGORY_LABELS[cat.category]}</span>
+                                                        <span className="text-sm text-slate-400">₹{cat.revenue.toLocaleString()} ({cat.percentage.toFixed(0)}%)</span>
+                                                    </div>
+                                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${colors.bar} rounded-full transition-all duration-500`} style={{ width: `${cat.percentage}%` }} />
+                                                    </div>
+                                                    <div className="flex justify-between mt-1">
+                                                        <span className="text-xs text-slate-500">{cat.qty} items sold</span>
+                                                        <span className="text-xs text-emerald-400">₹{cat.profit.toLocaleString()} profit</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+
+                    {/* F&B Revenue Trend */}
+                    {snackRevenueTrend.length > 0 && (
+                        <Card className="min-h-[240px]">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                        <TrendingUp size={20} className="text-orange-500" />
+                                        F&B Revenue Trend
+                                    </h3>
+                                    <p className="text-sm text-slate-400">Daily F&B earnings</p>
+                                </div>
+                            </div>
+                            <div className="w-full relative pt-6 pb-2">
+                                {(() => {
+                                    const displayData = snackRevenueTrend.slice(-7);
+                                    const maxInView = Math.max(...displayData.map(x => x.amount), 100);
+                                    return (
+                                        <div className="flex items-end justify-between px-2 gap-1" style={{ height: '150px' }}>
+                                            {displayData.map((d, i) => {
+                                                const barHeight = Math.max((d.amount / maxInView) * 100, 8);
+                                                const parts = d.date.split(' ');
+                                                const shortDate = `${parts[0].replace(',', '')} ${parts[1]}`;
+                                                return (
+                                                    <div key={i} className="flex flex-col items-center gap-2 group flex-1">
+                                                        <div className="w-full flex flex-col items-center h-full justify-end relative">
+                                                            <div className="w-full max-w-[60px] relative flex items-end h-[120px]">
+                                                                <div className="w-full bg-orange-500/20 border-t-2 border-orange-500 rounded-t-sm hover:bg-orange-500/40 transition-all relative" style={{ height: `${barHeight}%` }}>
+                                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-orange-400 font-medium whitespace-nowrap">
+                                                                        ₹{d.amount.toLocaleString()}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-500 whitespace-nowrap">{shortDate}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                            {snackRevenueTrend.length > 7 && (
+                                <p className="text-center text-xs text-slate-500 mt-3">Showing last 7 days of {snackRevenueTrend.length}</p>
+                            )}
+                        </Card>
+                    )}
+
+                    {/* Sale Transactions */}
+                    {snackTransactions.length > 0 && (
+                        <Card padding="none" className="overflow-hidden">
+                            <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                        <Receipt size={20} className="text-cyan-500" />
+                                        F&B Sale Transactions
+                                    </h3>
+                                    <p className="text-sm text-slate-400">{snackTransactions.filter(t => !t.isOwnerUse).length} customer sales in this period</p>
+                                </div>
+                            </div>
+                            <div className="divide-y divide-slate-800/60">
+                                {snackTransactions.map(tx => {
+                                    const payMode = (tx.paymentMode || 'cash').toLowerCase();
+                                    const isOwner = tx.isOwnerUse;
+                                    const [y, m, d] = tx.date.split('-').map(Number);
+                                    const dateLabel = new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                                    return (
+                                        <div key={tx.bookingId} className={`px-5 py-4 hover:bg-slate-800/20 transition-colors ${isOwner ? 'opacity-60' : ''}`}>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-200">
+                                                            <User size={13} className="text-slate-500 shrink-0" />
+                                                            {tx.customerName}
+                                                        </div>
+                                                        {tx.customerPhone && (
+                                                            <div className="flex items-center gap-1 text-xs text-slate-500">
+                                                                <Phone size={11} className="shrink-0" />
+                                                                {tx.customerPhone}
+                                                            </div>
+                                                        )}
+                                                        {isOwner ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-400">Owner Use</span>
+                                                        ) : payMode === 'cash' ? (
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-500/15 text-green-400"><Banknote size={10} />Cash</span>
+                                                        ) : payMode === 'upi' ? (
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400"><CreditCard size={10} />UPI</span>
+                                                        ) : (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-700 text-slate-400 capitalize">{tx.paymentMode}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                                                        {tx.items.map((item, idx) => (
+                                                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">
+                                                                {item.name} ×{item.quantity} · ₹{item.price.toLocaleString()}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500">{dateLabel}{tx.time ? ` · ${tx.time}` : ''}</div>
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                    <p className={`text-base font-bold ${isOwner ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                                        {isOwner ? 'Free' : `₹${tx.totalAmount.toLocaleString()}`}
+                                                    </p>
+                                                    <p className="text-xs text-slate-600 mt-0.5">#{tx.bookingId.slice(0, 8).toUpperCase()}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </Card>
+                    )}
+                </>
+                )}
+            </div>
 
             {/* Recent Transactions Table */}
             <Card padding="none" className="overflow-hidden">
