@@ -193,6 +193,12 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
 
     const stats = useMemo(() => {
         const totalRevenue = billableBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        // Gaming = bookings with console items; Snacks = bookings with no items
+        const gamingRevenue = billableBookings
+            .filter(b => b.booking_items && b.booking_items.length > 0)
+            .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const snackRevenue = totalRevenue - gamingRevenue;
+
         const totalBookings = billableBookings.length;
         const avgOrderValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
@@ -209,6 +215,8 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
 
         return {
             revenue: totalRevenue,
+            gamingRevenue,
+            snackRevenue,
             count: totalBookings,
             aov: avgOrderValue,
             revenueChange,
@@ -586,10 +594,25 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-slate-800">
                     <div className="flex items-start justify-between">
-                        <div>
+                        <div className="flex-1">
                             <p className="text-sm font-medium text-slate-400 mb-1">Total Revenue</p>
                             <p className="text-3xl font-bold text-white">₹{stats.revenue.toLocaleString()}</p>
-                            <p className="text-xs text-slate-500 mt-1">{bookings.length} transactions</p>
+                            <p className="text-xs text-slate-500 mt-1">{billableBookings.length} transactions</p>
+                            {/* Gaming / Snacks breakdown */}
+                            <div className="flex items-center gap-3 mt-3">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                    <span className="text-xs text-slate-400">Gaming</span>
+                                    <span className="text-xs font-semibold text-emerald-400">₹{stats.gamingRevenue.toLocaleString()}</span>
+                                </div>
+                                {stats.snackRevenue > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                        <span className="text-xs text-slate-400">Snacks</span>
+                                        <span className="text-xs font-semibold text-orange-400">₹{stats.snackRevenue.toLocaleString()}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                             <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
