@@ -43,8 +43,7 @@ export async function POST(request: NextRequest) {
       .select(`
         id, total_amount, created_at, booking_date, status, payment_mode, start_time,
         customer_name, source,
-        booking_items (console, quantity, price),
-        booking_orders (item_name, quantity, unit_price, total_price)
+        booking_items (console, quantity, price)
       `)
       .eq('cafe_id', cafeId)
       .neq('status', 'cancelled')
@@ -56,6 +55,37 @@ export async function POST(request: NextRequest) {
     if (currentError) {
       return NextResponse.json({ error: currentError.message }, { status: 500 });
     }
+
+    // Fetch booking_orders separately for snack-only bookings (no booking_items).
+    // Inline PostgREST join from bookings→booking_orders is unreliable — fetching
+    // directly by booking_id is guaranteed to work.
+    const snackBookingIds = (currentData || [])
+      .filter((b: any) => !b.booking_items || b.booking_items.length === 0)
+      .map((b: any) => b.id);
+
+    let snackOrdersMap: Record<string, any[]> = {};
+    if (snackBookingIds.length > 0) {
+      const { data: ordersData } = await supabase
+        .from('booking_orders')
+        .select('booking_id, item_name, quantity, unit_price, total_price')
+        .in('booking_id', snackBookingIds);
+
+      (ordersData || []).forEach((o: any) => {
+        if (!snackOrdersMap[o.booking_id]) snackOrdersMap[o.booking_id] = [];
+        snackOrdersMap[o.booking_id].push({
+          item_name: o.item_name,
+          quantity: o.quantity,
+          unit_price: o.unit_price,
+          total_price: o.total_price,
+        });
+      });
+    }
+
+    // Attach booking_orders to each booking row
+    const enrichedCurrentData = (currentData || []).map((b: any) => ({
+      ...b,
+      booking_orders: snackOrdersMap[b.id] || [],
+    }));
 
     // Fetch previous period bookings (exclude soft-deleted)
     const { data: prevData } = await supabase
@@ -121,7 +151,7 @@ export async function POST(request: NextRequest) {
     }));
 
     // Combine bookings and subscriptions
-    const combinedCurrentData = [...(currentData || []), ...formattedCurrentSubscriptions]
+    const combinedCurrentData = [...enrichedCurrentData, ...formattedCurrentSubscriptions]
       .sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
       
     const combinedPrevData = [...(prevData || []), ...formattedPrevSubscriptions];

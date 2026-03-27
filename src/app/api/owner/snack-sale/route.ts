@@ -27,12 +27,14 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const bookingDate = now.toLocaleDateString("en-CA");
-    const hours = now.getHours();
-    const mins = now.getMinutes().toString().padStart(2, "0");
-    const period = hours >= 12 ? "pm" : "am";
-    const h12 = hours % 12 || 12;
-    const startTime = `${h12}:${mins} ${period}`;
+    // Use India timezone for booking_date so it matches the owner's local date,
+    // regardless of where the server is hosted (UTC vs IST).
+    const bookingDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+    const indiaHours = parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", hour12: false }).format(now));
+    const indiaMins = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", minute: "2-digit" }).format(now).padStart(2, "0");
+    const period = indiaHours >= 12 ? "pm" : "am";
+    const h12 = indiaHours % 12 || 12;
+    const startTime = `${h12}:${indiaMins} ${period}`;
 
     // Owner use: record items but set total_amount to 0 (excluded from revenue)
     const totalAmount = isOwnerUse
