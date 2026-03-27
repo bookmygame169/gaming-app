@@ -870,14 +870,12 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                             </h3>
                             <p className="text-sm text-slate-400">Most booked gaming stations</p>
                         </div>
-                        {consoleData.length > 0 && (
-                            <div className="text-right">
-                                <p className="text-xs text-slate-500">Total Revenue</p>
-                                <p className="text-base font-bold text-white">
-                                    ₹{Math.round(consoleData.reduce((s, c) => s + c.revenue, 0)).toLocaleString('en-IN')}
-                                </p>
-                            </div>
-                        )}
+                        <div className="text-right">
+                            <p className="text-xs text-slate-500">Gaming Revenue</p>
+                            <p className="text-base font-bold text-white">
+                                ₹{Math.round(stats.gamingRevenue).toLocaleString('en-IN')}
+                            </p>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -1122,9 +1120,8 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                 </Card>
             </div>
 
-            {/* F&B / Snacks Breakdown */}
-            {snackData.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* F&B / Snacks Breakdown — always visible */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Top Snack Items */}
                     <Card className="min-h-[280px]">
                         <div className="flex items-center justify-between mb-6">
@@ -1142,6 +1139,15 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                                 </p>
                             </div>
                         </div>
+                        {loading ? (
+                            <div className="flex items-center justify-center h-40 text-slate-500 text-sm">Loading...</div>
+                        ) : snackData.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-40 gap-2">
+                                <Store size={32} className="text-slate-700" />
+                                <p className="text-slate-500 text-sm">No snack sales in this period</p>
+                                <p className="text-slate-600 text-xs">Try selecting a longer date range</p>
+                            </div>
+                        ) : (
                         <div className="space-y-4">
                             {snackData.map((item, index) => {
                                 const maxRevenue = snackData[0]?.revenue || 1;
@@ -1170,6 +1176,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                                 );
                             })}
                         </div>
+                        )}
                     </Card>
 
                     {/* Snack Revenue vs Gaming Revenue */}
@@ -1245,7 +1252,6 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                         </div>
                     </Card>
                 </div>
-            )}
 
             {/* Recent Transactions Table */}
             <Card padding="none" className="overflow-hidden">
