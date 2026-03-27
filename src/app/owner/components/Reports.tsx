@@ -378,50 +378,48 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
 
         billableBookings.forEach(b => {
             const items = b.booking_items;
+            const bookingTotal = b.total_amount || 0;
+
             if (!items || !Array.isArray(items) || items.length === 0) {
-                // Snack-only booking (has revenue but no console items)
-                if (b.total_amount && b.total_amount > 0) {
+                // Snack-only booking — no console items, all revenue goes to Snacks & F&B
+                if (bookingTotal > 0) {
                     snackCount += 1;
-                    snackRevenue += b.total_amount;
+                    snackRevenue += bookingTotal;
                 }
                 return;
             }
 
             const seenInThisBooking = new Set<string>();
 
-            // Only use stored item prices if EVERY item has a price > 0.
-            // If any item is missing a price (e.g. old booking), fall back to equal split.
-            const allHavePrices = items.every(
-                (it: BookingItem) => typeof it.price === 'number' && it.price > 0
+            // Sum stored item prices to use as proportional weights.
+            // If sum > 0, each item gets (item.price / priceSum) * total_amount.
+            // This guarantees the per-booking attribution always equals total_amount exactly,
+            // even if the owner manually adjusted total_amount after setting item prices.
+            const priceSum = items.reduce(
+                (s: number, it: BookingItem) =>
+                    s + (typeof it.price === 'number' && it.price > 0 ? it.price : 0),
+                0
             );
-            const fallbackPerItem = (b.total_amount || 0) / items.length;
-
-            let bookingConsoleRevenue = 0;
+            // Equal fallback when no prices are stored at all
+            const equalShare = bookingTotal / items.length;
 
             items.forEach((item: BookingItem) => {
                 const consoleName = item.console || 'Unknown';
                 if (!consoles[consoleName]) {
                     consoles[consoleName] = { count: 0, revenue: 0 };
                 }
-                // Count each booking once per console type
                 if (!seenInThisBooking.has(consoleName)) {
                     seenInThisBooking.add(consoleName);
                     consoles[consoleName].count += 1;
                 }
-                // Use stored price only when ALL items have prices; otherwise split equally
-                const itemRevenue = allHavePrices
-                    ? (item.price as number)
-                    : fallbackPerItem;
+                // Proportional share: (this item's price / sum of all prices) × total_amount
+                // Falls back to equal split when no prices are stored
+                const itemPrice = typeof item.price === 'number' && item.price > 0 ? item.price : 0;
+                const itemRevenue = priceSum > 0
+                    ? (itemPrice / priceSum) * bookingTotal
+                    : equalShare;
                 consoles[consoleName].revenue += itemRevenue;
-                bookingConsoleRevenue += itemRevenue;
             });
-
-            // Extract snack revenue for mixed bookings
-            if (allHavePrices && b.total_amount && b.total_amount > bookingConsoleRevenue) {
-                const bookingSnackRevenue = b.total_amount - bookingConsoleRevenue;
-                snackCount += 1;
-                snackRevenue += bookingSnackRevenue;
-            }
         });
 
         const sorted = Object.entries(consoles)
