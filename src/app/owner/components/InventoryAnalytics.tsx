@@ -15,6 +15,11 @@ import {
   X,
   BarChart3,
   Percent,
+  Receipt,
+  User,
+  Phone,
+  Banknote,
+  CreditCard,
 } from 'lucide-react';
 import {
   InventoryItem,
@@ -27,6 +32,32 @@ import { getTimezoneOffset } from '../utils';
 
 interface InventoryAnalyticsProps {
   cafeId: string;
+}
+
+// Booking order enriched with customer details from the joined bookings row
+interface EnrichedOrder extends BookingOrder {
+  bookings?: {
+    id: string;
+    cafe_id: string;
+    customer_name?: string | null;
+    customer_phone?: string | null;
+    booking_date?: string | null;
+    start_time?: string | null;
+    payment_mode?: string | null;
+    status?: string | null;
+  };
+}
+
+interface SaleTransaction {
+  bookingId: string;
+  customerName: string;
+  customerPhone: string | null;
+  date: string;
+  time: string | null;
+  paymentMode: string;
+  items: { name: string; quantity: number; price: number }[];
+  totalAmount: number;
+  isOwnerUse: boolean;
 }
 
 const formatLocalDate = (date: Date): string => (
@@ -51,7 +82,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
   const [customEnd, setCustomEnd] = useState('');
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState<BookingOrder[]>([]);
+  const [orders, setOrders] = useState<EnrichedOrder[]>([]);
   const [previousOrders, setPreviousOrders] = useState<BookingOrder[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
@@ -129,17 +160,18 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
 
 
-      // Fetch current period orders using inner join to avoid max limit of 1000 IDs in `.in()`
+      // Fetch current period orders — include customer details for the transactions table
       const { data: currentOrders, error: currentError } = await supabase
         .from('booking_orders')
-        .select('*, bookings!inner(id, cafe_id)')
+        .select('*, bookings!inner(id, cafe_id, customer_name, customer_phone, booking_date, start_time, payment_mode, status)')
         .eq('bookings.cafe_id', cafeId)
         .neq('bookings.status', 'cancelled')
         .gte('ordered_at', `${startDate}T00:00:00.000${getTimezoneOffset(now)}`)
-        .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`);
+        .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`)
+        .order('ordered_at', { ascending: false });
 
       if (currentError) console.error("Error fetching current orders:", currentError);
-      setOrders(currentOrders || []);
+      setOrders((currentOrders as EnrichedOrder[]) || []);
 
       // Fetch previous period orders using inner join
       const { data: prevOrders, error: prevError } = await supabase
@@ -311,6 +343,39 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
     const outOfStock = inventoryItems.filter(i => i.stock_quantity === 0 && i.is_available);
     return { lowStock, outOfStock };
   }, [inventoryItems]);
+
+  // Group orders by booking to show per-sale customer details
+  const saleTransactions = useMemo((): SaleTransaction[] => {
+    const grouped: Record<string, SaleTransaction> = {};
+
+    orders.forEach(order => {
+      const bk = order.bookings;
+      const bookingId = order.booking_id;
+      if (!grouped[bookingId]) {
+        grouped[bookingId] = {
+          bookingId,
+          customerName: bk?.customer_name || 'Walk-in',
+          customerPhone: bk?.customer_phone || null,
+          date: bk?.booking_date || order.ordered_at.split('T')[0],
+          time: bk?.start_time || null,
+          paymentMode: bk?.payment_mode || 'cash',
+          items: [],
+          totalAmount: 0,
+          isOwnerUse: bk?.payment_mode === 'owner',
+        };
+      }
+      grouped[bookingId].items.push({
+        name: order.item_name,
+        quantity: order.quantity,
+        price: order.total_price,
+      });
+      grouped[bookingId].totalAmount += order.total_price;
+    });
+
+    return Object.values(grouped).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [orders]);
 
   // CSV Export
   const exportToCSV = () => {
@@ -658,6 +723,95 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           {revenueTrendData.length > 7 && (
             <p className="text-center text-xs text-slate-500 mt-3">Showing last 7 days of {revenueTrendData.length}</p>
           )}
+        </Card>
+      )}
+
+      {/* Sale Transactions with Customer Details */}
+      {saleTransactions.length > 0 && (
+        <Card padding="none" className="overflow-hidden">
+          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Receipt size={20} className="text-cyan-500" />
+                Sale Transactions
+              </h3>
+              <p className="text-sm text-slate-400">{saleTransactions.filter(t => !t.isOwnerUse).length} customer sales in this period</p>
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-800/60">
+            {saleTransactions.map(tx => {
+              const payMode = (tx.paymentMode || 'cash').toLowerCase();
+              const isOwner = tx.isOwnerUse;
+              const [y, m, d] = tx.date.split('-').map(Number);
+              const dateLabel = new Date(y, m - 1, d).toLocaleDateString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric',
+              });
+
+              return (
+                <div
+                  key={tx.bookingId}
+                  className={`px-5 py-4 hover:bg-slate-800/20 transition-colors ${isOwner ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Left: customer + date */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-200">
+                          <User size={13} className="text-slate-500 shrink-0" />
+                          {tx.customerName}
+                        </div>
+                        {tx.customerPhone && (
+                          <div className="flex items-center gap-1 text-xs text-slate-500">
+                            <Phone size={11} className="shrink-0" />
+                            {tx.customerPhone}
+                          </div>
+                        )}
+                        {/* Payment badge */}
+                        {isOwner ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-400">Owner Use</span>
+                        ) : payMode === 'cash' ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-500/15 text-green-400">
+                            <Banknote size={10} />Cash
+                          </span>
+                        ) : payMode === 'upi' ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400">
+                            <CreditCard size={10} />UPI
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-700 text-slate-400 capitalize">{tx.paymentMode}</span>
+                        )}
+                      </div>
+
+                      {/* Items list */}
+                      <div className="flex flex-wrap gap-1.5 mb-1.5">
+                        {tx.items.map((item, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700"
+                          >
+                            {item.name} ×{item.quantity} · ₹{item.price.toLocaleString()}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="text-xs text-slate-500">
+                        {dateLabel}{tx.time ? ` · ${tx.time}` : ''}
+                      </div>
+                    </div>
+
+                    {/* Right: total */}
+                    <div className="shrink-0 text-right">
+                      <p className={`text-base font-bold ${isOwner ? 'text-slate-500' : 'text-emerald-400'}`}>
+                        {isOwner ? 'Free' : `₹${tx.totalAmount.toLocaleString()}`}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-0.5">#{tx.bookingId.slice(0, 8).toUpperCase()}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </Card>
       )}
 
