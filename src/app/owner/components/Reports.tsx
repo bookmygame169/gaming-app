@@ -672,27 +672,58 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
     // Export to CSV
     const exportToCSV = () => {
-        const headers = ['Date', 'Time', 'Customer', 'Amount', 'Payment Mode', 'Status', 'Consoles'];
-        const rows = bookings.map(b => [
-            b.booking_date,
-            b.start_time || 'N/A',
-            b.customer_name || 'Walk-in',
-            b.total_amount,
-            b.payment_mode || 'Cash',
-            b.status,
-            b.booking_items?.map(i => `${i.quantity}x ${i.console}`).join(', ') || 'N/A'
+        const esc = (v: string | number | null | undefined) => {
+            const s = String(v ?? '');
+            return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+
+        // Gaming bookings sheet
+        const gamingHeaders = ['Date', 'Time', 'Customer', 'Phone', 'Source', 'Consoles', 'Amount', 'Payment Mode', 'Status'];
+        const gamingRows = billableBookings.map(b => [
+            esc(b.booking_date),
+            esc(b.start_time || ''),
+            esc(b.customer_name || 'Walk-in'),
+            esc((b as any).customer_phone || ''),
+            esc(b.source || 'walk-in'),
+            esc(b.booking_items?.map((i: BookingItem) => `${i.quantity}x ${i.console}`).join('; ') || (b.source === 'membership' ? 'Membership' : '')),
+            esc(b.total_amount),
+            esc(b.payment_mode || 'cash'),
+            esc(b.status),
         ]);
 
-        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+        // F&B orders sheet
+        const snackHeaders = ['Date', 'Item', 'Qty', 'Unit Price', 'Total', 'Customer', 'Payment Mode'];
+        const snackRows = snackOrders.map(o => [
+            esc(o.ordered_at?.slice(0, 10)),
+            esc(o.item_name),
+            esc(o.quantity),
+            esc(o.unit_price),
+            esc(o.total_price),
+            esc((o as any).bookings?.customer_name || 'Walk-in'),
+            esc((o as any).bookings?.payment_mode || 'cash'),
+        ]);
+
+        const dateLabel = dateRange === 'custom' ? `${customStart}_to_${customEnd}` : dateRange;
+        const csvContent = [
+            `# Gaming Bookings — ${cafeName || 'Cafe'} — ${dateLabel}`,
+            gamingHeaders.join(','),
+            ...gamingRows.map(r => r.join(',')),
+            '',
+            `# F&B Orders — ${cafeName || 'Cafe'} — ${dateLabel}`,
+            snackHeaders.join(','),
+            ...snackRows.map(r => r.join(',')),
+        ].join('\n');
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `reports_${dateRange}_${formatLocalDate(new Date())}.csv`);
+        link.setAttribute('download', `report_${dateLabel}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     // Format console names

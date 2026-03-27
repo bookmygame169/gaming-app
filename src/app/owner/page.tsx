@@ -27,12 +27,15 @@ import {
   BookingsTable,
   ActiveSessions,
   Card,
+  TabSkeleton,
 } from './components';
 import OwnerPWAInstaller from './components/OwnerPWAInstaller';
 import StatCard from './components/StatCard';
 import { useBilling } from "./hooks/useBilling";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
 import { useOwnerData } from "./hooks/useOwnerData";
+import { useToast } from "./hooks/useToast";
+import { ToastContainer } from "./components/ToastContainer";
 import { TodaySnackOrders } from "./components/TodaySnackOrders";
 import SnackSaleModal from "./components/SnackSaleModal";
 import { EditBookingModal } from "./components/EditBookingModal";
@@ -78,6 +81,7 @@ export default function OwnerDashboardPage() {
   });
 
   const { ownerId, ownerUsername, allowed, checkingRole } = useOwnerAuth();
+  const { toasts, toast, removeToast } = useToast();
   const canFetchOwnerData = checkingRole || allowed;
   const canAutoRefreshOwnerData = allowed && !checkingRole;
 
@@ -561,28 +565,27 @@ export default function OwnerDashboardPage() {
   };
 
   const handleEndSessionNow = () => {
-    if (!editingBooking?.start_time) return;
-    
-    // Calculate minutes elapsed since start_time today
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
-    const timeMatch = editingBooking.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+    if (!editingBooking?.start_time || !editingBooking?.booking_date) return;
+
+    // Build a full start datetime from booking_date + start_time to handle cross-midnight correctly
+    const timeMatch = editingBooking.start_time.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?/i);
     if (!timeMatch) return;
-    
-    let hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2]);
+
+    let h = parseInt(timeMatch[1]);
+    const m = parseInt(timeMatch[2]);
     const period = timeMatch[3]?.toLowerCase();
-    
-    if (period === 'pm' && hours !== 12) hours += 12;
-    else if (period === 'am' && hours === 12) hours = 0;
-    
-    const startMinutes = hours * 60 + minutes;
-    const elapsedMinutes = Math.max(0, currentMinutes - startMinutes);
-    
-    // Round up to nearest 30 mins (minimum 30 mins)
+    if (period === 'pm' && h !== 12) h += 12;
+    else if (period === 'am' && h === 12) h = 0;
+
+    const [y, mo, d] = editingBooking.booking_date.split('-').map(Number);
+    const startDate = new Date(y, mo - 1, d, h, m, 0);
+    const now = new Date();
+
+    const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - startDate.getTime()) / 60000));
+
+    // Round up to nearest 30 mins (minimum 30 mins) — always favours the cafe
     const roundedDuration = Math.max(30, Math.ceil(elapsedMinutes / 30) * 30);
-    
+
     setEditDuration(roundedDuration);
     setEditStatus('completed');
     setEditAmountManuallyEdited(false);
@@ -631,7 +634,7 @@ export default function OwnerDashboardPage() {
   // Handle confirm booking (pending -> confirmed)
   async function handleConfirmBooking(booking: BookingRow) {
     if (booking.status !== "pending") {
-      alert("Only pending bookings can be confirmed");
+      toast.warning("Only pending bookings can be confirmed");
       return;
     }
 
@@ -647,14 +650,14 @@ export default function OwnerDashboardPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        alert('Failed to confirm booking: ' + (data.error || 'Unknown error'));
+        toast.error('Failed to confirm booking: ' + (data.error || 'Unknown error'));
         return;
       }
       refreshData();
-      alert("Booking confirmed successfully!");
+      toast.success("Booking confirmed successfully!");
     } catch (err) {
       console.error("Error confirming booking:", err);
-      alert("Failed to confirm booking");
+      toast.error("Failed to confirm booking");
     }
   }
 
@@ -671,7 +674,7 @@ export default function OwnerDashboardPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        alert('Failed to update payment mode: ' + (data.error || 'Unknown error'));
+        toast.error('Failed to update payment mode: ' + (data.error || 'Unknown error'));
         return;
       }
 
@@ -690,7 +693,7 @@ export default function OwnerDashboardPage() {
   // Handle start booking (confirmed -> in-progress)
   async function handleStartBooking(booking: BookingRow) {
     if (booking.status !== "confirmed") {
-      alert("Only confirmed bookings can be started");
+      toast.warning("Only confirmed bookings can be started");
       return;
     }
 
@@ -707,14 +710,14 @@ export default function OwnerDashboardPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        alert('Failed to start booking: ' + (data.error || 'Unknown error'));
+        toast.error('Failed to start booking: ' + (data.error || 'Unknown error'));
         return;
       }
       refreshData();
-      alert("Booking started successfully!");
+      toast.success("Booking started successfully!");
     } catch (err) {
       console.error("Error starting booking:", err);
-      alert("Failed to start booking");
+      toast.error("Failed to start booking");
     }
   }
 
@@ -731,13 +734,13 @@ export default function OwnerDashboardPage() {
       if (!res.ok) {
         const data = await res.json();
         console.error('Error updating status:', data.error);
-        alert('Failed to update booking status: ' + (data.error || 'Unknown error'));
+        toast.error('Failed to update booking status: ' + (data.error || 'Unknown error'));
       } else {
         refreshData();
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      alert('Failed to update booking status');
+      toast.error('Failed to update booking status');
     }
   };
 
@@ -834,6 +837,20 @@ export default function OwnerDashboardPage() {
   async function handleSaveBooking() {
     if (!editingBooking) return;
 
+    // Client-side validation
+    if (!editCustomerName.trim()) {
+      toast.error('Customer name is required.');
+      return;
+    }
+    if (editCustomerPhone && !/^\+?\d[\d\s\-()]{7,14}$/.test(editCustomerPhone)) {
+      toast.error('Invalid phone number format.');
+      return;
+    }
+    if (!editDate) {
+      toast.error('Booking date is required.');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -851,9 +868,20 @@ export default function OwnerDashboardPage() {
       const updatedAmount = parseFloat(editAmount);
 
       // Validate the amount
+      if (!editAmount || editAmount.trim() === '') {
+        setSaving(false);
+        toast.error('Amount cannot be empty.');
+        return;
+      }
       if (isNaN(updatedAmount)) {
         console.error('[handleSaveBooking] ERROR: Invalid amount - parseFloat returned NaN from:', editAmount);
-        alert('Invalid amount entered. Please enter a valid number.');
+        setSaving(false);
+        toast.error('Invalid amount entered. Please enter a valid number.');
+        return;
+      }
+      if (updatedAmount < 0) {
+        setSaving(false);
+        toast.error('Amount cannot be negative.');
         return;
       }
 
@@ -924,7 +952,7 @@ export default function OwnerDashboardPage() {
 
       setEditingBooking(null);
       setEditingBookingItemId(null);
-      alert("Booking updated successfully!");
+      toast.success("Booking updated successfully!");
 
       // Force a refresh after 1 second to ensure UI shows updated data from database
       setTimeout(() => {
@@ -933,7 +961,7 @@ export default function OwnerDashboardPage() {
       }, 1000);
     } catch (err) {
       console.error("Error updating booking:", err);
-      alert("Failed to update booking: " + (err instanceof Error ? err.message : String(err)));
+      toast.error("Failed to update booking: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -994,7 +1022,7 @@ export default function OwnerDashboardPage() {
           return b;
         }));
 
-        alert("Console removed from booking successfully!");
+        toast.success("Console removed from booking successfully!");
       } else {
         // Delete the entire booking (soft-delete)
         const bookingItemIds = allItems.map(item => item.id);
@@ -1027,7 +1055,7 @@ export default function OwnerDashboardPage() {
     } catch (err) {
       console.error("[handleDeleteBooking] ===== DELETE BOOKING FAILED =====");
       console.error("Error deleting booking:", err);
-      alert("Failed to delete booking: " + (err instanceof Error ? err.message : String(err)));
+      toast.error("Failed to delete booking: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setDeletingBooking(false);
     }
@@ -1048,13 +1076,13 @@ export default function OwnerDashboardPage() {
     // Get subscription details to find console type
     const subscription = subscriptions.find(s => s.id === subscriptionId);
     if (!subscription) {
-      alert('Subscription not found');
+      toast.error('Subscription not found');
       return;
     }
 
     const consoleType = subscription.membership_plans?.console_type;
     if (!consoleType) {
-      alert('Console type not found for this membership');
+      toast.error('Console type not found for this membership');
       return;
     }
 
@@ -1069,7 +1097,7 @@ export default function OwnerDashboardPage() {
     // Get total console count from cafe
     const cafe = cafes.find(c => c.id === subscription.cafe_id);
     if (!cafe) {
-      alert('Cafe not found');
+      toast.error('Cafe not found');
       return;
     }
 
@@ -1091,7 +1119,7 @@ export default function OwnerDashboardPage() {
     const totalConsoles = countField ? (cafe[countField] as number) || 0 : 0;
 
     if (totalConsoles === 0) {
-      alert(`No ${consoleType} consoles available at this cafe`);
+      toast.error(`No ${consoleType} consoles available at this cafe`);
       return;
     }
 
@@ -1108,7 +1136,7 @@ export default function OwnerDashboardPage() {
     }
 
     if (!assignedStation) {
-      alert(`All ${consoleType} consoles are currently occupied`);
+      toast.error(`All ${consoleType} consoles are currently occupied`);
       return;
     }
 
@@ -1133,7 +1161,7 @@ export default function OwnerDashboardPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('[Timer] Failed to save timer state:', errorData);
-        alert('Failed to start timer');
+        toast.error('Failed to start timer');
         return;
       }
 
@@ -1145,7 +1173,7 @@ export default function OwnerDashboardPage() {
       ));
     } catch (err) {
       console.error('[Timer] Exception saving timer state:', err);
-      alert('Failed to start timer');
+      toast.error('Failed to start timer');
       return;
     }
 
@@ -1203,7 +1231,7 @@ export default function OwnerDashboardPage() {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           console.error('[Timer] Database error:', errorData);
-          alert('Failed to update subscription hours');
+          toast.error('Failed to update subscription hours');
           return;
         }
 
@@ -1233,10 +1261,10 @@ export default function OwnerDashboardPage() {
         const hours = Math.floor(elapsedHours);
         const minutes = Math.floor((elapsedHours - hours) * 60);
         const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-        alert(`Session ended. ${timeStr} deducted from subscription.`);
+        toast.success(`Session ended. ${timeStr} deducted from subscription.`);
       } catch (err) {
         console.error('[Timer] Exception:', err);
-        alert('Failed to stop timer');
+        toast.error('Failed to stop timer');
       }
     } else {
       console.error('[Timer] Subscription not found:', subscriptionId);
@@ -1515,10 +1543,10 @@ export default function OwnerDashboardPage() {
       } : c));
 
       setSettingsChanged(false);
-      alert('Settings saved successfully!');
+      toast.success('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Failed to save settings. Please try again.');
+      toast.error('Failed to save settings. Please try again.');
     } finally {
       setSavingSettings(false);
     }
@@ -1551,7 +1579,7 @@ export default function OwnerDashboardPage() {
       setShowAddStationModal(false);
     } catch (error) {
       console.error('Error adding station:', error);
-      alert('Failed to add station. Please try again.');
+      toast.error('Failed to add station. Please try again.');
     } finally {
       setAddingStation(false);
     }
@@ -1619,7 +1647,7 @@ export default function OwnerDashboardPage() {
         }
         return newSet;
       });
-      alert('Failed to update station power status. Please try again.');
+      toast.error('Failed to update station power status. Please try again.');
     }
   };
   // Handle profile photo upload
@@ -1662,10 +1690,10 @@ export default function OwnerDashboardPage() {
 
       // Update local state
       setCafes(prev => prev.map((c) => c.id === currentCafeId ? { ...c, cover_url: publicUrl } : c));
-      alert('Profile photo updated successfully!');
+      toast.success('Profile photo updated successfully!');
     } catch (error) {
       console.error('Error uploading profile photo:', error);
-      alert('Failed to upload profile photo. Please try again.');
+      toast.error('Failed to upload profile photo. Please try again.');
     } finally {
       setUploadingProfilePhoto(false);
       // Reset input
@@ -1695,10 +1723,10 @@ export default function OwnerDashboardPage() {
 
       // Update local state
       setCafes(prev => prev.map((c) => c.id === currentCafeId ? { ...c, cover_url: null } : c));
-      alert('Profile photo deleted successfully!');
+      toast.success('Profile photo deleted successfully!');
     } catch (error) {
       console.error('Error deleting profile photo:', error);
-      alert('Failed to delete profile photo. Please try again.');
+      toast.error('Failed to delete profile photo. Please try again.');
     }
   };
 
@@ -1737,10 +1765,10 @@ export default function OwnerDashboardPage() {
       if (image) {
         setGalleryImages(prev => [image, ...prev]);
       }
-      alert('Gallery photo added successfully!');
+      toast.success('Gallery photo added successfully!');
     } catch (error) {
       console.error('Error uploading gallery photo:', error);
-      alert('Failed to upload gallery photo. Please try again.');
+      toast.error('Failed to upload gallery photo. Please try again.');
     } finally {
       setUploadingGalleryPhoto(false);
       // Reset input
@@ -1768,10 +1796,10 @@ export default function OwnerDashboardPage() {
 
       // Update local state
       setGalleryImages(prev => prev.filter(img => img.id !== imageId));
-      alert('Gallery photo deleted successfully!');
+      toast.success('Gallery photo deleted successfully!');
     } catch (error) {
       console.error('Error deleting gallery photo:', error);
-      alert('Failed to delete gallery photo. Please try again.');
+      toast.error('Failed to delete gallery photo. Please try again.');
     }
   };
 
@@ -1786,7 +1814,7 @@ export default function OwnerDashboardPage() {
       const currentCount = (currentCafe as any)[columnName] || 0;
 
       if (currentCount <= 0) {
-        alert('No stations to delete');
+        toast.warning('No stations to delete');
         setStationToDelete(null);
         return;
       }
@@ -1811,7 +1839,7 @@ export default function OwnerDashboardPage() {
       refreshData(); // cancels in-flight fetch, starts fresh one with updated DB
     } catch (error) {
       console.error('Error deleting station:', error);
-      alert('Failed to delete station. Please try again.');
+      toast.error('Failed to delete station. Please try again.');
     } finally {
       setDeletingStation(false);
     }
@@ -1972,8 +2000,13 @@ export default function OwnerDashboardPage() {
             </div>
           )}
 
+          {/* Loading skeleton — shown on first load before any data arrives */}
+          {loadingData && !bookings.length && activeTab !== 'billing' && activeTab !== 'reports' && activeTab !== 'coupons' && (
+            <TabSkeleton cards={4} tableRows={6} />
+          )}
+
           {/* Dashboard Tab - New Design */}
-          {activeTab === 'dashboard' && (
+          {!loadingData && activeTab === 'dashboard' && (
             <ErrorBoundary>
             <div>
               {/* Top Stats Cards */}
@@ -2174,7 +2207,7 @@ export default function OwnerDashboardPage() {
           {/* Bookings Tab */}
           {activeTab === 'bookings' && (
             <BookingsManagement
-              bookings={bookings}
+              cafeId={selectedCafeId || undefined}
               loading={loadingData}
               onUpdateStatus={handleBookingStatusChange}
               onEdit={handleEditBooking}
@@ -3373,12 +3406,12 @@ export default function OwnerDashboardPage() {
                       const successMsg = applyToAll
                         ? `Pricing updated for all ${editingStation.type} stations!`
                         : 'Pricing updated successfully!';
-                      alert(successMsg);
+                      toast.success(successMsg);
                       setEditingStation(null);
                       setApplyToAll(false);
                     } catch (err: any) {
                       console.error('Error saving pricing:', err);
-                      alert(`Failed to save pricing: ${err?.message || err?.details || JSON.stringify(err)}`);
+                      toast.error(`Failed to save pricing: ${err?.message || err?.details || JSON.stringify(err)}`);
                     } finally {
                       setSavingPricing(false);
                     }
@@ -3771,9 +3804,9 @@ export default function OwnerDashboardPage() {
               if (response.ok) {
                 setSubscriptions(subscriptions.filter(s => s.id !== id));
                 setViewingSubscription(null);
-                alert('Subscription deleted successfully!');
+                toast.success('Subscription deleted successfully!');
               } else {
-                alert('Failed to delete subscription: ' + (payload.error || 'Unknown error'));
+                toast.error('Failed to delete subscription: ' + (payload.error || 'Unknown error'));
               }
             }}
           />
@@ -3794,6 +3827,9 @@ export default function OwnerDashboardPage() {
 
       {/* PWA Install Prompt for Owner Dashboard */}
       <OwnerPWAInstaller />
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
 }

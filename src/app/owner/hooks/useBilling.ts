@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { ConsoleId } from "@/lib/constants";
 import { BillingItem, PricingTier } from "../types";
 import { getLocalDateString } from "../utils";
+import { calcBillingPrice } from "../utils/pricing";
 
 type UseBillingProps = {
   enabled?: boolean;
@@ -36,123 +37,9 @@ export function useBilling({
   const [filteredSuggestions, setFilteredSuggestions] = useState<Array<{ name: string; phone: string }>>([]);
   const [activeSuggestionField, setActiveSuggestionField] = useState<'name' | 'phone' | null>(null);
 
-  // Helper function to get price
-  const getBillingPrice = (consoleType: string, quantity: number, duration: number) => {
-    // Try to get pricing from consolePricing (tier based)
-    const pricingTier = consolePricing[selectedCafeId]?.[consoleType];
-
-    // console.log('getBillingPrice:', { consoleType, quantity, duration, pricingTier, selectedCafeId });
-
-    if (pricingTier) {
-      if (duration === 90) {
-        // 90min = 60min + 30min pricing
-        const price60 = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? 100;
-        const price30 = pricingTier[`qty${quantity}_30min` as keyof PricingTier] ?? 50;
-        return (price60 || 0) + (price30 || 0);
-      } else if (duration === 120) {
-        // 2 hours = 60min × 2
-        const price60 = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? 100;
-        return (price60 || 0) * 2;
-      } else if (duration === 180) {
-        // 3 hours = 60min × 3
-        const price60 = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? 100;
-        return (price60 || 0) * 3;
-      } else {
-        // 30min or 60min - direct lookup
-        const qtyKey = `qty${quantity}_${duration}min` as keyof PricingTier;
-        const tierPrice = pricingTier[qtyKey];
-
-        if (tierPrice !== null && tierPrice !== undefined) {
-          return tierPrice;
-        }
-      }
-    }
-
-    // Fallback: Try to get pricing from stationPricing
-    const stationTypeMap: Record<string, string> = {
-      "ps5": "PS5",
-      "ps4": "PS4",
-      "xbox": "Xbox",
-      "pc": "PC",
-      "pool": "Pool",
-      "snooker": "Snooker",
-      "arcade": "Arcade",
-      "vr": "VR",
-      "steering": "Steering",
-      "steering_wheel": "Steering",
-      "racing_sim": "Racing Sim",
-    };
-    const stationType = stationTypeMap[consoleType] || consoleType;
-
-    const matchingStation = Object.values(stationPricing).find(
-      (sp: any) => sp.station_type === stationType
-    );
-
-    if (matchingStation) {
-      // PS5/Xbox use controller pricing
-      if (stationType === "PS5" || stationType === "Xbox") {
-        if (duration === 30) {
-          return matchingStation[`controller_${quantity}_half_hour`] || 100;
-        } else if (duration === 60) {
-          return matchingStation[`controller_${quantity}_full_hour`] || 100;
-        } else if (duration === 90) {
-          const half = matchingStation[`controller_${quantity}_half_hour`] || 50;
-          const full = matchingStation[`controller_${quantity}_full_hour`] || 100;
-          return half + full;
-        } else if (duration === 120) {
-          return (matchingStation[`controller_${quantity}_full_hour`] || 100) * 2;
-        } else if (duration === 180) {
-          return (matchingStation[`controller_${quantity}_full_hour`] || 100) * 3;
-        }
-      }
-      // PS4 uses single/multi player pricing
-      else if (stationType === "PS4") {
-        const isSingle = quantity === 1;
-        if (duration === 30) {
-          return isSingle
-            ? matchingStation.single_player_half_hour_rate || 75
-            : matchingStation.multi_player_half_hour_rate || 150;
-        } else if (duration === 60) {
-          return isSingle
-            ? matchingStation.single_player_rate || 150
-            : matchingStation.multi_player_rate || 300;
-        } else if (duration === 90) {
-          const half = isSingle
-            ? matchingStation.single_player_half_hour_rate || 75
-            : matchingStation.multi_player_half_hour_rate || 150;
-          const full = isSingle
-            ? matchingStation.single_player_rate || 150
-            : matchingStation.multi_player_rate || 300;
-          return half + full;
-        } else if (duration === 120) {
-          return (isSingle
-            ? matchingStation.single_player_rate || 150
-            : matchingStation.multi_player_rate || 300) * 2;
-        } else if (duration === 180) {
-          return (isSingle
-            ? matchingStation.single_player_rate || 150
-            : matchingStation.multi_player_rate || 300) * 3;
-        }
-      }
-      // Other consoles use simple hourly rate
-      else {
-        if (duration === 30) {
-          return matchingStation.half_hour_rate || 50;
-        } else if (duration === 60) {
-          return matchingStation.hourly_rate || 100;
-        } else if (duration === 90) {
-          return (matchingStation.half_hour_rate || 50) + (matchingStation.hourly_rate || 100);
-        } else if (duration === 120) {
-          return (matchingStation.hourly_rate || 100) * 2;
-        } else if (duration === 180) {
-          return (matchingStation.hourly_rate || 100) * 3;
-        }
-      }
-    }
-
-    // Default fallback
-    return 100;
-  };
+  // Helper function to get price — delegates to shared util
+  const getBillingPrice = (consoleType: string, quantity: number, duration: number) =>
+    calcBillingPrice(consoleType, quantity, duration, selectedCafeId, consolePricing, stationPricing);
 
   const addBillingItem = () => {
     const consoleType = availableConsoles[0] || "ps5";

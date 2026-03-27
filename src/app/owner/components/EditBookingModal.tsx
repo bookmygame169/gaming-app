@@ -260,9 +260,10 @@ export function EditBookingModal({
                   <input
                     type="tel"
                     value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    placeholder="Phone number"
-                    className="w-full pl-8 pr-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-700/50 text-slate-200 text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 transition-colors"
+                    onChange={e => setCustomerPhone(e.target.value.replace(/[^\d+\-\s()]/g, ''))}
+                    placeholder="Phone number (10 digits)"
+                    maxLength={15}
+                    className={`w-full pl-8 pr-3 py-2.5 rounded-lg bg-slate-900/60 border text-slate-200 text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 transition-colors ${customerPhone && !/^\+?\d[\d\s\-()]{7,14}$/.test(customerPhone) ? 'border-red-500/60' : 'border-slate-700/50'}`}
                   />
                 </div>
               </div>

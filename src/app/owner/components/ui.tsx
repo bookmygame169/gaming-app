@@ -343,3 +343,53 @@ export function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
         </div>
     );
 }
+
+// Skeleton shimmer block
+export function Skeleton({ className = '' }: { className?: string }) {
+    return (
+        <div className={`animate-pulse rounded-lg bg-slate-800/60 ${className}`} />
+    );
+}
+
+// Skeleton card row — mimics a stat card or list row
+export function SkeletonCard({ rows = 2 }: { rows?: number }) {
+    return (
+        <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+            <Skeleton className="h-4 w-1/3" />
+            {Array.from({ length: rows }).map((_, i) => (
+                <Skeleton key={i} className={`h-3 ${i % 2 === 0 ? 'w-full' : 'w-2/3'}`} />
+            ))}
+        </div>
+    );
+}
+
+// Full-tab skeleton — 4 stat cards + table rows
+export function TabSkeleton({ cards = 4, tableRows = 6 }: { cards?: number; tableRows?: number }) {
+    return (
+        <div className="space-y-6 animate-in fade-in duration-300">
+            <div className={`grid grid-cols-2 md:grid-cols-${Math.min(cards, 4)} gap-4`}>
+                {Array.from({ length: cards }).map((_, i) => (
+                    <SkeletonCard key={i} rows={2} />
+                ))}
+            </div>
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+                <div className="p-4 border-b border-slate-800">
+                    <Skeleton className="h-5 w-48" />
+                </div>
+                <div className="divide-y divide-slate-800">
+                    {Array.from({ length: tableRows }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 p-4">
+                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-3 w-1/3" />
+                                <Skeleton className="h-3 w-1/2" />
+                            </div>
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                            <Skeleton className="h-6 w-16" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}

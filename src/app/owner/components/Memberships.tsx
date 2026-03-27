@@ -93,6 +93,34 @@ export function Memberships({
     const [editingPlan, setEditingPlan] = useState<MembershipPlan | null>(null);
     const [savingPlan, setSavingPlan] = useState(false);
 
+    // Adjust Hours State
+    const [adjustHoursSub, setAdjustHoursSub] = useState<{ id: string; name: string; current: number } | null>(null);
+    const [adjustHoursDelta, setAdjustHoursDelta] = useState('');
+    const [adjustHoursSaving, setAdjustHoursSaving] = useState(false);
+
+    const handleAdjustHours = async () => {
+        if (!adjustHoursSub) return;
+        const delta = parseFloat(adjustHoursDelta);
+        if (isNaN(delta) || delta === 0) { alert('Enter a non-zero value (e.g. +2 or -1.5)'); return; }
+        const newHours = Math.max(0, adjustHoursSub.current + delta);
+        setAdjustHoursSaving(true);
+        try {
+            const res = await fetch('/api/owner/subscriptions', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: adjustHoursSub.id, updates: { hours_remaining: newHours } }),
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+            onRefresh();
+            setAdjustHoursSub(null);
+            setAdjustHoursDelta('');
+        } catch (err: any) {
+            alert('Failed to adjust hours: ' + err.message);
+        } finally {
+            setAdjustHoursSaving(false);
+        }
+    };
+
     // Add Subscription States
     const [showAddSubModal, setShowAddSubModal] = useState(false);
     const [savingSub, setSavingSub] = useState(false);
@@ -213,8 +241,20 @@ export function Memberships({
     };
 
     const handleAddSubscription = async () => {
-        if (!subCustomerName || !subCustomerPhone || !subSelectedPlanId) {
-            alert('Please fill in all required fields');
+        if (!subCustomerName.trim()) {
+            alert('Customer name is required');
+            return;
+        }
+        if (!subCustomerPhone.trim()) {
+            alert('Phone number is required');
+            return;
+        }
+        if (!/^\+?\d[\d\s\-()]{7,14}$/.test(subCustomerPhone.trim())) {
+            alert('Invalid phone number (must be 8–15 digits)');
+            return;
+        }
+        if (!subSelectedPlanId) {
+            alert('Please select a plan');
             return;
         }
 
@@ -404,8 +444,17 @@ export function Memberships({
                                     const percent = (currentRem / (sub.hours_purchased || 1)) * 100;
                                     const isRunning = activeTimers.has(sub.id);
 
+                                    const isLowHours = sub.status === 'active' && currentRem < 1 && sub.membership_plans?.plan_type !== 'day_pass';
+                                    const isAlmostEmpty = sub.status === 'active' && currentRem < 0.25;
+
                                     return (
-                                        <Card key={sub.id} padding="sm" className="hover:border-slate-600 transition-colors">
+                                        <Card key={sub.id} padding="sm" className={`hover:border-slate-600 transition-colors ${isAlmostEmpty ? 'border-red-500/50' : isLowHours ? 'border-amber-500/40' : ''}`}>
+                                            {isLowHours && (
+                                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-sm -mx-3 -mt-2 mb-2 text-xs font-medium ${isAlmostEmpty ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                                                    <span>{isAlmostEmpty ? '🔴' : '⚠️'}</span>
+                                                    <span>{isAlmostEmpty ? 'Almost out of hours!' : 'Less than 1 hour remaining'}</span>
+                                                </div>
+                                            )}
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                                 {/* User Info */}
                                                 <div className="flex items-center gap-3 md:w-1/4">
@@ -478,6 +527,17 @@ export function Memberships({
                                                             Start
                                                         </Button>
                                                     ) : null}
+                                                    {sub.status === 'active' && sub.membership_plans?.plan_type !== 'day_pass' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => { setAdjustHoursSub({ id: sub.id, name: sub.customer_name || 'Customer', current: currentRem }); setAdjustHoursDelta(''); }}
+                                                            className="flex-none text-slate-400 hover:text-amber-400"
+                                                            title="Adjust hours"
+                                                        >
+                                                            ±h
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="danger"
                                                         size="sm"
@@ -718,6 +778,41 @@ export function Memberships({
                 </div>
             )}
 
+            {/* Adjust Hours Modal */}
+            {adjustHoursSub && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-sm bg-slate-900 border-slate-700" padding="md">
+                        <h3 className="text-base font-semibold text-white mb-1">Adjust Hours</h3>
+                        <p className="text-xs text-slate-400 mb-4">{adjustHoursSub.name} · Current: <span className="text-white font-medium">{adjustHoursSub.current.toFixed(2)}h</span></p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-400 mb-1">Add (+) or Remove (−) hours</label>
+                                <input
+                                    type="number"
+                                    step="0.25"
+                                    placeholder="e.g. 2 or -1.5"
+                                    value={adjustHoursDelta}
+                                    onChange={e => setAdjustHoursDelta(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
+                                    autoFocus
+                                />
+                                {adjustHoursDelta && !isNaN(parseFloat(adjustHoursDelta)) && (
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        New balance: <span className="text-white font-medium">{Math.max(0, adjustHoursSub.current + parseFloat(adjustHoursDelta)).toFixed(2)}h</span>
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="secondary" onClick={() => setAdjustHoursSub(null)} className="flex-1">Cancel</Button>
+                                <Button variant="primary" onClick={handleAdjustHours} disabled={adjustHoursSaving || !adjustHoursDelta} className="flex-1">
+                                    {adjustHoursSaving ? 'Saving…' : 'Apply'}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
             {/* Add Subscription Modal */}
             {showAddSubModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -782,9 +877,10 @@ export function Memberships({
 
                             <Input
                                 label="Phone Number"
-                                placeholder="Enter phone number"
+                                placeholder="Enter phone number (10 digits)"
                                 value={subCustomerPhone}
-                                onChange={setSubCustomerPhone}
+                                onChange={v => setSubCustomerPhone(v.replace(/[^\d+\-\s()]/g, '').slice(0, 15))}
+                                type="tel"
                             />
 
                             <Select

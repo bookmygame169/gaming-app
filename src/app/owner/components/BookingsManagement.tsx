@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+'use client';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookingsTable } from './BookingsTable';
-import { Card, Button, Input, Select, StatusBadge } from './ui';
-import { Download, Filter, RefreshCw, Calendar, Search } from 'lucide-react';
-import { BookingRow } from '@/types/database';
+import { Card, Button, Select } from './ui';
+import { RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 
+const PAGE_SIZE = 20;
+
 interface BookingsManagementProps {
-    bookings: any[]; // Using any[] to be safe with Supabase types, ideally BookingRow
+    cafeId?: string;
     loading?: boolean;
     onUpdateStatus: (bookingId: string, status: string) => Promise<void>;
     onEdit?: (booking: any) => void;
@@ -17,64 +19,91 @@ interface BookingsManagementProps {
     onPaymentModeChange?: (bookingId: string, mode: string) => Promise<void>;
 }
 
-export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, onRefresh, isMobile, onViewOrders, onViewCustomer, onPaymentModeChange }: BookingsManagementProps) {
+function getDateRange(range: string, customStart: string, customEnd: string): { dateFrom: string; dateTo: string } {
+    const today = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+    if (range === 'today') return { dateFrom: fmt(today), dateTo: fmt(today) };
+    if (range === 'tomorrow') {
+        const t = new Date(today); t.setDate(t.getDate() + 1);
+        return { dateFrom: fmt(t), dateTo: fmt(t) };
+    }
+    if (range === 'week') {
+        const end = new Date(today); end.setDate(today.getDate() + 7);
+        return { dateFrom: fmt(today), dateTo: fmt(end) };
+    }
+    if (range === 'custom' && customStart && customEnd) {
+        return { dateFrom: customStart, dateTo: customEnd };
+    }
+    return { dateFrom: '', dateTo: '' };
+}
+
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, isMobile, onViewOrders, onViewCustomer, onPaymentModeChange }: BookingsManagementProps) {
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [fetching, setFetching] = useState(false);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateRange, setDateRange] = useState('all');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
-    // Filter Logic
-    const filteredBookings = useMemo(() => {
-        return bookings.filter(b => {
-            // Search
-            const searchLower = searchTerm.toLowerCase();
-            const matchesSearch = !searchTerm ||
-                (b.customer_name?.toLowerCase().includes(searchLower)) ||
-                (b.customer_phone?.includes(searchTerm)) ||
-                (b.id?.toLowerCase().includes(searchLower));
+    const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
-            // Status
-            const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-
-            // Date Range
-            let matchesDate = true;
-            if (dateRange !== 'all') {
-                const bookingDate = new Date(b.booking_date);
-                bookingDate.setHours(0, 0, 0, 0);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                if (dateRange === 'today') {
-                    matchesDate = bookingDate.getTime() === today.getTime();
-                } else if (dateRange === 'tomorrow') {
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(today.getDate() + 1);
-                    matchesDate = bookingDate.getTime() === tomorrow.getTime();
-                } else if (dateRange === 'week') {
-                    const weekEnd = new Date(today);
-                    weekEnd.setDate(today.getDate() + 7);
-                    matchesDate = bookingDate >= today && bookingDate <= weekEnd;
-                } else if (dateRange === 'custom' && customStart && customEnd) {
-                    const start = new Date(customStart);
-                    start.setHours(0, 0, 0, 0);
-                    const end = new Date(customEnd);
-                    end.setHours(23, 59, 59, 999);
-                    matchesDate = bookingDate >= start && bookingDate <= end;
-                }
+    const fetchBookings = useCallback(async (pg: number, search: string) => {
+        if (!cafeId) return;
+        setFetching(true);
+        try {
+            const { dateFrom, dateTo } = getDateRange(dateRange, customStart, customEnd);
+            const params = new URLSearchParams({
+                cafeId,
+                page: String(pg),
+                ...(statusFilter !== 'all' && { status: statusFilter }),
+                ...(search && { search }),
+                ...(dateFrom && { dateFrom }),
+                ...(dateTo && { dateTo }),
+            });
+            const res = await fetch(`/api/owner/bookings?${params}`, { credentials: 'include', cache: 'no-store' });
+            const data = await res.json();
+            if (res.ok) {
+                setBookings(data.bookings || []);
+                setTotal(data.total || 0);
             }
+        } finally {
+            setFetching(false);
+        }
+    }, [cafeId, statusFilter, dateRange, customStart, customEnd]);
 
-            return matchesSearch && matchesStatus && matchesDate;
-        }).sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
-    }, [bookings, searchTerm, statusFilter, dateRange, customStart, customEnd]);
+    // Re-fetch when filters or page change
+    useEffect(() => {
+        fetchBookings(page, debouncedSearch);
+    }, [fetchBookings, page, debouncedSearch]);
 
+    // Debounce search input
+    const handleSearchChange = (val: string) => {
+        setSearchTerm(val);
+        if (searchDebounce.current) clearTimeout(searchDebounce.current);
+        searchDebounce.current = setTimeout(() => {
+            setDebouncedSearch(val);
+            setPage(1);
+        }, 400);
+    };
 
+    // Reset page when filters change
+    const handleFilterChange = (setter: (v: string) => void) => (val: string) => {
+        setter(val);
+        setPage(1);
+    };
+
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const loading = fetching || externalLoading;
 
     return (
         <div className="space-y-4">
-
-
-            {/* Filters Section */}
+            {/* Filters */}
             <Card padding="md" className="space-y-4">
                 <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
                     <div className="flex-1 w-full lg:w-auto">
@@ -84,16 +113,15 @@ export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, 
                                 type="text"
                                 placeholder="Search by name, phone, or ID..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="w-full lg:max-w-md pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-white"
                             />
                         </div>
                     </div>
-
                     <div className="flex flex-wrap gap-2 w-full lg:w-auto">
                         <Select
                             value={statusFilter}
-                            onChange={(val) => setStatusFilter(val)}
+                            onChange={handleFilterChange(setStatusFilter)}
                             options={[
                                 { value: 'all', label: 'All Status' },
                                 { value: 'pending', label: 'Pending' },
@@ -105,7 +133,7 @@ export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, 
                         />
                         <Select
                             value={dateRange}
-                            onChange={(val) => setDateRange(val)}
+                            onChange={handleFilterChange(setDateRange)}
                             options={[
                                 { value: 'all', label: 'All Time' },
                                 { value: 'today', label: 'Today' },
@@ -114,33 +142,22 @@ export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, 
                                 { value: 'custom', label: 'Custom' },
                             ]}
                         />
-                        {onRefresh && (
-                            <Button variant="secondary" onClick={onRefresh} title="Refresh Data">
-                                <RefreshCw size={18} />
-                            </Button>
-                        )}
+                        <Button variant="secondary" onClick={() => { fetchBookings(page, debouncedSearch); onRefresh?.(); }} title="Refresh">
+                            <RefreshCw size={18} />
+                        </Button>
                     </div>
                 </div>
-
                 {dateRange === 'custom' && (
                     <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-800">
                         <div className="space-y-1">
                             <label className="text-xs text-slate-400">Start Date</label>
-                            <input
-                                type="date"
-                                value={customStart}
-                                onChange={(e) => setCustomStart(e.target.value)}
-                                className="block px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
-                            />
+                            <input type="date" value={customStart} onChange={(e) => { setCustomStart(e.target.value); setPage(1); }}
+                                className="block px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs text-slate-400">End Date</label>
-                            <input
-                                type="date"
-                                value={customEnd}
-                                onChange={(e) => setCustomEnd(e.target.value)}
-                                className="block px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
-                            />
+                            <input type="date" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); setPage(1); }}
+                                className="block px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm" />
                         </div>
                     </div>
                 )}
@@ -148,7 +165,7 @@ export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, 
 
             {/* Table */}
             <BookingsTable
-                bookings={filteredBookings}
+                bookings={bookings}
                 showFilters={false}
                 onStatusChange={onUpdateStatus}
                 onEdit={onEdit}
@@ -156,9 +173,36 @@ export function BookingsManagement({ bookings, loading, onUpdateStatus, onEdit, 
                 onViewOrders={onViewOrders}
                 onViewCustomer={onViewCustomer}
                 loading={loading}
-                title={`Booking List (${filteredBookings.length})`}
+                title={`Bookings (${total.toLocaleString()} total)`}
                 showActions={true}
             />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2">
+                    <p className="text-sm text-slate-400">
+                        Page {page} of {totalPages} · {total.toLocaleString()} bookings
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button variant="secondary" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+                            <ChevronLeft size={16} />
+                        </Button>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const pg = page <= 3 ? i + 1 : page + i - 2;
+                            if (pg < 1 || pg > totalPages) return null;
+                            return (
+                                <button key={pg} onClick={() => setPage(pg)}
+                                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${pg === page ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                                    {pg}
+                                </button>
+                            );
+                        })}
+                        <Button variant="secondary" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+                            <ChevronRight size={16} />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Deleted Bookings */}
             <DeletedBookingsPanel />
