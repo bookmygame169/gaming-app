@@ -185,14 +185,21 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
     };
 
     // --- Analytics Calculations ---
+    // Exclude owner-use internal records (payment_mode='owner', total_amount=0) from all stats
+    const billableBookings = useMemo(
+        () => bookings.filter(b => b.payment_mode !== 'owner'),
+        [bookings]
+    );
+
     const stats = useMemo(() => {
-        const totalRevenue = bookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
-        const totalBookings = bookings.length;
+        const totalRevenue = billableBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const totalBookings = billableBookings.length;
         const avgOrderValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
-        // Previous period stats
-        const prevRevenue = previousBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
-        const prevBookings = previousBookings.length;
+        // Previous period stats (also exclude owner-use)
+        const prevBillable = previousBookings.filter(b => b.payment_mode !== 'owner');
+        const prevRevenue = prevBillable.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const prevBookings = prevBillable.length;
         const prevAov = prevBookings > 0 ? prevRevenue / prevBookings : 0;
 
         // Calculate percentage changes — null when no prev data (shows '—' instead of a fake 0%)
@@ -208,7 +215,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             bookingsChange,
             aovChange,
         };
-    }, [bookings, previousBookings]);
+    }, [billableBookings, previousBookings]);
 
     // --- Chart Data Preparation ---
 
@@ -216,7 +223,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
     //    e.g. new Date("2024-01-15") = Jan 14 at 18:30 IST (UTC midnight) → wrong day in charts
     const revenueTrendData = useMemo(() => {
         const daily: Record<string, number> = {};
-        bookings.forEach(b => {
+        billableBookings.forEach(b => {
             // Parse YYYY-MM-DD directly without Date constructor to avoid timezone shift
             const [year, month, day] = b.booking_date.split('-').map(Number);
             const dateObj = new Date(year, month - 1, day); // local midnight, correct
@@ -228,7 +235,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             daily[date] = (daily[date] || 0) + (b.total_amount || 0);
         });
         return Object.entries(daily).map(([date, amount]) => ({ date, amount }));
-    }, [bookings]);
+    }, [billableBookings]);
 
     const maxRevenue = Math.max(...revenueTrendData.map(d => d.amount), 100);
 
@@ -337,7 +344,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             card: { count: 0, amount: 0 },
         };
 
-        bookings.forEach(b => {
+        billableBookings.forEach(b => {
             const mode = (b.payment_mode || 'cash').toLowerCase();
             if (mode === 'cash') {
                 methods.cash.count++;
@@ -354,30 +361,42 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
             }
         });
 
-        const total = bookings.length || 1;
+        const total = billableBookings.length || 1;
         return {
             cash: { ...methods.cash, percent: (methods.cash.count / total) * 100 },
             online: { ...methods.online, percent: (methods.online.count / total) * 100 },
             upi: { ...methods.upi, percent: (methods.upi.count / total) * 100 },
             card: { ...methods.card, percent: (methods.card.count / total) * 100 },
         };
-    }, [bookings]);
+    }, [billableBookings]);
 
     // 4. Console Popularity
     const consoleData = useMemo(() => {
         const consoles: Record<string, { count: number; revenue: number }> = {};
+        let snackCount = 0;
+        let snackRevenue = 0;
 
-        bookings.forEach(b => {
+        billableBookings.forEach(b => {
             const items = b.booking_items;
-            if (!items || !Array.isArray(items) || items.length === 0) return;
+            if (!items || !Array.isArray(items) || items.length === 0) {
+                // Snack-only booking (has revenue but no console items)
+                if (b.total_amount && b.total_amount > 0) {
+                    snackCount += 1;
+                    snackRevenue += b.total_amount;
+                }
+                return;
+            }
 
             const seenInThisBooking = new Set<string>();
 
-            // Check if any item has a stored price so we know whether to use prices or equal split
-            const itemPriceSum = items.reduce((s, it) =>
-                s + (typeof it.price === 'number' && it.price > 0 ? it.price : 0), 0);
-            // Only use total_amount split as fallback when NO item prices are stored at all
+            // Only use stored item prices if EVERY item has a price > 0.
+            // If any item is missing a price (e.g. old booking), fall back to equal split.
+            const allHavePrices = items.every(
+                (it: BookingItem) => typeof it.price === 'number' && it.price > 0
+            );
             const fallbackPerItem = (b.total_amount || 0) / items.length;
+
+            let bookingConsoleRevenue = 0;
 
             items.forEach((item: BookingItem) => {
                 const consoleName = item.console || 'Unknown';
@@ -389,20 +408,34 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                     seenInThisBooking.add(consoleName);
                     consoles[consoleName].count += 1;
                 }
-                // Use stored item price (gaming only, excludes snacks).
-                // Fall back to equal split of total_amount only when no prices are stored at all.
-                const itemRevenue = itemPriceSum > 0
-                    ? (typeof item.price === 'number' && item.price > 0 ? item.price : 0)
+                // Use stored price only when ALL items have prices; otherwise split equally
+                const itemRevenue = allHavePrices
+                    ? (item.price as number)
                     : fallbackPerItem;
                 consoles[consoleName].revenue += itemRevenue;
+                bookingConsoleRevenue += itemRevenue;
             });
+
+            // Extract snack revenue for mixed bookings
+            if (allHavePrices && b.total_amount && b.total_amount > bookingConsoleRevenue) {
+                const bookingSnackRevenue = b.total_amount - bookingConsoleRevenue;
+                snackCount += 1;
+                snackRevenue += bookingSnackRevenue;
+            }
         });
 
-        return Object.entries(consoles)
+        const sorted = Object.entries(consoles)
             .map(([name, data]) => ({ name, ...data }))
             .sort((a, b) => b.count - a.count)
-            .slice(0, 5); // Top 5
-    }, [bookings]);
+            .slice(0, 5); // Top 5 gaming consoles
+
+        // Always append Snacks & F&B if there are any snack revenues
+        if (snackRevenue > 0) {
+            sorted.push({ name: 'Snacks & F&B', count: snackCount, revenue: snackRevenue });
+        }
+
+        return sorted;
+    }, [billableBookings]);
 
     const maxConsoleCount = Math.max(...consoleData.map(c => c.count), 1);
 
@@ -781,7 +814,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                         </div>
                         {consoleData.length > 0 && (
                             <div className="text-right">
-                                <p className="text-xs text-slate-500">Gaming Revenue</p>
+                                <p className="text-xs text-slate-500">Total Revenue</p>
                                 <p className="text-base font-bold text-white">
                                     ₹{Math.round(consoleData.reduce((s, c) => s + c.revenue, 0)).toLocaleString('en-IN')}
                                 </p>
@@ -796,15 +829,16 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                     ) : (
                         <div className="space-y-4">
                             {consoleData.map((console, index) => {
-                                const colors = ['bg-pink-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500'];
-                                const bgColors = ['bg-pink-500/10', 'bg-blue-500/10', 'bg-emerald-500/10', 'bg-amber-500/10', 'bg-purple-500/10'];
-                                const textColors = ['text-pink-500', 'text-blue-500', 'text-emerald-500', 'text-amber-500', 'text-purple-500'];
+                                const colors = ['bg-pink-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-orange-500'];
+                                const bgColors = ['bg-pink-500/10', 'bg-blue-500/10', 'bg-emerald-500/10', 'bg-amber-500/10', 'bg-purple-500/10', 'bg-orange-500/10'];
+                                const textColors = ['text-pink-500', 'text-blue-500', 'text-emerald-500', 'text-amber-500', 'text-purple-500', 'text-orange-500'];
                                 const widthPercent = (console.count / maxConsoleCount) * 100;
+                                const isSnacks = console.name === 'Snacks & F&B';
 
                                 return (
                                     <div key={console.name} className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-lg ${bgColors[index]} ${textColors[index]}`}>
-                                            <Gamepad2 size={18} />
+                                        <div className={`p-2 rounded-lg ${bgColors[index % 6]} ${textColors[index % 6]}`}>
+                                            {isSnacks ? <Store size={18} /> : <Gamepad2 size={18} />}
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-center mb-1">
@@ -813,7 +847,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                                             </div>
                                             <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full ${colors[index]} rounded-full transition-all duration-500`}
+                                                    className={`h-full ${colors[index % 6]} rounded-full transition-all duration-500`}
                                                     style={{ width: `${widthPercent}%` }}
                                                 />
                                             </div>
@@ -957,7 +991,7 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                     ) : (
                         <div className="space-y-4">
                             {(() => {
-                                const sourceStats = bookings.reduce((acc, curr) => {
+                                const sourceStats = billableBookings.reduce((acc, curr) => {
                                     // Skip pending bookings (abandoned checkouts)
                                     if (curr.status === 'pending') return acc;
 
@@ -1058,11 +1092,11 @@ export function Reports({ cafeId, isMobile, openingHours }: ReportsProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
-                            {bookings.slice(-10).reverse().map((booking) => (
+                            {billableBookings.slice(-10).reverse().map((booking) => (
                                 <tr key={booking.id} className="hover:bg-slate-800/20 transition-colors">
                                     <td className="px-6 py-4 text-white">
                                         <div className="font-medium">
-                                            {new Date(booking.booking_date).toLocaleDateString()}
+                                            {parseLocalDate(booking.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </div>
                                         <div className="text-xs text-slate-500">
                                             {booking.start_time || 'N/A'}
