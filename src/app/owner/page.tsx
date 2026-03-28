@@ -133,6 +133,8 @@ export default function OwnerDashboardPage() {
 
   // Multi-café support
   const [selectedCafeId, setSelectedCafeId] = useState<string>('');
+  // Incremented after any status/payment change to trigger BookingsManagement re-fetch
+  const [bookingsMgmtRefreshKey, setBookingsMgmtRefreshKey] = useState(0);
   const currentCafe = cafes.find(c => c.id === selectedCafeId) || cafes[0] || null;
   const currentCafeId = currentCafe?.id || '';
 
@@ -444,51 +446,6 @@ export default function OwnerDashboardPage() {
     return () => clearInterval(timer);
   }, [activeTab]);
 
-  // Auto-complete expired sessions: runs every second via currentTime
-  // Immediately marks expired in-progress sessions as "completed" in DB + local state
-  useEffect(() => {
-    const now = currentTime;
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    const expiredBookings = bookings.filter(b => {
-      if (b.status !== 'in-progress') return false;
-      if (b.booking_date !== todayStr) return false;
-      if (!b.start_time || !b.duration) return false;
-      const match = b.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-      if (!match) return false;
-      let hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      const period = match[3]?.toLowerCase();
-      if (period === 'pm' && hours !== 12) hours += 12;
-      else if (period === 'am' && hours === 12) hours = 0;
-      return currentMinutes > hours * 60 + minutes + b.duration;
-    });
-
-    if (expiredBookings.length === 0) return;
-
-    // Update local state immediately so UI clears right away
-    const expiredIds = new Set(expiredBookings.map(b => b.id));
-    setBookings(prev => prev.map(b =>
-      expiredIds.has(b.id) ? { ...b, status: 'completed' } : b
-    ));
-
-    // Persist to DB via API — revert local state if any call fails
-    expiredBookings.forEach(async b => {
-      try {
-        const res = await fetch('/api/owner/billing', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookingId: b.id, booking: { status: 'completed' } }),
-        });
-        if (!res.ok) throw new Error((await res.json()).error || 'Unknown error');
-      } catch (err) {
-        console.error('Failed to auto-complete booking:', b.id, err);
-        // Revert this booking back to in-progress so it retries next tick
-        setBookings(prev => prev.map(x => x.id === b.id ? { ...x, status: 'in-progress' } : x));
-      }
-    });
-  }, [currentTime, bookings]);
 
 
 
@@ -530,7 +487,11 @@ export default function OwnerDashboardPage() {
 
   // Initialize selected café when cafes load
   useEffect(() => {
-    if (cafes.length > 0 && (!selectedCafeId || !cafes.some(cafe => cafe.id === selectedCafeId))) {
+    if (cafes.length === 0) return;
+    if (!selectedCafeId || !cafes.some(cafe => cafe.id === selectedCafeId)) {
+      if (selectedCafeId) {
+        console.warn('[selectedCafe] Saved cafeId not found in loaded cafes — falling back to first cafe:', cafes[0]?.id);
+      }
       setSelectedCafeId(cafes[0].id);
     }
   }, [cafes, selectedCafeId]);
@@ -682,13 +643,14 @@ export default function OwnerDashboardPage() {
         return;
       }
 
+      // Optimistic update — avoids waiting for the full refreshData round-trip
       setBookings(prev => prev.map((b: any) => {
         if (b.id === bookingId || b.originalBookingId === trueBookingId) {
           return { ...b, payment_mode: mode };
         }
         return b;
       }));
-      refreshData();
+      setBookingsMgmtRefreshKey(k => k + 1);
     } catch (err) {
       console.error('Error updating payment mode:', err);
     }
@@ -700,9 +662,6 @@ export default function OwnerDashboardPage() {
       toast.warning("Only confirmed bookings can be started");
       return;
     }
-
-    const confirmed = confirm(`Start session for ${booking.customer_name || "customer"}?`);
-    if (!confirmed) return;
 
     const trueBookingId = (booking as any).originalBookingId || (booking.id.includes('-item-') ? booking.id.split('-item-')[0] : booking.id);
     try {
@@ -728,6 +687,10 @@ export default function OwnerDashboardPage() {
   // Handle edit booking
   const handleBookingStatusChange = async (id: string, status: string) => {
     const trueBookingId = id.includes('-item-') ? id.split('-item-')[0] : id;
+    // Optimistic update so badge changes immediately
+    setBookings(prev => prev.map((b: any) =>
+      b.id === trueBookingId || b.originalBookingId === trueBookingId ? { ...b, status } : b
+    ));
     try {
       const res = await fetch('/api/owner/billing', {
         method: 'PUT',
@@ -739,12 +702,15 @@ export default function OwnerDashboardPage() {
         const data = await res.json();
         console.error('Error updating status:', data.error);
         toast.error('Failed to update booking status: ' + (data.error || 'Unknown error'));
+        refreshData(); // revert by reloading
       } else {
         refreshData();
+        setBookingsMgmtRefreshKey(k => k + 1);
       }
     } catch (err) {
       console.error('Error updating status:', err);
       toast.error('Failed to update booking status');
+      refreshData(); // revert
     }
   };
 
@@ -1359,10 +1325,15 @@ export default function OwnerDashboardPage() {
     const now = currentTime;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const todayStr = getLocalDateString(now);
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = getLocalDateString(yesterday);
 
     const expiredBookings = bookings.filter((b: any) => {
       if (b.status !== 'in-progress') return false;
-      if (b.booking_date !== todayStr) return false;
+      const isToday = b.booking_date === todayStr;
+      const isYesterday = b.booking_date === yesterdayStr;
+      if (!isToday && !isYesterday) return false;
       if (!b.start_time || !b.duration) return false;
 
       const timeParts = b.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
@@ -1378,7 +1349,9 @@ export default function OwnerDashboardPage() {
       }
 
       const endMinutes = hours * 60 + minutes + b.duration;
-      return currentMinutes >= endMinutes;
+      // For sessions from yesterday that cross midnight, add 1440 to current minutes
+      const effectiveCurrentMinutes = isYesterday ? currentMinutes + 1440 : currentMinutes;
+      return effectiveCurrentMinutes >= endMinutes;
     });
 
     if (expiredBookings.length === 0) return;
@@ -2230,6 +2203,7 @@ export default function OwnerDashboardPage() {
               onEdit={handleEditBooking}
               onPaymentModeChange={handlePaymentModeChange}
               onRefresh={() => refreshData()}
+              refreshTrigger={bookingsMgmtRefreshKey}
               isMobile={isMobile}
               onViewOrders={(bookingId, customerName) => {
                 setViewOrdersBookingId(bookingId);

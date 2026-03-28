@@ -17,6 +17,7 @@ interface BookingsManagementProps {
     onViewOrders?: (bookingId: string, customerName: string) => void;
     onViewCustomer?: (customer: { name: string; phone?: string; email?: string }) => void;
     onPaymentModeChange?: (bookingId: string, mode: string) => Promise<void>;
+    refreshTrigger?: number;
 }
 
 function getDateRange(range: string, customStart: string, customEnd: string): { dateFrom: string; dateTo: string } {
@@ -38,7 +39,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
     return { dateFrom: '', dateTo: '' };
 }
 
-export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, isMobile, onViewOrders, onViewCustomer, onPaymentModeChange }: BookingsManagementProps) {
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, isMobile, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -84,6 +85,12 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         fetchBookings(page, debouncedSearch);
         setSelectedIds(new Set());
     }, [fetchBookings, page, debouncedSearch]);
+
+    // Re-fetch when parent signals an external change (e.g. status/payment update)
+    useEffect(() => {
+        if (refreshTrigger === undefined || refreshTrigger === 0) return;
+        fetchBookings(page, debouncedSearch);
+    }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Debounce search input
     const handleSearchChange = (val: string) => {
