@@ -90,7 +90,6 @@ export function DashboardStats({
   const todayBookings = bookings.filter(
     (b) => b.booking_date === todayStr &&
       b.status !== 'cancelled' &&
-      b.status !== 'in-progress' &&
       b.payment_mode !== 'owner'
   );
   const todaySubscriptions = subscriptions.filter((sub) => {

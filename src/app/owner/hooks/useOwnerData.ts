@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useMemo } from 'react';
 import { OwnerStats, CafeRow, BookingRow, NavTab } from '../types';
+import { getLocalDateString } from '../utils';
 
 type OwnerDataScope = 'dashboard' | 'full';
 
@@ -46,18 +47,17 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
     if (!cafes.length) return null;
 
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = getLocalDateString(); // uses IST timezone
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentQuarter = Math.floor(now.getMonth() / 3);
     const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
 
-    // Exclude cancelled, owner-use, and still-running sessions from revenue
-    // (in-progress totals are provisional and may change at checkout)
+    // Exclude only cancelled and owner-use bookings from revenue
+    // in-progress sessions have amounts set at booking creation time and count as earned revenue
     const activeBookings = bookings.filter(b =>
       b.status !== 'cancelled' &&
-      b.status !== 'in-progress' &&
       (b as any).payment_mode !== 'owner'
     );
 
