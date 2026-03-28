@@ -1819,13 +1819,14 @@ export default function OwnerDashboardPage() {
         credentials: 'include',
       }).catch(() => {}); // non-critical — stale pricing rows don't break anything
 
-      // Update local state immediately, then refresh
+      // Update local state — don't call refreshData() here because Supabase
+      // read-after-write lag can return the old count and undo the local update
       setCafes(prev => prev.map((c) => c.id === currentCafeId ? {
         ...c,
         [columnName]: newCount,
       } : c));
       setStationToDelete(null);
-      refreshData();
+      toast.success(`Station deleted successfully`);
     } catch (error) {
       console.error('Error deleting station:', error);
       toast.error('Failed to delete station. Please try again.');
