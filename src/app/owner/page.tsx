@@ -312,6 +312,7 @@ export default function OwnerDashboardPage() {
     consolePricing,
     stationPricing,
     cafeData: currentCafe,
+    toast,
   });
 
 
@@ -500,7 +501,7 @@ export default function OwnerDashboardPage() {
 
       const res = await fetch(`/api/owner/gallery?cafeId=${currentCafeId}`);
       if (!res.ok) {
-        console.error('Error fetching gallery images');
+        toast.error('Failed to load gallery images');
         return;
       }
       const { images } = await res.json();

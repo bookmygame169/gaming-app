@@ -5,12 +5,15 @@ import { BillingItem, PricingTier } from "../types";
 import { getLocalDateString } from "../utils";
 import { calcBillingPrice } from "../utils/pricing";
 
+type ToastFns = { success: (msg: string) => void; error: (msg: string) => void };
+
 type UseBillingProps = {
   enabled?: boolean;
   selectedCafeId: string;
   consolePricing: Record<string, Record<string, PricingTier>>;
   stationPricing: Record<string, any>;
   cafeData?: Record<string, any> | null;
+  toast?: ToastFns;
 };
 
 export function useBilling({
@@ -18,7 +21,8 @@ export function useBilling({
   selectedCafeId,
   consolePricing,
   stationPricing,
-  cafeData
+  cafeData,
+  toast,
 }: UseBillingProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -95,7 +99,7 @@ export function useBilling({
 
   const handleSubmit = async () => {
     if (!selectedCafeId || !customerName || !startTime || items.length === 0) {
-      alert("Please fill in all required fields and add at least one console");
+      toast?.error("Please fill in all required fields and add at least one console");
       return;
     }
 
@@ -135,11 +139,11 @@ export function useBilling({
         throw new Error(d.error || 'Failed to create booking');
       }
 
-      alert("Bulk booking created successfully!");
+      toast?.success("Walk-in booking created successfully!");
       resetForm();
     } catch (error) {
       console.error("Error creating booking:", error);
-      alert("Failed to create booking. Please try again.");
+      toast?.error("Failed to create booking. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
