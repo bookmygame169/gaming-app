@@ -219,9 +219,16 @@ export async function POST(request: NextRequest) {
     // Filter soft-deleted bookings in-process (avoids slow DB index scan)
     let ownerBookings = (bookingsRes.data || []).filter((b: any) => !b.deleted_at);
     
-    // Auto-complete logic for bookings
+    // Auto-complete logic for bookings — use India timezone to match booking_date/start_time
     const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const indiaTimeStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    }).format(now);
+    const [indiaHour, indiaMinute] = indiaTimeStr.split(':').map(Number);
+    const currentMinutes = indiaHour * 60 + indiaMinute;
     const endedIds: string[] = [];
 
     ownerBookings = ownerBookings.map((b: any) => {

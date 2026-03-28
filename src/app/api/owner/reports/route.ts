@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       .eq('cafe_id', cafeId)
       .neq('status', 'cancelled')
       .neq('status', 'in-progress')
+      .neq('payment_mode', 'owner')
       .is('deleted_at', null)
       .gte('booking_date', startDate)
       .lte('booking_date', endDate)
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
       .eq('cafe_id', cafeId)
       .neq('status', 'cancelled')
       .neq('status', 'in-progress')
+      .neq('payment_mode', 'owner')
       .is('deleted_at', null)
       .gte('booking_date', prevStartDate)
       .lte('booking_date', prevEndDate);

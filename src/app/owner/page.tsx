@@ -18,7 +18,7 @@ import {
   PricingTier,
   BillingItem
 } from "./types";
-import { convertTo12Hour, getLocalDateString } from "./utils";
+import { convertTo12Hour, getLocalDateString, normaliseConsoleType } from "./utils";
 import { theme } from "./utils/theme";
 import {
   Sidebar,
@@ -629,6 +629,15 @@ export default function OwnerDashboardPage() {
   async function handlePaymentModeChange(bookingId: string, mode: string) {
     const booking = bookings.find(b => b.id === bookingId) as any;
     const trueBookingId = booking?.originalBookingId || (bookingId.includes('-item-') ? bookingId.split('-item-')[0] : bookingId);
+    const prevMode = booking?.payment_mode;
+
+    // Optimistic update — avoids waiting for the full refreshData round-trip
+    setBookings(prev => prev.map((b: any) => {
+      if (b.id === bookingId || b.originalBookingId === trueBookingId) {
+        return { ...b, payment_mode: mode };
+      }
+      return b;
+    }));
 
     try {
       const res = await fetch('/api/owner/billing', {
@@ -640,19 +649,26 @@ export default function OwnerDashboardPage() {
       if (!res.ok) {
         const data = await res.json();
         toast.error('Failed to update payment mode: ' + (data.error || 'Unknown error'));
+        // Revert optimistic update
+        setBookings(prev => prev.map((b: any) => {
+          if (b.id === bookingId || b.originalBookingId === trueBookingId) {
+            return { ...b, payment_mode: prevMode };
+          }
+          return b;
+        }));
         return;
       }
 
-      // Optimistic update — avoids waiting for the full refreshData round-trip
-      setBookings(prev => prev.map((b: any) => {
-        if (b.id === bookingId || b.originalBookingId === trueBookingId) {
-          return { ...b, payment_mode: mode };
-        }
-        return b;
-      }));
       setBookingsMgmtRefreshKey(k => k + 1);
     } catch (err) {
       console.error('Error updating payment mode:', err);
+      // Revert optimistic update
+      setBookings(prev => prev.map((b: any) => {
+        if (b.id === bookingId || b.originalBookingId === trueBookingId) {
+          return { ...b, payment_mode: prevMode };
+        }
+        return b;
+      }));
     }
   }
 
@@ -1058,18 +1074,19 @@ export default function OwnerDashboardPage() {
       return;
     }
 
-    const consoleType = subscription.membership_plans?.console_type;
-    if (!consoleType) {
+    const rawConsoleType = subscription.membership_plans?.console_type;
+    if (!rawConsoleType) {
       toast.error('Console type not found for this membership');
       return;
     }
+    const normConsoleType = normaliseConsoleType(rawConsoleType);
 
     // Find an available console station
     // Get all active subscriptions for this console type
     const activeConsolesForType = subscriptions.filter(s =>
       s.timer_active &&
       s.assigned_console_station &&
-      s.membership_plans?.console_type === consoleType
+      normaliseConsoleType(s.membership_plans?.console_type || '') === normConsoleType
     ).map(s => s.assigned_console_station);
 
     // Get total console count from cafe
@@ -1079,31 +1096,31 @@ export default function OwnerDashboardPage() {
       return;
     }
 
-    // Map console types to cafe count fields
+    // Map normalised console types to cafe count fields
     const consoleCountMap: Record<string, keyof typeof cafe> = {
-      'PC': 'pc_count',
-      'PS5': 'ps5_count',
-      'PS4': 'ps4_count',
-      'Xbox': 'xbox_count',
-      'Pool': 'pool_count',
-      'Snooker': 'snooker_count',
-      'Arcade': 'arcade_count',
-      'VR': 'vr_count',
-      'Steering': 'steering_wheel_count',
-      'Racing Sim': 'racing_sim_count'
+      'pc': 'pc_count',
+      'ps5': 'ps5_count',
+      'ps4': 'ps4_count',
+      'xbox': 'xbox_count',
+      'pool': 'pool_count',
+      'snooker': 'snooker_count',
+      'arcade': 'arcade_count',
+      'vr': 'vr_count',
+      'steering': 'steering_wheel_count',
+      'racing_sim': 'racing_sim_count'
     };
 
-    const countField = consoleCountMap[consoleType];
+    const countField = consoleCountMap[normConsoleType];
     const totalConsoles = countField ? (cafe[countField] as number) || 0 : 0;
 
     if (totalConsoles === 0) {
-      toast.error(`No ${consoleType} consoles available at this cafe`);
+      toast.error(`No ${rawConsoleType} consoles available at this cafe`);
       return;
     }
 
     // Find first available console station
     let assignedStation: string | null = null;
-    const consolePrefix = consoleType.toLowerCase();
+    const consolePrefix = normConsoleType;
 
     for (let i = 1; i <= totalConsoles; i++) {
       const stationId = `${consolePrefix}-${i.toString().padStart(2, '0')}`;
@@ -1114,7 +1131,7 @@ export default function OwnerDashboardPage() {
     }
 
     if (!assignedStation) {
-      toast.error(`All ${consoleType} consoles are currently occupied`);
+      toast.error(`All ${rawConsoleType} consoles are currently occupied`);
       return;
     }
 

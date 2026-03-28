@@ -80,6 +80,15 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         }
     }, [cafeId, statusFilter, dateRange, customStart, customEnd]);
 
+    // Reset to page 1 when cafeId changes (fetchBookings is recreated, triggering this effect)
+    const prevCafeIdRef = useRef(cafeId);
+    useEffect(() => {
+        if (prevCafeIdRef.current !== cafeId) {
+            prevCafeIdRef.current = cafeId;
+            setPage(1);
+        }
+    }, [cafeId]);
+
     // Re-fetch when filters or page change; clear selection
     useEffect(() => {
         fetchBookings(page, debouncedSearch);
