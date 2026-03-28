@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import { CONSOLE_LABELS, CONSOLE_ICONS } from '@/lib/constants';
 import { Button, LoadingSpinner, EmptyState } from './ui';
-import { MonitorPlay, Clock, User, AlertCircle, Wifi } from 'lucide-react';
+import { MonitorPlay, Clock, User, AlertCircle } from 'lucide-react';
 
-// Types
 type ConsoleId = "ps5" | "ps4" | "xbox" | "pc" | "pool" | "arcade" | "snooker" | "vr" | "steering" | "racing_sim";
 
 type CafeConsoleCounts = {
@@ -26,7 +25,7 @@ type ConsoleStatus = {
     status: "free" | "busy" | "ending_soon" | "inactive";
     booking?: {
         customerName: string; startTime: string; endTime: string;
-        timeRemaining: number; controllerCount?: number;
+        timeRemaining: number; duration?: number; controllerCount?: number;
     };
 };
 
@@ -44,8 +43,7 @@ interface LiveStatusProps {
 function formatMinutes(mins: number) {
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    return `${h}h  ${m}m`;
 }
 
 export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
@@ -174,6 +172,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                                 startTime: booking.start_time,
                                 endTime: formatEndTime(startMinutes, booking.duration),
                                 timeRemaining: hasStarted ? timeRemaining : (startMinutes - currentMinutes),
+                                duration: booking.duration,
                                 controllerCount: booking.controllerCount
                             }
                         });
@@ -251,8 +250,6 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                         Last updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </span>
                 </div>
-
-                {/* Stat chips */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
                         <div className="text-2xl font-bold text-emerald-400">{totalFree}</div>
@@ -273,43 +270,68 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                 </div>
             </div>
 
-            {/* Active Sessions */}
+            {/* Active Sessions — dashboard style */}
             {activeSessions.length > 0 && (
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">
-                        Active Sessions ({activeSessions.length})
-                    </h3>
-                    <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-3`}>
+                    <h3 className="text-base font-semibold text-white mb-3 px-1">Active Sessions ({activeSessions.length})</h3>
+                    <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-4`}>
                         {activeSessions.map(session => {
                             const isEnding = session.status === 'ending_soon';
                             const isOngoing = session.booking?.endTime === 'Ongoing';
+                            const timeRemaining = session.booking?.timeRemaining || 0;
+                            const duration = session.booking?.duration || 60;
+                            const progressPct = isOngoing ? 100 : Math.min(100, (timeRemaining / duration) * 100);
+
+                            const bgColor = isEnding ? 'bg-amber-500/5' : 'bg-red-500/5';
+                            const borderColor = isEnding ? 'border-amber-500/40' : 'border-red-500/40';
+                            const timerColor = isEnding ? 'text-amber-500' : 'text-red-400';
+                            const barColor = isEnding ? 'bg-amber-500' : 'bg-red-500';
+                            const badgeBg = isEnding ? 'bg-amber-500/20' : 'bg-red-500/20';
+                            const badgeText = isEnding ? 'text-amber-500' : 'text-red-500';
+                            const badgeBorder = isEnding ? 'border-amber-500' : 'border-red-500';
+                            const badgeLabel = isEnding ? 'ENDING SOON' : 'BUSY';
+
                             return (
-                                <div key={session.id} className={`rounded-xl border p-4 flex items-center gap-3
-                                    ${isEnding ? 'bg-amber-500/5 border-amber-500/25' : 'bg-red-500/5 border-red-500/20'}`}>
-                                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 bg-slate-800/80">
-                                        {session.groupIcon}
+                                <div key={session.id} className={`group relative flex flex-col justify-between ${bgColor} border-2 ${borderColor} rounded-2xl p-5 min-h-[160px] overflow-hidden`}>
+                                    {/* Badge */}
+                                    <div className={`absolute top-3 right-3 ${badgeBg} border ${badgeBorder} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeText}`}>
+                                        {badgeLabel}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between gap-1 mb-0.5">
-                                            <span className="font-bold text-white text-sm">
-                                                {session.groupLabel} #{String(session.consoleNumber).padStart(2, '0')}
-                                            </span>
-                                            {isEnding
-                                                ? <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/25 uppercase">Ending Soon</span>
-                                                : <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/15 text-red-400 border border-red-500/25 uppercase">Busy</span>
-                                            }
+
+                                    {/* Header */}
+                                    <div className="flex items-center gap-2.5 mb-4">
+                                        <div className="text-3xl">{session.groupIcon}</div>
+                                        <div>
+                                            <div className="text-xs text-[#6b7280] font-semibold uppercase tracking-wide">
+                                                {session.groupLabel}-{String(session.consoleNumber).padStart(2, '0')}
+                                            </div>
+                                            <div className="text-base font-bold text-white">
+                                                {session.booking?.customerName || '—'}
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-1 text-slate-400 text-xs mb-1">
-                                            <User size={11} />
-                                            <span className="truncate">{session.booking?.customerName || '—'}</span>
+                                    </div>
+
+                                    {/* Timer */}
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-xs text-[#6b7280] mb-0.5">
+                                                {isOngoing ? 'Session Time' : 'Time Remaining'}
+                                            </p>
+                                            <p className={`text-2xl font-bold font-mono ${timerColor}`}>
+                                                {formatMinutes(timeRemaining)}
+                                            </p>
                                         </div>
-                                        <div className={`flex items-center gap-1 text-xs font-semibold ${isEnding ? 'text-amber-400' : 'text-slate-300'}`}>
-                                            <Clock size={11} />
-                                            {isOngoing
-                                                ? <span>{formatMinutes(session.booking?.timeRemaining || 0)} elapsed (Membership)</span>
-                                                : <span>{formatMinutes(session.booking?.timeRemaining || 0)} left · Ends {session.booking?.endTime}</span>
-                                            }
-                                        </div>
+                                        {!isOngoing && (
+                                            <div className="text-right">
+                                                <p className="text-xs text-[#6b7280] mb-0.5">Ends At</p>
+                                                <p className="text-sm font-semibold text-white">{session.booking?.endTime}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Progress bar */}
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-[#ffffff10]">
+                                        <div className={`h-full ${barColor}`} style={{ width: `${progressPct}%` }} />
                                     </div>
                                 </div>
                             );
@@ -321,7 +343,6 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             {/* Station Grid by Type */}
             {consoleData.map((group) => (
                 <div key={group.type}>
-                    {/* Group Header */}
                     <div className="flex items-center justify-between mb-3 px-1">
                         <div className="flex items-center gap-2">
                             <span className="text-xl">{group.icon}</span>
@@ -342,62 +363,77 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                         </div>
                     </div>
 
-                    {/* Station Cards */}
-                    <div className={`grid grid-cols-2 ${isMobile ? 'gap-2' : 'sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'}`}>
+                    <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-4`}>
                         {group.statuses.map((station) => {
                             const isFree = station.status === 'free';
                             const isEnding = station.status === 'ending_soon';
-                            const isBusy = station.status === 'busy';
+                            const isBusy = station.status === 'busy' && !isEnding;
                             const isOff = station.status === 'inactive';
                             const isOngoing = station.booking?.endTime === 'Ongoing';
+                            const timeRemaining = station.booking?.timeRemaining || 0;
+                            const duration = station.booking?.duration || 60;
+                            const progressPct = isOngoing ? 100 : Math.min(100, (timeRemaining / duration) * 100);
+
+                            const bgColor = isFree ? 'bg-emerald-500/5' : isEnding ? 'bg-amber-500/5' : isBusy ? 'bg-red-500/5' : 'bg-slate-800/20';
+                            const borderColor = isFree ? 'border-emerald-500/40' : isEnding ? 'border-amber-500/40' : isBusy ? 'border-red-500/40' : 'border-slate-700/40';
+                            const timerColor = isEnding ? 'text-amber-500' : isBusy ? 'text-red-400' : 'text-emerald-500';
+                            const barColor = isFree ? 'bg-emerald-500' : isEnding ? 'bg-amber-500' : 'bg-red-500';
+                            const badgeBg = isFree ? 'bg-emerald-500/20' : isEnding ? 'bg-amber-500/20' : isBusy ? 'bg-red-500/20' : 'bg-slate-600/20';
+                            const badgeText = isFree ? 'text-emerald-500' : isEnding ? 'text-amber-500' : isBusy ? 'text-red-500' : 'text-slate-500';
+                            const badgeBorder = isFree ? 'border-emerald-500' : isEnding ? 'border-amber-500' : isBusy ? 'border-red-500' : 'border-slate-600';
+                            const badgeLabel = isFree ? 'FREE' : isEnding ? 'ENDING SOON' : isBusy ? 'BUSY' : 'OFF';
 
                             return (
-                                <div key={station.id} className={`
-                                    relative rounded-xl border p-3 transition-all duration-200
-                                    ${isFree ? 'border-emerald-500/20 bg-emerald-500/5' : ''}
-                                    ${isEnding ? 'border-amber-500/30 bg-amber-500/5' : ''}
-                                    ${isBusy && !isEnding ? 'border-red-500/20 bg-red-500/5' : ''}
-                                    ${isOff ? 'border-slate-700/40 bg-slate-800/20 opacity-50' : ''}
-                                `}>
-                                    {/* Station Label */}
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-base">{group.icon}</span>
-                                            <span className="font-bold text-white text-sm">#{String(station.consoleNumber).padStart(2, '0')}</span>
+                                <div key={station.id} className={`relative flex flex-col justify-between ${bgColor} border-2 ${borderColor} rounded-2xl p-5 min-h-[140px] overflow-hidden ${isOff ? 'opacity-50' : ''}`}>
+                                    {/* Badge */}
+                                    <div className={`absolute top-3 right-3 ${badgeBg} border ${badgeBorder} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeText}`}>
+                                        {badgeLabel}
+                                    </div>
+
+                                    {/* Header */}
+                                    <div className="flex items-center gap-2.5 mb-3">
+                                        <div className="text-2xl">{group.icon}</div>
+                                        <div>
+                                            <div className="text-xs text-[#6b7280] font-semibold uppercase tracking-wide">{group.label}</div>
+                                            <div className="text-base font-bold text-white">#{String(station.consoleNumber).padStart(2, '0')}</div>
                                         </div>
-                                        <StationBadge status={station.status} />
                                     </div>
 
                                     {/* Content */}
                                     {station.booking ? (
-                                        <div>
-                                            <div className="flex items-center gap-1 text-slate-300 text-xs mb-2">
-                                                <User size={11} className="text-slate-500 flex-shrink-0" />
-                                                <span className="truncate font-medium">{station.booking.customerName}</span>
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <div className="flex items-center gap-1 text-[#6b7280] text-xs mb-0.5">
+                                                    <User size={11} />
+                                                    <span className="truncate max-w-[100px]">{station.booking.customerName}</span>
+                                                </div>
+                                                <p className={`text-xl font-bold font-mono ${timerColor}`}>
+                                                    {formatMinutes(timeRemaining)}
+                                                </p>
                                             </div>
-                                            <div className={`rounded-lg px-2 py-1.5 border text-xs font-bold flex items-center justify-between
-                                                ${isEnding ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-slate-800/60 border-slate-700/50 text-slate-300'}`}>
-                                                <span className="flex items-center gap-1">
-                                                    <Clock size={11} />
-                                                    {isOngoing
-                                                        ? `${formatMinutes(station.booking.timeRemaining)} elapsed`
-                                                        : `${formatMinutes(station.booking.timeRemaining)} left`
-                                                    }
-                                                </span>
-                                                <span className="text-[10px] opacity-60 ml-1">
-                                                    {isOngoing ? 'SUB' : station.booking.endTime}
-                                                </span>
-                                            </div>
+                                            {!isOngoing && (
+                                                <div className="text-right">
+                                                    <p className="text-xs text-[#6b7280] mb-0.5">Ends At</p>
+                                                    <p className="text-sm font-semibold text-white">{station.booking.endTime}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : isOff ? (
-                                        <div className="flex items-center gap-1.5 text-slate-600 text-xs mt-1">
-                                            <AlertCircle size={13} />
+                                        <div className="flex items-center gap-1.5 text-slate-500 text-sm">
+                                            <AlertCircle size={15} />
                                             <span>Powered Off</span>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-1.5 text-emerald-600 text-xs mt-1">
-                                            <MonitorPlay size={13} />
+                                        <div className="flex items-center gap-1.5 text-emerald-500 text-sm">
+                                            <MonitorPlay size={15} />
                                             <span>Available</span>
+                                        </div>
+                                    )}
+
+                                    {/* Progress bar */}
+                                    {(station.booking || isFree) && (
+                                        <div className="absolute bottom-0 left-0 w-full h-1 bg-[#ffffff10]">
+                                            <div className={`h-full ${barColor}`} style={{ width: isFree ? '100%' : `${progressPct}%` }} />
                                         </div>
                                     )}
                                 </div>
@@ -408,11 +444,4 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             ))}
         </div>
     );
-}
-
-function StationBadge({ status }: { status: 'free' | 'busy' | 'ending_soon' | 'inactive' }) {
-    if (status === 'free') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase">Free</span>;
-    if (status === 'busy') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/10 text-red-500 border border-red-500/20 uppercase">Busy</span>;
-    if (status === 'inactive') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20 uppercase">Off</span>;
-    return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase">Ending</span>;
 }
