@@ -10,7 +10,7 @@ interface StationsTabProps {
     poweredOffStations: Set<string>;
     onTogglePower: (stationName: string) => void;
     onEditPricing: (station: any) => void;
-    onDeleteStation: (station: { name: string; type: string }) => void;
+    onDeleteStation: (station: { name: string; displayName: string; type: string }) => void;
     onAddStation: () => void;
     theme: any;
 }
@@ -339,7 +339,7 @@ export function StationsTab({
                                                 >🔌</button>
                                                 <button
                                                     style={{ padding: '8px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 6, cursor: 'pointer', color: '#ef4444' }}
-                                                    onClick={() => onDeleteStation({ name: station.name, type: station.type })}
+                                                    onClick={() => onDeleteStation({ name: station.name, displayName: station.displayName, type: station.type })}
                                                     title="Delete"
                                                 >🗑️</button>
                                             </div>

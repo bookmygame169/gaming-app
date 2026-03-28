@@ -51,21 +51,8 @@ export async function POST(request: NextRequest) {
           .update({ is_active })
           .eq('id', existing.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-      } else {
-        // No pricing row yet — insert minimal record so is_active can be persisted
-        const { error } = await supabase
-          .from('station_pricing')
-          .insert({
-            cafe_id,
-            station_name,
-            station_type: station_type || station_name.split('-')[0],
-            station_number: station_number || 1,
-            is_active,
-            half_hour_rate: 0,
-            hourly_rate: 0,
-          });
-        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
       }
+      // No pricing row yet — power state tracked in-memory only (configuring pricing will persist it)
 
       return NextResponse.json({ success: true });
     }

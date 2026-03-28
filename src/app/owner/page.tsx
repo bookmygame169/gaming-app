@@ -201,7 +201,7 @@ export default function OwnerDashboardPage() {
   const [addingStation, setAddingStation] = useState(false);
 
   // Delete Station state
-  const [stationToDelete, setStationToDelete] = useState<{ name: string, type: string } | null>(null);
+  const [stationToDelete, setStationToDelete] = useState<{ name: string, displayName: string, type: string } | null>(null);
   const [deletingStation, setDeletingStation] = useState(false);
 
   // Station power status (tracks which stations are powered off)
@@ -3598,7 +3598,7 @@ export default function OwnerDashboardPage() {
                     color: theme.textPrimary,
                     fontWeight: 600,
                   }}>
-                    {stationToDelete.name}
+                    {stationToDelete.displayName}
                   </p>
                   <p style={{
                     margin: "8px 0 0 0",
