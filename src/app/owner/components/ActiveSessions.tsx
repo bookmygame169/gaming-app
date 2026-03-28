@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { ConsoleId, CONSOLE_ICONS } from '@/lib/constants';
+import { Button } from './ui';
 import { Plus } from 'lucide-react';
 
 import { getLocalDateString } from '../utils';
@@ -91,7 +92,7 @@ export function ActiveSessions({
         return timeA - timeB;
     });
 
-    // Helper helper
+    // Helper
     const getConsoleIcon = (consoleName: string) => {
         const key = consoleName?.toLowerCase() as ConsoleId;
         return CONSOLE_ICONS[key] || '🎮';
@@ -158,13 +159,13 @@ export function ActiveSessions({
     }
 
     return (
-        <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-3`}>
+        <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-4 md:gap-5`}>
             {/* Active Membership Sessions */}
             {activeMemberships.map((sub: any) => {
                 const planDetails = sub.membership_plans || {};
                 const elapsedSeconds = timerElapsed.get(sub.id) || 0;
-                const consoleType = planDetails.console_type || 'UNKNOWN';
-                const stationName = sub.assigned_console_station?.toUpperCase() || `${consoleType.toUpperCase()}-??`;
+                const consoleType = planDetails.console_type?.toUpperCase() || 'UNKNOWN';
+                const stationName = sub.assigned_console_station?.toUpperCase() || `${consoleType}-??`;
 
                 const hours = Math.floor(elapsedSeconds / 3600);
                 const minutes = Math.floor((elapsedSeconds % 3600) / 60);
@@ -172,17 +173,36 @@ export function ActiveSessions({
                 const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
                 return (
-                    <div key={sub.id} className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-slate-800">
-                            {getConsoleIcon(consoleType)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-white text-sm truncate">{stationName}</span>
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase flex-shrink-0">Membership</span>
+                    <div
+                        key={sub.id}
+                        className="flex flex-col justify-between bg-emerald-500/5 border-2 border-emerald-500/40 rounded-2xl p-5 min-h-[160px]"
+                    >
+                        <div>
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <p className="text-xs text-[#6b7280] mb-1 font-semibold uppercase tracking-wide">
+                                        {stationName}
+                                    </p>
+                                    <p className="text-base font-bold text-white mb-0">
+                                        {sub.customer_name}
+                                    </p>
+                                    <p className="text-xs text-[#6b7280] mt-0.5">
+                                        {planDetails.name || 'Membership'}
+                                    </p>
+                                </div>
+                                <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-xl text-xs font-semibold whitespace-nowrap">
+                                    MEMBERSHIP
+                                </span>
                             </div>
-                            <div className="text-slate-400 text-xs truncate mt-0.5">{sub.customer_name}</div>
-                            <div className="text-emerald-400 text-xs font-semibold font-mono mt-1">{timeString} elapsed</div>
+                        </div>
+
+                        <div>
+                            <div className="mb-3">
+                                <p className="text-xs text-[#6b7280] mb-1">Session Time</p>
+                                <p className="text-2xl font-bold text-emerald-500 m-0 font-mono">
+                                    {timeString}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 );
@@ -192,10 +212,11 @@ export function ActiveSessions({
             {sortedActiveBookings.map((booking, index) => {
                 const consoleInfo = booking.booking_items?.[0];
                 const isWalkIn = booking.source === 'walk-in';
-                const customerName = isWalkIn ? booking.customer_name : (booking.user_name || 'Guest');
 
                 // Calculate Time Remaining
-                const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+                const currentMinutes =
+                    currentTime.getHours() * 60 + currentTime.getMinutes();
+
                 let timeRemaining = 0;
                 let endTime = '';
 
@@ -205,13 +226,17 @@ export function ActiveSessions({
                         let hours = parseInt(timeParts[1]);
                         const minutes = parseInt(timeParts[2]);
                         const period = timeParts[3];
+
                         if (period) {
                             if (period.toLowerCase() === 'pm' && hours !== 12) hours += 12;
                             else if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
                         }
+
                         const startMinutes = hours * 60 + minutes;
                         const endMinutes = startMinutes + booking.duration;
                         timeRemaining = Math.max(0, endMinutes - currentMinutes);
+
+                        // End time display
                         const endHours = Math.floor(endMinutes / 60) % 24;
                         const endMins = endMinutes % 60;
                         const endPeriod = endHours >= 12 ? 'pm' : 'am';
@@ -220,46 +245,91 @@ export function ActiveSessions({
                     }
                 }
 
-                // Station Name
+                // Station Name Logic
                 const consoleType = consoleInfo?.console?.toUpperCase() || 'UNKNOWN';
                 const sameTypeBookings = sortedActiveBookings.filter(
                     (b, i) => i <= index && b.booking_items?.[0]?.console === consoleInfo?.console
                 );
-                const stationName = `${consoleType}-${String(sameTypeBookings.length).padStart(2, '0')}`;
+                const stationNumber = sameTypeBookings.length;
+                const stationName = `${consoleType}-${String(stationNumber).padStart(2, '0')}`;
 
-                const isEnding = timeRemaining <= 30;
+                // Status Colors
                 const isUrgent = timeRemaining < 15;
-                const borderCls = isUrgent ? 'border-red-500/20 bg-red-500/5' : isEnding ? 'border-amber-500/20 bg-amber-500/5' : 'border-slate-700/50 bg-slate-800/30';
-                const timeCls = isUrgent ? 'text-red-400' : isEnding ? 'text-amber-400' : 'text-slate-300';
-                const badgeCls = isUrgent ? 'bg-red-500/10 text-red-500 border-red-500/20' : isEnding ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-                const badgeLabel = isUrgent ? 'Urgent' : isEnding ? 'Ending Soon' : 'Active';
+                const isWarning = timeRemaining >= 15 && timeRemaining <= 30;
+                const isHealthy = timeRemaining > 30;
+
+                const bgColor = isHealthy ? 'bg-emerald-500/5' : isWarning ? 'bg-amber-500/5' : 'bg-red-500/5';
+                const borderColor = isHealthy ? 'border-emerald-500/40' : isWarning ? 'border-amber-500/40' : 'border-red-500/40';
+                const hoverShadow = isHealthy ? 'group-hover:shadow-[0_8px_24px_rgba(34,197,94,0.2)]' : isWarning ? 'group-hover:shadow-[0_8px_24px_rgba(251,191,36,0.2)]' : 'group-hover:shadow-[0_8px_24px_rgba(239,68,68,0.2)]';
+                const badgeBg = isHealthy ? 'bg-emerald-500/20' : isWarning ? 'bg-amber-500/20' : 'bg-red-500/20';
+                const badgeText = isHealthy ? 'text-emerald-500' : isWarning ? 'text-amber-500' : 'text-red-500';
+                const badgeBorder = isHealthy ? 'border-emerald-500' : isWarning ? 'border-amber-500' : 'border-red-500';
+                const timerColor = isHealthy ? 'text-emerald-500' : isWarning ? 'text-amber-500' : 'text-red-500';
 
                 return (
-                    <div key={booking.id} className={`rounded-xl border ${borderCls} p-4 flex items-center gap-4`}>
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-slate-800">
-                            {getConsoleIcon(consoleInfo?.console || '')}
+                    <div
+                        key={booking.id}
+                        className={`group relative flex flex-col justify-between ${bgColor} border-2 ${borderColor} rounded-2xl p-5 min-h-[160px] transition-all duration-300 hover:-translate-y-1 ${hoverShadow} cursor-default overflow-hidden`}
+                    >
+                        {/* Badge */}
+                        <div className={`absolute top-3 right-3 ${badgeBg} border ${badgeBorder} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeText}`}>
+                            {isHealthy ? "ACTIVE" : isWarning ? "ENDING SOON" : "URGENT"}
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-white text-sm">{stationName}</span>
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase flex-shrink-0 ${badgeCls}`}>{badgeLabel}</span>
+
+                        {/* Header */}
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="text-3xl">
+                                {getConsoleIcon(consoleInfo?.console || '')}
                             </div>
-                            <div className="text-slate-400 text-xs truncate mt-0.5">{customerName}</div>
-                            <div className={`text-xs font-semibold mt-1 flex items-center justify-between ${timeCls}`}>
-                                <span>{Math.floor(timeRemaining / 60)}h {timeRemaining % 60}m left · Ends {endTime}</span>
+                            <div>
+                                <div className="text-xs text-[#6b7280] font-semibold uppercase tracking-wide">
+                                    {stationName}
+                                </div>
+                                <div className="text-base font-bold text-white">
+                                    {isWalkIn ? booking.customer_name : (booking.user_name || 'Guest')}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Timer */}
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <p className="text-xs text-[#6b7280] mb-0.5">Time Remaining</p>
+                                <p className={`text-2xl font-bold font-mono ${timerColor}`}>
+                                    {Math.floor(timeRemaining / 60)}h {timeRemaining % 60}m
+                                </p>
+                            </div>
+                            <div className="flex items-end gap-3">
                                 {onAddItems && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            onAddItems(booking.originalBookingId || booking.id, customerName);
+                                            const originalId = booking.originalBookingId || booking.id;
+                                            const customerName = isWalkIn ? booking.customer_name : (booking.user_name || 'Guest');
+                                            onAddItems(originalId, customerName);
                                         }}
-                                        className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded text-[10px] font-semibold transition-colors ml-2 flex-shrink-0"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-semibold transition-colors"
+                                        title="Add F&B items"
                                     >
-                                        <Plus className="w-3 h-3" />
+                                        <Plus className="w-3.5 h-3.5" />
                                         Add Items
                                     </button>
                                 )}
+                                <div className="text-right">
+                                    <p className="text-xs text-[#6b7280] mb-0.5">Ends At</p>
+                                    <p className="text-sm font-semibold text-white">
+                                        {endTime}
+                                    </p>
+                                </div>
                             </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-[#ffffff10]">
+                            <div
+                                className={`h-full ${isHealthy ? 'bg-emerald-500' : isWarning ? 'bg-amber-500' : 'bg-red-500'}`}
+                                style={{ width: `${Math.min(100, (timeRemaining / booking.duration) * 100)}%` }}
+                            />
                         </div>
                     </div>
                 );
