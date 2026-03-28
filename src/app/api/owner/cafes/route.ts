@@ -63,14 +63,20 @@ export async function PUT(request: NextRequest) {
       return accessResponse;
     }
 
-    const { error } = await supabase
+    // Ownership already verified above — use only cafeId so the update
+    // isn't silently skipped by an owner_id type/value mismatch
+    const { data: updated, error } = await supabase
       .from("cafes")
       .update(updates)
       .eq("id", cafeId)
-      .eq("owner_id", ownerId);
+      .select("id");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!updated || updated.length === 0) {
+      return NextResponse.json({ error: "Cafe not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });
