@@ -1,69 +1,51 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { CONSOLE_LABELS, CONSOLE_ICONS } from '@/lib/constants';
-import { Card, StatusBadge, Button, LoadingSpinner, EmptyState } from './ui';
-import { MonitorPlay, Clock, User, Calendar, AlertCircle } from 'lucide-react';
-
-import { getLocalDateString } from '../utils';
+import { Button, LoadingSpinner, EmptyState } from './ui';
+import { MonitorPlay, Clock, User, AlertCircle, Wifi } from 'lucide-react';
 
 // Types
 type ConsoleId = "ps5" | "ps4" | "xbox" | "pc" | "pool" | "arcade" | "snooker" | "vr" | "steering" | "racing_sim";
 
 type CafeConsoleCounts = {
-    ps5_count: number;
-    ps4_count: number;
-    xbox_count: number;
-    pc_count: number;
-    pool_count: number;
-    arcade_count: number;
-    snooker_count: number;
-    vr_count: number;
-    steering_wheel_count: number;
-    racing_sim_count: number;
+    ps5_count: number; ps4_count: number; xbox_count: number; pc_count: number;
+    pool_count: number; arcade_count: number; snooker_count: number; vr_count: number;
+    steering_wheel_count: number; racing_sim_count: number;
 };
 
 type BookingData = {
-    id: string;
-    start_time: string;
-    duration: number;
-    customer_name: string | null;
+    id: string; start_time: string; duration: number; customer_name: string | null;
     user_id: string | null;
-    booking_items: Array<{
-        console: ConsoleId;
-        quantity: number;
-    }>;
-    profile?: {
-        name: string;
-    } | null;
+    booking_items: Array<{ console: ConsoleId; quantity: number }>;
+    profile?: { name: string } | null;
 };
 
 type ConsoleStatus = {
-    id: string;
-    consoleNumber: number;
+    id: string; consoleNumber: number;
     status: "free" | "busy" | "ending_soon" | "inactive";
     booking?: {
-        customerName: string;
-        startTime: string;
-        endTime: string;
-        timeRemaining: number;
-        controllerCount?: number;
+        customerName: string; startTime: string; endTime: string;
+        timeRemaining: number; controllerCount?: number;
     };
 };
 
 type ConsoleSummary = {
-    type: ConsoleId;
-    label: string;
-    icon: string;
-    total: number;
-    free: number;
-    busy: number;
+    type: ConsoleId; label: string; icon: string;
+    total: number; free: number; busy: number;
     statuses: ConsoleStatus[];
 };
 
 interface LiveStatusProps {
     cafeId: string;
     isMobile?: boolean;
+}
+
+function formatMinutes(mins: number) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
 }
 
 export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
@@ -76,17 +58,10 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             const res = await fetch(`/api/owner/live-status?cafeId=${cafeId}`);
             if (!res.ok) throw new Error('Failed to fetch live status');
             const { cafe, bookings, activeSubscriptions, stationPricing } = await res.json();
-
-            if (!cafe) {
-                setLoading(false);
-                return;
-            }
-
-            // Build summaries
+            if (!cafe) { setLoading(false); return; }
             const summaries = buildConsoleSummaries(cafe, bookings || [], activeSubscriptions || [], stationPricing || []);
             setConsoleData(summaries);
             setLastUpdated(new Date());
-
         } catch (error) {
             console.error("Error loading status:", error);
         } finally {
@@ -96,23 +71,17 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
 
     const buildConsoleSummaries = (cafe: CafeConsoleCounts, bookings: BookingData[], memberships: any[], stationPricing: any[]): ConsoleSummary[] => {
         const consoleTypes: Array<{ id: ConsoleId; key: string }> = [
-            { id: "ps5", key: "ps5_count" },
-            { id: "ps4", key: "ps4_count" },
-            { id: "xbox", key: "xbox_count" },
-            { id: "pc", key: "pc_count" },
-            { id: "pool", key: "pool_count" },
-            { id: "arcade", key: "arcade_count" },
-            { id: "snooker", key: "snooker_count" },
-            { id: "vr", key: "vr_count" },
-            { id: "steering", key: "steering_wheel_count" },
-            { id: "racing_sim", key: "racing_sim_count" },
+            { id: "ps5", key: "ps5_count" }, { id: "ps4", key: "ps4_count" },
+            { id: "xbox", key: "xbox_count" }, { id: "pc", key: "pc_count" },
+            { id: "pool", key: "pool_count" }, { id: "arcade", key: "arcade_count" },
+            { id: "snooker", key: "snooker_count" }, { id: "vr", key: "vr_count" },
+            { id: "steering", key: "steering_wheel_count" }, { id: "racing_sim", key: "racing_sim_count" },
         ];
 
         const summaries: ConsoleSummary[] = [];
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-        // Helper: Parse HH:MM (AM/PM) to minutes
         const parseTimeToMinutes = (timeStr: string): number => {
             const [time, period] = timeStr.toLowerCase().split(" ");
             const [hours, minutes] = time.split(":").map(Number);
@@ -137,11 +106,16 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             return currentMinutes < endMinutes;
         });
 
+        const consoleTypeMap: Record<string, ConsoleId> = {
+            'PC': 'pc', 'PS5': 'ps5', 'PS4': 'ps4', 'Xbox': 'xbox',
+            'Pool': 'pool', 'Snooker': 'snooker', 'Arcade': 'arcade',
+            'VR': 'vr', 'Steering': 'steering', 'Racing Sim': 'racing_sim'
+        };
+
         consoleTypes.forEach(({ id, key }) => {
             const total = cafe[key as keyof CafeConsoleCounts] || 0;
             if (total === 0) return;
 
-            // Prepare bookings for this console type
             const consoleBookings: Array<BookingData & { quantity: number; controllerCount: number }> = [];
             activeBookings.forEach(b => {
                 const matchingItems = b.booking_items?.filter(item => {
@@ -150,46 +124,29 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                     return itemConsole === id;
                 }) || [];
                 matchingItems.forEach(item => {
-                    consoleBookings.push({
-                        ...b,
-                        quantity: 1,
-                        controllerCount: item.quantity || 1
-                    });
+                    consoleBookings.push({ ...b, quantity: 1, controllerCount: item.quantity || 1 });
                 });
             });
-
-            const statuses: ConsoleStatus[] = [];
-            let busyCount = 0;
-
-            // Memberships
-            const consoleTypeMap: Record<string, ConsoleId> = {
-                'PC': 'pc', 'PS5': 'ps5', 'PS4': 'ps4', 'Xbox': 'xbox',
-                'Pool': 'pool', 'Snooker': 'snooker', 'Arcade': 'arcade', 'VR': 'vr', 'Steering': 'steering', 'Racing Sim': 'racing_sim'
-            };
 
             const consoleMemberships = memberships.filter(m => {
                 const type = m.membership_plans?.console_type;
                 return type && consoleTypeMap[type] === id;
             });
 
-            // Assign units
+            const statuses: ConsoleStatus[] = [];
+            let busyCount = 0;
+
             for (let unit = 1; unit <= total; unit++) {
                 const stationId = `${id}-${unit.toString().padStart(2, '0')}`;
-                
-                // Check if station is powered off in database
                 const pricingInfo = stationPricing.find((p: any) => p.station_name === stationId);
                 const isInactive = pricingInfo && pricingInfo.is_active === false;
 
                 if (isInactive) {
                     statuses.push({ id: stationId, consoleNumber: unit, status: 'inactive' });
-                    continue; // Skip further checks for this unit
+                    continue;
                 }
 
-                // Check membership
-
-                // Check membership
                 const membership = consoleMemberships.find(m => m.assigned_console_station === stationId);
-
                 if (membership) {
                     const startTime = new Date(membership.timer_start_time);
                     const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 60000);
@@ -198,20 +155,17 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                         booking: {
                             customerName: (membership.customer_name || 'Member') + ' (Sub)',
                             startTime: startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-                            endTime: 'Ongoing',
-                            timeRemaining: elapsed, // elapsed
+                            endTime: 'Ongoing', timeRemaining: elapsed,
                         }
                     });
                     busyCount++;
                 } else {
-                    // Check booking
                     const booking = findBookingForUnit(unit, consoleBookings);
                     if (booking) {
                         const startMinutes = parseTimeToMinutes(booking.start_time);
                         const endMinutes = startMinutes + booking.duration;
                         const timeRemaining = endMinutes - currentMinutes;
                         const hasStarted = currentMinutes >= startMinutes;
-
                         statuses.push({
                             id: stationId, consoleNumber: unit,
                             status: timeRemaining <= 15 ? 'ending_soon' : 'busy',
@@ -231,13 +185,8 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             }
 
             summaries.push({
-                type: id,
-                label: CONSOLE_LABELS[id] || id,
-                icon: CONSOLE_ICONS[id] || "🎮",
-                total,
-                free: total - busyCount,
-                busy: busyCount,
-                statuses
+                type: id, label: CONSOLE_LABELS[id] || id, icon: CONSOLE_ICONS[id] || "🎮",
+                total, free: total - busyCount, busy: busyCount, statuses
             });
         });
 
@@ -256,7 +205,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
 
     useEffect(() => {
         loadConsoleStatus();
-        const interval = setInterval(loadConsoleStatus, 5000); // 5s refresh
+        const interval = setInterval(loadConsoleStatus, 5000);
         return () => clearInterval(interval);
     }, [cafeId]);
 
@@ -268,187 +217,190 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                 icon="🎮"
                 title="No Stations Found"
                 description="Configure your cafe stations in Settings to see them here."
-                action={
-                    <Button variant="primary">Go to Settings</Button>
-                }
+                action={<Button variant="primary">Go to Settings</Button>}
             />
         );
     }
 
     const totalFree = consoleData.reduce((sum, c) => sum + c.free, 0);
+    const totalBusy = consoleData.reduce((sum, c) => sum + c.busy, 0);
+    const totalEndingSoon = consoleData.reduce((sum, c) => c.statuses.filter(s => s.status === 'ending_soon').length + sum, 0);
+    const totalOff = consoleData.reduce((sum, c) => c.statuses.filter(s => s.status === 'inactive').length + sum, 0);
     const totalStations = consoleData.reduce((sum, c) => sum + c.total, 0);
 
+    const activeSessions = consoleData.flatMap(group =>
+        group.statuses
+            .filter(s => s.status === 'busy' || s.status === 'ending_soon')
+            .map(s => ({ ...s, groupLabel: group.label, groupIcon: group.icon }))
+    );
+
     return (
-        <div className="space-y-8">
-            {/* Header Summary */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                        Live Status
-                    </h2>
-                    <p className="text-slate-400 text-sm mt-1">
-                        {totalFree} / {totalStations} Stations Available
-                    </p>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </div>
+                        <h2 className="text-lg font-bold text-white">Live Status</h2>
+                        <span className="text-slate-500 text-sm">· updates every 5s</span>
+                    </div>
+                    <span className="text-slate-400 text-sm">
+                        Last updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
                 </div>
-                <div className="flex gap-4 text-xs font-semibold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span className="text-emerald-500">Free</span>
+
+                {/* Stat chips */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
+                        <div className="text-2xl font-bold text-emerald-400">{totalFree}</div>
+                        <div className="text-xs text-emerald-600 font-semibold uppercase tracking-wide mt-0.5">Free</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                        <span className="text-red-500">Busy</span>
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+                        <div className="text-2xl font-bold text-red-400">{totalBusy}</div>
+                        <div className="text-xs text-red-600 font-semibold uppercase tracking-wide mt-0.5">Busy</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                        <span className="text-amber-500">Ending Soon</span>
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
+                        <div className="text-2xl font-bold text-amber-400">{totalEndingSoon}</div>
+                        <div className="text-xs text-amber-600 font-semibold uppercase tracking-wide mt-0.5">Ending Soon</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-slate-500"></span>
-                        <span className="text-slate-500">Powered Off</span>
+                    <div className="bg-slate-700/30 border border-slate-700/50 rounded-xl p-3 text-center">
+                        <div className="text-2xl font-bold text-slate-400">{totalOff}</div>
+                        <div className="text-xs text-slate-600 font-semibold uppercase tracking-wide mt-0.5">Powered Off</div>
                     </div>
                 </div>
             </div>
 
-            {/* Active Sessions Summary */}
-            {(() => {
-                const activeSessions = consoleData.flatMap(group =>
-                    group.statuses
-                        .filter(s => s.status === 'busy' || s.status === 'ending_soon')
-                        .map(s => ({ ...s, groupLabel: group.label, groupIcon: group.icon }))
-                );
-                if (activeSessions.length === 0) return null;
-                return (
-                    <div>
-                        <h3 className="text-base font-semibold text-white mb-3 px-1">Active Sessions</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                            {activeSessions.map(session => {
-                                const isEnding = session.status === 'ending_soon';
-                                return (
-                                    <div key={session.id} className={`
-                                        rounded-xl border p-4 flex items-center gap-4
-                                        ${isEnding ? 'bg-amber-500/5 border-amber-500/20' : 'bg-red-500/5 border-red-500/20'}
-                                    `}>
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-slate-800`}>
-                                            {session.groupIcon}
+            {/* Active Sessions */}
+            {activeSessions.length > 0 && (
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">
+                        Active Sessions ({activeSessions.length})
+                    </h3>
+                    <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-3`}>
+                        {activeSessions.map(session => {
+                            const isEnding = session.status === 'ending_soon';
+                            const isOngoing = session.booking?.endTime === 'Ongoing';
+                            return (
+                                <div key={session.id} className={`rounded-xl border p-4 flex items-center gap-3
+                                    ${isEnding ? 'bg-amber-500/5 border-amber-500/25' : 'bg-red-500/5 border-red-500/20'}`}>
+                                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 bg-slate-800/80">
+                                        {session.groupIcon}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                                            <span className="font-bold text-white text-sm">
+                                                {session.groupLabel} #{String(session.consoleNumber).padStart(2, '0')}
+                                            </span>
+                                            {isEnding
+                                                ? <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/25 uppercase">Ending Soon</span>
+                                                : <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/15 text-red-400 border border-red-500/25 uppercase">Busy</span>
+                                            }
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="font-bold text-white text-sm">
-                                                    {session.groupLabel}-{String(session.consoleNumber).padStart(2, '0')}
-                                                </span>
-                                                {isEnding && (
-                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase flex-shrink-0">Ending Soon</span>
-                                                )}
-                                            </div>
-                                            <div className="text-slate-400 text-xs truncate mt-0.5">{session.booking?.customerName || '—'}</div>
-                                            <div className={`text-xs font-semibold mt-1 ${isEnding ? 'text-amber-400' : 'text-slate-300'}`}>
-                                                {session.booking?.endTime === 'Ongoing'
-                                                    ? `${session.booking.timeRemaining}m elapsed`
-                                                    : `${session.booking?.timeRemaining}m left · Ends ${session.booking?.endTime?.split(' ')[0] || ''}`
-                                                }
-                                            </div>
+                                        <div className="flex items-center gap-1 text-slate-400 text-xs mb-1">
+                                            <User size={11} />
+                                            <span className="truncate">{session.booking?.customerName || '—'}</span>
+                                        </div>
+                                        <div className={`flex items-center gap-1 text-xs font-semibold ${isEnding ? 'text-amber-400' : 'text-slate-300'}`}>
+                                            <Clock size={11} />
+                                            {isOngoing
+                                                ? <span>{formatMinutes(session.booking?.timeRemaining || 0)} elapsed (Membership)</span>
+                                                : <span>{formatMinutes(session.booking?.timeRemaining || 0)} left · Ends {session.booking?.endTime}</span>
+                                            }
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                );
-            })()}
+                </div>
+            )}
 
-            {/* Grid Sections */}
+            {/* Station Grid by Type */}
             {consoleData.map((group) => (
                 <div key={group.type}>
-                    <div className="flex items-center justify-between mb-4 px-1">
+                    {/* Group Header */}
+                    <div className="flex items-center justify-between mb-3 px-1">
                         <div className="flex items-center gap-2">
-                            <span className="text-2xl">{group.icon}</span>
-                            <span className="text-lg font-bold text-white capitalize">{group.label}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-xs text-slate-400 font-medium">
-                                {group.total}
-                            </span>
+                            <span className="text-xl">{group.icon}</span>
+                            <span className="text-base font-bold text-white">{group.label}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-xs text-slate-400 font-medium">{group.total}</span>
                         </div>
-                        <div className="text-sm font-medium">
-                            <span className="text-emerald-500">{group.free} Free</span>
-                            <span className="text-slate-600 mx-2">•</span>
-                            <span className="text-red-500">{group.busy} Busy</span>
+                        <div className="flex items-center gap-3 text-sm font-medium">
+                            <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <span className="text-emerald-400">{group.free} Free</span>
+                            </span>
+                            {group.busy > 0 && (
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                    <span className="text-red-400">{group.busy} Busy</span>
+                                </span>
+                            )}
                         </div>
                     </div>
 
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 ${isMobile ? 'gap-3' : ''}`}>
+                    {/* Station Cards */}
+                    <div className={`grid grid-cols-2 ${isMobile ? 'gap-2' : 'sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'}`}>
                         {group.statuses.map((station) => {
                             const isFree = station.status === 'free';
                             const isEnding = station.status === 'ending_soon';
+                            const isBusy = station.status === 'busy';
+                            const isOff = station.status === 'inactive';
+                            const isOngoing = station.booking?.endTime === 'Ongoing';
 
                             return (
-                                <Card padding="sm" key={station.id} className={`
-                                    relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg
-                                    ${isFree ? 'border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40' : ''}
-                                    ${isEnding ? 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40' : ''}
-                                    ${station.status === 'inactive' ? 'border-slate-500/20 bg-slate-500/5 grayscale opacity-60' : ''}
-                                    ${!isFree && !isEnding && station.status !== 'inactive' ? 'border-red-500/20 bg-red-500/5 hover:border-red-500/40' : ''}
+                                <div key={station.id} className={`
+                                    relative rounded-xl border p-3 transition-all duration-200
+                                    ${isFree ? 'border-emerald-500/20 bg-emerald-500/5' : ''}
+                                    ${isEnding ? 'border-amber-500/30 bg-amber-500/5' : ''}
+                                    ${isBusy && !isEnding ? 'border-red-500/20 bg-red-500/5' : ''}
+                                    ${isOff ? 'border-slate-700/40 bg-slate-800/20 opacity-50' : ''}
                                 `}>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`
-                                                w-10 h-10 rounded-xl flex items-center justify-center text-xl
-                                                ${isFree ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-400'}
-                                            `}>
-                                                {group.icon}
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-white leading-none">
-                                                    #{String(station.consoleNumber).padStart(2, '0')}
-                                                </div>
-                                                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mt-1">
-                                                    {group.label}
-                                                </div>
-                                            </div>
+                                    {/* Station Label */}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-base">{group.icon}</span>
+                                            <span className="font-bold text-white text-sm">#{String(station.consoleNumber).padStart(2, '0')}</span>
                                         </div>
-                                        <Badge status={station.status} />
+                                        <StationBadge status={station.status} />
                                     </div>
 
+                                    {/* Content */}
                                     {station.booking ? (
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-2 text-sm text-slate-300">
-                                                <User size={14} className="text-slate-500" />
-                                                <span className="truncate flex-1 font-medium">{station.booking.customerName}</span>
+                                        <div>
+                                            <div className="flex items-center gap-1 text-slate-300 text-xs mb-2">
+                                                <User size={11} className="text-slate-500 flex-shrink-0" />
+                                                <span className="truncate font-medium">{station.booking.customerName}</span>
                                             </div>
-
-                                            <div className={`
-                                                p-2 rounded-lg border flex items-center justify-between
-                                                ${isEnding ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-slate-800/50 border-slate-700/50 text-slate-400'}
-                                            `}>
-                                                <div className="flex items-center gap-2">
-                                                    <Clock size={14} />
-                                                    <span className="text-xs font-bold">
-                                                        {station.booking.endTime === 'Ongoing' ?
-                                                            `${station.booking.timeRemaining}m elapsed` :
-                                                            `${station.booking.timeRemaining}m left`
-                                                        }
-                                                    </span>
-                                                </div>
-                                                <span className="text-[10px] opacity-70">
-                                                    {station.booking.endTime === 'Ongoing' ? 'SUB' : 'Ends ' + station.booking.endTime.split(' ')[0]}
+                                            <div className={`rounded-lg px-2 py-1.5 border text-xs font-bold flex items-center justify-between
+                                                ${isEnding ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-slate-800/60 border-slate-700/50 text-slate-300'}`}>
+                                                <span className="flex items-center gap-1">
+                                                    <Clock size={11} />
+                                                    {isOngoing
+                                                        ? `${formatMinutes(station.booking.timeRemaining)} elapsed`
+                                                        : `${formatMinutes(station.booking.timeRemaining)} left`
+                                                    }
+                                                </span>
+                                                <span className="text-[10px] opacity-60 ml-1">
+                                                    {isOngoing ? 'SUB' : station.booking.endTime}
                                                 </span>
                                             </div>
                                         </div>
-                                    ) : station.status === 'inactive' ? (
-                                        <div className="py-4 flex flex-col items-center justify-center text-slate-500/50">
-                                            <AlertCircle size={32} strokeWidth={1.5} />
-                                            <span className="text-xs font-medium text-slate-500 mt-2">Powered Off</span>
+                                    ) : isOff ? (
+                                        <div className="flex items-center gap-1.5 text-slate-600 text-xs mt-1">
+                                            <AlertCircle size={13} />
+                                            <span>Powered Off</span>
                                         </div>
                                     ) : (
-                                        <div className="py-4 flex flex-col items-center justify-center text-emerald-500/50">
-                                            <MonitorPlay size={32} strokeWidth={1.5} />
-                                            <span className="text-xs font-medium text-emerald-500 mt-2">Available</span>
+                                        <div className="flex items-center gap-1.5 text-emerald-600 text-xs mt-1">
+                                            <MonitorPlay size={13} />
+                                            <span>Available</span>
                                         </div>
                                     )}
-                                </Card>
+                                </div>
                             );
                         })}
                     </div>
@@ -458,15 +410,9 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
     );
 }
 
-function Badge({ status }: { status: 'free' | 'busy' | 'ending_soon' | 'inactive' }) {
-    if (status === 'free') {
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase">Free</span>;
-    }
-    if (status === 'busy') {
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20 uppercase">Busy</span>;
-    }
-    if (status === 'inactive') {
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20 uppercase">Off</span>;
-    }
-    return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase">Ending</span>;
+function StationBadge({ status }: { status: 'free' | 'busy' | 'ending_soon' | 'inactive' }) {
+    if (status === 'free') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase">Free</span>;
+    if (status === 'busy') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/10 text-red-500 border border-red-500/20 uppercase">Busy</span>;
+    if (status === 'inactive') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20 uppercase">Off</span>;
+    return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase">Ending</span>;
 }
