@@ -3,7 +3,7 @@ import { requireOwnerContext } from "@/lib/ownerAuth";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 20;
+const ALLOWED_PAGE_SIZES = [10, 30, 50, 100];
 
 // GET /api/owner/bookings — paginated, server-side filtered bookings for the Bookings tab
 export async function GET(request: NextRequest) {
@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
 
     const cafeId = searchParams.get("cafeId");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const requestedSize = parseInt(searchParams.get("pageSize") || "30", 10);
+    const PAGE_SIZE = ALLOWED_PAGE_SIZES.includes(requestedSize) ? requestedSize : 30;
     const status = searchParams.get("status") || "all";
     const search = searchParams.get("search") || "";
     const dateFrom = searchParams.get("dateFrom") || "";

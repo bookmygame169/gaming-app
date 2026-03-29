@@ -5,7 +5,7 @@ import { Card, Button, Select } from './ui';
 import { RefreshCw, Search, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
 
 interface BookingsManagementProps {
     cafeId?: string;
@@ -43,6 +43,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const [bookings, setBookings] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(30);
     const [fetching, setFetching] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -64,6 +65,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
             const params = new URLSearchParams({
                 cafeId,
                 page: String(pg),
+                pageSize: String(pageSize),
                 ...(statusFilter !== 'all' && { status: statusFilter }),
                 ...(search && { search }),
                 ...(dateFrom && { dateFrom }),
@@ -78,7 +80,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         } finally {
             setFetching(false);
         }
-    }, [cafeId, statusFilter, dateRange, customStart, customEnd]);
+    }, [cafeId, statusFilter, dateRange, customStart, customEnd, pageSize]);
 
     // Reset to page 1 when cafeId changes (fetchBookings is recreated, triggering this effect)
     const prevCafeIdRef = useRef(cafeId);
@@ -117,7 +119,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         setPage(1);
     };
 
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const loading = fetching || externalLoading;
 
     async function handleBulkStatus(status: string) {
@@ -247,11 +249,24 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
             />
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {(totalPages > 1 || total > 0) && (
                 <div className="flex items-center justify-between px-2">
-                    <p className="text-sm text-slate-400">
-                        Page {page} of {totalPages} · {total.toLocaleString()} bookings
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-sm text-slate-400">
+                            Page {page} of {totalPages} · {total.toLocaleString()} bookings
+                        </p>
+                        <div className="flex items-center gap-1">
+                            {PAGE_SIZE_OPTIONS.map(size => (
+                                <button
+                                    key={size}
+                                    onClick={() => { setPageSize(size); setPage(1); }}
+                                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${pageSize === size ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                >
+                                    {size}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <div className="flex items-center gap-2">
                         <Button variant="secondary" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
                             <ChevronLeft size={16} />
