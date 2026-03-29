@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookingsTable } from './BookingsTable';
 import { Card, Button, Select } from './ui';
-import { RefreshCw, Search, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { RefreshCw, Search, Check, X } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
@@ -42,8 +42,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
 export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, isMobile, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(30);
+    const [limit, setLimit] = useState(30);
     const [fetching, setFetching] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -57,15 +56,15 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
-    const fetchBookings = useCallback(async (pg: number, search: string) => {
+    const fetchBookings = useCallback(async (search: string) => {
         if (!cafeId) return;
         setFetching(true);
         try {
             const { dateFrom, dateTo } = getDateRange(dateRange, customStart, customEnd);
             const params = new URLSearchParams({
                 cafeId,
-                page: String(pg),
-                pageSize: String(pageSize),
+                page: '1',
+                pageSize: String(limit),
                 ...(statusFilter !== 'all' && { status: statusFilter }),
                 ...(search && { search }),
                 ...(dateFrom && { dateFrom }),
@@ -80,27 +79,18 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         } finally {
             setFetching(false);
         }
-    }, [cafeId, statusFilter, dateRange, customStart, customEnd, pageSize]);
+    }, [cafeId, statusFilter, dateRange, customStart, customEnd, limit]);
 
-    // Reset to page 1 when cafeId changes (fetchBookings is recreated, triggering this effect)
-    const prevCafeIdRef = useRef(cafeId);
+    // Re-fetch when filters change; clear selection
     useEffect(() => {
-        if (prevCafeIdRef.current !== cafeId) {
-            prevCafeIdRef.current = cafeId;
-            setPage(1);
-        }
-    }, [cafeId]);
-
-    // Re-fetch when filters or page change; clear selection
-    useEffect(() => {
-        fetchBookings(page, debouncedSearch);
+        fetchBookings(debouncedSearch);
         setSelectedIds(new Set());
-    }, [fetchBookings, page, debouncedSearch]);
+    }, [fetchBookings, debouncedSearch]);
 
     // Re-fetch when parent signals an external change (e.g. status/payment update)
     useEffect(() => {
         if (refreshTrigger === undefined || refreshTrigger === 0) return;
-        fetchBookings(page, debouncedSearch);
+        fetchBookings(debouncedSearch);
     }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Debounce search input
@@ -109,17 +99,13 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         if (searchDebounce.current) clearTimeout(searchDebounce.current);
         searchDebounce.current = setTimeout(() => {
             setDebouncedSearch(val);
-            setPage(1);
         }, 400);
     };
 
-    // Reset page when filters change
     const handleFilterChange = (setter: (v: string) => void) => (val: string) => {
         setter(val);
-        setPage(1);
     };
 
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const loading = fetching || externalLoading;
 
     async function handleBulkStatus(status: string) {
@@ -129,7 +115,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         try {
             await Promise.all(ids.map(id => onUpdateStatus(id, status)));
             setSelectedIds(new Set());
-            fetchBookings(page, debouncedSearch);
+            fetchBookings(debouncedSearch);
         } finally {
             setBulkLoading(false);
         }
@@ -176,7 +162,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                 { value: 'custom', label: 'Custom' },
                             ]}
                         />
-                        <Button variant="secondary" onClick={() => { fetchBookings(page, debouncedSearch); onRefresh?.(); }} title="Refresh">
+                        <Button variant="secondary" onClick={() => { fetchBookings(debouncedSearch); onRefresh?.(); }} title="Refresh">
                             <RefreshCw size={18} />
                         </Button>
                     </div>
@@ -185,12 +171,12 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                     <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-800">
                         <div className="space-y-1">
                             <label className="text-xs text-slate-400">Start Date</label>
-                            <input type="date" value={customStart} onChange={(e) => { setCustomStart(e.target.value); setPage(1); }}
+                            <input type="date" value={customStart} onChange={(e) => { setCustomStart(e.target.value); }}
                                 className="block px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs text-slate-400">End Date</label>
-                            <input type="date" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); setPage(1); }}
+                            <input type="date" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); }}
                                 className="block px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm" />
                         </div>
                     </div>
@@ -248,42 +234,23 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 onSelectionChange={setSelectedIds}
             />
 
-            {/* Pagination */}
-            {(totalPages > 1 || total > 0) && (
+            {/* Show count + limit selector */}
+            {total > 0 && (
                 <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center gap-3">
-                        <p className="text-sm text-slate-400">
-                            Page {page} of {totalPages} · {total.toLocaleString()} bookings
-                        </p>
-                        <div className="flex items-center gap-1">
-                            {PAGE_SIZE_OPTIONS.map(size => (
-                                <button
-                                    key={size}
-                                    onClick={() => { setPageSize(size); setPage(1); }}
-                                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${pageSize === size ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                                >
-                                    {size}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="secondary" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                            <ChevronLeft size={16} />
-                        </Button>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            const pg = page <= 3 ? i + 1 : page + i - 2;
-                            if (pg < 1 || pg > totalPages) return null;
-                            return (
-                                <button key={pg} onClick={() => setPage(pg)}
-                                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${pg === page ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-                                    {pg}
-                                </button>
-                            );
-                        })}
-                        <Button variant="secondary" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-                            <ChevronRight size={16} />
-                        </Button>
+                    <p className="text-sm text-slate-400">
+                        Showing {bookings.length.toLocaleString()} of {total.toLocaleString()} bookings
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-slate-500 mr-1">Show</span>
+                        {PAGE_SIZE_OPTIONS.map(size => (
+                            <button
+                                key={size}
+                                onClick={() => setLimit(size)}
+                                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${limit === size ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                {size}
+                            </button>
+                        ))}
                     </div>
                 </div>
             )}
