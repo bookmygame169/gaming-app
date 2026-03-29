@@ -56,8 +56,11 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             const res = await fetch(`/api/owner/live-status?cafeId=${cafeId}`);
             if (!res.ok) throw new Error('Failed to fetch live status');
             const { cafe, bookings, activeSubscriptions, stationPricing } = await res.json();
+            console.log('[LiveStatus] API response — cafeId:', cafeId, 'bookings:', bookings?.length, 'inProgress:', (bookings||[]).filter((b:any)=>b.status==='in-progress').length, 'raw:', bookings);
             if (!cafe) { setLoading(false); return; }
             const summaries = buildConsoleSummaries(cafe, bookings || [], activeSubscriptions || [], stationPricing || []);
+            const busy = summaries.flatMap(g => g.statuses).filter(s => s.status === 'busy' || s.status === 'ending_soon');
+            console.log('[LiveStatus] buildConsoleSummaries result — activeSessions:', busy.length, busy);
             setConsoleData(summaries);
             setLastUpdated(new Date());
         } catch (error) {
@@ -99,7 +102,6 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         };
 
         // Use all in-progress bookings from API (already filtered by status=in-progress)
-        // Don't filter by remaining time — sessions may run overtime before owner ends them
         const activeBookings = bookings.filter(b => b.start_time && b.duration);
 
         const consoleTypeMap: Record<string, ConsoleId> = {
@@ -115,7 +117,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             const consoleBookings: Array<BookingData & { quantity: number; controllerCount: number }> = [];
             activeBookings.forEach(b => {
                 const matchingItems = b.booking_items?.filter(item => {
-                    const rawConsole = item.console as string;
+                    const rawConsole = (item.console as string || '').toLowerCase();
                     const itemConsole = rawConsole === 'steering_wheel' ? 'steering' : rawConsole;
                     return itemConsole === id;
                 }) || [];

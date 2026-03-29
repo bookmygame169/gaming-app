@@ -27,8 +27,12 @@ export async function GET(request: NextRequest) {
       return accessResponse;
     }
 
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    // Use IST (India) date — booking_date is stored as IST date from the client
+    const indiaDateParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date());
+    const todayStr = `${indiaDateParts.find(p => p.type === 'year')?.value}-${indiaDateParts.find(p => p.type === 'month')?.value}-${indiaDateParts.find(p => p.type === 'day')?.value}`;
+    console.log('[live-status] cafeId:', cafeId, 'todayStr (IST):', todayStr);
 
     // Fetch cafe console counts
     const { data: cafe, error: cafeError } = await supabase
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest) {
     if (bookingsError) {
       return NextResponse.json({ error: bookingsError.message }, { status: 500 });
     }
+    console.log('[live-status] bookings fetched:', bookings?.length, bookings?.map((b:any) => ({ id: b.id, status: b.status, date: b.booking_date, items: b.booking_items?.length })));
 
     // Fetch profiles for bookings with user_id
     const userIds = (bookings || []).filter(b => b.user_id).map(b => b.user_id as string);
