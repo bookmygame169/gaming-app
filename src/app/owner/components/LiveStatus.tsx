@@ -98,11 +98,9 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             return `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
         };
 
-        const activeBookings = bookings.filter(b => {
-            if (!b.start_time || !b.duration) return false;
-            const endMinutes = parseTimeToMinutes(b.start_time) + b.duration;
-            return currentMinutes < endMinutes;
-        });
+        // Use all in-progress bookings from API (already filtered by status=in-progress)
+        // Don't filter by remaining time — sessions may run overtime before owner ends them
+        const activeBookings = bookings.filter(b => b.start_time && b.duration);
 
         const consoleTypeMap: Record<string, ConsoleId> = {
             'PC': 'pc', 'PS5': 'ps5', 'PS4': 'ps4', 'Xbox': 'xbox',
