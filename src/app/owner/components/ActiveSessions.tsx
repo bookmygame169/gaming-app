@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { ConsoleId, CONSOLE_ICONS } from '@/lib/constants';
-import { Button } from './ui';
-import { Plus } from 'lucide-react';
+import { Plus, MessageCircle, Banknote, Smartphone } from 'lucide-react';
 
 import { getLocalDateString } from '../utils';
 
@@ -228,16 +227,17 @@ export function ActiveSessions({
                     }
                 }
 
-                // Station Name Logic
+                // Station Name Logic — prefer assigned station from title (format: "60|PS5-02")
                 const consoleType = consoleInfo?.console?.toUpperCase() || 'UNKNOWN';
+                const titleParts = consoleInfo?.title?.split('|');
+                const assignedStation = titleParts && titleParts.length > 1 ? titleParts[1].trim().toUpperCase() : null;
                 const sameTypeBookings = sortedActiveBookings.filter(
                     (b, i) => i <= index && b.booking_items?.[0]?.console === consoleInfo?.console
                 );
                 const stationNumber = sameTypeBookings.length;
-                const stationName = `${consoleType}-${String(stationNumber).padStart(2, '0')}`;
+                const stationName = assignedStation || `${consoleType}-${String(stationNumber).padStart(2, '0')}`;
 
                 // Status Colors
-                const isUrgent = timeRemaining < 15;
                 const isWarning = timeRemaining >= 15 && timeRemaining <= 30;
                 const isHealthy = timeRemaining > 30;
 
@@ -264,12 +264,37 @@ export function ActiveSessions({
                             <div className="text-3xl">
                                 {getConsoleIcon(consoleInfo?.console || '')}
                             </div>
-                            <div>
+                            <div className="flex-1 min-w-0">
                                 <div className="text-xs text-[#6b7280] font-semibold uppercase tracking-wide">
                                     {stationName}
                                 </div>
-                                <div className="text-base font-bold text-white">
+                                <div className="text-base font-bold text-white truncate">
                                     {isWalkIn ? booking.customer_name : (booking.user_name || 'Guest')}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                    {/* Payment mode badge */}
+                                    {booking.payment_mode && (
+                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#ffffff08] text-[10px] font-semibold text-[#9ca3af] uppercase tracking-wide">
+                                            {booking.payment_mode.toLowerCase() === 'cash'
+                                                ? <Banknote size={10} />
+                                                : <Smartphone size={10} />}
+                                            {booking.payment_mode}
+                                        </span>
+                                    )}
+                                    {/* WhatsApp button */}
+                                    {(isWalkIn ? booking.customer_phone : booking.user_phone) && (
+                                        <a
+                                            href={`https://wa.me/${(isWalkIn ? booking.customer_phone : booking.user_phone)?.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-500/10 text-[10px] font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
+                                            title="Open WhatsApp"
+                                        >
+                                            <MessageCircle size={10} />
+                                            WA
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         </div>

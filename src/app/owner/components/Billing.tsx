@@ -26,6 +26,7 @@ type BillingItem = {
     quantity: number;
     duration: number;
     price: number;
+    station?: string;
 };
 
 type CustomerSuggestion = {
@@ -53,6 +54,22 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
     const [suggestions, setSuggestions] = useState<CustomerSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Station options per console type (e.g. ps5 → ['ps5-01','ps5-02'])
+    const stationOptions = (consoleType: string): string[] => {
+        const currentCafe = cafes.find(c => c.id === cafeId) || cafes[0];
+        if (!currentCafe) return [];
+        const countMap: Record<string, number> = {
+            ps5: currentCafe.ps5_count || 0, ps4: currentCafe.ps4_count || 0,
+            xbox: currentCafe.xbox_count || 0, pc: currentCafe.pc_count || 0,
+            pool: currentCafe.pool_count || 0, snooker: currentCafe.snooker_count || 0,
+            arcade: currentCafe.arcade_count || 0, vr: currentCafe.vr_count || 0,
+            steering: (currentCafe as any).steering_wheel_count || 0,
+            racing_sim: (currentCafe as any).racing_sim_count || 0,
+        };
+        const count = countMap[consoleType.toLowerCase()] || 0;
+        return Array.from({ length: count }, (_, i) => `${consoleType}-${String(i + 1).padStart(2, '0')}`);
+    };
 
     // Initialize time and available consoles
     useEffect(() => {
@@ -93,30 +110,20 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
         if (stationPricingList) setStationPricingData(stationPricingList);
     }, [stationPricingList]);
 
-    // Customer Autocomplete — load all customers once, filter client-side
-    const [allCustomers, setAllCustomers] = useState<CustomerSuggestion[]>([]);
-    useEffect(() => {
-        if (!cafeId) return;
-        fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
-            .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setAllCustomers(data); })
-            .catch(() => {});
-    }, [cafeId]);
-
-    useEffect(() => {
-        if (!customerName || customerName.length < 2) {
-            setSuggestions([]);
-            return;
-        }
+    // Customer Autocomplete — debounced server-side search (no load-all)
+    const searchCustomers = (query: string, field: 'name' | 'phone') => {
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-        searchTimeoutRef.current = setTimeout(() => {
-            const filtered = allCustomers
-                .filter(c => c.name.toLowerCase().includes(customerName.toLowerCase()))
-                .slice(0, 5);
-            setSuggestions(filtered);
-            setShowSuggestions(filtered.length > 0);
-        }, 150);
-    }, [customerName, allCustomers]);
+        if (query.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+        searchTimeoutRef.current = setTimeout(async () => {
+            if (!cafeId) return;
+            try {
+                const res = await fetch(`/api/owner/coupons/customers?cafeId=${cafeId}&search=${encodeURIComponent(query)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (Array.isArray(data)) { setSuggestions(data.slice(0, 5)); setShowSuggestions(data.length > 0); }
+            } catch {}
+        }, 300);
+    };
 
     // Pricing Helper
     const calculatePrice = (type: string, qty: number, duration: number) => {
@@ -251,7 +258,10 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
                         source: 'walk-in',
                         payment_mode: paymentMode,
                     },
-                    items,
+                    items: items.map(it => ({
+                        ...it,
+                        title: it.station ? `${it.duration}|${it.station}` : String(it.duration),
+                    })),
                 }),
             });
             const result = await res.json();
@@ -285,10 +295,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
                             <Input
                                 label="Name"
                                 value={customerName}
-                                onChange={(val) => {
-                                    setCustomerName(val);
-                                    if (val.length < 2) setShowSuggestions(false);
-                                }}
+                                onChange={(val) => { setCustomerName(val); searchCustomers(val, 'name'); }}
                                 placeholder="Enter customer name"
                             />
                             {showSuggestions && suggestions.length > 0 && (
@@ -355,12 +362,18 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
                                         <Trash2 size={12} />
                                     </button>
 
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                                         <Select
                                             label="Console"
                                             value={item.console}
                                             options={availableConsoles.map(c => ({ value: c, label: CONSOLE_LABELS[c as keyof typeof CONSOLE_LABELS] || c }))}
                                             onChange={(val) => updateItem(item.id, 'console', val)}
+                                        />
+                                        <Select
+                                            label="Station"
+                                            value={item.station || ''}
+                                            options={[{ value: '', label: 'Any' }, ...stationOptions(item.console).map(s => ({ value: s, label: s.toUpperCase() }))]}
+                                            onChange={(val) => updateItem(item.id, 'station', val)}
                                         />
                                         <Select
                                             label="Players"

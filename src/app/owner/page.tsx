@@ -205,6 +205,7 @@ export default function OwnerDashboardPage() {
 
   // Station power status (tracks which stations are powered off)
   const [poweredOffStations, setPoweredOffStations] = useState<Set<string>>(new Set());
+  const [maintenanceStations, setMaintenanceStations] = useState<Set<string>>(new Set());
 
   // Image upload state
   const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
@@ -1637,6 +1638,16 @@ export default function OwnerDashboardPage() {
       toast.error('Failed to update station power status. Please try again.');
     }
   };
+
+  const handleToggleMaintenance = (stationName: string) => {
+    setMaintenanceStations(prev => {
+      const next = new Set(prev);
+      if (next.has(stationName)) next.delete(stationName);
+      else next.add(stationName);
+      return next;
+    });
+  };
+
   // Handle profile photo upload
   const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !currentCafe) return;
@@ -2220,7 +2231,9 @@ export default function OwnerDashboardPage() {
               bookings={bookings}
               stationPricing={stationPricing}
               poweredOffStations={poweredOffStations}
+              maintenanceStations={maintenanceStations}
               onTogglePower={handleTogglePower}
+              onToggleMaintenance={handleToggleMaintenance}
               onEditPricing={(station) => setEditingStation(station)}
               onDeleteStation={(station) => setStationToDelete(station)}
               onAddStation={() => {
