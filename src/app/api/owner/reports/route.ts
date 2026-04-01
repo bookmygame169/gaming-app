@@ -104,9 +104,9 @@ export async function POST(request: NextRequest) {
       .eq('cafe_id', cafeId)
       .eq('status', 'active')
       .is('deleted_at', null)
-      .gte('purchase_date', `${startDate}T00:00:00`)
-      .lte('purchase_date', `${endDate}T23:59:59`);
-      
+      .gte('purchase_date', `${startDate}T00:00:00+05:30`)
+      .lte('purchase_date', `${endDate}T23:59:59+05:30`);
+
     if (currentSubError) {
       console.error("Error fetching current subscriptions:", currentSubError);
     }
@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
       .eq('cafe_id', cafeId)
       .eq('status', 'active')
       .is('deleted_at', null)
-      .gte('purchase_date', `${prevStartDate}T00:00:00`)
-      .lte('purchase_date', `${prevEndDate}T23:59:59`);
+      .gte('purchase_date', `${prevStartDate}T00:00:00+05:30`)
+      .lte('purchase_date', `${prevEndDate}T23:59:59+05:30`);
 
     if (prevSubError) {
       console.error("Error fetching previous subscriptions:", prevSubError);
