@@ -137,14 +137,9 @@ export function getConsoleIcon(consoleType: string): string {
 }
 
 /**
- * Helper to get local timezone offset string (e.g. +05:30).
- * Useful for ensuring PostgreSQL timestamp filters adhere to the local cafe timezone instead of UTC.
+ * Returns IST offset (+05:30) for PostgreSQL timestamp filters.
+ * Hardcoded to IST — all cafes are in India. Previously read from browser
+ * timezone (date.getTimezoneOffset()), which broke for anyone outside India.
  */
-export const getTimezoneOffset = (date: Date): string => {
-  const offset = date.getTimezoneOffset();
-  const sign = offset > 0 ? '-' : '+';
-  const absOffset = Math.abs(offset);
-  const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
-  const minutes = String(absOffset % 60).padStart(2, '0');
-  return `${sign}${hours}:${minutes}`;
-};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getTimezoneOffset = (_date?: Date): string => '+05:30';

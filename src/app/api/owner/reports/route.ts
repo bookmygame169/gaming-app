@@ -102,7 +102,8 @@ export async function POST(request: NextRequest) {
       .from('subscriptions')
       .select('id, amount_paid, purchase_date, payment_mode, customer_name, membership_plans(name)')
       .eq('cafe_id', cafeId)
-      .eq('status', 'active') // Only count active subscriptions
+      .eq('status', 'active')
+      .is('deleted_at', null)
       .gte('purchase_date', `${startDate}T00:00:00`)
       .lte('purchase_date', `${endDate}T23:59:59`);
       
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
       .select('id, amount_paid, purchase_date, payment_mode')
       .eq('cafe_id', cafeId)
       .eq('status', 'active')
+      .is('deleted_at', null)
       .gte('purchase_date', `${prevStartDate}T00:00:00`)
       .lte('purchase_date', `${prevEndDate}T23:59:59`);
 

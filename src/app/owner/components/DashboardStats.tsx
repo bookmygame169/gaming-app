@@ -19,6 +19,7 @@ interface DashboardBooking {
   payment_mode?: string | null;
   status?: string | null;
   total_amount?: number | null;
+  booking_items?: Array<{ id: string; console?: string | null }> | null;
   booking_orders?: Array<{ id: string; quantity?: number | null; total_price: number | null }>;
 }
 
@@ -103,7 +104,12 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
     const amt = typeof sub.amount_paid === 'number' ? sub.amount_paid : parseFloat(sub.amount_paid ?? '0') || 0;
     return s + amt;
   }, 0);
-  const snacksRevenue = todayBookings.reduce((s, b) => s + (b.booking_orders?.reduce((ss, o) => ss + (o.total_price || 0), 0) || 0), 0);
+  // Only count F&B from snack-only bookings (no console items).
+  // Gaming sessions that also have F&B already include the F&B in total_amount,
+  // which is already counted inside cashTotal/onlineTotal — counting again would double it.
+  const snacksRevenue = todayBookings
+    .filter(b => !b.booking_items || b.booking_items.length === 0)
+    .reduce((s, b) => s + (b.booking_orders?.reduce((ss, o) => ss + (o.total_price || 0), 0) || 0), 0);
 
   const revenueVisible = loadedPreference && showRevenue;
 
