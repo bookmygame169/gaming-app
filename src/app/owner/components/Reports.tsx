@@ -491,9 +491,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const paymentData = useMemo(() => {
         const methods: Record<string, { count: number; amount: number }> = {
             cash: { count: 0, amount: 0 },
-            online: { count: 0, amount: 0 },
-            upi: { count: 0, amount: 0 },
-            card: { count: 0, amount: 0 },
+            online: { count: 0, amount: 0 }, // UPI + all digital modes merged here
         };
 
         billableBookings.forEach(b => {
@@ -501,13 +499,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             if (mode === 'cash') {
                 methods.cash.count++;
                 methods.cash.amount += b.total_amount || 0;
-            } else if (mode === 'upi') {
-                methods.upi.count++;
-                methods.upi.amount += b.total_amount || 0;
-            } else if (mode === 'card') {
-                methods.card.count++;
-                methods.card.amount += b.total_amount || 0;
             } else {
+                // upi, online, card, gpay, paytm, phonepe → all digital
                 methods.online.count++;
                 methods.online.amount += b.total_amount || 0;
             }
@@ -517,8 +510,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         return {
             cash: { ...methods.cash, percent: (methods.cash.count / total) * 100 },
             online: { ...methods.online, percent: (methods.online.count / total) * 100 },
-            upi: { ...methods.upi, percent: (methods.upi.count / total) * 100 },
-            card: { ...methods.card, percent: (methods.card.count / total) * 100 },
+            upi: { count: 0, amount: 0, percent: 0 },   // kept for type compat, not displayed
+            card: { count: 0, amount: 0, percent: 0 },  // kept for type compat, not displayed
         };
     }, [billableBookings]);
 
@@ -1246,75 +1239,27 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 </div>
                             </div>
 
-                            {/* UPI */}
+                            {/* UPI / Online — all digital payment modes merged */}
                             <div className="flex items-center gap-4">
                                 <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
                                     <CreditCard size={18} />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-medium text-white">UPI</span>
+                                        <span className="text-sm font-medium text-white">UPI / Online</span>
                                         <span className="text-sm text-slate-400">
-                                            {paymentData.upi.count} ({paymentData.upi.percent.toFixed(0)}%)
+                                            {paymentData.online.count} ({paymentData.online.percent.toFixed(0)}%)
                                         </span>
                                     </div>
                                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                                            style={{ width: `${paymentData.upi.percent}%` }}
+                                            style={{ width: `${paymentData.online.percent}%` }}
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">₹{paymentData.upi.amount.toLocaleString()}</p>
+                                    <p className="text-xs text-slate-500 mt-1">₹{paymentData.online.amount.toLocaleString()}</p>
                                 </div>
                             </div>
-
-                            {/* Card */}
-                            {paymentData.card.count > 0 && (
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
-                                        <CreditCard size={18} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-sm font-medium text-white">Card</span>
-                                            <span className="text-sm text-slate-400">
-                                                {paymentData.card.count} ({paymentData.card.percent.toFixed(0)}%)
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${paymentData.card.percent}%` }}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-slate-500 mt-1">₹{paymentData.card.amount.toLocaleString()}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Online (Other) */}
-                            {paymentData.online.count > 0 && (
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
-                                        <CreditCard size={18} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-sm font-medium text-white">Online</span>
-                                            <span className="text-sm text-slate-400">
-                                                {paymentData.online.count} ({paymentData.online.percent.toFixed(0)}%)
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${paymentData.online.percent}%` }}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-slate-500 mt-1">₹{paymentData.online.amount.toLocaleString()}</p>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </Card>
