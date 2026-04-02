@@ -98,22 +98,32 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   // Revenue breakdown
   const ONLINE_MODES = ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'];
-  const cashTotal = todayBookings.filter(b => b.payment_mode?.toLowerCase() === 'cash').reduce((s, b) => s + (b.total_amount || 0), 0);
-  const onlineTotal = todayBookings.filter(b => ONLINE_MODES.includes(b.payment_mode?.toLowerCase() || '')).reduce((s, b) => s + (b.total_amount || 0), 0);
-  const cardTotal = 0; // merged into onlineTotal above
   const membershipRevenue = todaySubscriptions.reduce((s, sub) => {
     const amt = typeof sub.amount_paid === 'number' ? sub.amount_paid : parseFloat(sub.amount_paid ?? '0') || 0;
     return s + amt;
   }, 0);
-  // Snack-only bookings have no console items. Use total_amount directly (reliable).
-  // Gaming+snack mixed bookings: F&B is bundled in total_amount, already in cashTotal/onlineTotal.
-  const snackOnlyBookings = todayBookings.filter(b => !b.booking_items || b.booking_items.length === 0);
-  const snacksRevenue = snackOnlyBookings.reduce((s, b) => s + (b.total_amount || 0), 0);
-  // Deduct snack-only amounts from cash/online to avoid double-counting in gaming totals
-  const snackCash = snackOnlyBookings.filter(b => b.payment_mode?.toLowerCase() === 'cash').reduce((s, b) => s + (b.total_amount || 0), 0);
-  const snackOnline = snackOnlyBookings.filter(b => ONLINE_MODES.includes(b.payment_mode?.toLowerCase() || '')).reduce((s, b) => s + (b.total_amount || 0), 0);
-  const gamingCash = cashTotal - snackCash;
-  const gamingOnline = onlineTotal - snackOnline;
+
+  // For each booking, extract F&B portion via booking_orders so it shows as Snacks.
+  // Works for both standalone snack sales (no booking_items) and gaming+F&B mixed bookings.
+  const getFbTotal = (b: DashboardBooking) =>
+    (b.booking_orders || []).reduce((s, o) => s + (o.total_price || 0), 0);
+
+  let snacksRevenue = 0;
+  let gamingCash = 0;
+  let gamingOnline = 0;
+
+  for (const b of todayBookings) {
+    const isSnackOnly = !b.booking_items || b.booking_items.length === 0;
+    const fbTotal = isSnackOnly
+      ? (b.total_amount || 0)           // standalone snack: all is F&B
+      : getFbTotal(b);                  // gaming+F&B: extract F&B from orders
+    const gamingAmount = (b.total_amount || 0) - fbTotal;
+    const mode = b.payment_mode?.toLowerCase() || '';
+
+    snacksRevenue += fbTotal;
+    if (mode === 'cash') gamingCash += gamingAmount;
+    else if (ONLINE_MODES.includes(mode)) gamingOnline += gamingAmount;
+  }
 
   const revenueVisible = loadedPreference && showRevenue;
 
@@ -155,9 +165,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
         {showBreakdown && revenueVisible && (
           <div className="mt-2 pt-2 border-t border-emerald-500/10 grid grid-cols-2 gap-x-3 gap-y-0.5">
             {([
-              // Show gaming cash/online; fall back to full cash/online if no snacks to deduct
-              ...(gamingCash > 0 ? [['Cash', gamingCash]] : cashTotal > 0 && snacksRevenue === 0 ? [['Cash', cashTotal]] : []),
-              ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : onlineTotal > 0 && snacksRevenue === 0 ? [['Online/UPI', onlineTotal]] : []),
+              ...(gamingCash > 0 ? [['Cash', gamingCash]] : []),
+              ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : []),
               ...(membershipRevenue > 0 ? [['Memberships', membershipRevenue]] : []),
               ...(snacksRevenue > 0 ? [['Snacks', snacksRevenue]] : []),
             ] as [string, number][]).map(([label, val]) => (
