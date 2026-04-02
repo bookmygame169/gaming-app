@@ -882,13 +882,22 @@ export default function OwnerDashboardPage() {
             start_time: startTime12h,
             duration: editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0),
           },
-          items: editItems.map(item => ({
-            id: item.id,
-            console: item.console,
-            quantity: item.quantity,
-            title: (item.duration || 60).toString(),
-            price: getBillingPrice(item.console as ConsoleId, item.quantity, item.duration || 60) || 0
-          })),
+          items: editItems.map(item => {
+            // Preserve existing station assignment from title (format: "duration|station")
+            const originalItem = editingBooking.booking_items?.find((oi: any) => oi.id === item.id);
+            const existingTitleParts = originalItem?.title?.split('|');
+            const existingStation = existingTitleParts && existingTitleParts.length > 1 ? existingTitleParts[1] : null;
+            const titleValue = existingStation
+              ? `${item.duration || 60}|${existingStation}`
+              : (item.duration || 60).toString();
+            return {
+              id: item.id,
+              console: item.console,
+              quantity: item.quantity,
+              title: titleValue,
+              price: getBillingPrice(item.console as ConsoleId, item.quantity, item.duration || 60) || 0
+            };
+          }),
         }),
       });
 
@@ -919,14 +928,22 @@ export default function OwnerDashboardPage() {
               booking_date: editDate,
               start_time: startTime12h,
               duration: editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0),
-              booking_items: editItems.map((item, idx) => ({
-                id: item.id || `temp-item-${idx}`,
-                booking_id: b.id,
-                console: item.console,
-                quantity: item.quantity,
-                title: (item.duration || 60).toString(),
-                price: getBillingPrice(item.console as ConsoleId, item.quantity, item.duration || 60) || 0
-              }))
+              booking_items: editItems.map((item, idx) => {
+                const originalItem = editingBooking.booking_items?.find((oi: any) => oi.id === item.id);
+                const existingTitleParts = originalItem?.title?.split('|');
+                const existingStation = existingTitleParts && existingTitleParts.length > 1 ? existingTitleParts[1] : null;
+                const titleValue = existingStation
+                  ? `${item.duration || 60}|${existingStation}`
+                  : (item.duration || 60).toString();
+                return {
+                  id: item.id || `temp-item-${idx}`,
+                  booking_id: b.id,
+                  console: item.console,
+                  quantity: item.quantity,
+                  title: titleValue,
+                  price: getBillingPrice(item.console as ConsoleId, item.quantity, item.duration || 60) || 0
+                };
+              }),
             }
             : b
         )
@@ -972,7 +989,13 @@ export default function OwnerDashboardPage() {
       if (isPartOfBulkBooking) {
         // Delete only the specific booking_item, not the whole booking
         const remainingItems = allItems.filter(item => item.id !== editingBookingItemId);
-        const newTotalAmount = remainingItems.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
+        // Use editingBooking.total_amount as base and subtract the deleted item's price
+        // to avoid wiping total to ₹0 when item.price is null (older bookings)
+        const deletedItem = allItems.find(item => item.id === editingBookingItemId);
+        const deletedPrice = (deletedItem as any)?.price || 0;
+        const newTotalAmount = deletedPrice > 0
+          ? Math.max(0, (editingBooking.total_amount || 0) - deletedPrice)
+          : remainingItems.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
 
         const res = await fetch('/api/owner/billing', {
           method: 'DELETE',

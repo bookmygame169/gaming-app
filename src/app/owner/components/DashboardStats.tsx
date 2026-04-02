@@ -73,7 +73,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const activeNow = activeBookingsCount + activeSubscriptionsCount;
 
   const todayBookings = bookings.filter(b => b.booking_date === todayStr && b.status !== 'cancelled' && b.payment_mode !== 'owner');
-  const todaySessions = todayBookings.length;
+  // Only count gaming sessions (bookings with console items), not standalone snack sales
+  const todaySessions = todayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
   const pendingBookings = bookings.filter(b => b.booking_date === todayStr && b.status === 'confirmed').length;
 
   const todaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === todayStr);
@@ -91,7 +92,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   // Yesterday's stats for trend
   const yesterdayBookings = bookings.filter(b => b.booking_date === yesterdayStr && b.status !== 'cancelled' && b.payment_mode !== 'owner');
-  const yesterdaySessions = yesterdayBookings.length;
+  const yesterdaySessions = yesterdayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
   const yesterdaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === yesterdayStr);
   const yesterdayRevenue = calcRevenue(yesterdayBookings, yesterdaySubscriptions);
 
@@ -153,7 +154,13 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
         )}
         {showBreakdown && revenueVisible && (
           <div className="mt-2 pt-2 border-t border-emerald-500/10 grid grid-cols-2 gap-x-3 gap-y-0.5">
-            {([...(gamingCash > 0 ? [['Cash', gamingCash]] : []), ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : []), ...(membershipRevenue > 0 ? [['Memberships', membershipRevenue]] : []), ...(snacksRevenue > 0 ? [['Snacks', snacksRevenue]] : [])] as [string, number][]).map(([label, val]) => (
+            {([
+              // Show gaming cash/online; fall back to full cash/online if no snacks to deduct
+              ...(gamingCash > 0 ? [['Cash', gamingCash]] : cashTotal > 0 && snacksRevenue === 0 ? [['Cash', cashTotal]] : []),
+              ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : onlineTotal > 0 && snacksRevenue === 0 ? [['Online/UPI', onlineTotal]] : []),
+              ...(membershipRevenue > 0 ? [['Memberships', membershipRevenue]] : []),
+              ...(snacksRevenue > 0 ? [['Snacks', snacksRevenue]] : []),
+            ] as [string, number][]).map(([label, val]) => (
               <div key={label} className="flex justify-between text-[10px]">
                 <span className="text-slate-400">{label}</span>
                 <span className="text-emerald-400 font-semibold">₹{val.toLocaleString('en-IN')}</span>

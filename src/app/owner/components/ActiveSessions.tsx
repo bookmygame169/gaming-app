@@ -96,10 +96,15 @@ export function ActiveSessions({
             currentTime.getHours() * 60 + currentTime.getMinutes();
 
         const getTimeRemaining = (booking: typeof a) => {
-            if (!booking.start_time || !booking.duration) return 999;
+            if (!booking.start_time) return 999;
+            // Use per-item duration from title (format: "duration|station") if available
+            const bi = booking.booking_items?.[0];
+            const parsedTitle = parseInt(bi?.title || '');
+            const duration = !isNaN(parsedTitle) && parsedTitle > 0 ? parsedTitle : booking.duration;
+            if (!duration) return 999;
             const startMinutes = parseStartMinutes(booking.start_time);
             if (startMinutes === null) return 999;
-            return Math.max(0, calcTimeRemaining(startMinutes, booking.duration, currentMinutes));
+            return Math.max(0, calcTimeRemaining(startMinutes, duration, currentMinutes));
         };
 
 
@@ -123,12 +128,17 @@ export function ActiveSessions({
         sortedActiveBookings.forEach((booking) => {
             const bookingId = booking.originalBookingId || booking.id;
             if (endedSessionsRef.current.has(bookingId)) return;
-            if (!booking.start_time || !booking.duration) return;
+            if (!booking.start_time) return;
+
+            const bi = booking.booking_items?.[0];
+            const parsedTitle = parseInt(bi?.title || '');
+            const duration = !isNaN(parsedTitle) && parsedTitle > 0 ? parsedTitle : booking.duration;
+            if (!duration) return;
 
             const startMinutes = parseStartMinutes(booking.start_time);
             if (startMinutes === null) return;
 
-            const timeRemaining = calcTimeRemaining(startMinutes, booking.duration, currentMinutes);
+            const timeRemaining = calcTimeRemaining(startMinutes, duration, currentMinutes);
 
             // Fire when session is over (use <= -1 buffer to avoid missing the exact minute)
             if (timeRemaining <= 0) {
@@ -214,11 +224,15 @@ export function ActiveSessions({
                 let timeRemaining = 0;
                 let endTime = '';
 
-                if (booking.start_time && booking.duration) {
+                // Use per-item duration from title (format: "duration|station") if available
+                const parsedItemDuration = parseInt(consoleInfo?.title || '');
+                const itemDuration = !isNaN(parsedItemDuration) && parsedItemDuration > 0 ? parsedItemDuration : booking.duration;
+
+                if (booking.start_time && itemDuration) {
                     const startMinutes = parseStartMinutes(booking.start_time);
                     if (startMinutes !== null) {
-                        timeRemaining = Math.max(0, calcTimeRemaining(startMinutes, booking.duration, currentMinutes));
-                        const endTotalMinutes = (startMinutes + booking.duration) % 1440;
+                        timeRemaining = Math.max(0, calcTimeRemaining(startMinutes, itemDuration, currentMinutes));
+                        const endTotalMinutes = (startMinutes + itemDuration) % 1440;
                         const endHours = Math.floor(endTotalMinutes / 60);
                         const endMins = endTotalMinutes % 60;
                         const endPeriod = endHours >= 12 ? 'pm' : 'am';
@@ -336,7 +350,7 @@ export function ActiveSessions({
                         <div className="absolute bottom-0 left-0 w-full h-1 bg-[#ffffff10]">
                             <div
                                 className={`h-full ${isHealthy ? 'bg-emerald-500' : isWarning ? 'bg-amber-500' : 'bg-red-500'}`}
-                                style={{ width: `${Math.min(100, (timeRemaining / booking.duration) * 100)}%` }}
+                                style={{ width: `${Math.min(100, (timeRemaining / (itemDuration || booking.duration || 60)) * 100)}%` }}
                             />
                         </div>
                     </div>
