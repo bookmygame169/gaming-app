@@ -27,6 +27,7 @@ interface BillingProps {
     cafes: CafeRow[];
     isMobile?: boolean;
     onSuccess?: () => void;
+    onMembershipSuccess?: () => void;
     pricingData?: Record<string, any>;   // consolePricing[cafeId]
     stationPricingList?: any[];           // Object.values(stationPricing)
     membershipPlans?: MembershipPlan[];
@@ -46,7 +47,7 @@ type CustomerSuggestion = {
     phone: string;
 };
 
-export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingData, stationPricingList, membershipPlans = [] }: BillingProps) {
+export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembershipSuccess, pricingData, stationPricingList, membershipPlans = [] }: BillingProps) {
     // Mode: 'gaming' | 'membership'
     const [mode, setMode] = useState<'gaming' | 'membership'>('gaming');
 
@@ -368,8 +369,9 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
             setMemItems([]);
             setMemManualAmount(null);
             setMemPaymentMode('cash');
-            if (onSuccess) onSuccess();
             alert('Membership added successfully!');
+            if (onMembershipSuccess) onMembershipSuccess();
+            else if (onSuccess) onSuccess();
         } catch (err: any) {
             alert('Failed to add membership: ' + err.message);
         } finally {

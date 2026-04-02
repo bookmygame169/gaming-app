@@ -2355,6 +2355,10 @@ export default function OwnerDashboardPage() {
                   refreshData();
                   setActiveTab('dashboard');
                 }}
+                onMembershipSuccess={() => {
+                  refreshData();
+                  setActiveTab('memberships');
+                }}
               />
             </div>
           )}
