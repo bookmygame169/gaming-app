@@ -2350,6 +2350,7 @@ export default function OwnerDashboardPage() {
                 isMobile={isMobile}
                 pricingData={consolePricing[currentCafeId]}
                 stationPricingList={Object.values(stationPricing)}
+                membershipPlans={membershipPlans.filter((p: any) => p.cafe_id === currentCafeId)}
                 onSuccess={() => {
                   refreshData();
                   setActiveTab('dashboard');

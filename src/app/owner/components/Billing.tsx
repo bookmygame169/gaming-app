@@ -5,11 +5,22 @@ import { CONSOLE_LABELS } from '@/lib/constants';
 import { Card, Button, Input, Select, StatusBadge, LoadingSpinner } from './ui';
 import {
     User, Smartphone, Calendar, Clock, Plus, Trash2,
-    CreditCard, Banknote, CheckCircle, AlertCircle, Search
+    CreditCard, Banknote, CheckCircle, AlertCircle, Search, Star
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
 
 import { getLocalDateString } from '../utils';
+
+interface MembershipPlan {
+    id: string;
+    name: string;
+    price: number;
+    hours: number | null;
+    validity_days: number;
+    plan_type: string;
+    console_type: string;
+    player_count: string;
+}
 
 interface BillingProps {
     cafeId: string;
@@ -18,6 +29,7 @@ interface BillingProps {
     onSuccess?: () => void;
     pricingData?: Record<string, any>;   // consolePricing[cafeId]
     stationPricingList?: any[];           // Object.values(stationPricing)
+    membershipPlans?: MembershipPlan[];
 }
 
 type BillingItem = {
@@ -34,8 +46,17 @@ type CustomerSuggestion = {
     phone: string;
 };
 
-export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingData, stationPricingList }: BillingProps) {
-    // Form State
+export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingData, stationPricingList, membershipPlans = [] }: BillingProps) {
+    // Mode: 'gaming' | 'membership'
+    const [mode, setMode] = useState<'gaming' | 'membership'>('gaming');
+
+    // Membership form state
+    const [memPlanId, setMemPlanId] = useState('');
+    const [memAmountPaid, setMemAmountPaid] = useState('');
+    const [memPaymentMode, setMemPaymentMode] = useState<'cash' | 'upi'>('cash');
+    const [memSubmitting, setMemSubmitting] = useState(false);
+
+    // Shared customer state
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [bookingDate, setBookingDate] = useState(getLocalDateString());
@@ -281,238 +302,431 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, pricingDat
         }
     };
 
-    return (
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${isMobile ? 'pb-20' : ''}`}>
-            {/* Left Column: Form */}
-            <div className="lg:col-span-2 space-y-6">
-                {/* Customer Details */}
-                <Card className="space-y-4 overflow-visible relative z-10">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <User className="text-blue-500" size={20} /> Customer Info
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative z-20">
-                            <Input
-                                label="Name"
-                                value={customerName}
-                                onChange={(val) => { setCustomerName(val); searchCustomers(val, 'name'); }}
-                                placeholder="Enter customer name"
+    const selectedMemPlan = membershipPlans.find(p => p.id === memPlanId);
+
+    const handleMemSubmit = async () => {
+        if (!customerName.trim()) { alert('Customer name is required'); return; }
+        if (!customerPhone.trim()) { alert('Phone number is required'); return; }
+        if (!memPlanId || !selectedMemPlan) { alert('Please select a membership plan'); return; }
+
+        setMemSubmitting(true);
+        try {
+            const now = new Date();
+            const expiryDate = new Date(now);
+            expiryDate.setDate(expiryDate.getDate() + (selectedMemPlan.validity_days || 30));
+
+            const res = await fetch('/api/owner/subscriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cafe_id: cafeId,
+                    customer_name: customerName.trim(),
+                    customer_phone: customerPhone.trim(),
+                    membership_plan_id: memPlanId,
+                    hours_purchased: selectedMemPlan.hours || 24,
+                    hours_remaining: selectedMemPlan.hours || 24,
+                    amount_paid: parseFloat(memAmountPaid) || selectedMemPlan.price,
+                    payment_mode: memPaymentMode,
+                    purchase_date: now.toISOString(),
+                    expiry_date: expiryDate.toISOString(),
+                    status: 'active',
+                }),
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Failed to create subscription');
+
+            setCustomerName('');
+            setCustomerPhone('');
+            setMemPlanId('');
+            setMemAmountPaid('');
+            setMemPaymentMode('cash');
+            if (onSuccess) onSuccess();
+            alert('Membership added successfully!');
+        } catch (err: any) {
+            alert('Failed to add membership: ' + err.message);
+        } finally {
+            setMemSubmitting(false);
+        }
+    };
+
+    // Shared customer info card used in both modes
+    const customerInfoCard = (
+        <Card className="space-y-4 overflow-visible relative z-10">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <User className="text-blue-500" size={20} /> Customer Info
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative z-20">
+                    <Input
+                        label="Name"
+                        value={customerName}
+                        onChange={(val) => { setCustomerName(val); searchCustomers(val, 'name'); }}
+                        placeholder="Enter customer name"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                        <>
+                            <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setShowSuggestions(false)}
                             />
-                            {showSuggestions && suggestions.length > 0 && (
-                                <>
+                            <div className="absolute top-full mt-1 left-0 w-full z-50 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                                {suggestions.map((s, idx) => (
                                     <div
-                                        className="fixed inset-0 z-40"
-                                        onClick={() => setShowSuggestions(false)}
-                                    />
-                                    <div className="absolute top-full mt-1 left-0 w-full z-50 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-                                        {suggestions.map((s, idx) => (
-                                            <div
-                                                key={idx}
-                                                onClick={() => {
-                                                    setCustomerName(s.name);
-                                                    setCustomerPhone(s.phone);
-                                                    setShowSuggestions(false);
-                                                }}
-                                                className="px-4 py-3 hover:bg-slate-700/50 cursor-pointer border-b border-slate-700/50 last:border-0"
-                                            >
-                                                <div className="font-medium text-white">{s.name}</div>
-                                                <div className="text-xs text-slate-400">{s.phone}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        <Input
-                            label="Phone (Optional)"
-                            value={customerPhone}
-                            onChange={setCustomerPhone}
-                            placeholder="Enter phone number"
-                            type="tel"
-                        />
-                    </div>
-                </Card>
-
-                {/* Booking Items */}
-                <Card className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Smartphone className="text-purple-500" size={20} /> Stations
-                        </h3>
-                        {items.length > 0 && (
-                            <Button size="sm" variant="secondary" onClick={addItem}>
-                                <Plus size={16} className="mr-1" /> Add Station
-                            </Button>
-                        )}
-                    </div>
-
-                    {items.length === 0 ? (
-                        <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl">
-                            <p className="text-slate-500 mb-4">No stations added yet</p>
-                            <Button size="sm" onClick={addItem}>Add First Station</Button>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {items.map((item, idx) => (
-                                <div key={item.id} className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl relative group transition-all hover:border-slate-700">
-                                    <button
-                                        onClick={() => removeItem(item.id)}
-                                        className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-slate-400 hover:text-red-400 rounded-full flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                        key={idx}
+                                        onClick={() => {
+                                            setCustomerName(s.name);
+                                            setCustomerPhone(s.phone);
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="px-4 py-3 hover:bg-slate-700/50 cursor-pointer border-b border-slate-700/50 last:border-0"
                                     >
-                                        <Trash2 size={12} />
-                                    </button>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                        <Select
-                                            label="Console"
-                                            value={item.console}
-                                            options={availableConsoles.map(c => ({ value: c, label: CONSOLE_LABELS[c as keyof typeof CONSOLE_LABELS] || c }))}
-                                            onChange={(val) => updateItem(item.id, 'console', val)}
-                                        />
-                                        <Select
-                                            label="Station"
-                                            value={item.station || ''}
-                                            options={[{ value: '', label: 'Any' }, ...stationOptions(item.console).map(s => ({ value: s, label: s.toUpperCase() }))]}
-                                            onChange={(val) => updateItem(item.id, 'station', val)}
-                                        />
-                                        <Select
-                                            label="Players"
-                                            value={String(item.quantity || 1)}
-                                            options={[
-                                                { value: '1', label: '1 Player' },
-                                                { value: '2', label: '2 Players' },
-                                                { value: '3', label: '3 Players' },
-                                                { value: '4', label: '4 Players' },
-                                            ]}
-                                            onChange={(val) => updateItem(item.id, 'quantity', parseInt(val))}
-                                        />
-                                        <Select
-                                            label="Duration"
-                                            value={String(item.duration)}
-                                            options={[
-                                                { value: '30', label: '30 Mins' },
-                                                { value: '60', label: '1 Hour' },
-                                                { value: '90', label: '1.5 Hours' },
-                                                { value: '120', label: '2 Hours' },
-                                                { value: '180', label: '3 Hours' },
-                                            ]}
-                                            onChange={(val) => updateItem(item.id, 'duration', parseInt(val))}
-                                        />
-                                        <div className="flex flex-col justify-end">
-                                            <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-right">
-                                                <div className="text-xs text-slate-500 mb-0.5">Price</div>
-                                                <div className="text-emerald-400 font-bold font-mono">₹{item.price}</div>
-                                            </div>
-                                        </div>
+                                        <div className="font-medium text-white">{s.name}</div>
+                                        <div className="text-xs text-slate-400">{s.phone}</div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        </>
                     )}
-                </Card>
+                </div>
+                <Input
+                    label={mode === 'membership' ? 'Phone (Required)' : 'Phone (Optional)'}
+                    value={customerPhone}
+                    onChange={setCustomerPhone}
+                    placeholder="Enter phone number"
+                    type="tel"
+                />
+            </div>
+        </Card>
+    );
+
+    return (
+        <div className={`space-y-6 ${isMobile ? 'pb-20' : ''}`}>
+            {/* Mode Toggle */}
+            <div className="flex rounded-xl overflow-hidden border border-slate-800 w-fit">
+                <button
+                    onClick={() => setMode('gaming')}
+                    className={`px-5 py-2.5 text-sm font-medium flex items-center gap-2 transition-all ${
+                        mode === 'gaming'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                >
+                    <Smartphone size={15} /> Gaming Session
+                </button>
+                <button
+                    onClick={() => setMode('membership')}
+                    className={`px-5 py-2.5 text-sm font-medium flex items-center gap-2 transition-all ${
+                        mode === 'membership'
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                >
+                    <Star size={15} /> Membership
+                </button>
             </div>
 
-            {/* Right Column: Summary & Payment */}
-            <div className="lg:col-span-1 space-y-6">
-                <Card className="sticky top-6 space-y-4">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Clock className="text-orange-500" size={20} /> Summary
-                    </h3>
+            {mode === 'gaming' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left Column: Form */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {customerInfoCard}
 
-                    <div className="bg-slate-900/50 rounded-xl p-4 space-y-4">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-400">Date</span>
-                            <input
-                                type="date"
-                                className="bg-transparent text-white text-right outline-none focus:text-blue-400"
-                                value={bookingDate}
-                                onChange={(e) => setBookingDate(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-400">Start Time</span>
-                            <input
-                                type="time"
-                                className="bg-transparent text-white text-right outline-none focus:text-blue-400"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                            />
-                        </div>
-                        <div className="border-t border-slate-800 my-2"></div>
-                        <div className="flex flex-col gap-2">
+                        {/* Booking Items */}
+                        <Card className="space-y-4">
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-400">Calculated</span>
-                                <span className="text-sm text-slate-500">₹{calculatedTotal}</span>
+                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                    <Smartphone className="text-purple-500" size={20} /> Stations
+                                </h3>
+                                {items.length > 0 && (
+                                    <Button size="sm" variant="secondary" onClick={addItem}>
+                                        <Plus size={16} className="mr-1" /> Add Station
+                                    </Button>
+                                )}
                             </div>
+
+                            {items.length === 0 ? (
+                                <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl">
+                                    <p className="text-slate-500 mb-4">No stations added yet</p>
+                                    <Button size="sm" onClick={addItem}>Add First Station</Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {items.map((item) => (
+                                        <div key={item.id} className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl relative group transition-all hover:border-slate-700">
+                                            <button
+                                                onClick={() => removeItem(item.id)}
+                                                className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-slate-400 hover:text-red-400 rounded-full flex items-center justify-center border border-slate-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+
+                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                                <Select
+                                                    label="Console"
+                                                    value={item.console}
+                                                    options={availableConsoles.map(c => ({ value: c, label: CONSOLE_LABELS[c as keyof typeof CONSOLE_LABELS] || c }))}
+                                                    onChange={(val) => updateItem(item.id, 'console', val)}
+                                                />
+                                                <Select
+                                                    label="Station"
+                                                    value={item.station || ''}
+                                                    options={[{ value: '', label: 'Any' }, ...stationOptions(item.console).map(s => ({ value: s, label: s.toUpperCase() }))]}
+                                                    onChange={(val) => updateItem(item.id, 'station', val)}
+                                                />
+                                                <Select
+                                                    label="Players"
+                                                    value={String(item.quantity || 1)}
+                                                    options={[
+                                                        { value: '1', label: '1 Player' },
+                                                        { value: '2', label: '2 Players' },
+                                                        { value: '3', label: '3 Players' },
+                                                        { value: '4', label: '4 Players' },
+                                                    ]}
+                                                    onChange={(val) => updateItem(item.id, 'quantity', parseInt(val))}
+                                                />
+                                                <Select
+                                                    label="Duration"
+                                                    value={String(item.duration)}
+                                                    options={[
+                                                        { value: '30', label: '30 Mins' },
+                                                        { value: '60', label: '1 Hour' },
+                                                        { value: '90', label: '1.5 Hours' },
+                                                        { value: '120', label: '2 Hours' },
+                                                        { value: '180', label: '3 Hours' },
+                                                    ]}
+                                                    onChange={(val) => updateItem(item.id, 'duration', parseInt(val))}
+                                                />
+                                                <div className="flex flex-col justify-end">
+                                                    <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-right">
+                                                        <div className="text-xs text-slate-500 mb-0.5">Price</div>
+                                                        <div className="text-emerald-400 font-bold font-mono">₹{item.price}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+
+                    {/* Right Column: Summary & Payment */}
+                    <div className="lg:col-span-1 space-y-6">
+                        <Card className="sticky top-6 space-y-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <Clock className="text-orange-500" size={20} /> Summary
+                            </h3>
+
+                            <div className="bg-slate-900/50 rounded-xl p-4 space-y-4">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-400">Date</span>
+                                    <input
+                                        type="date"
+                                        className="bg-transparent text-white text-right outline-none focus:text-blue-400"
+                                        value={bookingDate}
+                                        onChange={(e) => setBookingDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-400">Start Time</span>
+                                    <input
+                                        type="time"
+                                        className="bg-transparent text-white text-right outline-none focus:text-blue-400"
+                                        value={startTime}
+                                        onChange={(e) => setStartTime(e.target.value)}
+                                    />
+                                </div>
+                                <div className="border-t border-slate-800 my-2"></div>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-400">Calculated</span>
+                                        <span className="text-sm text-slate-500">₹{calculatedTotal}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-400">Final Amount</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-white">₹</span>
+                                            <input
+                                                type="number"
+                                                className="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xl font-bold text-white text-right outline-none focus:border-emerald-500 transition-colors"
+                                                value={manualAmount !== null ? manualAmount : calculatedTotal}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    setManualAmount(val === calculatedTotal ? null : val);
+                                                }}
+                                                min={0}
+                                            />
+                                        </div>
+                                    </div>
+                                    {manualAmount !== null && manualAmount !== calculatedTotal && (
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-amber-400">Manual override applied</span>
+                                            <button
+                                                onClick={resetManualAmount}
+                                                className="text-slate-400 hover:text-white underline"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setPaymentMode('cash')}
+                                        className={`
+                                            p-4 rounded-xl border flex flex-col items-center gap-2 transition-all
+                                            ${paymentMode === 'cash'
+                                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
+                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}
+                                        `}
+                                    >
+                                        <Banknote size={24} />
+                                        <span className="text-sm font-semibold">Cash</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentMode('upi')}
+                                        className={`
+                                            p-4 rounded-xl border flex flex-col items-center gap-2 transition-all
+                                            ${paymentMode === 'upi'
+                                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
+                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}
+                                        `}
+                                    >
+                                        <Smartphone size={24} />
+                                        <span className="text-sm font-semibold">UPI</span>
+                                    </button>
+                                </div>
+
+                                <Button
+                                    className="w-full py-4 text-lg"
+                                    onClick={handleSubmit}
+                                    loading={submitting}
+                                    disabled={items.length === 0}
+                                >
+                                    Confirm Booking
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            ) : (
+                /* Membership Mode */
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-6">
+                        {customerInfoCard}
+
+                        {/* Plan Selection */}
+                        <Card className="space-y-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <Star className="text-purple-400" size={20} /> Select Plan
+                            </h3>
+                            {membershipPlans.length === 0 ? (
+                                <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl">
+                                    <p className="text-slate-500">No membership plans configured.</p>
+                                    <p className="text-slate-600 text-sm mt-1">Add plans in the Memberships tab first.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {membershipPlans.map((plan) => (
+                                        <button
+                                            key={plan.id}
+                                            onClick={() => {
+                                                setMemPlanId(plan.id);
+                                                setMemAmountPaid(String(plan.price));
+                                            }}
+                                            className={`p-4 rounded-xl border text-left transition-all ${
+                                                memPlanId === plan.id
+                                                    ? 'bg-purple-600/15 border-purple-500 text-white'
+                                                    : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:border-slate-700'
+                                            }`}
+                                        >
+                                            <div className="font-semibold">{plan.name}</div>
+                                            <div className="text-xs text-slate-400 mt-1">
+                                                {plan.console_type?.toUpperCase()} ·{' '}
+                                                {plan.plan_type === 'day_pass' ? 'Day Pass' : `${plan.hours}h`} ·{' '}
+                                                {plan.validity_days}d validity
+                                            </div>
+                                            <div className="text-emerald-400 font-bold font-mono mt-2">₹{plan.price}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </Card>
+                    </div>
+
+                    {/* Right: Payment summary */}
+                    <div className="lg:col-span-1 space-y-6">
+                        <Card className="sticky top-6 space-y-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <CreditCard className="text-purple-400" size={20} /> Payment
+                            </h3>
+
+                            {selectedMemPlan && (
+                                <div className="bg-purple-600/10 border border-purple-500/30 rounded-xl p-4 space-y-1">
+                                    <div className="text-white font-medium">{selectedMemPlan.name}</div>
+                                    <div className="text-xs text-slate-400">
+                                        {selectedMemPlan.console_type?.toUpperCase()} ·{' '}
+                                        {selectedMemPlan.plan_type === 'day_pass' ? 'Day Pass' : `${selectedMemPlan.hours}h`} ·{' '}
+                                        {selectedMemPlan.validity_days} days
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-400">Final Amount</span>
+                                <span className="text-slate-400 text-sm">Amount Paid</span>
                                 <div className="flex items-center gap-1">
                                     <span className="text-white">₹</span>
                                     <input
                                         type="number"
-                                        className="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xl font-bold text-white text-right outline-none focus:border-emerald-500 transition-colors"
-                                        value={manualAmount !== null ? manualAmount : calculatedTotal}
-                                        onChange={(e) => {
-                                            const val = parseInt(e.target.value) || 0;
-                                            setManualAmount(val === calculatedTotal ? null : val);
-                                        }}
+                                        className="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xl font-bold text-white text-right outline-none focus:border-purple-500 transition-colors"
+                                        value={memAmountPaid}
+                                        onChange={(e) => setMemAmountPaid(e.target.value)}
                                         min={0}
+                                        placeholder="0"
                                     />
                                 </div>
                             </div>
-                            {manualAmount !== null && manualAmount !== calculatedTotal && (
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="text-amber-400">Manual override applied</span>
-                                    <button
-                                        onClick={resetManualAmount}
-                                        className="text-slate-400 hover:text-white underline"
-                                    >
-                                        Reset
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                onClick={() => setPaymentMode('cash')}
-                                className={`
-                                    p-4 rounded-xl border flex flex-col items-center gap-2 transition-all
-                                    ${paymentMode === 'cash'
-                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}
-                                `}
-                            >
-                                <Banknote size={24} />
-                                <span className="text-sm font-semibold">Cash</span>
-                            </button>
-                            <button
-                                onClick={() => setPaymentMode('upi')}
-                                className={`
-                                    p-4 rounded-xl border flex flex-col items-center gap-2 transition-all
-                                    ${paymentMode === 'upi'
-                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}
-                                `}
-                            >
-                                <Smartphone size={24} />
-                                <span className="text-sm font-semibold">UPI</span>
-                            </button>
-                        </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => setMemPaymentMode('cash')}
+                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                                        memPaymentMode === 'cash'
+                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
+                                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                    }`}
+                                >
+                                    <Banknote size={24} />
+                                    <span className="text-sm font-semibold">Cash</span>
+                                </button>
+                                <button
+                                    onClick={() => setMemPaymentMode('upi')}
+                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                                        memPaymentMode === 'upi'
+                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
+                                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                    }`}
+                                >
+                                    <Smartphone size={24} />
+                                    <span className="text-sm font-semibold">UPI</span>
+                                </button>
+                            </div>
 
-                        <Button
-                            className="w-full py-4 text-lg"
-                            onClick={handleSubmit}
-                            loading={submitting}
-                            disabled={items.length === 0}
-                        >
-                            Confirm Booking
-                        </Button>
+                            <Button
+                                className="w-full py-4 text-lg"
+                                onClick={handleMemSubmit}
+                                loading={memSubmitting}
+                                disabled={!memPlanId || !customerName.trim() || !customerPhone.trim()}
+                            >
+                                Add Membership
+                            </Button>
+                        </Card>
                     </div>
-                </Card>
-            </div>
+                </div>
+            )}
         </div>
     );
 }
