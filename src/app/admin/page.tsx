@@ -311,56 +311,40 @@ export default function AdminDashboardPage() {
         setLoadingData(true);
         setError(null);
 
-        const todayStr = new Date().toISOString().slice(0, 10);
+        // Use IST date (UTC+5:30) so "today" matches booking_date correctly
+        const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        const todayStr = istNow.toISOString().slice(0, 10);
+        const weekStr = new Date(istNow.getTime() - 7 * 86400_000).toISOString().slice(0, 10);
+        const monthStr = new Date(istNow.getTime() - 30 * 86400_000).toISOString().slice(0, 10);
 
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekStr = weekAgo.toISOString().slice(0, 10);
+        // Run all counts + revenue queries in parallel
+        const [
+          { count: totalCafes },
+          { count: activeCafes },
+          { count: pendingCafes },
+          { count: totalBookings },
+          { count: todayBookings },
+          { count: totalUsers },
+          { count: totalOwners },
+          { data: todayRevData },
+          { data: weekRevData },
+          { data: monthRevData },
+          { data: totalRevData },
+        ] = await Promise.all([
+          supabase.from("cafes").select("id", { count: "exact", head: true }),
+          supabase.from("cafes").select("id", { count: "exact", head: true }).eq("is_active", true),
+          supabase.from("cafes").select("id", { count: "exact", head: true }).eq("is_active", false),
+          supabase.from("bookings").select("id", { count: "exact", head: true }).is("deleted_at", null),
+          supabase.from("bookings").select("id", { count: "exact", head: true }).eq("booking_date", todayStr).is("deleted_at", null),
+          supabase.from("profiles").select("id", { count: "exact", head: true }),
+          supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "owner"),
+          supabase.from("bookings").select("total_amount").eq("booking_date", todayStr).is("deleted_at", null).neq("status", "cancelled"),
+          supabase.from("bookings").select("total_amount").gte("booking_date", weekStr).is("deleted_at", null).neq("status", "cancelled"),
+          supabase.from("bookings").select("total_amount").gte("booking_date", monthStr).is("deleted_at", null).neq("status", "cancelled"),
+          supabase.from("bookings").select("total_amount").is("deleted_at", null).neq("status", "cancelled"),
+        ]);
 
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const monthStr = monthAgo.toISOString().slice(0, 10);
-
-        const { count: totalCafes } = await supabase
-          .from("cafes")
-          .select("id", { count: "exact", head: true });
-
-        const { count: activeCafes } = await supabase
-          .from("cafes")
-          .select("id", { count: "exact", head: true })
-          .eq("is_active", true);
-
-        const { count: pendingCafes } = await supabase
-          .from("cafes")
-          .select("id", { count: "exact", head: true })
-          .eq("is_active", false);
-
-        const { count: totalBookings } = await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true });
-
-        const { count: todayBookings } = await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true })
-          .eq("booking_date", todayStr);
-
-        const { count: totalUsers } = await supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true });
-
-        const { count: totalOwners } = await supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("role", "owner");
-
-        const { data: allBookings } = await supabase
-          .from("bookings")
-          .select("total_amount, booking_date");
-
-        const totalRevenue = allBookings?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
-        const todayRevenue = allBookings?.filter(b => b.booking_date === todayStr).reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
-        const weekRevenue = allBookings?.filter(b => b.booking_date >= weekStr).reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
-        const monthRevenue = allBookings?.filter(b => b.booking_date >= monthStr).reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+        const sum = (rows: any[] | null) => (rows || []).reduce((s, b) => s + (b.total_amount || 0), 0);
 
         setStats({
           totalCafes: totalCafes || 0,
@@ -370,10 +354,10 @@ export default function AdminDashboardPage() {
           todayBookings: todayBookings || 0,
           totalUsers: totalUsers || 0,
           totalOwners: totalOwners || 0,
-          totalRevenue,
-          todayRevenue,
-          weekRevenue,
-          monthRevenue,
+          todayRevenue: sum(todayRevData),
+          weekRevenue: sum(weekRevData),
+          monthRevenue: sum(monthRevData),
+          totalRevenue: sum(totalRevData),
         });
       } catch (err) {
         console.error("Error loading stats:", err);
