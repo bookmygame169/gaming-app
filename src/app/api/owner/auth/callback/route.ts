@@ -57,14 +57,12 @@ export async function GET(request: NextRequest) {
       .from("owner_allowed_emails")
       .select("cafe_id, active")
       .eq("email", email)
-      .eq("active", true)
-      .maybeSingle();
+      .limit(1)
+      .single();
 
-    if (!allowed?.cafe_id) {
-      // Redirect with debug info so we can diagnose
-      return NextResponse.redirect(
-        `${siteUrl}/owner/login?error=not_authorized&debug_email=${encodeURIComponent(email)}&db_error=${encodeURIComponent(dbError?.message || 'no_match')}`
-      );
+    if (dbError || !allowed?.cafe_id || allowed.active === false) {
+      console.error("owner_allowed_emails lookup failed:", dbError?.message, "email:", email, "row:", allowed);
+      return loginRedirect("not_authorized");
     }
 
     // Get the cafe's owner_id — session uses that so existing auth middleware works unchanged
