@@ -36,7 +36,7 @@ function LoginContent() {
 
   function handleGoogleSignIn() {
     setLoading(true);
-    const redirectUri = `${SITE_URL}/api/owner/auth/callback`;
+    const redirectUri = `${window.location.origin}/api/owner/auth/callback`;
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,

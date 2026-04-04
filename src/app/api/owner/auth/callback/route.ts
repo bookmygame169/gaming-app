@@ -3,15 +3,19 @@ import { getSupabaseAdmin, createOwnerSession, applyOwnerSessionCookie } from "@
 
 export const dynamic = "force-dynamic";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-function loginRedirect(error: string) {
-  return NextResponse.redirect(`${SITE_URL}/owner/login?error=${error}`);
+function getSiteUrl(request: NextRequest): string {
+  // Derive origin from the incoming request so it works on any domain/port
+  const url = new URL(request.url);
+  return `${url.protocol}//${url.host}`;
 }
 
 export async function GET(request: NextRequest) {
+  const siteUrl = getSiteUrl(request);
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
+
+  const loginRedirect = (error: string) =>
+    NextResponse.redirect(`${siteUrl}/owner/login?error=${error}`);
 
   if (!code || searchParams.get("error")) {
     return loginRedirect("oauth_cancelled");
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
         code,
         client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
         client_secret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
-        redirect_uri: `${SITE_URL}/api/owner/auth/callback`,
+        redirect_uri: `${siteUrl}/api/owner/auth/callback`,
         grant_type: "authorization_code",
       }),
     });
@@ -71,7 +75,7 @@ export async function GET(request: NextRequest) {
       return loginRedirect("cafe_not_found");
     }
 
-    const response = NextResponse.redirect(`${SITE_URL}/owner`);
+    const response = NextResponse.redirect(`${siteUrl}/owner`);
     applyOwnerSessionCookie(response, createOwnerSession(cafe.owner_id, email));
     return response;
   } catch (err) {
