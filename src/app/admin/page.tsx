@@ -1271,16 +1271,40 @@ export default function AdminDashboardPage() {
     return null;
   }
 
+  // ─── Shared table helpers ───────────────────────────────────────────────────
+  const thCls = "px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest";
+  const tdCls = "px-4 py-3.5 text-sm text-slate-300";
+  const badge = (label: string, color: "green"|"red"|"blue"|"yellow"|"purple"|"slate") => {
+    const map: Record<string, string> = {
+      green: "bg-emerald-500/15 text-emerald-400",
+      red: "bg-red-500/15 text-red-400",
+      blue: "bg-blue-500/15 text-blue-400",
+      yellow: "bg-amber-500/15 text-amber-400",
+      purple: "bg-violet-500/15 text-violet-400",
+      slate: "bg-slate-700/50 text-slate-400",
+    };
+    return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[color]}`}>{label}</span>;
+  };
+
+  const Pagination = ({ page, total, setPage }: { page: number; total: number; setPage: (p: number) => void }) => {
+    if (total <= 1) return null;
+    return (
+      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+        <span className="text-xs text-slate-500">{((page-1)*itemsPerPage)+1}–{Math.min(page*itemsPerPage, total*itemsPerPage)} of page {page}/{total}</span>
+        <div className="flex gap-1">
+          <button onClick={() => setPage(Math.max(1,page-1))} disabled={page===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+          {Array.from({length: Math.min(5,total)}, (_,i) => {
+            const n = total<=5?i+1:page<=3?i+1:page>=total-2?total-4+i:page-2+i;
+            return <button key={n} onClick={()=>setPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${page===n?"bg-blue-500 text-white":"bg-slate-800 text-slate-300 hover:bg-slate-700"}`}>{n}</button>;
+          })}
+          <button onClick={() => setPage(Math.min(total,page+1))} disabled={page===total} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: theme.background,
-        display: "flex",
-        fontFamily: fonts.body,
-        color: theme.textPrimary,
-      }}
-    >
+    <div className="min-h-screen flex" style={{ background: "#020617", fontFamily: fonts.body, color: "#f8fafc" }}>
       <AdminSidebar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as NavTab)}
@@ -1531,411 +1555,133 @@ export default function AdminDashboardPage() {
       </aside>
 
       {/* Main Content */}
-      <main style={{ flex: 1, overflow: "auto", position: "relative", marginLeft: isMobile ? 0 : 288 }}>
-        {/* Header — matches owner portal style */}
-        <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50">
-          <div className="flex items-center justify-between px-4 py-4 md:px-8">
-            <div className="flex items-center gap-4">
-              {isMobile && (
-                <AdminMobileMenuButton onClick={() => setMobileMenuOpen(true)} />
-              )}
+      <main className="flex-1 overflow-auto" style={{ marginLeft: isMobile ? 0 : 288 }}>
+        {/* Header */}
+        <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/50">
+          <div className="flex items-center justify-between px-5 py-3.5 md:px-8">
+            <div className="flex items-center gap-3">
+              {isMobile && <AdminMobileMenuButton onClick={() => setMobileMenuOpen(true)} />}
               <div>
-                <h1 className="text-xl font-bold text-white md:text-2xl" style={{ fontFamily: fonts.heading }}>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{activeTabMeta.eyebrow}</p>
+                <h1 className="text-lg font-bold text-white leading-tight" style={{ fontFamily: fonts.heading }}>
                   {activeTabMeta.title}
                 </h1>
-                {!isMobile && (
-                  <p className="text-sm text-slate-400 mt-0.5">{activeTabMeta.subtitle}</p>
-                )}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {!isMobile && (
-                <>
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      background: "rgba(56, 189, 248, 0.08)",
-                      border: "1px solid rgba(56, 189, 248, 0.12)",
-                    }}
-                  >
-                    <div style={{ color: theme.textMuted, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.14em" }}>Active cafés</div>
-                    <div style={{ marginTop: 4, fontSize: 18, fontWeight: 700, color: theme.textPrimary }}>{stats?.activeCafes || 0}</div>
+                <div className="flex items-center gap-2 mr-2">
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-center min-w-[80px]">
+                    <div className="text-[9px] text-slate-500 uppercase tracking-widest">Active Cafés</div>
+                    <div className="text-base font-bold text-white">{loadingData ? "…" : stats?.activeCafes || 0}</div>
                   </div>
-                  <div
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      background: "rgba(34, 197, 94, 0.08)",
-                      border: "1px solid rgba(34, 197, 94, 0.12)",
-                    }}
-                  >
-                    <div style={{ color: theme.textMuted, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.14em" }}>Today revenue</div>
-                    <div style={{ marginTop: 4, fontSize: 18, fontWeight: 700, color: theme.textPrimary }}>{formatCurrency(stats?.todayRevenue || 0)}</div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-center min-w-[80px]">
+                    <div className="text-[9px] text-slate-500 uppercase tracking-widest">Today</div>
+                    <div className="text-base font-bold text-emerald-400">{loadingData ? "…" : formatCurrency(stats?.todayRevenue || 0)}</div>
                   </div>
-                </>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-center min-w-[80px]">
+                    <div className="text-[9px] text-slate-500 uppercase tracking-widest">Bookings</div>
+                    <div className="text-base font-bold text-blue-400">{loadingData ? "…" : stats?.totalBookings || 0}</div>
+                  </div>
+                </div>
               )}
+              <span className="hidden md:block text-xs text-slate-600 mr-1">{formattedToday}</span>
               <button
                 onClick={() => window.location.reload()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-slate-900 hover:opacity-90 transition-opacity"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors"
               >
-                Refresh
+                ↻ Refresh
               </button>
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <div style={{ padding: "34px 36px 48px" }}>
+        <div className="p-5 md:p-8 pb-16 space-y-6">
           {/* Error Message */}
           {error && (
-            <div
-              style={{
-                marginBottom: 24,
-                padding: "16px 20px",
-                borderRadius: 12,
-                border: "1px solid rgba(248, 113, 113, 0.5)",
-                background: "rgba(248, 113, 113, 0.1)",
-                color: "#fca5a5",
-                fontSize: 14,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <span style={{ fontSize: 20 }}>⚠️</span>
-              {error}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+              ⚠️ {error}
             </div>
           )}
 
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
-            <div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0, 1.45fr) minmax(320px, 0.95fr)",
-                  gap: 24,
-                  marginBottom: 28,
-                }}
-              >
-                <div
-                  style={{
-                    padding: "28px",
-                    borderRadius: 28,
-                    background:
-                      "radial-gradient(circle at top right, rgba(56,189,248,0.18), transparent 35%), linear-gradient(145deg, rgba(11, 27, 46, 0.98), rgba(6, 14, 27, 0.98))",
-                    border: `1px solid ${theme.border}`,
-                    boxShadow: "0 30px 80px rgba(2, 6, 23, 0.28)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", marginBottom: 22 }}>
-                    <div>
-                      <div style={{ color: "#8fe7ff", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: 12 }}>
-                        Performance Snapshot
-                      </div>
-                      <h2
-                        style={{
-                          fontFamily: fonts.heading,
-                          fontSize: 42,
-                          lineHeight: 1,
-                          letterSpacing: "-0.05em",
-                          margin: 0,
-                          maxWidth: 560,
-                        }}
-                      >
-                        {loadingData ? "Loading live platform pulse..." : `₹${(stats?.todayRevenue || 0).toLocaleString()} collected today.`}
-                      </h2>
-                    </div>
-                    <div
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: 999,
-                        background: "rgba(34, 197, 94, 0.12)",
-                        color: "#86efac",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {stats?.todayBookings || 0} live bookings today
-                    </div>
-                  </div>
-
-                  <p style={{ margin: 0, color: theme.textSecondary, fontSize: 15, lineHeight: 1.7, maxWidth: 620 }}>
-                    Keep operators pointed at the right problems: today&apos;s volume, month-scale revenue, and location activation all in one glance.
-                  </p>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                      gap: 14,
-                      marginTop: 24,
-                    }}
-                  >
-                    {[
-                      { label: "Today Revenue", value: formatCurrency(stats?.todayRevenue || 0), tone: "rgba(34, 197, 94, 0.12)" },
-                      { label: "Week Revenue", value: formatCurrency(stats?.weekRevenue || 0), tone: "rgba(56, 189, 248, 0.12)" },
-                      { label: "Month Revenue", value: formatCurrency(stats?.monthRevenue || 0), tone: "rgba(245, 158, 11, 0.12)" },
-                    ].map((metric) => (
-                      <div
-                        key={metric.label}
-                        style={{
-                          padding: "18px 18px 16px",
-                          borderRadius: 20,
-                          border: `1px solid ${theme.border}`,
-                          background: metric.tone,
-                        }}
-                      >
-                        <div style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", marginBottom: 10 }}>
-                          {metric.label}
-                        </div>
-                        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em" }}>
-                          {loadingData ? "..." : metric.value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: 24,
-                    borderRadius: 28,
-                    background: theme.cardBackground,
-                    border: `1px solid ${theme.border}`,
-                    boxShadow: "0 24px 64px rgba(2, 6, 23, 0.24)",
-                  }}
-                >
-                  <div style={{ color: "#8fe7ff", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: 16 }}>
-                    Signal Board
-                  </div>
-                  <div style={{ display: "grid", gap: 14 }}>
-                    {[
-                      { label: "Active cafés", value: `${stats?.activeCafes || 0}/${stats?.totalCafes || 0}`, note: `${activeCafeRate}% network activated`, color: "#86efac" },
-                      { label: "Average booking value", value: formatCurrency(averageRevenuePerBooking), note: "Gross earnings / total bookings", color: "#8fe7ff" },
-                      { label: "Average bookings per café", value: `${averageBookingsPerCafe}`, note: "Platform activity density", color: "#fde68a" },
-                    ].map((signal) => (
-                      <div
-                        key={signal.label}
-                        style={{
-                          padding: 16,
-                          borderRadius: 20,
-                          border: `1px solid ${theme.border}`,
-                          background: "rgba(148, 163, 184, 0.05)",
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                          <div>
-                            <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 8 }}>{signal.label}</div>
-                            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, color: signal.color }}>
-                              {loadingData ? "..." : signal.value}
-                            </div>
-                          </div>
-                          <div
-                            style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: 999,
-                              background: signal.color,
-                              boxShadow: `0 0 24px ${signal.color}`,
-                              marginTop: 6,
-                            }}
-                          />
-                        </div>
-                        <div style={{ marginTop: 10, color: theme.textSecondary, fontSize: 13, lineHeight: 1.6 }}>
-                          {signal.note}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 18,
-                  marginBottom: 28,
-                }}
-              >
+            <div className="space-y-5">
+              {/* Revenue Row */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  {
-                    label: "Total Cafés",
-                    value: stats?.totalCafes || 0,
-                    subtext: `${stats?.activeCafes || 0} active • ${stats?.pendingCafes || 0} pending`,
-                    icon: "🏪",
-                    color: "#38bdf8",
-                  },
-                  {
-                    label: "Total Users",
-                    value: stats?.totalUsers || 0,
-                    subtext: `${stats?.totalOwners || 0} café owners`,
-                    icon: "👥",
-                    color: "#a3e635",
-                  },
-                  {
-                    label: "Total Bookings",
-                    value: stats?.totalBookings || 0,
-                    subtext: `${stats?.todayBookings || 0} today`,
-                    icon: "📅",
-                    color: "#f59e0b",
-                  },
-                  {
-                    label: "Total Revenue",
-                    value: formatCurrency(stats?.totalRevenue || 0),
-                    subtext: `Platform gross since launch`,
-                    icon: "💰",
-                    color: "#22c55e",
-                  },
-                ].map((card) => (
-                  <div
-                    key={card.label}
-                    style={{
-                      padding: "22px",
-                      borderRadius: 24,
-                      background: theme.cardBackground,
-                      border: `1px solid ${theme.border}`,
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "absolute",
-                        right: -12,
-                        top: -12,
-                        width: 84,
-                        height: 84,
-                        borderRadius: 999,
-                        background: `${card.color}20`,
-                        filter: "blur(8px)",
-                      }}
-                    />
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                      <div style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.18em" }}>
-                        {card.label}
-                      </div>
-                      <span style={{ fontSize: 24 }}>{card.icon}</span>
-                    </div>
-                    <div style={{ fontFamily: fonts.heading, fontSize: 34, lineHeight: 1, letterSpacing: "-0.04em", marginBottom: 8 }}>
-                      {loadingData ? "..." : card.value}
-                    </div>
-                    <div style={{ color: theme.textSecondary, fontSize: 13 }}>
-                      {card.subtext}
-                    </div>
+                  { label: "Today", value: formatCurrency(stats?.todayRevenue || 0), sub: `${stats?.todayBookings || 0} bookings today`, color: "text-emerald-400", glow: "from-emerald-500/10" },
+                  { label: "This Week", value: formatCurrency(stats?.weekRevenue || 0), sub: "Last 7 days", color: "text-blue-400", glow: "from-blue-500/10" },
+                  { label: "This Month", value: formatCurrency(stats?.monthRevenue || 0), sub: "Last 30 days", color: "text-violet-400", glow: "from-violet-500/10" },
+                  { label: "All Time", value: formatCurrency(stats?.totalRevenue || 0), sub: "Platform total", color: "text-amber-400", glow: "from-amber-500/10" },
+                ].map(c => (
+                  <div key={c.label} className={`relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-5`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${c.glow} to-transparent pointer-events-none`} />
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label} Revenue</p>
+                    <p className={`text-2xl font-bold ${c.color} leading-none`}>{loadingData ? "…" : c.value}</p>
+                    <p className="text-xs text-slate-600 mt-1.5">{c.sub}</p>
                   </div>
                 ))}
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.2fr 0.8fr",
-                  gap: 22,
-                }}
-              >
-                <div
-                  style={{
-                    padding: "24px",
-                    borderRadius: 24,
-                    background: theme.cardBackground,
-                    border: `1px solid ${theme.border}`,
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontFamily: fonts.heading,
-                      fontSize: 22,
-                      margin: "0 0 18px",
-                      color: theme.textPrimary,
-                    }}
-                  >
-                    Strategic Readout
-                  </h2>
-                  <div style={{ display: "grid", gap: 14, fontSize: 14 }}>
+              {/* Platform Stats Row */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Cafés", value: stats?.totalCafes || 0, sub: `${stats?.activeCafes || 0} active · ${stats?.pendingCafes || 0} inactive`, icon: "🏪", tab: "cafes" as NavTab },
+                  { label: "Registered Users", value: stats?.totalUsers || 0, sub: `${stats?.totalOwners || 0} café owners`, icon: "👥", tab: "users" as NavTab },
+                  { label: "Total Bookings", value: stats?.totalBookings || 0, sub: `${stats?.todayBookings || 0} booked today`, icon: "📅", tab: "bookings" as NavTab },
+                  { label: "Avg per Booking", value: formatCurrency(averageRevenuePerBooking), sub: `${averageBookingsPerCafe} bookings / café avg`, icon: "📊", tab: "revenue" as NavTab },
+                ].map(c => (
+                  <button key={c.label} onClick={() => setActiveTab(c.tab)} className="rounded-2xl bg-slate-900 border border-slate-800 p-5 text-left hover:border-slate-700 hover:bg-slate-800/60 transition-all group">
+                    <div className="flex items-start justify-between mb-3">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{c.label}</p>
+                      <span className="text-xl">{c.icon}</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white leading-none" style={{ fontFamily: fonts.heading }}>{loadingData ? "…" : c.value}</p>
+                    <p className="text-xs text-slate-600 mt-1.5">{c.sub}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Bottom row: Platform health + Quick actions */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Health metrics */}
+                <div className="lg:col-span-2 rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Platform Health</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      {
-                        title: "Network activation",
-                        body: `${activeCafeRate}% of your café network is currently active, with ${stats?.pendingCafes || 0} locations still pending approval or intervention.`,
-                        tone: "rgba(56, 189, 248, 0.08)",
-                      },
-                      {
-                        title: "Revenue quality",
-                        body: `Average revenue per booking is ${formatCurrency(averageRevenuePerBooking)}, which gives you a clean benchmark for testing price or offer changes.`,
-                        tone: "rgba(34, 197, 94, 0.08)",
-                      },
-                      {
-                        title: "Capacity signal",
-                        body: `The platform is averaging ${averageBookingsPerCafe} bookings per café. Use that as your baseline to spot underperformers or sudden spikes.`,
-                        tone: "rgba(245, 158, 11, 0.08)",
-                      },
-                    ].map((item) => (
-                      <div
-                        key={item.title}
-                        style={{
-                          padding: "16px 18px",
-                          borderRadius: 18,
-                          background: item.tone,
-                          border: `1px solid ${theme.border}`,
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>
-                          {item.title}
+                      { label: "Network Activated", value: `${activeCafeRate}%`, note: `${stats?.activeCafes || 0} of ${stats?.totalCafes || 0} cafés live`, color: "text-emerald-400", bar: activeCafeRate },
+                      { label: "Avg Booking Value", value: formatCurrency(averageRevenuePerBooking), note: "Gross ÷ total bookings", color: "text-blue-400", bar: Math.min(100, averageRevenuePerBooking / 10) },
+                      { label: "Bookings / Café", value: `${averageBookingsPerCafe}`, note: "Platform activity density", color: "text-amber-400", bar: Math.min(100, averageBookingsPerCafe) },
+                    ].map(m => (
+                      <div key={m.label} className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-4">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{m.label}</p>
+                        <p className={`text-xl font-bold ${m.color} mb-1`}>{loadingData ? "…" : m.value}</p>
+                        <div className="h-1 rounded-full bg-slate-700 mb-2 overflow-hidden">
+                          <div className="h-full rounded-full bg-current transition-all" style={{ width: `${m.bar}%`, color: m.color.replace("text-","") === m.color ? undefined : undefined }} />
                         </div>
-                        <div style={{ color: theme.textSecondary, lineHeight: 1.7 }}>{item.body}</div>
+                        <p className="text-[11px] text-slate-600">{m.note}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    padding: "24px",
-                    borderRadius: 24,
-                    background: theme.cardBackground,
-                    border: `1px solid ${theme.border}`,
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontFamily: fonts.heading,
-                      fontSize: 22,
-                      margin: "0 0 18px",
-                    }}
-                  >
-                    Quick Actions
-                  </h2>
-                  <div style={{ display: "grid", gap: 12 }}>
+                {/* Quick Actions */}
+                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Quick Actions</h3>
+                  <div className="space-y-2">
                     {[
-                      { label: "Review cafés", tab: "cafes" as NavTab, accent: "#38bdf8" },
-                      { label: "Inspect bookings", tab: "bookings" as NavTab, accent: "#f59e0b" },
-                      { label: "Check audit trail", tab: "audit-logs" as NavTab, accent: "#a3e635" },
-                      { label: "Launch announcements", tab: "announcements" as NavTab, accent: "#fb7185" },
-                    ].map((action) => (
-                      <button
-                        key={action.tab}
-                        onClick={() => setActiveTab(action.tab)}
-                        style={{
-                          padding: "16px 18px",
-                          borderRadius: 18,
-                          border: `1px solid ${theme.border}`,
-                          background: "rgba(148, 163, 184, 0.05)",
-                          color: theme.textPrimary,
-                          textAlign: "left",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          fontWeight: 600,
-                        }}
-                      >
-                        <span>{action.label}</span>
-                        <span style={{ color: action.accent, fontSize: 18 }}>→</span>
+                      { label: "Manage Cafés", icon: "🏪", tab: "cafes" as NavTab },
+                      { label: "View Bookings", icon: "📅", tab: "bookings" as NavTab },
+                      { label: "Revenue Report", icon: "💰", tab: "revenue" as NavTab },
+                      { label: "Owner Access", icon: "🔑", tab: "owner-access" as NavTab },
+                      { label: "Audit Trail", icon: "🛡️", tab: "audit-logs" as NavTab },
+                      { label: "Announcements", icon: "📢", tab: "announcements" as NavTab },
+                    ].map(a => (
+                      <button key={a.tab} onClick={() => setActiveTab(a.tab)} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 bg-slate-800/40 hover:bg-slate-800 hover:text-white transition-all">
+                        <span className="flex items-center gap-2.5"><span>{a.icon}</span>{a.label}</span>
+                        <span className="text-slate-600">→</span>
                       </button>
                     ))}
                   </div>
@@ -1944,292 +1690,101 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* CAFES TAB */}
+
+          {/* ─── CAFES TAB ─── */}
           {activeTab === 'cafes' && (
-            <div>
-              {/* Filters */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginBottom: 24,
-                  flexWrap: "wrap",
-                  padding: "20px",
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                }}
-              >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
                 <input
                   type="text"
-                  placeholder="Search cafés..."
+                  placeholder="Search cafés by name or address…"
                   value={cafeSearch}
-                  onChange={(e) => setCafeSearch(e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 200,
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                  }}
+                  onChange={(e) => { setCafeSearch(e.target.value); setCafePage(1); }}
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                 />
                 <select
                   value={cafeFilter}
-                  onChange={(e) => setCafeFilter(e.target.value)}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
+                  onChange={(e) => { setCafeFilter(e.target.value); setCafePage(1); }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
                 >
                   <option value="all">All Cafés</option>
                   <option value="active">Active Only</option>
                   <option value="inactive">Inactive Only</option>
                 </select>
+                <div className="flex items-center px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs text-slate-500">
+                  {filteredCafes.length} result{filteredCafes.length !== 1 ? 's' : ''}
+                </div>
               </div>
 
-              {/* Cafes Table */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(168, 85, 247, 0.1)", borderBottom: `1px solid ${theme.border}` }}>
-                        <th onClick={() => handleSort(cafeSort, setCafeSort, 'name')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Café Name {cafeSort.field === 'name' && (cafeSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th onClick={() => handleSort(cafeSort, setCafeSort, 'owner_name')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Owner {cafeSort.field === 'owner_name' && (cafeSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Location</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Consoles</th>
-                        <th onClick={() => handleSort(cafeSort, setCafeSort, 'total_bookings')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Bookings {cafeSort.field === 'total_bookings' && (cafeSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th onClick={() => handleSort(cafeSort, setCafeSort, 'total_revenue')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Revenue {cafeSort.field === 'total_revenue' && (cafeSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Status</th>
-                        <th style={{ padding: "16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Actions</th>
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                      <tr>
+                        {[
+                          { label: 'Café', field: 'name' },
+                          { label: 'Owner', field: 'owner_name' },
+                          { label: 'Location', field: null },
+                          { label: 'Consoles', field: null },
+                          { label: 'Bookings', field: 'total_bookings' },
+                          { label: 'Revenue', field: 'total_revenue' },
+                          { label: 'Status', field: null },
+                          { label: 'Actions', field: null },
+                        ].map(col => (
+                          <th
+                            key={col.label}
+                            onClick={col.field ? () => handleSort(cafeSort, setCafeSort, col.field!) : undefined}
+                            className={`px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest ${col.field ? 'cursor-pointer hover:text-white select-none' : ''}`}
+                          >
+                            {col.label}{col.field && cafeSort.field === col.field ? (cafeSort.order === 'asc' ? ' ↑' : ' ↓') : ''}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-800/50">
                       {loadingData ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            Loading cafés...
-                          </td>
-                        </tr>
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Loading cafés…</td></tr>
                       ) : paginatedCafes.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            No cafés found
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No cafés found</td></tr>
+                      ) : paginatedCafes.map(cafe => (
+                        <tr key={cafe.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3.5 text-sm font-semibold text-white">{cafe.name}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-300">{cafe.owner_name}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400 max-w-[160px] truncate">{cafe.address}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400 whitespace-nowrap">
+                            {[cafe.ps5_count && `PS5×${cafe.ps5_count}`, cafe.ps4_count && `PS4×${cafe.ps4_count}`, cafe.xbox_count && `Xbox×${cafe.xbox_count}`, cafe.pc_count && `PC×${cafe.pc_count}`].filter(Boolean).join(' · ') || '—'}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-slate-300 font-medium">{cafe.total_bookings}</td>
+                          <td className="px-4 py-3.5 text-sm font-semibold text-emerald-400">{formatCurrency(cafe.total_revenue || 0)}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            {cafe.is_active
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Inactive</span>}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <button onClick={() => router.push(`/cafes/${cafe.slug}`)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">View</button>
+                              <button onClick={() => toggleCafeStatus(cafe.id, cafe.is_active, cafe.name)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${cafe.is_active ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
+                                {cafe.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                              <button onClick={() => toggleFeaturedCafe(cafe.id, cafe.is_featured || false, cafe.name)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${cafe.is_featured ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'}`}>
+                                {cafe.is_featured ? '⭐ Featured' : '☆ Feature'}
+                              </button>
+                              <button onClick={() => deleteCafe(cafe.id, cafe.name)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
+                            </div>
                           </td>
                         </tr>
-                      ) : (
-                        paginatedCafes.map((cafe) => (
-                          <tr
-                            key={cafe.id}
-                            style={{
-                              borderBottom: `1px solid ${theme.border}`,
-                              transition: "background 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "rgba(168, 85, 247, 0.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            <td style={{ padding: "16px", fontSize: 14, color: theme.textPrimary, fontWeight: 500 }}>
-                              {cafe.name}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              <div>{cafe.owner_name}</div>
-                              <div style={{ fontSize: 11, color: theme.textMuted }}>{cafe.owner_email}</div>
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary, maxWidth: 200 }}>
-                              {cafe.address}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              PS5: {cafe.ps5_count} | PS4: {cafe.ps4_count} | Xbox: {cafe.xbox_count} | PC: {cafe.pc_count}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 14, color: theme.textPrimary, fontWeight: 500 }}>
-                              {cafe.total_bookings}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 14, color: "#10b981", fontWeight: 600 }}>
-                              {formatCurrency(cafe.total_revenue || 0)}
-                            </td>
-                            <td style={{ padding: "16px" }}>
-                              <span
-                                style={{
-                                  padding: "6px 12px",
-                                  borderRadius: 8,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  background: cafe.is_active ? "rgba(16, 185, 129, 0.2)" : "rgba(248, 113, 113, 0.2)",
-                                  color: cafe.is_active ? "#10b981" : "#f87171",
-                                }}
-                              >
-                                {cafe.is_active ? "Active" : "Inactive"}
-                              </span>
-                            </td>
-                            <td style={{ padding: "16px", textAlign: "center" }}>
-                              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                                <button
-                                  onClick={() => router.push(`/cafes/${cafe.slug}`)}
-                                  style={{
-                                    padding: "8px 12px",
-                                    borderRadius: 8,
-                                    border: "none",
-                                    background: "rgba(59, 130, 246, 0.2)",
-                                    color: "#3b82f6",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  View
-                                </button>
-                                <button
-                                  onClick={() => toggleCafeStatus(cafe.id, cafe.is_active, cafe.name)}
-                                  style={{
-                                    padding: "8px 12px",
-                                    borderRadius: 8,
-                                    border: "none",
-                                    background: cafe.is_active ? "rgba(248, 113, 113, 0.2)" : "rgba(16, 185, 129, 0.2)",
-                                    color: cafe.is_active ? "#f87171" : "#10b981",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  {cafe.is_active ? "Deactivate" : "Activate"}
-                                </button>
-                                <button
-                                  onClick={() => toggleFeaturedCafe(cafe.id, cafe.is_featured || false, cafe.name)}
-                                  style={{
-                                    padding: "8px 12px",
-                                    borderRadius: 8,
-                                    border: "none",
-                                    background: cafe.is_featured ? "rgba(245, 158, 11, 0.2)" : "rgba(139, 92, 246, 0.2)",
-                                    color: cafe.is_featured ? "#f59e0b" : "#8b5cf6",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  {cafe.is_featured ? "⭐ Featured" : "☆ Feature"}
-                                </button>
-                                <button
-                                  onClick={() => deleteCafe(cafe.id, cafe.name)}
-                                  style={{
-                                    padding: "8px 12px",
-                                    borderRadius: 8,
-                                    border: "none",
-                                    background: "rgba(248, 113, 113, 0.2)",
-                                    color: "#f87171",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Pagination Controls */}
                 {totalCafePages > 1 && (
-                  <div style={{ padding: "20px", borderTop: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 14, color: theme.textSecondary }}>
-                      Showing {((cafePage - 1) * itemsPerPage) + 1} - {Math.min(cafePage * itemsPerPage, filteredCafes.length)} of {filteredCafes.length} cafés
-                    </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => setCafePage(p => Math.max(1, p - 1))}
-                        disabled={cafePage === 1}
-                        style={{
-                          padding: "8px 16px",
-                          borderRadius: 8,
-                          border: `1px solid ${theme.border}`,
-                          background: cafePage === 1 ? "rgba(15, 23, 42, 0.5)" : theme.cardBackground,
-                          color: cafePage === 1 ? theme.textMuted : theme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: 500,
-                          cursor: cafePage === 1 ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        Previous
-                      </button>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        {Array.from({ length: Math.min(5, totalCafePages) }, (_, i) => {
-                          let pageNum;
-                          if (totalCafePages <= 5) {
-                            pageNum = i + 1;
-                          } else if (cafePage <= 3) {
-                            pageNum = i + 1;
-                          } else if (cafePage >= totalCafePages - 2) {
-                            pageNum = totalCafePages - 4 + i;
-                          } else {
-                            pageNum = cafePage - 2 + i;
-                          }
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setCafePage(pageNum)}
-                              style={{
-                                padding: "8px 12px",
-                                borderRadius: 8,
-                                border: `1px solid ${theme.border}`,
-                                background: cafePage === pageNum ? "linear-gradient(135deg, #a855f7, #9333ea)" : theme.cardBackground,
-                                color: cafePage === pageNum ? "#fff" : theme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: cafePage === pageNum ? 600 : 500,
-                                cursor: "pointer",
-                                minWidth: 40,
-                              }}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <button
-                        onClick={() => setCafePage(p => Math.min(totalCafePages, p + 1))}
-                        disabled={cafePage === totalCafePages}
-                        style={{
-                          padding: "8px 16px",
-                          borderRadius: 8,
-                          border: `1px solid ${theme.border}`,
-                          background: cafePage === totalCafePages ? "rgba(15, 23, 42, 0.5)" : theme.cardBackground,
-                          color: cafePage === totalCafePages ? theme.textMuted : theme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: 500,
-                          cursor: cafePage === totalCafePages ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        Next
-                      </button>
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+                    <span className="text-xs text-slate-500">{((cafePage-1)*itemsPerPage)+1}–{Math.min(cafePage*itemsPerPage, filteredCafes.length)} of {filteredCafes.length}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => setCafePage(p=>Math.max(1,p-1))} disabled={cafePage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+                      {Array.from({length:Math.min(5,totalCafePages)},(_,i)=>{const n=totalCafePages<=5?i+1:cafePage<=3?i+1:cafePage>=totalCafePages-2?totalCafePages-4+i:cafePage-2+i;return <button key={n} onClick={()=>setCafePage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${cafePage===n?'bg-blue-500 text-white':'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{n}</button>;})}
+                      <button onClick={() => setCafePage(p=>Math.min(totalCafePages,p+1))} disabled={cafePage===totalCafePages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
                     </div>
                   </div>
                 )}
@@ -2237,190 +1792,93 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* USERS TAB */}
+          {/* ─── USERS TAB ─── */}
           {activeTab === 'users' && (
-            <div>
-              {/* Filters */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginBottom: 24,
-                  flexWrap: "wrap",
-                  padding: "20px",
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                }}
-              >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
                 <input
                   type="text"
-                  placeholder="Search users..."
+                  placeholder="Search users by name…"
                   value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 200,
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                  }}
+                  onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                 />
                 <select
                   value={userRoleFilter}
-                  onChange={(e) => setUserRoleFilter(e.target.value)}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
+                  onChange={(e) => { setUserRoleFilter(e.target.value); setUserPage(1); }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
                 >
                   <option value="all">All Roles</option>
                   <option value="user">Users</option>
                   <option value="owner">Owners</option>
                   <option value="admin">Admins</option>
                 </select>
+                <div className="flex items-center px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs text-slate-500">
+                  {filteredUsers.length} result{filteredUsers.length !== 1 ? 's' : ''}
+                </div>
               </div>
-
-              {/* Users Table */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(168, 85, 247, 0.1)", borderBottom: `1px solid ${theme.border}` }}>
-                        <th onClick={() => handleSort(userSort, setUserSort, 'name')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Name {userSort.field === 'name' && (userSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Email</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Phone</th>
-                        <th onClick={() => handleSort(userSort, setUserSort, 'role')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Role {userSort.field === 'role' && (userSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th onClick={() => handleSort(userSort, setUserSort, 'total_bookings')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Bookings {userSort.field === 'total_bookings' && (userSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th onClick={() => handleSort(userSort, setUserSort, 'total_spent')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Total Spent {userSort.field === 'total_spent' && (userSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th onClick={() => handleSort(userSort, setUserSort, 'created_at')} style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1, cursor: "pointer", userSelect: "none" }}>
-                          Joined {userSort.field === 'created_at' && (userSort.order === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th style={{ padding: "16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Actions</th>
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                      <tr>
+                        {[
+                          { label: 'Name', field: 'name' },
+                          { label: 'Phone', field: null },
+                          { label: 'Role', field: 'role' },
+                          { label: 'Bookings', field: 'total_bookings' },
+                          { label: 'Total Spent', field: 'total_spent' },
+                          { label: 'Joined', field: 'created_at' },
+                          { label: 'Actions', field: null },
+                        ].map(col => (
+                          <th
+                            key={col.label}
+                            onClick={col.field ? () => handleSort(userSort, setUserSort, col.field!) : undefined}
+                            className={`px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest ${col.field ? 'cursor-pointer hover:text-white select-none' : ''}`}
+                          >
+                            {col.label}{col.field && userSort.field === col.field ? (userSort.order === 'asc' ? ' ↑' : ' ↓') : ''}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-800/50">
                       {loadingData ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            Loading users...
-                          </td>
-                        </tr>
+                        <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading users…</td></tr>
                       ) : paginatedUsers.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            No users found
+                        <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
+                      ) : paginatedUsers.map(u => (
+                        <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3.5 text-sm font-semibold text-white">{u.name}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{u.phone || '—'}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            <select
+                              value={u.role}
+                              onChange={(e) => updateUserRole(u.id, e.target.value, u.name)}
+                              className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white outline-none"
+                            >
+                              <option value="user">User</option>
+                              <option value="owner">Owner</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-slate-300">{u.total_bookings}</td>
+                          <td className="px-4 py-3.5 text-sm font-semibold text-emerald-400">{formatCurrency(u.total_spent || 0)}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{formatDate(u.created_at)}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            <button onClick={() => deleteUser(u.id, u.name)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
                           </td>
                         </tr>
-                      ) : (
-                        paginatedUsers.map((userRow) => (
-                          <tr
-                            key={userRow.id}
-                            style={{
-                              borderBottom: `1px solid ${theme.border}`,
-                              transition: "background 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "rgba(168, 85, 247, 0.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            <td style={{ padding: "16px", fontSize: 14, color: theme.textPrimary, fontWeight: 500 }}>
-                              {userRow.name}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {userRow.email || "N/A"}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {userRow.phone || "N/A"}
-                            </td>
-                            <td style={{ padding: "16px" }}>
-                              <select
-                                value={userRow.role}
-                                onChange={(e) => updateUserRole(userRow.id, e.target.value, userRow.name)}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: 8,
-                                  border: `1px solid ${theme.border}`,
-                                  background: "rgba(15, 23, 42, 0.8)",
-                                  color: theme.textPrimary,
-                                  fontSize: 12,
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <option value="user">User</option>
-                                <option value="owner">Owner</option>
-                                <option value="admin">Admin</option>
-                              </select>
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 14, color: theme.textPrimary }}>
-                              {userRow.total_bookings}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 14, color: "#10b981", fontWeight: 600 }}>
-                              {formatCurrency(userRow.total_spent || 0)}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {formatDate(userRow.created_at)}
-                            </td>
-                            <td style={{ padding: "16px", textAlign: "center" }}>
-                              <button
-                                onClick={() => deleteUser(userRow.id, userRow.name)}
-                                style={{
-                                  padding: "8px 12px",
-                                  borderRadius: 8,
-                                  border: "none",
-                                  background: "rgba(248, 113, 113, 0.2)",
-                                  color: "#f87171",
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                }}
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Pagination Controls */}
                 {totalUserPages > 1 && (
-                  <div style={{ padding: "20px", borderTop: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 14, color: theme.textSecondary }}>
-                      Showing {((userPage - 1) * itemsPerPage) + 1} - {Math.min(userPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
-                    </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => setUserPage(p => Math.max(1, p - 1))} disabled={userPage === 1} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${theme.border}`, background: userPage === 1 ? "rgba(15, 23, 42, 0.5)" : theme.cardBackground, color: userPage === 1 ? theme.textMuted : theme.textPrimary, fontSize: 14, fontWeight: 500, cursor: userPage === 1 ? "not-allowed" : "pointer" }}>Previous</button>
-                      {Array.from({ length: Math.min(5, totalUserPages) }, (_, i) => { const pageNum = totalUserPages <= 5 ? i + 1 : userPage <= 3 ? i + 1 : userPage >= totalUserPages - 2 ? totalUserPages - 4 + i : userPage - 2 + i; return (<button key={pageNum} onClick={() => setUserPage(pageNum)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${theme.border}`, background: userPage === pageNum ? "linear-gradient(135deg, #a855f7, #9333ea)" : theme.cardBackground, color: userPage === pageNum ? "#fff" : theme.textPrimary, fontSize: 14, fontWeight: userPage === pageNum ? 600 : 500, cursor: "pointer", minWidth: 40 }}>{pageNum}</button>); })}
-                      <button onClick={() => setUserPage(p => Math.min(totalUserPages, p + 1))} disabled={userPage === totalUserPages} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${theme.border}`, background: userPage === totalUserPages ? "rgba(15, 23, 42, 0.5)" : theme.cardBackground, color: userPage === totalUserPages ? theme.textMuted : theme.textPrimary, fontSize: 14, fontWeight: 500, cursor: userPage === totalUserPages ? "not-allowed" : "pointer" }}>Next</button>
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+                    <span className="text-xs text-slate-500">{((userPage-1)*itemsPerPage)+1}–{Math.min(userPage*itemsPerPage, filteredUsers.length)} of {filteredUsers.length}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => setUserPage(p=>Math.max(1,p-1))} disabled={userPage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+                      {Array.from({length:Math.min(5,totalUserPages)},(_,i)=>{const n=totalUserPages<=5?i+1:userPage<=3?i+1:userPage>=totalUserPages-2?totalUserPages-4+i:userPage-2+i;return <button key={n} onClick={()=>setUserPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${userPage===n?'bg-blue-500 text-white':'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{n}</button>;})}
+                      <button onClick={() => setUserPage(p=>Math.min(totalUserPages,p+1))} disabled={userPage===totalUserPages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
                     </div>
                   </div>
                 )}
@@ -2428,53 +1886,25 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* BOOKINGS TAB */}
+          {/* ─── BOOKINGS TAB ─── */}
           {activeTab === 'bookings' && (
-            <div>
-              {/* Filters */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginBottom: 24,
-                  flexWrap: "wrap",
-                  padding: "20px",
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                }}
-              >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
                 <input
                   type="text"
-                  placeholder="Search bookings..."
+                  placeholder="Search by customer or café…"
                   value={bookingSearch}
-                  onChange={(e) => setBookingSearch(e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 200,
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                  }}
+                  onChange={(e) => { setBookingSearch(e.target.value); setBookingPage(1); }}
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                 />
                 <select
                   value={bookingStatusFilter}
-                  onChange={(e) => setBookingStatusFilter(e.target.value)}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                    cursor: "pointer",
-                  }}
+                  onChange={(e) => { setBookingStatusFilter(e.target.value); setBookingPage(1); }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
+                  <option value="in-progress">In Progress</option>
                   <option value="confirmed">Confirmed</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
@@ -2482,149 +1912,74 @@ export default function AdminDashboardPage() {
                 <input
                   type="date"
                   value={bookingDateFilter}
-                  onChange={(e) => setBookingDateFilter(e.target.value)}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${theme.border}`,
-                    background: "rgba(15, 23, 42, 0.8)",
-                    color: theme.textPrimary,
-                    fontSize: 14,
-                  }}
+                  onChange={(e) => { setBookingDateFilter(e.target.value); setBookingPage(1); }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
                 />
+                <div className="flex items-center px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs text-slate-500">
+                  {filteredBookings.length} result{filteredBookings.length !== 1 ? 's' : ''}
+                </div>
               </div>
-
-              {/* Bookings Table */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(168, 85, 247, 0.1)", borderBottom: `1px solid ${theme.border}` }}>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Café</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Customer</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Date</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Time</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Duration</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Amount</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Source</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Status</th>
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Customer</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Date</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Time</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Duration</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Amount</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Source</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-800/50">
                       {loadingData ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            Loading bookings...
-                          </td>
-                        </tr>
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Loading bookings…</td></tr>
                       ) : paginatedBookings.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            No bookings found
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No bookings found</td></tr>
+                      ) : paginatedBookings.map(b => (
+                        <tr key={b.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3.5 text-sm font-semibold text-white">{b.cafe_name}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            <div className="text-slate-200">{b.user_name}</div>
+                            {b.customer_phone && <div className="text-xs text-slate-500 mt-0.5">{b.customer_phone}</div>}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{formatDate(b.booking_date)}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{b.start_time}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{b.duration} min</td>
+                          <td className="px-4 py-3.5 text-sm font-semibold text-emerald-400">{formatCurrency(b.total_amount)}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            {b.source === 'online'
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">Online</span>
+                              : b.source === 'membership'
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">Member</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Walk-in</span>}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm">
+                            {b.status === 'confirmed'
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Confirmed</span>
+                              : b.status === 'in-progress'
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">In Progress</span>
+                              : b.status === 'completed'
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Completed</span>
+                              : b.status === 'pending'
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400">Pending</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Cancelled</span>}
                           </td>
                         </tr>
-                      ) : (
-                        paginatedBookings.map((booking) => (
-                          <tr
-                            key={booking.id}
-                            style={{
-                              borderBottom: `1px solid ${theme.border}`,
-                              transition: "background 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "rgba(168, 85, 247, 0.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            <td style={{ padding: "16px", fontSize: 14, color: theme.textPrimary, fontWeight: 500 }}>
-                              {booking.cafe_name}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              <div>{booking.user_name}</div>
-                              {booking.customer_phone && (
-                                <div style={{ fontSize: 11, color: theme.textMuted }}>{booking.customer_phone}</div>
-                              )}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {formatDate(booking.booking_date)}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {booking.start_time}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {booking.duration} min
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 14, color: "#10b981", fontWeight: 600 }}>
-                              {formatCurrency(booking.total_amount)}
-                            </td>
-                            <td style={{ padding: "16px" }}>
-                              <span
-                                style={{
-                                  padding: "6px 12px",
-                                  borderRadius: 8,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  background: booking.source === "online" ? "rgba(59, 130, 246, 0.2)" : "rgba(245, 87, 108, 0.2)",
-                                  color: booking.source === "online" ? "#3b82f6" : "#f5576c",
-                                }}
-                              >
-                                {booking.source}
-                              </span>
-                            </td>
-                            <td style={{ padding: "16px" }}>
-                              <span
-                                style={{
-                                  padding: "6px 12px",
-                                  borderRadius: 8,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  background:
-                                    booking.status === "confirmed"
-                                      ? "rgba(16, 185, 129, 0.2)"
-                                      : booking.status === "pending"
-                                        ? "rgba(251, 191, 36, 0.2)"
-                                        : booking.status === "completed"
-                                          ? "rgba(59, 130, 246, 0.2)"
-                                          : "rgba(248, 113, 113, 0.2)",
-                                  color:
-                                    booking.status === "confirmed"
-                                      ? "#10b981"
-                                      : booking.status === "pending"
-                                        ? "#fbbf24"
-                                        : booking.status === "completed"
-                                          ? "#3b82f6"
-                                          : "#f87171",
-                                }}
-                              >
-                                {booking.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Pagination Controls */}
                 {totalBookingPages > 1 && (
-                  <div style={{ padding: "20px", borderTop: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 14, color: theme.textSecondary }}>
-                      Showing {((bookingPage - 1) * itemsPerPage) + 1} - {Math.min(bookingPage * itemsPerPage, filteredBookings.length)} of {filteredBookings.length} bookings
-                    </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => setBookingPage(p => Math.max(1, p - 1))} disabled={bookingPage === 1} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${theme.border}`, background: bookingPage === 1 ? "rgba(15, 23, 42, 0.5)" : theme.cardBackground, color: bookingPage === 1 ? theme.textMuted : theme.textPrimary, fontSize: 14, fontWeight: 500, cursor: bookingPage === 1 ? "not-allowed" : "pointer" }}>Previous</button>
-                      {Array.from({ length: Math.min(5, totalBookingPages) }, (_, i) => { const pageNum = totalBookingPages <= 5 ? i + 1 : bookingPage <= 3 ? i + 1 : bookingPage >= totalBookingPages - 2 ? totalBookingPages - 4 + i : bookingPage - 2 + i; return (<button key={pageNum} onClick={() => setBookingPage(pageNum)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${theme.border}`, background: bookingPage === pageNum ? "linear-gradient(135deg, #a855f7, #9333ea)" : theme.cardBackground, color: bookingPage === pageNum ? "#fff" : theme.textPrimary, fontSize: 14, fontWeight: bookingPage === pageNum ? 600 : 500, cursor: "pointer", minWidth: 40 }}>{pageNum}</button>); })}
-                      <button onClick={() => setBookingPage(p => Math.min(totalBookingPages, p + 1))} disabled={bookingPage === totalBookingPages} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${theme.border}`, background: bookingPage === totalBookingPages ? "rgba(15, 23, 42, 0.5)" : theme.cardBackground, color: bookingPage === totalBookingPages ? theme.textMuted : theme.textPrimary, fontSize: 14, fontWeight: 500, cursor: bookingPage === totalBookingPages ? "not-allowed" : "pointer" }}>Next</button>
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+                    <span className="text-xs text-slate-500">{((bookingPage-1)*itemsPerPage)+1}–{Math.min(bookingPage*itemsPerPage, filteredBookings.length)} of {filteredBookings.length}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => setBookingPage(p=>Math.max(1,p-1))} disabled={bookingPage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+                      {Array.from({length:Math.min(5,totalBookingPages)},(_,i)=>{const n=totalBookingPages<=5?i+1:bookingPage<=3?i+1:bookingPage>=totalBookingPages-2?totalBookingPages-4+i:bookingPage-2+i;return <button key={n} onClick={()=>setBookingPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${bookingPage===n?'bg-blue-500 text-white':'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{n}</button>;})}
+                      <button onClick={() => setBookingPage(p=>Math.min(totalBookingPages,p+1))} disabled={bookingPage===totalBookingPages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
                     </div>
                   </div>
                 )}
@@ -2632,945 +1987,446 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* REVENUE TAB */}
+          {/* ─── REVENUE TAB ─── */}
           {activeTab === 'revenue' && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Time-based Revenue Cards */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
-                  gap: 16,
-                }}
-              >
-                <div style={{ padding: "24px", background: "rgba(16, 185, 129, 0.1)", borderRadius: 16, border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                  <p style={{ fontSize: 11, color: theme.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.5 }}>
-                    Today
-                  </p>
-                  <p style={{ fontFamily: fonts.heading, fontSize: 32, color: "#10b981", margin: 0, fontWeight: 700 }}>
-                    {formatCurrency(stats?.todayRevenue || 0)}
-                  </p>
-                  <p style={{ fontSize: 12, color: theme.textMuted, marginTop: 8 }}>{stats?.todayBookings || 0} bookings</p>
-                </div>
-                <div style={{ padding: "24px", background: "rgba(59, 130, 246, 0.1)", borderRadius: 16, border: "1px solid rgba(59, 130, 246, 0.2)" }}>
-                  <p style={{ fontSize: 11, color: theme.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.5 }}>
-                    This Week
-                  </p>
-                  <p style={{ fontFamily: fonts.heading, fontSize: 32, color: "#3b82f6", margin: 0, fontWeight: 700 }}>
-                    {formatCurrency(stats?.weekRevenue || 0)}
-                  </p>
-                </div>
-                <div style={{ padding: "24px", background: "rgba(139, 92, 246, 0.1)", borderRadius: 16, border: "1px solid rgba(139, 92, 246, 0.2)" }}>
-                  <p style={{ fontSize: 11, color: theme.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.5 }}>
-                    This Month
-                  </p>
-                  <p style={{ fontFamily: fonts.heading, fontSize: 32, color: "#8b5cf6", margin: 0, fontWeight: 700 }}>
-                    {formatCurrency(stats?.monthRevenue || 0)}
-                  </p>
-                </div>
-                <div style={{ padding: "24px", background: "rgba(168, 85, 247, 0.1)", borderRadius: 16, border: "1px solid rgba(168, 85, 247, 0.2)" }}>
-                  <p style={{ fontSize: 11, color: theme.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.5 }}>
-                    All Time
-                  </p>
-                  <p style={{ fontFamily: fonts.heading, fontSize: 32, color: "#a855f7", margin: 0, fontWeight: 700 }}>
-                    {formatCurrency(stats?.totalRevenue || 0)}
-                  </p>
-                  <p style={{ fontSize: 12, color: theme.textMuted, marginTop: 8 }}>{stats?.totalBookings || 0} total bookings</p>
-                </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Today', value: formatCurrency(stats?.todayRevenue||0), sub: `${stats?.todayBookings||0} bookings`, colorClass: 'text-emerald-400', borderClass: 'border-emerald-500/20', bgClass: 'bg-emerald-500/5' },
+                  { label: 'This Week', value: formatCurrency(stats?.weekRevenue||0), sub: 'Last 7 days', colorClass: 'text-blue-400', borderClass: 'border-blue-500/20', bgClass: 'bg-blue-500/5' },
+                  { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), sub: 'Last 30 days', colorClass: 'text-violet-400', borderClass: 'border-violet-500/20', bgClass: 'bg-violet-500/5' },
+                  { label: 'All Time', value: formatCurrency(stats?.totalRevenue||0), sub: `${stats?.totalBookings||0} total bookings`, colorClass: 'text-amber-400', borderClass: 'border-amber-500/20', bgClass: 'bg-amber-500/5' },
+                ].map(c => (
+                  <div key={c.label} className={`rounded-2xl ${c.bgClass} border ${c.borderClass} p-5`}>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+                    <p className={`text-2xl font-bold ${c.colorClass}`}>{loadingData ? '…' : c.value}</p>
+                    <p className="text-xs text-slate-600 mt-1.5">{c.sub}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Revenue by Café Table */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 16,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ padding: "20px 24px", borderBottom: `1px solid ${theme.border}` }}>
-                  <h3 style={{ fontSize: 18, color: theme.textPrimary, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-                    📊 Revenue by Café
-                  </h3>
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-800">
+                  <h3 className="text-sm font-semibold text-white">Revenue by Café</h3>
                 </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(168, 85, 247, 0.08)", borderBottom: `1px solid ${theme.border}` }}>
-                        <th style={{ padding: "14px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Café</th>
-                        <th style={{ padding: "14px 20px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Owner</th>
-                        <th style={{ padding: "14px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Bookings</th>
-                        <th style={{ padding: "14px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Revenue</th>
-                        <th style={{ padding: "14px 20px", textAlign: "right", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Share</th>
+                {cafes.length === 0 ? (
+                  <p className="px-5 py-8 text-sm text-slate-500">Visit the Cafés tab first to load café data.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-800/40 border-b border-slate-800">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Owner</th>
+                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Bookings</th>
+                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Revenue</th>
+                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Share</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {cafes.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            No café data available
-                          </td>
-                        </tr>
-                      ) : (
-                        [...cafes]
-                          .sort((a, b) => (b.total_revenue || 0) - (a.total_revenue || 0))
-                          .map((cafe) => {
-                            const sharePercent = stats?.totalRevenue ? ((cafe.total_revenue || 0) / stats.totalRevenue * 100).toFixed(1) : '0';
-                            return (
-                              <tr
-                                key={cafe.id}
-                                style={{
-                                  borderBottom: `1px solid ${theme.border}`,
-                                  transition: "background 0.2s",
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(168, 85, 247, 0.05)"; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                              >
-                                <td style={{ padding: "16px 20px" }}>
-                                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>{cafe.name}</div>
-                                  <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{cafe.address?.substring(0, 40)}...</div>
-                                </td>
-                                <td style={{ padding: "16px 20px", fontSize: 14, color: theme.textSecondary }}>
-                                  {cafe.owner_name || 'Unknown'}
-                                </td>
-                                <td style={{ padding: "16px 20px", textAlign: "right", fontSize: 14, color: theme.textSecondary }}>
-                                  {cafe.total_bookings || 0}
-                                </td>
-                                <td style={{ padding: "16px 20px", textAlign: "right", fontSize: 14, fontWeight: 600, color: "#10b981" }}>
-                                  {formatCurrency(cafe.total_revenue || 0)}
-                                </td>
-                                <td style={{ padding: "16px 20px", textAlign: "right" }}>
-                                  <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, background: "rgba(168, 85, 247, 0.15)", color: "#a855f7" }}>
-                                    {sharePercent}%
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                      )}
+                    <tbody className="divide-y divide-slate-800/50">
+                      {[...cafes].sort((a,b)=>(b.total_revenue||0)-(a.total_revenue||0)).map(cafe => {
+                        const share = stats?.totalRevenue ? ((cafe.total_revenue||0)/stats.totalRevenue*100).toFixed(1) : '0';
+                        return (
+                          <tr key={cafe.id} className="hover:bg-slate-800/30 transition-colors">
+                            <td className="px-4 py-3.5">
+                              <div className="text-sm font-semibold text-white">{cafe.name}</div>
+                              <div className="text-xs text-slate-500 mt-0.5 truncate max-w-[200px]">{cafe.address}</div>
+                            </td>
+                            <td className="px-4 py-3.5 text-sm text-slate-400">{cafe.owner_name||'—'}</td>
+                            <td className="px-4 py-3.5 text-sm text-slate-300 text-right">{cafe.total_bookings||0}</td>
+                            <td className="px-4 py-3.5 text-sm font-semibold text-emerald-400 text-right">{formatCurrency(cafe.total_revenue||0)}</td>
+                            <td className="px-4 py-3.5 text-right">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">{share}%</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
-                </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* REPORTS TAB */}
+          {/* ─── REPORTS TAB ─── */}
           {activeTab === 'reports' && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Top Cafés by Revenue */}
-              <div
-                style={{
-                  padding: "24px",
-                  borderRadius: 16,
-                  background: theme.cardBackground,
-                  border: `1px solid ${theme.border}`,
-                }}
-              >
-                <h3 style={{ fontSize: 18, marginBottom: 20, color: theme.textPrimary, display: "flex", alignItems: "center", gap: 10 }}>
-                  🏆 Top Cafés by Revenue
-                </h3>
-                {cafes.length === 0 ? (
-                  <p style={{ color: theme.textMuted }}>No café data available</p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {[...cafes]
-                      .sort((a, b) => (b.total_revenue || 0) - (a.total_revenue || 0))
-                      .slice(0, 5)
-                      .map((cafe, index) => {
-                        const maxRevenue = Math.max(...cafes.map(c => c.total_revenue || 0), 1);
-                        const widthPercent = ((cafe.total_revenue || 0) / maxRevenue) * 100;
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Revenue', value: formatCurrency(stats?.totalRevenue||0), colorClass: 'text-emerald-400' },
+                  { label: 'Total Bookings', value: `${stats?.totalBookings||0}`, colorClass: 'text-blue-400' },
+                  { label: 'Total Cafés', value: `${stats?.totalCafes||0}`, colorClass: 'text-violet-400' },
+                  { label: 'Registered Users', value: `${stats?.totalUsers||0}`, colorClass: 'text-amber-400' },
+                ].map(c => (
+                  <div key={c.label} className="rounded-2xl bg-slate-900 border border-slate-800 p-5 text-center">
+                    <p className={`text-2xl font-bold ${c.colorClass}`}>{loadingData ? '…' : c.value}</p>
+                    <p className="text-xs text-slate-500 mt-1">{c.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Top Cafés by Revenue</h3>
+                  {cafes.length === 0 ? (
+                    <p className="text-sm text-slate-500">Visit the Cafés tab first.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {[...cafes].sort((a,b)=>(b.total_revenue||0)-(a.total_revenue||0)).slice(0,5).map((cafe,i) => {
+                        const max = Math.max(...cafes.map(c=>c.total_revenue||0), 1);
+                        const w = ((cafe.total_revenue||0)/max*100).toFixed(0);
                         return (
-                          <div key={cafe.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <span style={{ width: 24, fontSize: 14, fontWeight: 600, color: index === 0 ? "#fbbf24" : theme.textSecondary }}>
-                              #{index + 1}
-                            </span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ fontSize: 14, color: theme.textPrimary }}>{cafe.name}</span>
-                                <span style={{ fontSize: 14, fontWeight: 600, color: "#10b981" }}>{formatCurrency(cafe.total_revenue || 0)}</span>
+                          <div key={cafe.id} className="flex items-center gap-3">
+                            <span className={`w-5 text-xs font-bold shrink-0 ${i===0?'text-amber-400':'text-slate-500'}`}>#{i+1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-sm text-slate-300 truncate">{cafe.name}</span>
+                                <span className="text-sm font-semibold text-emerald-400 ml-2 shrink-0">{formatCurrency(cafe.total_revenue||0)}</span>
                               </div>
-                              <div style={{ height: 8, background: "rgba(16, 185, 129, 0.1)", borderRadius: 4, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${widthPercent}%`, background: "linear-gradient(90deg, #10b981, #34d399)", borderRadius: 4, transition: "width 0.5s" }} />
+                              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{width:`${w}%`}} />
                               </div>
                             </div>
                           </div>
                         );
                       })}
-                  </div>
-                )}
-              </div>
-
-              {/* Platform Stats Grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-                <div style={{ padding: "20px", borderRadius: 12, background: theme.cardBackground, border: `1px solid ${theme.border}`, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: "#10b981" }}>{formatCurrency(stats?.totalRevenue || 0)}</div>
-                  <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Total Revenue</div>
-                </div>
-                <div style={{ padding: "20px", borderRadius: 12, background: theme.cardBackground, border: `1px solid ${theme.border}`, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: "#3b82f6" }}>{stats?.totalBookings || 0}</div>
-                  <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Total Bookings</div>
-                </div>
-                <div style={{ padding: "20px", borderRadius: 12, background: theme.cardBackground, border: `1px solid ${theme.border}`, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: "#a855f7" }}>{stats?.totalCafes || 0}</div>
-                  <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Active Cafés</div>
-                </div>
-                <div style={{ padding: "20px", borderRadius: 12, background: theme.cardBackground, border: `1px solid ${theme.border}`, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: "#f59e0b" }}>{stats?.totalUsers || 0}</div>
-                  <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>Registered Users</div>
-                </div>
-              </div>
-
-              {/* Revenue Breakdown */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <div
-                  style={{
-                    padding: "24px",
-                    borderRadius: 16,
-                    background: theme.cardBackground,
-                    border: `1px solid ${theme.border}`,
-                  }}
-                >
-                  <h3 style={{ fontSize: 18, marginBottom: 20, color: theme.textPrimary, display: "flex", alignItems: "center", gap: 10 }}>
-                    💰 Revenue Breakdown
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ color: theme.textSecondary }}>Today</span>
-                      <span style={{ fontWeight: 600, color: "#10b981" }}>{formatCurrency(stats?.todayRevenue || 0)}</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ color: theme.textSecondary }}>This Week</span>
-                      <span style={{ fontWeight: 600, color: "#3b82f6" }}>{formatCurrency(stats?.weekRevenue || 0)}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ color: theme.textSecondary }}>This Month</span>
-                      <span style={{ fontWeight: 600, color: "#a855f7" }}>{formatCurrency(stats?.monthRevenue || 0)}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0" }}>
-                      <span style={{ color: theme.textSecondary }}>All Time</span>
-                      <span style={{ fontWeight: 600, color: "#f59e0b" }}>{formatCurrency(stats?.totalRevenue || 0)}</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                <div
-                  style={{
-                    padding: "24px",
-                    borderRadius: 16,
-                    background: theme.cardBackground,
-                    border: `1px solid ${theme.border}`,
-                  }}
-                >
-                  <h3 style={{ fontSize: 18, marginBottom: 20, color: theme.textPrimary, display: "flex", alignItems: "center", gap: 10 }}>
-                    📊 Café Performance
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ color: theme.textSecondary }}>Active Cafés</span>
-                      <span style={{ fontWeight: 600, color: "#10b981" }}>{stats?.activeCafes || 0}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ color: theme.textSecondary }}>Pending Cafés</span>
-                      <span style={{ fontWeight: 600, color: "#f59e0b" }}>{stats?.pendingCafes || 0}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ color: theme.textSecondary }}>Café Owners</span>
-                      <span style={{ fontWeight: 600, color: "#3b82f6" }}>{stats?.totalOwners || 0}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0" }}>
-                      <span style={{ color: theme.textSecondary }}>Avg. Revenue/Café</span>
-                      <span style={{ fontWeight: 600, color: "#a855f7" }}>{formatCurrency(stats?.totalCafes ? Math.round((stats?.totalRevenue || 0) / stats.totalCafes) : 0)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ANNOUNCEMENTS TAB */}
-          {activeTab === 'announcements' && (
-            <div>
-              {/* Create Announcement Button */}
-              <div style={{ marginBottom: 24 }}>
-                <button
-                  onClick={() => setShowAnnouncementForm(!showAnnouncementForm)}
-                  style={{
-                    padding: "12px 24px",
-                    borderRadius: 10,
-                    border: "none",
-                    background: "linear-gradient(135deg, #a855f7, #9333ea)",
-                    color: "#fff",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  {showAnnouncementForm ? '✕ Cancel' : '+ Create Announcement'}
-                </button>
-              </div>
-
-              {/* Announcement Form */}
-              {showAnnouncementForm && (
-                <div
-                  style={{
-                    marginBottom: 24,
-                    padding: "24px",
-                    borderRadius: 12,
-                    background: theme.cardBackground,
-                    border: `1px solid ${theme.border}`,
-                  }}
-                >
-                  <h3 style={{ fontSize: 18, marginBottom: 16, color: theme.textPrimary }}>New Announcement</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <input
-                      type="text"
-                      placeholder="Title"
-                      value={announcementForm.title}
-                      onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
-                      style={{
-                        padding: "12px 16px",
-                        borderRadius: 10,
-                        border: `1px solid ${theme.border}`,
-                        background: "rgba(15, 23, 42, 0.8)",
-                        color: theme.textPrimary,
-                        fontSize: 14,
-                      }}
-                    />
-                    <textarea
-                      placeholder="Message"
-                      value={announcementForm.message}
-                      onChange={(e) => setAnnouncementForm({ ...announcementForm, message: e.target.value })}
-                      rows={4}
-                      style={{
-                        padding: "12px 16px",
-                        borderRadius: 10,
-                        border: `1px solid ${theme.border}`,
-                        background: "rgba(15, 23, 42, 0.8)",
-                        color: theme.textPrimary,
-                        fontSize: 14,
-                        fontFamily: fonts.body,
-                        resize: "vertical",
-                      }}
-                    />
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                      <select
-                        value={announcementForm.type}
-                        onChange={(e) => setAnnouncementForm({ ...announcementForm, type: e.target.value as 'info' | 'warning' | 'success' | 'error' })}
-                        style={{
-                          padding: "12px 16px",
-                          borderRadius: 10,
-                          border: `1px solid ${theme.border}`,
-                          background: "rgba(15, 23, 42, 0.8)",
-                          color: theme.textPrimary,
-                          fontSize: 14,
-                        }}
-                      >
-                        <option value="info">Info</option>
-                        <option value="warning">Warning</option>
-                        <option value="success">Success</option>
-                        <option value="error">Error</option>
-                      </select>
-                      <select
-                        value={announcementForm.target_audience}
-                        onChange={(e) => setAnnouncementForm({ ...announcementForm, target_audience: e.target.value as 'all' | 'users' | 'owners' })}
-                        style={{
-                          padding: "12px 16px",
-                          borderRadius: 10,
-                          border: `1px solid ${theme.border}`,
-                          background: "rgba(15, 23, 42, 0.8)",
-                          color: theme.textPrimary,
-                          fontSize: 14,
-                        }}
-                      >
-                        <option value="all">All Users</option>
-                        <option value="users">Users Only</option>
-                        <option value="owners">Owners Only</option>
-                      </select>
-                      <input
-                        type="datetime-local"
-                        placeholder="Expires At (optional)"
-                        value={announcementForm.expires_at}
-                        onChange={(e) => setAnnouncementForm({ ...announcementForm, expires_at: e.target.value })}
-                        style={{
-                          padding: "12px 16px",
-                          borderRadius: 10,
-                          border: `1px solid ${theme.border}`,
-                          background: "rgba(15, 23, 42, 0.8)",
-                          color: theme.textPrimary,
-                          fontSize: 14,
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={createAnnouncement}
-                      style={{
-                        padding: "12px 24px",
-                        borderRadius: 10,
-                        border: "none",
-                        background: "linear-gradient(135deg, #10b981, #059669)",
-                        color: "#fff",
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      Create Announcement
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Announcements List */}
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                {loadingData ? (
-                  <div style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                    Loading announcements...
-                  </div>
-                ) : announcements.length === 0 ? (
-                  <div style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                    No announcements yet
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "20px" }}>
-                    {announcements.map((announcement) => (
-                      <div
-                        key={announcement.id}
-                        style={{
-                          padding: "20px",
-                          borderRadius: 12,
-                          background: "rgba(15, 23, 42, 0.8)",
-                          border: `1px solid ${theme.border}`,
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                          <div style={{ flex: 1 }}>
-                            <h4 style={{ fontSize: 16, fontWeight: 600, color: theme.textPrimary, margin: "0 0 8px 0" }}>
-                              {announcement.title}
-                            </h4>
-                            <p style={{ fontSize: 14, color: theme.textSecondary, margin: "0 0 12px 0" }}>
-                              {announcement.message}
-                            </p>
-                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                              <span style={{ padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: announcement.type === 'info' ? 'rgba(59, 130, 246, 0.2)' : announcement.type === 'warning' ? 'rgba(245, 158, 11, 0.2)' : announcement.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(248, 113, 113, 0.2)', color: announcement.type === 'info' ? '#3b82f6' : announcement.type === 'warning' ? '#f59e0b' : announcement.type === 'success' ? '#10b981' : '#f87171' }}>
-                                {announcement.type}
-                              </span>
-                              <span style={{ padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'rgba(168, 85, 247, 0.2)', color: '#a855f7' }}>
-                                {announcement.target_audience}
-                              </span>
-                              <span style={{ padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: announcement.is_active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(100, 116, 139, 0.2)', color: announcement.is_active ? '#10b981' : theme.textMuted }}>
-                                {announcement.is_active ? 'Active' : 'Inactive'}
-                              </span>
-                              <span style={{ fontSize: 12, color: theme.textMuted }}>
-                                Created: {formatDate(announcement.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button
-                              onClick={() => toggleAnnouncementStatus(announcement.id, announcement.is_active)}
-                              style={{
-                                padding: "8px 12px",
-                                borderRadius: 8,
-                                border: "none",
-                                background: announcement.is_active ? "rgba(248, 113, 113, 0.2)" : "rgba(16, 185, 129, 0.2)",
-                                color: announcement.is_active ? "#f87171" : "#10b981",
-                                fontSize: 12,
-                                fontWeight: 600,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {announcement.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => deleteAnnouncement(announcement.id, announcement.title)}
-                              style={{
-                                padding: "8px 12px",
-                                borderRadius: 8,
-                                border: "none",
-                                background: "rgba(248, 113, 113, 0.2)",
-                                color: "#f87171",
-                                fontSize: 12,
-                                fontWeight: 600,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
+                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Revenue Breakdown</h3>
+                  <div className="divide-y divide-slate-800/50">
+                    {[
+                      { label: 'Today', value: formatCurrency(stats?.todayRevenue||0), colorClass: 'text-emerald-400' },
+                      { label: 'This Week', value: formatCurrency(stats?.weekRevenue||0), colorClass: 'text-blue-400' },
+                      { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), colorClass: 'text-violet-400' },
+                      { label: 'All Time', value: formatCurrency(stats?.totalRevenue||0), colorClass: 'text-amber-400' },
+                      { label: 'Active Cafés', value: `${stats?.activeCafes||0} / ${stats?.totalCafes||0}`, colorClass: 'text-slate-200' },
+                      { label: 'Avg Revenue / Booking', value: formatCurrency(averageRevenuePerBooking), colorClass: 'text-slate-200' },
+                      { label: 'Avg Bookings / Café', value: `${averageBookingsPerCafe}`, colorClass: 'text-slate-200' },
+                    ].map(r => (
+                      <div key={r.label} className="flex justify-between items-center py-3">
+                        <span className="text-sm text-slate-400">{r.label}</span>
+                        <span className={`text-sm font-semibold ${r.colorClass}`}>{loadingData ? '…' : r.value}</span>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* AUDIT LOGS TAB */}
-          {activeTab === 'audit-logs' && (
-            <div>
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(168, 85, 247, 0.1)", borderBottom: `1px solid ${theme.border}` }}>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Timestamp</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Action</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Entity Type</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Entity ID</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingData ? (
-                        <tr>
-                          <td colSpan={5} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            Loading audit logs...
-                          </td>
-                        </tr>
-                      ) : auditLogs.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            No audit logs found
-                          </td>
-                        </tr>
-                      ) : (
-                        auditLogs.map((log) => (
-                          <tr
-                            key={log.id}
-                            style={{
-                              borderBottom: `1px solid ${theme.border}`,
-                              transition: "background 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "rgba(168, 85, 247, 0.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {new Date(log.created_at).toLocaleString()}
-                            </td>
-                            <td style={{ padding: "16px" }}>
-                              <span
-                                style={{
-                                  padding: "6px 12px",
-                                  borderRadius: 8,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  background: log.action === 'delete' ? "rgba(248, 113, 113, 0.2)" : log.action === 'create' ? "rgba(16, 185, 129, 0.2)" : "rgba(59, 130, 246, 0.2)",
-                                  color: log.action === 'delete' ? "#f87171" : log.action === 'create' ? "#10b981" : "#3b82f6",
-                                }}
-                              >
-                                {log.action}
-                              </span>
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 14, color: theme.textPrimary }}>
-                              {log.entity_type}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textMuted, fontFamily: "monospace" }}>
-                              {log.entity_id ? log.entity_id.substring(0, 8) + '...' : 'N/A'}
-                            </td>
-                            <td style={{ padding: "16px", fontSize: 13, color: theme.textSecondary }}>
-                              {log.details ? JSON.stringify(log.details).substring(0, 100) + '...' : 'N/A'}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
                 </div>
               </div>
             </div>
           )}
 
-          {/* COUPONS TAB */}
-          {activeTab === 'coupons' && (
-            <div>
-              <div
-                style={{
-                  background: theme.cardBackground,
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "rgba(168, 85, 247, 0.1)", borderBottom: `1px solid ${theme.border}` }}>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Code</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Café</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Discount</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Usage</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Valid Until</th>
-                        <th style={{ padding: "16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textSecondary, textTransform: "uppercase", letterSpacing: 1 }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingData ? (
-                        <tr>
-                          <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            Loading coupons...
-                          </td>
-                        </tr>
-                      ) : coupons.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: theme.textMuted }}>
-                            No coupons found across any café
-                          </td>
-                        </tr>
-                      ) : (
-                        coupons.map((coupon) => {
-                          const isExpired = coupon.valid_until && new Date(coupon.valid_until) < new Date();
-                          const discountDisplay = coupon.discount_type === 'percentage'
-                            ? `${coupon.discount_value}% OFF`
-                            : coupon.bonus_minutes > 0
-                              ? `${coupon.bonus_minutes} mins FREE`
-                              : `₹${coupon.discount_value} OFF`;
-
-                          return (
-                            <tr
-                              key={coupon.id}
-                              style={{
-                                borderBottom: `1px solid ${theme.border}`,
-                                transition: "background 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = "rgba(168, 85, 247, 0.05)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = "transparent";
-                              }}
-                            >
-                              <td style={{ padding: "16px", fontFamily: "monospace", fontSize: 14, color: theme.textPrimary, fontWeight: 600 }}>
-                                {coupon.code}
-                              </td>
-                              <td style={{ padding: "16px", fontSize: 14, color: theme.textSecondary }}>
-                                {coupon.cafe_name}
-                              </td>
-                              <td style={{ padding: "16px" }}>
-                                <span
-                                  style={{
-                                    padding: "6px 12px",
-                                    borderRadius: 8,
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    background: coupon.discount_type === 'percentage' ? "rgba(16, 185, 129, 0.2)" : "rgba(59, 130, 246, 0.2)",
-                                    color: coupon.discount_type === 'percentage' ? "#10b981" : "#3b82f6",
-                                  }}
-                                >
-                                  {discountDisplay}
-                                </span>
-                              </td>
-                              <td style={{ padding: "16px", fontSize: 14, color: theme.textSecondary }}>
-                                {coupon.uses_count} / {coupon.max_uses || '∞'}
-                              </td>
-                              <td style={{ padding: "16px", fontSize: 13, color: theme.textMuted }}>
-                                {coupon.valid_until ? formatDate(coupon.valid_until) : 'No expiry'}
-                              </td>
-                              <td style={{ padding: "16px" }}>
-                                <span
-                                  style={{
-                                    padding: "6px 12px",
-                                    borderRadius: 8,
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    background: !coupon.is_active || isExpired ? "rgba(248, 113, 113, 0.2)" : "rgba(16, 185, 129, 0.2)",
-                                    color: !coupon.is_active || isExpired ? "#f87171" : "#10b981",
-                                  }}
-                                >
-                                  {isExpired ? 'Expired' : coupon.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SETTINGS TAB */}
-          {activeTab === 'settings' && (
-            <div
-              style={{
-                padding: "40px",
-                borderRadius: 16,
-                background: theme.cardBackground,
-                border: `1px solid ${theme.border}`,
-              }}
-            >
-              <div style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: fonts.heading, fontSize: 24, marginBottom: 8, color: theme.textPrimary, display: "flex", alignItems: "center", gap: 12 }}>
-                  ⚙️ Admin Settings
-                </h2>
-                <p style={{ fontSize: 14, color: theme.textSecondary }}>
-                  Manage your admin login credentials
-                </p>
-              </div>
-
-              {/* Success/Error Message */}
-              {settingsMessage && (
-                <div
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: 8,
-                    marginBottom: 24,
-                    background: settingsMessage.type === 'success'
-                      ? "rgba(34, 197, 94, 0.1)"
-                      : "rgba(239, 68, 68, 0.1)",
-                    border: `1px solid ${settingsMessage.type === 'success' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                    color: settingsMessage.type === 'success' ? '#22c55e' : '#ef4444',
-                    fontSize: 14,
-                  }}
+          {/* ─── ANNOUNCEMENTS TAB ─── */}
+          {activeTab === 'announcements' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-base font-semibold text-white">Platform Announcements</h3>
+                <button
+                  onClick={() => setShowAnnouncementForm(v => !v)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors"
                 >
-                  {settingsMessage.text}
+                  {showAnnouncementForm ? '✕ Cancel' : '+ New Announcement'}
+                </button>
+              </div>
+
+              {showAnnouncementForm && (
+                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                  <h4 className="text-sm font-semibold text-white">New Announcement</h4>
+                  <input
+                    type="text"
+                    placeholder="Title"
+                    value={announcementForm.title}
+                    onChange={e => setAnnouncementForm({...announcementForm, title: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none"
+                  />
+                  <textarea
+                    placeholder="Message"
+                    value={announcementForm.message}
+                    onChange={e => setAnnouncementForm({...announcementForm, message: e.target.value})}
+                    rows={3}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none resize-none"
+                    style={{fontFamily: fonts.body}}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <select value={announcementForm.type} onChange={e => setAnnouncementForm({...announcementForm, type: e.target.value as 'info'|'warning'|'success'|'error'})} className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                      <option value="info">Info</option>
+                      <option value="warning">Warning</option>
+                      <option value="success">Success</option>
+                      <option value="error">Error</option>
+                    </select>
+                    <select value={announcementForm.target_audience} onChange={e => setAnnouncementForm({...announcementForm, target_audience: e.target.value as 'all'|'users'|'owners'})} className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                      <option value="all">All Users</option>
+                      <option value="users">Users Only</option>
+                      <option value="owners">Owners Only</option>
+                    </select>
+                    <input type="datetime-local" value={announcementForm.expires_at} onChange={e => setAnnouncementForm({...announcementForm, expires_at: e.target.value})} className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                  </div>
+                  <button onClick={createAnnouncement} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white transition-colors">
+                    Create Announcement
+                  </button>
                 </div>
               )}
 
-              <div style={{ maxWidth: 600 }}>
-                {/* Current Password */}
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
-                    Current Password *
-                  </label>
-                  <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter current password"
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      borderRadius: 8,
-                      border: `1px solid ${theme.border}`,
-                      background: theme.background,
-                      color: theme.textPrimary,
-                      fontSize: 14,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                <div style={{ height: 1, background: theme.border, marginBottom: 24 }} />
-
-                {/* New Username */}
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
-                    New Username (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="Leave blank to keep current username"
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      borderRadius: 8,
-                      border: `1px solid ${theme.border}`,
-                      background: theme.background,
-                      color: theme.textPrimary,
-                      fontSize: 14,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* New Password */}
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
-                    New Password (optional)
-                  </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Leave blank to keep current password"
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      borderRadius: 8,
-                      border: `1px solid ${theme.border}`,
-                      background: theme.background,
-                      color: theme.textPrimary,
-                      fontSize: 14,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Confirm New Password */}
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    disabled={!newPassword}
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      borderRadius: 8,
-                      border: `1px solid ${theme.border}`,
-                      background: newPassword ? theme.background : theme.cardBackground,
-                      color: theme.textPrimary,
-                      fontSize: 14,
-                      outline: "none",
-                      cursor: newPassword ? "text" : "not-allowed",
-                    }}
-                  />
-                </div>
-
-                {/* Save Button */}
-                <button
-                  onClick={saveAdminSettings}
-                  disabled={savingSettings || !currentPassword}
-                  style={{
-                    padding: "12px 24px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: savingSettings || !currentPassword
-                      ? "rgba(168, 85, 247, 0.3)"
-                      : "linear-gradient(135deg, #a855f7, #8b5cf6)",
-                    color: "#ffffff",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: savingSettings || !currentPassword ? "not-allowed" : "pointer",
-                    opacity: savingSettings || !currentPassword ? 0.5 : 1,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {savingSettings ? "Saving..." : "Save Changes"}
-                </button>
-
-                <p style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
-                  * Current password is required to make changes
-                </p>
+              <div className="space-y-3">
+                {loadingData ? (
+                  <div className="py-12 text-center text-slate-500 text-sm">Loading announcements…</div>
+                ) : announcements.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 text-sm">No announcements yet. Create the first one above.</div>
+                ) : announcements.map(a => (
+                  <div key={a.id} className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <h4 className="text-sm font-semibold text-white">{a.title}</h4>
+                          {a.type === 'info' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">Info</span>}
+                          {a.type === 'warning' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400">Warning</span>}
+                          {a.type === 'success' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Success</span>}
+                          {a.type === 'error' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Error</span>}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">{a.target_audience}</span>
+                          {a.is_active
+                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
+                            : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Inactive</span>}
+                        </div>
+                        <p className="text-sm text-slate-400 leading-relaxed">{a.message}</p>
+                        <p className="text-xs text-slate-600 mt-2">Created: {formatDate(a.created_at)}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button onClick={() => toggleAnnouncementStatus(a.id, a.is_active)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${a.is_active ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
+                          {a.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => deleteAnnouncement(a.id, a.title)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Owner Access Tab */}
-          {activeTab === 'owner-access' && (
-            <div style={{ padding: "40px", borderRadius: 16, background: theme.cardBackground, border: `1px solid ${theme.border}` }}>
-              <div style={{ marginBottom: 32 }}>
-                <h2 style={{ fontFamily: fonts.heading, fontSize: 24, marginBottom: 8, color: theme.textPrimary, display: "flex", alignItems: "center", gap: 12 }}>
-                  🔑 Owner Access — Gmail Login
-                </h2>
-                <p style={{ fontSize: 14, color: theme.textSecondary }}>
-                  Add Gmail addresses that can sign in to the owner dashboard. Each email must be linked to a café.
-                </p>
+          {/* ─── AUDIT LOGS TAB ─── */}
+          {activeTab === 'audit-logs' && (
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-800/60 border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Timestamp</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Action</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity ID</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {loadingData ? (
+                      <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">Loading audit logs…</td></tr>
+                    ) : auditLogs.length === 0 ? (
+                      <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No audit logs found</td></tr>
+                    ) : auditLogs.map(log => (
+                      <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="px-4 py-3.5 text-sm text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3.5 text-sm">
+                          {log.action === 'delete'
+                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Delete</span>
+                            : log.action === 'create'
+                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Create</span>
+                            : log.action === 'activate'
+                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Activate</span>
+                            : log.action === 'deactivate'
+                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Deactivate</span>
+                            : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">{log.action}</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-sm font-medium text-slate-200">{log.entity_type}</td>
+                        <td className="px-4 py-3.5 text-xs font-mono text-slate-500">{log.entity_id ? log.entity_id.substring(0,8)+'…' : '—'}</td>
+                        <td className="px-4 py-3.5 text-sm text-slate-400 max-w-[300px] truncate">{log.details ? JSON.stringify(log.details).substring(0,80)+'…' : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            </div>
+          )}
 
-              {/* Add new email form */}
-              <form onSubmit={handleAddOwnerEmail} style={{ marginBottom: 32, padding: 24, borderRadius: 12, background: "rgba(255,255,255,0.03)", border: `1px solid ${theme.border}` }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: theme.textPrimary, marginBottom: 16 }}>Add Authorized Email</h3>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {/* ─── COUPONS TAB ─── */}
+          {activeTab === 'coupons' && (
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-800/60 border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Code</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Discount</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Usage</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Valid Until</th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {loadingData ? (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">Loading coupons…</td></tr>
+                    ) : coupons.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">No coupons found across any café</td></tr>
+                    ) : coupons.map(coupon => {
+                      const isExpired = coupon.valid_until && new Date(coupon.valid_until) < new Date();
+                      const discountDisplay = coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : coupon.bonus_minutes > 0 ? `${coupon.bonus_minutes} mins FREE` : `₹${coupon.discount_value} OFF`;
+                      return (
+                        <tr key={coupon.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3.5 font-mono text-sm font-semibold text-white">{coupon.code}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{coupon.cafe_name}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${coupon.discount_type === 'percentage' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-blue-500/15 text-blue-400'}`}>
+                              {discountDisplay}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{coupon.uses_count} / {coupon.max_uses || '∞'}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{coupon.valid_until ? formatDate(coupon.valid_until) : 'No expiry'}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            {isExpired
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Expired</span>
+                              : coupon.is_active
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Inactive</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ─── SETTINGS TAB ─── */}
+          {activeTab === 'settings' && (
+            <div className="max-w-xl">
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-5">
+                <div>
+                  <h3 className="text-base font-semibold text-white">Admin Credentials</h3>
+                  <p className="text-xs text-slate-500 mt-1">Update your admin login username and password</p>
+                </div>
+
+                {settingsMessage && (
+                  <div className={`px-4 py-3 rounded-xl text-sm border ${settingsMessage.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                    {settingsMessage.text}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">Current Password *</label>
+                    <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
+                  </div>
+                  <div className="h-px bg-slate-800" />
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">New Username <span className="text-slate-600 normal-case font-normal">(optional)</span></label>
+                    <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Leave blank to keep current" className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">New Password <span className="text-slate-600 normal-case font-normal">(optional)</span></label>
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Leave blank to keep current" className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">Confirm Password</label>
+                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" disabled={!newPassword} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50 disabled:opacity-40 disabled:cursor-not-allowed" />
+                  </div>
+                  <button
+                    onClick={saveAdminSettings}
+                    disabled={savingSettings || !currentPassword}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {savingSettings ? 'Saving…' : 'Save Changes'}
+                  </button>
+                  <p className="text-xs text-slate-600">* Current password is required to make any changes</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── OWNER ACCESS TAB ─── */}
+          {activeTab === 'owner-access' && (
+            <div className="space-y-5 max-w-3xl">
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                <h3 className="text-sm font-semibold text-white mb-1">Authorize Gmail Account</h3>
+                <p className="text-xs text-slate-500 mb-4">Add a Google account that can sign in to the owner dashboard. Must be linked to a café.</p>
+                <form onSubmit={handleAddOwnerEmail} className="flex flex-wrap gap-3">
                   <input
                     type="email"
                     value={newOwnerEmail}
                     onChange={e => setNewOwnerEmail(e.target.value)}
                     placeholder="owner@gmail.com"
                     required
-                    style={{ flex: "1 1 220px", padding: "10px 14px", borderRadius: 8, border: `1px solid ${theme.border}`, background: "rgba(15,23,42,0.8)", color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                    className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                   />
                   <select
                     value={newOwnerCafeId}
                     onChange={e => setNewOwnerCafeId(e.target.value)}
                     required
-                    style={{ flex: "1 1 200px", padding: "10px 14px", borderRadius: 8, border: `1px solid ${theme.border}`, background: "rgba(15,23,42,0.8)", color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                    className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
                   >
                     <option value="">— Select Café —</option>
-                    {cafes.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {cafes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                  <button type="submit" style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #8b5cf6, #6366f1)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <button type="submit" className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors whitespace-nowrap">
                     + Add Email
                   </button>
-                </div>
+                </form>
                 {ownerEmailMsg && (
-                  <div style={{ marginTop: 12, fontSize: 13, color: ownerEmailMsg.type === 'success' ? '#22c55e' : '#ef4444' }}>
+                  <p className={`mt-3 text-xs font-medium ${ownerEmailMsg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                     {ownerEmailMsg.type === 'success' ? '✓' : '⚠'} {ownerEmailMsg.text}
-                  </div>
+                  </p>
                 )}
-              </form>
+              </div>
 
-              {/* Allowed emails list */}
-              {ownerEmailsLoading ? (
-                <div style={{ textAlign: "center", padding: 40, color: theme.textMuted }}>Loading…</div>
-              ) : ownerEmails.length === 0 ? (
-                <div style={{ textAlign: "center", padding: 40, color: theme.textMuted }}>
-                  No authorized emails yet. Add one above.
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-800">
+                  <h3 className="text-sm font-semibold text-white">Authorized Accounts</h3>
                 </div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${theme.border}` }}>
-                      {["Gmail Address", "Café", "Added By", "Status", ""].map(h => (
-                        <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ownerEmails.map(row => (
-                      <tr key={row.id} style={{ borderBottom: `1px solid rgba(51,65,85,0.3)` }}>
-                        <td style={{ padding: "12px", color: theme.textPrimary, fontSize: 14 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                            {row.email}
-                          </div>
-                        </td>
-                        <td style={{ padding: "12px", color: theme.textSecondary, fontSize: 14 }}>{(row as any).cafes?.name || row.cafe_id}</td>
-                        <td style={{ padding: "12px", color: theme.textMuted, fontSize: 13 }}>{row.added_by || '—'}</td>
-                        <td style={{ padding: "12px" }}>
-                          <span style={{ padding: "2px 8px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: row.active ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: row.active ? "#22c55e" : "#ef4444" }}>
-                            {row.active ? "Active" : "Disabled"}
-                          </span>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "right" }}>
-                          <button
-                            onClick={() => handleDeleteOwnerEmail(row.id)}
-                            style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: 12, cursor: "pointer" }}
-                          >
-                            Remove
-                          </button>
-                        </td>
+                {ownerEmailsLoading ? (
+                  <div className="py-10 text-center text-slate-500 text-sm">Loading…</div>
+                ) : ownerEmails.length === 0 ? (
+                  <div className="py-10 text-center text-slate-500 text-sm">No authorized emails yet. Add one above.</div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-800/40 border-b border-slate-800">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Gmail Address</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Status</th>
+                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {ownerEmails.map(row => (
+                        <tr key={row.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3.5 text-sm">
+                            <div className="flex items-center gap-2">
+                              <svg width="14" height="14" viewBox="0 0 24 24" className="shrink-0">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                              </svg>
+                              <span className="text-slate-200">{row.email}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{(row as any).cafes?.name || row.cafe_id}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            {row.active
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Disabled</span>}
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <button onClick={() => handleDeleteOwnerEmail(row.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/20">
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
         </div>
