@@ -19,6 +19,11 @@ interface BookingsManagementProps {
     onViewCustomer?: (customer: { name: string; phone?: string; email?: string }) => void;
     onPaymentModeChange?: (bookingId: string, mode: string) => Promise<void>;
     refreshTrigger?: number;
+    // Timer props for membership sub-tab
+    activeTimers?: Map<string, number>;
+    timerElapsed?: Map<string, number>;
+    onStartTimer?: (subscriptionId: string) => Promise<void>;
+    onStopTimer?: (subscriptionId: string) => Promise<void>;
 }
 
 function getDateRange(range: string, customStart: string, customEnd: string): { dateFrom: string; dateTo: string } {
@@ -40,7 +45,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
     return { dateFrom: '', dateTo: '' };
 }
 
-export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, isMobile, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger }: BookingsManagementProps) {
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [limit, setLimit] = useState(30);
@@ -232,14 +237,20 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Purchased</th>
                                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Expiry</th>
                                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Status</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/50">
                                     {subsLoading ? (
-                                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Loading…</td></tr>
+                                        <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">Loading…</td></tr>
                                     ) : filteredSubs.length === 0 ? (
-                                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No membership subscriptions found</td></tr>
-                                    ) : filteredSubs.map(s => (
+                                        <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No membership subscriptions found</td></tr>
+                                    ) : filteredSubs.map(s => {
+                                        const isRunning = activeTimers?.has(s.id) ?? false;
+                                        const elapsed = timerElapsed?.get(s.id) ?? 0;
+                                        const elapsedMins = Math.floor(elapsed / 60);
+                                        const elapsedSecs = elapsed % 60;
+                                        return (
                                         <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
                                             <td className="px-4 py-3.5">
                                                 <div className="font-semibold text-white">{s.customer_name || '—'}</div>
@@ -248,8 +259,12 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                             <td className="px-4 py-3.5 text-slate-300">{s.membership_plans?.name || '—'}</td>
                                             <td className="px-4 py-3.5 text-slate-400 uppercase text-xs">{s.membership_plans?.console_type || '—'}</td>
                                             <td className="px-4 py-3.5">
-                                                <div className="text-slate-300">{s.hours_remaining ?? '—'} / {s.hours_purchased ?? '—'} hrs</div>
-                                                {s.timer_active && <div className="text-xs text-emerald-400 mt-0.5">● Timer running</div>}
+                                                <div className="text-slate-300">{s.hours_remaining != null ? Number(s.hours_remaining).toFixed(2) : '—'} / {s.hours_purchased ?? '—'} hrs</div>
+                                                {isRunning && (
+                                                    <div className="text-xs text-emerald-400 mt-0.5 font-mono">
+                                                        ● {String(Math.floor(elapsed / 3600)).padStart(2, '0')}:{String(elapsedMins % 60).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3.5 font-semibold text-emerald-400">₹{(s.amount_paid ?? 0).toLocaleString()}</td>
                                             <td className="px-4 py-3.5 text-slate-400 text-xs">{s.purchase_date ? fmt(s.purchase_date) : '—'}</td>
@@ -259,8 +274,28 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                                     {s.status}
                                                 </span>
                                             </td>
+                                            <td className="px-4 py-3.5">
+                                                {isRunning ? (
+                                                    <button
+                                                        onClick={async () => { await onStopTimer?.(s.id); fetchSubscriptions(); }}
+                                                        className="px-3 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-semibold hover:bg-red-500/25 transition-colors"
+                                                    >
+                                                        Stop
+                                                    </button>
+                                                ) : s.status === 'active' ? (
+                                                    <button
+                                                        onClick={async () => { await onStartTimer?.(s.id); fetchSubscriptions(); }}
+                                                        className="px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold hover:bg-emerald-500/25 transition-colors"
+                                                    >
+                                                        Start
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-slate-600 text-xs">—</span>
+                                                )}
+                                            </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

@@ -1221,7 +1221,8 @@ export default function OwnerDashboardPage() {
               timer_active: false,
               timer_start_time: null,
               assigned_console_station: null,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
+              ...(subscription.membership_plans?.plan_type === 'day_pass' && { status: 'expired' }),
             },
             usageEntry: {
               session_date: getLocalDateString(),
@@ -1243,9 +1244,10 @@ export default function OwnerDashboardPage() {
         debugLog('[Timer] Database updated successfully');
 
         // Update local state
+        const isDayPass = subscription.membership_plans?.plan_type === 'day_pass';
         setSubscriptions(prev => prev.map(s =>
           s.id === subscriptionId
-            ? { ...s, hours_remaining: newHoursRemaining, timer_active: false, timer_start_time: null, assigned_console_station: null }
+            ? { ...s, hours_remaining: newHoursRemaining, timer_active: false, timer_start_time: null, assigned_console_station: null, ...(isDayPass && { status: 'expired' }) }
             : s
         ));
 
@@ -1305,11 +1307,40 @@ export default function OwnerDashboardPage() {
   // Restore active timers from database on mount or when subscriptions change
   useEffect(() => {
     debugLog('[Timer] Checking for active timers to restore...');
+    const todayStr = getLocalDateString();
     subscriptions.forEach(subscription => {
       // Check if this subscription has an active timer in the database
       if (subscription.timer_active && subscription.timer_start_time && !activeTimers.has(subscription.id) && (subscription.hours_remaining || 0) > 0) {
-        debugLog('[Timer] Restoring timer for subscription:', subscription.id);
+        const startDateStr = subscription.timer_start_time.slice(0, 10);
+        const isDayPass = subscription.membership_plans?.plan_type === 'day_pass';
 
+        // Day pass from a previous day — auto-expire instead of restoring
+        if (isDayPass && startDateStr < todayStr) {
+          debugLog('[Timer] Day pass from previous day, auto-expiring:', subscription.id);
+          fetch('/api/owner/subscriptions', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: subscription.id,
+              updates: {
+                timer_active: false,
+                timer_start_time: null,
+                assigned_console_station: null,
+                status: 'expired',
+                updated_at: new Date().toISOString(),
+              },
+            }),
+          }).then(() => {
+            setSubscriptions(prev => prev.map(s =>
+              s.id === subscription.id
+                ? { ...s, timer_active: false, timer_start_time: null, assigned_console_station: null, status: 'expired' }
+                : s
+            ));
+          }).catch(err => console.error('[Timer] Failed to auto-expire day pass:', err));
+          return;
+        }
+
+        debugLog('[Timer] Restoring timer for subscription:', subscription.id);
         const dbStartTime = new Date(subscription.timer_start_time).getTime();
 
         // Add to active timers
@@ -2098,6 +2129,10 @@ export default function OwnerDashboardPage() {
                 setViewOrdersModalOpen(true);
               }}
               onViewCustomer={handleViewCustomer}
+              activeTimers={activeTimers}
+              timerElapsed={timerElapsed}
+              onStartTimer={handleStartTimer}
+              onStopTimer={handleStopTimer}
             />
           )}
 

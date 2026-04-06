@@ -508,25 +508,6 @@ export function Memberships({
 
                                                 {/* Actions */}
                                                 <div className="flex items-center gap-2 md:justify-end md:w-auto">
-                                                    {isRunning ? (
-                                                        <Button
-                                                            variant="danger"
-                                                            size="sm"
-                                                            onClick={() => onStopTimer(sub.id)}
-                                                            className="flex-1 md:flex-none"
-                                                        >
-                                                            Stop
-                                                        </Button>
-                                                    ) : sub.status === 'active' ? (
-                                                        <Button
-                                                            variant="primary"
-                                                            size="sm"
-                                                            onClick={() => onStartTimer(sub.id)}
-                                                            className="flex-1 md:flex-none"
-                                                        >
-                                                            Start
-                                                        </Button>
-                                                    ) : null}
                                                     {sub.status === 'active' && sub.membership_plans?.plan_type !== 'day_pass' && (
                                                         <Button
                                                             variant="ghost"
