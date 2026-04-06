@@ -267,6 +267,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
             const res = await fetch('/api/owner/billing', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     booking: {
@@ -353,6 +354,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                     // Create subscription — day passes auto-start the timer
                     const subRes = await fetch('/api/owner/subscriptions', {
                         method: 'POST',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             cafe_id: cafeId,
@@ -375,8 +377,9 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
                     // Create companion booking record so it shows in the Bookings tab
                     const duration = isDayPass ? 1440 : (plan.hours || 1) * 60;
-                    await fetch('/api/owner/billing', {
+                    const bookingRes = await fetch('/api/owner/billing', {
                         method: 'POST',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             booking: {
@@ -401,6 +404,10 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                             }],
                         }),
                     });
+                    if (!bookingRes.ok) {
+                        const bookingErr = await bookingRes.json().catch(() => ({}));
+                        throw new Error(bookingErr.error || 'Failed to create membership booking record');
+                    }
                 }
             }
 

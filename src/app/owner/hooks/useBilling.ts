@@ -113,6 +113,7 @@ export function useBilling({
     try {
       const res = await fetch('/api/owner/billing', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           booking: {
