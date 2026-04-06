@@ -45,6 +45,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const [limit, setLimit] = useState(30);
     const [fetching, setFetching] = useState(false);
 
+    const [bookingSubTab, setBookingSubTab] = useState<'all' | 'normal' | 'membership'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateRange, setDateRange] = useState('all');
@@ -66,6 +67,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 page: '1',
                 pageSize: String(limit),
                 ...(statusFilter !== 'all' && { status: statusFilter }),
+                ...(bookingSubTab !== 'all' && { source: bookingSubTab }),
                 ...(search && { search }),
                 ...(dateFrom && { dateFrom }),
                 ...(dateTo && { dateTo }),
@@ -79,7 +81,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         } finally {
             setFetching(false);
         }
-    }, [cafeId, statusFilter, dateRange, customStart, customEnd, limit]);
+    }, [cafeId, statusFilter, bookingSubTab, dateRange, customStart, customEnd, limit]);
 
     // Re-fetch when filters change — don't clear selection so user can act across searches
     useEffect(() => {
@@ -135,6 +137,23 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
 
     return (
         <div className="space-y-4">
+            {/* Sub-tabs */}
+            <div className="flex gap-1 p-1 rounded-2xl bg-slate-900 border border-slate-800 w-fit">
+                {([
+                    { id: 'all', label: '📋 All Bookings' },
+                    { id: 'normal', label: '🎮 Normal' },
+                    { id: 'membership', label: '👑 Membership' },
+                ] as const).map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setBookingSubTab(tab.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${bookingSubTab === tab.id ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
             {/* Filters */}
             <Card padding="md" className="space-y-4">
                 <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">

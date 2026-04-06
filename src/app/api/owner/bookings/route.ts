@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const requestedSize = parseInt(searchParams.get("pageSize") || "30", 10);
     const PAGE_SIZE = ALLOWED_PAGE_SIZES.includes(requestedSize) ? requestedSize : 30;
     const status = searchParams.get("status") || "all";
+    const source = searchParams.get("source") || "all";
     const search = searchParams.get("search") || "";
     const dateFrom = searchParams.get("dateFrom") || "";
     const dateTo = searchParams.get("dateTo") || "";
@@ -53,6 +54,12 @@ export async function GET(request: NextRequest) {
 
     if (status !== "all") {
       query = query.eq("status", status);
+    }
+
+    if (source === "membership") {
+      query = query.eq("source", "membership");
+    } else if (source === "normal") {
+      query = query.neq("source", "membership");
     }
 
     if (dateFrom) query = query.gte("booking_date", dateFrom);
