@@ -1,3 +1,5 @@
+import { CONSOLE_DB_KEYS, type ConsoleId } from "@/lib/constants";
+
 // Helper functions for time conversion
 
 export const getLocalDateString = (date: Date = new Date()): string => {
@@ -118,6 +120,29 @@ export function normaliseConsoleType(raw: string): string {
     switch: 'nintendo_switch',
   };
   return aliases[s] ?? s;
+}
+
+type CafeConsoleCounts = {
+  ps5_count?: number | null;
+  ps4_count?: number | null;
+  xbox_count?: number | null;
+  pc_count?: number | null;
+  pool_count?: number | null;
+  arcade_count?: number | null;
+  snooker_count?: number | null;
+  vr_count?: number | null;
+  steering_wheel_count?: number | null;
+  racing_sim_count?: number | null;
+};
+
+export function getAvailableConsoleIds(cafe?: CafeConsoleCounts | null): ConsoleId[] {
+  if (!cafe) return [];
+
+  return (Object.keys(CONSOLE_DB_KEYS) as ConsoleId[]).filter((consoleId) => {
+    const countKey = CONSOLE_DB_KEYS[consoleId] as keyof CafeConsoleCounts;
+    const count = cafe[countKey];
+    return typeof count === "number" && count > 0;
+  });
 }
 
 // Helper function to get console icon

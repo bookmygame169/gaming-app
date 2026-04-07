@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   X, Save, Trash2, Clock, Calendar, User, Phone, CreditCard,
   Plus, Minus, ChevronDown, Loader2, UtensilsCrossed, Zap, AlertCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from '@/lib/constants';
+import { CONSOLE_DB_KEYS, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from '@/lib/constants';
 import { getEndTime } from '@/lib/timeUtils';
 import { BookingRow, CafeRow } from '../types';
+import { getAvailableConsoleIds, normaliseConsoleType } from '../utils';
 
 type EditItem = { id?: string; console: string; quantity: number; duration: number; price?: number };
 
@@ -96,6 +97,24 @@ export function EditBookingModal({
   const suggRef = useRef<HTMLDivElement>(null);
   const [endNowMsg, setEndNowMsg] = useState<string | null>(null);
 
+  const configuredConsoleOptions = useMemo(() => {
+    const configuredConsoleIds = new Set<ConsoleId>(getAvailableConsoleIds(cafe));
+    return CONSOLE_OPTIONS.filter((option) => configuredConsoleIds.has(option.id));
+  }, [cafe]);
+
+  const selectableConsoleOptions = useMemo(() => {
+    const allowedConsoleIds = new Set<ConsoleId>(configuredConsoleOptions.map((option) => option.id));
+
+    items.forEach((item) => {
+      const normalizedConsole = normaliseConsoleType(item.console);
+      if (normalizedConsole in CONSOLE_DB_KEYS) {
+        allowedConsoleIds.add(normalizedConsole as ConsoleId);
+      }
+    });
+
+    return CONSOLE_OPTIONS.filter((option) => allowedConsoleIds.has(option.id));
+  }, [configuredConsoleOptions, items]);
+
   const searchCustomers = useCallback(async (query: string) => {
     if (query.trim().length < 2) { setSuggestions([]); setShowSugg(false); return; }
     try {
@@ -140,11 +159,9 @@ export function EditBookingModal({
   }, []);
 
   const addItem = () => {
-    let defaultConsole: ConsoleId = 'ps5';
-    if (cafe) {
-      if (cafe.ps5_count) defaultConsole = 'ps5';
-      else if (cafe.pc_count) defaultConsole = 'pc';
-    }
+    const defaultConsole = configuredConsoleOptions[0]?.id;
+    if (!defaultConsole) return;
+
     setAmountManuallyEdited(false);
     setItems(prev => [...prev, { console: defaultConsole, quantity: 1, duration: duration || 60 }]);
   };
@@ -379,7 +396,7 @@ export function EditBookingModal({
                           onChange={e => { updateItem(idx, { console: e.target.value }); setAmountManuallyEdited(false); }}
                           className="w-full appearance-none px-2.5 py-2 pr-7 rounded-lg bg-slate-800 border border-slate-700/50 text-slate-200 text-xs font-medium focus:outline-none focus:border-purple-500/60 transition-colors cursor-pointer"
                         >
-                          {CONSOLE_OPTIONS.map(o => (
+                          {selectableConsoleOptions.map(o => (
                             <option key={o.id} value={o.id}>{o.icon} {o.label}</option>
                           ))}
                         </select>
@@ -446,9 +463,14 @@ export function EditBookingModal({
 
               <button
                 onClick={addItem}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-purple-500/30 text-purple-400 text-xs font-semibold hover:bg-purple-500/5 transition-colors"
+                disabled={configuredConsoleOptions.length === 0}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed text-xs font-semibold transition-colors ${
+                  configuredConsoleOptions.length === 0
+                    ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+                    : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/5'
+                }`}
               >
-                <Plus size={13} /> Add Console / Station
+                <Plus size={13} /> {configuredConsoleOptions.length === 0 ? 'No Stations Configured' : 'Add Console / Station'}
               </button>
             </div>
           </section>

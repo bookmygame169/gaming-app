@@ -18,7 +18,7 @@ import {
   PricingTier,
   BillingItem
 } from "./types";
-import { convertTo12Hour, getLocalDateString, normaliseConsoleType } from "./utils";
+import { convertTo12Hour, getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "./utils";
 import { theme } from "./utils/theme";
 import {
   Sidebar,
@@ -73,6 +73,10 @@ function normaliseOwnerPaymentMode(mode: string | null | undefined): string {
 function getAssignedStationFromItemTitle(title: string | null | undefined): string | null {
   const station = title?.split('|')[1]?.trim();
   return station ? station.toLowerCase() : null;
+}
+
+function getPreferredConsoleForCafe(cafe: CafeRow | null | undefined): ConsoleId {
+  return getAvailableConsoleIds(cafe)[0] || 'ps5';
 }
 
 
@@ -241,12 +245,8 @@ export default function OwnerDashboardPage() {
 
   // Helper functions for editing multiple items
   const addEditItem = () => {
-    let defaultConsole = "ps5";
     const cafe = cafes.find(c => c.id === (editingBooking?.cafe_id)) || (cafes.length > 0 ? cafes[0] : null);
-    if (cafe) {
-      if (cafe?.ps5_count && cafe.ps5_count > 0) defaultConsole = 'ps5';
-      else if (cafe?.pc_count && cafe.pc_count > 0) defaultConsole = 'pc';
-    }
+    const defaultConsole = getPreferredConsoleForCafe(cafe);
     setEditItems(prev => [...prev, { console: defaultConsole, quantity: 1, duration: editDuration || 60 }]);
     setEditAmountManuallyEdited(false);
   };
@@ -834,12 +834,8 @@ export default function OwnerDashboardPage() {
         };
       }));
     } else {
-      let defaultConsole = "ps5";
       const cafe = cafes.find(c => c.id === actualBooking.cafe_id) || currentCafe;
-      if (cafe) {
-        if (cafe?.ps5_count && cafe.ps5_count > 0) defaultConsole = 'ps5';
-        else if (cafe?.pc_count && cafe.pc_count > 0) defaultConsole = 'pc';
-      }
+      const defaultConsole = getPreferredConsoleForCafe(cafe);
       setEditItems([{ console: defaultConsole, quantity: 1, duration: actualBooking.duration || 60 }]);
     }
 
