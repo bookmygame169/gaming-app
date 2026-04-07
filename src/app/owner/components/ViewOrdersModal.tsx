@@ -2,7 +2,7 @@
 // Can be removed along with inventory feature
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { X, Trash2, Loader2, ShoppingBag, Package, Plus, Minus } from "lucide-react";
 import { BookingOrder, InventoryItem } from "@/types/inventory";
@@ -26,6 +26,11 @@ interface CartItem {
   quantity: number;
 }
 
+function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
+  const message = error?.message?.toLowerCase() || "";
+  return message.includes("bookings.updated_at") && message.includes("does not exist");
+}
+
 export default function ViewOrdersModal({
   isOpen,
   onClose,
@@ -42,16 +47,7 @@ export default function ViewOrdersModal({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && bookingId) {
-      loadOrders();
-      loadInventory();
-      setCart([]);
-      setShowAddSection(false);
-    }
-  }, [isOpen, bookingId]);
-
-  async function loadOrders(): Promise<BookingOrder[]> {
+  const loadOrders = useCallback(async (): Promise<BookingOrder[]> => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -70,7 +66,7 @@ export default function ViewOrdersModal({
     } finally {
       setLoading(false);
     }
-  }
+  }, [bookingId]);
 
   async function loadBookingUpdatedAt(): Promise<string | null> {
     const { data, error } = await supabase
@@ -80,14 +76,16 @@ export default function ViewOrdersModal({
       .single();
 
     if (error) {
-      console.error("Error fetching booking metadata:", error);
+      if (!isMissingBookingsUpdatedAtError(error)) {
+        console.error("Error fetching booking metadata:", error);
+      }
       return null;
     }
 
     return data?.updated_at ?? null;
   }
 
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("inventory_items")
@@ -102,7 +100,16 @@ export default function ViewOrdersModal({
     } catch (err) {
       console.error("Error loading inventory:", err);
     }
-  }
+  }, [cafeId]);
+
+  useEffect(() => {
+    if (isOpen && bookingId) {
+      loadOrders();
+      loadInventory();
+      setCart([]);
+      setShowAddSection(false);
+    }
+  }, [isOpen, bookingId, loadOrders, loadInventory]);
 
   async function handleRemoveOrder(order: BookingOrder) {
     if (!confirm(`Remove ${order.item_name} x${order.quantity} from this booking?`)) {

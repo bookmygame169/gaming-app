@@ -5,11 +5,31 @@ import { requireOwnerContext } from "@/lib/ownerAuth";
 export const dynamic = 'force-dynamic';
 
 type OwnerDataScope = "dashboard" | "full";
+type BookingQueryResult = {
+  count?: number | null;
+  data: any[] | null;
+  error: { message?: string | null } | null;
+};
 
 const DASHBOARD_BOOKING_LOOKBACK_DAYS = 7;
 const DASHBOARD_BOOKING_LIMIT = 300;
 const FULL_BOOKING_LIMIT = 500;
 const FULL_BOOKING_LOOKBACK_DAYS = 90;
+
+const BOOKING_SELECT_BASE = `
+  id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+  source, payment_mode, created_at, customer_name, customer_phone,
+  booking_items (id, console, quantity, price, title),
+  booking_orders (id, item_name, quantity, total_price)
+`;
+
+const BOOKING_SELECT_WITH_UPDATED_AT = `
+  id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+  updated_at,
+  source, payment_mode, created_at, customer_name, customer_phone,
+  booking_items (id, console, quantity, price, title),
+  booking_orders (id, item_name, quantity, total_price)
+`;
 
 function getIndiaDateString(date: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -35,6 +55,11 @@ function getIndiaDateDaysAgo(daysAgo: number): string {
   date.setUTCHours(12, 0, 0, 0);
   date.setUTCDate(date.getUTCDate() - daysAgo);
   return getIndiaDateString(date);
+}
+
+function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
+  const message = error?.message?.toLowerCase() || "";
+  return message.includes("bookings.updated_at") && message.includes("does not exist");
 }
 
 async function getRequestedScope(request: NextRequest): Promise<{ scope: OwnerDataScope; tab: string }> {
@@ -116,38 +141,37 @@ export async function POST(request: NextRequest) {
           .in("cafe_id", cafeIds)
       : Promise.resolve({ data: [], error: null });
 
-    const bookingsPromise =
-      isPricingOnlyTab
-        ? Promise.resolve({ data: [], error: null, count: null })
-        : scope === "full"
-        ? supabase
-            .from("bookings")
-            .select(`
-              id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
-              updated_at,
-              source, payment_mode, created_at, customer_name, customer_phone,
-              booking_items (id, console, quantity, price, title),
-              booking_orders (id, item_name, quantity, total_price)
-            `, { count: 'exact' })
-            .in("cafe_id", cafeIds)
-            .is("deleted_at", null)
-            .gte("booking_date", getIndiaDateDaysAgo(FULL_BOOKING_LOOKBACK_DAYS))
-            .order("created_at", { ascending: false })
-            .limit(FULL_BOOKING_LIMIT)
-        : supabase
-            .from("bookings")
-            .select(`
-              id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
-              updated_at,
-              source, payment_mode, created_at, customer_name, customer_phone,
-              booking_items (id, console, quantity, price, title),
-              booking_orders (id, item_name, quantity, total_price)
-            `)
-            .in("cafe_id", cafeIds)
-            .is("deleted_at", null)
-            .gte("booking_date", dashboardStartDate)
-            .order("created_at", { ascending: false })
-            .limit(DASHBOARD_BOOKING_LIMIT);
+    const loadBookings = async (includeUpdatedAt: boolean): Promise<BookingQueryResult> => {
+      if (isPricingOnlyTab) {
+        return { data: [], error: null, count: null };
+      }
+
+      const bookingSelect = includeUpdatedAt
+        ? BOOKING_SELECT_WITH_UPDATED_AT
+        : BOOKING_SELECT_BASE;
+
+      if (scope === "full") {
+        return supabase
+          .from("bookings")
+          .select(bookingSelect, { count: "exact" })
+          .in("cafe_id", cafeIds)
+          .is("deleted_at", null)
+          .gte("booking_date", getIndiaDateDaysAgo(FULL_BOOKING_LOOKBACK_DAYS))
+          .order("created_at", { ascending: false })
+          .limit(FULL_BOOKING_LIMIT);
+      }
+
+      return supabase
+        .from("bookings")
+        .select(bookingSelect)
+        .in("cafe_id", cafeIds)
+        .is("deleted_at", null)
+        .gte("booking_date", dashboardStartDate)
+        .order("created_at", { ascending: false })
+        .limit(DASHBOARD_BOOKING_LIMIT);
+    };
+
+    const bookingsPromise = loadBookings(true);
 
     const plansPromise = shouldLoadPricing
       ? supabase
@@ -193,7 +217,23 @@ export async function POST(request: NextRequest) {
       subscriptionsPromise
     ]);
 
-    if (bookingsRes.error) throw bookingsRes.error;
+    let bookingsResult: BookingQueryResult = bookingsRes;
+    if (isMissingBookingsUpdatedAtError(bookingsRes.error)) {
+      const fallbackBookingsRes = await loadBookings(false);
+      if (fallbackBookingsRes.error) {
+        throw fallbackBookingsRes.error;
+      }
+
+      bookingsResult = {
+        ...fallbackBookingsRes,
+        data: (fallbackBookingsRes.data || []).map((booking: any) => ({
+          ...booking,
+          updated_at: null,
+        })),
+      };
+    }
+
+    if (bookingsResult.error) throw bookingsResult.error;
 
     // Process Station Pricing
     const stationPricingMap: Record<string, any> = {};
@@ -221,7 +261,7 @@ export async function POST(request: NextRequest) {
     });
 
     // deleted_at now filtered in DB query — no need to filter in-process
-    let ownerBookings = bookingsRes.data || [];
+    let ownerBookings = bookingsResult.data || [];
     
     // Auto-complete logic for bookings — use India timezone to match booking_date/start_time
     const now = new Date();
@@ -303,7 +343,7 @@ export async function POST(request: NextRequest) {
       availableConsoleTypes: uniqueTypes,
       membershipPlans: plansRes.data || [],
       subscriptions: subscriptionsRes.data || [],
-      totalBookingsCount: scope === "full" ? (bookingsRes.count ?? enrichedBookings.length) : 0,
+      totalBookingsCount: scope === "full" ? (bookingsResult.count ?? enrichedBookings.length) : 0,
     });
   } catch (err: any) {
     console.error("Error loading owner data:", err);

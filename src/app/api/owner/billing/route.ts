@@ -8,6 +8,11 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
+  const message = error?.message?.toLowerCase() || "";
+  return message.includes("bookings.updated_at") && message.includes("does not exist");
+}
+
 function getItemDuration(item: { duration?: number; title?: string | null }): number | null {
   if (typeof item.duration === "number" && item.duration > 0) {
     return item.duration;
@@ -73,12 +78,18 @@ export async function PUT(request: NextRequest) {
 
     // Conflict detection: if caller provided a base updated_at, verify it hasn't changed
     if (updatedAtCheck) {
-      const { data: current } = await supabase
-        .from('bookings')
-        .select('updated_at')
-        .eq('id', bookingId)
+      const { data: currentVersionRow, error: versionError } = await supabase
+        .from("bookings")
+        .select("updated_at")
+        .eq("id", bookingId)
         .maybeSingle();
-      if (current?.updated_at && current.updated_at !== updatedAtCheck) {
+
+      if (versionError && !isMissingBookingsUpdatedAtError(versionError)) {
+        console.error("Error fetching booking version:", versionError);
+      }
+
+      const currentVersion = currentVersionRow?.updated_at ?? null;
+      if (currentVersion && currentVersion !== updatedAtCheck) {
         return NextResponse.json({ error: 'Conflict: booking was modified after you opened it' }, { status: 409 });
       }
     }
