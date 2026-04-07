@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
 
-import { getLocalDateString } from '../utils';
+import { getLocalDateString, normaliseConsoleType } from '../utils';
 import { calcBillingPrice } from '../utils/pricing';
 
 interface MembershipPlan {
@@ -48,6 +48,14 @@ type CustomerSuggestion = {
     phone: string;
 };
 
+type StationPricingRecord = {
+    cafe_id?: string | null;
+    station_name?: string | null;
+    station_type?: string | null;
+    station_number?: number | null;
+    is_active?: boolean | null;
+};
+
 export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembershipSuccess, pricingData, stationPricingList, membershipPlans = [] }: BillingProps) {
     // Mode: 'gaming' | 'membership'
     const [mode, setMode] = useState<'gaming' | 'membership'>('gaming');
@@ -81,6 +89,31 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
     // Station options per console type (e.g. ps5 → ['ps5-01','ps5-02'])
     const stationOptions = (consoleType: string): string[] => {
+        const normalizedConsoleType = normaliseConsoleType(consoleType);
+        const configuredStations = (stationPricingData || [])
+            .filter((station: StationPricingRecord) => {
+                if (!station.station_name) return false;
+                if (station.cafe_id && station.cafe_id !== cafeId) return false;
+                if (station.is_active === false) return false;
+
+                const normalizedStationType = normaliseConsoleType(
+                    station.station_type || station.station_name.split('-')[0] || ''
+                );
+
+                return normalizedStationType === normalizedConsoleType;
+            })
+            .sort((a: StationPricingRecord, b: StationPricingRecord) => {
+                const aNumber = a.station_number ?? Number.MAX_SAFE_INTEGER;
+                const bNumber = b.station_number ?? Number.MAX_SAFE_INTEGER;
+                if (aNumber !== bNumber) return aNumber - bNumber;
+                return (a.station_name || '').localeCompare(b.station_name || '');
+            })
+            .map((station: StationPricingRecord) => station.station_name as string);
+
+        if (configuredStations.length > 0) {
+            return configuredStations;
+        }
+
         const currentCafe = cafes.find(c => c.id === cafeId) || cafes[0];
         if (!currentCafe) return [];
         const countMap: Record<string, number> = {
@@ -144,17 +177,19 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
         [cafeId, pricing]
     );
 
+    const getEffectiveStationName = (consoleType: string, stationName?: string) => {
+        if (stationName) return stationName;
+        return stationOptions(consoleType)[0];
+    };
+
+    const calculatePrice = (type: string, qty: number, duration: number, stationName?: string) =>
+        calcBillingPrice(type, qty, duration, cafeId, consolePricingMap, stationPricingMap, {
+            stationName: getEffectiveStationName(type, stationName),
+        });
+
     useEffect(() => {
         setItems(prevItems => prevItems.map(item => {
-            const nextPrice = calcBillingPrice(
-                item.console,
-                item.quantity,
-                item.duration,
-                cafeId,
-                consolePricingMap,
-                stationPricingMap,
-                { stationName: item.station }
-            );
+            const nextPrice = calculatePrice(item.console, item.quantity, item.duration, item.station);
 
             return nextPrice === item.price ? item : { ...item, price: nextPrice };
         }));
@@ -174,10 +209,6 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             } catch {}
         }, 300);
     };
-
-    // Pricing Helper
-    const calculatePrice = (type: string, qty: number, duration: number, stationName?: string) =>
-        calcBillingPrice(type, qty, duration, cafeId, consolePricingMap, stationPricingMap, { stationName });
 
     // Item Management
     const addItem = () => {
