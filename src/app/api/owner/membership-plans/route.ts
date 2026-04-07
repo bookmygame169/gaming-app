@@ -118,21 +118,10 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Membership plan not found" }, { status: 404 });
   }
 
-  // Block deletion if any active subscriptions still reference this plan
-  const { count } = await supabase
-    .from('subscriptions')
-    .select('id', { count: 'exact', head: true })
-    .eq('membership_plan_id', id)
-    .eq('status', 'active');
-
-  if (count && count > 0) {
-    return NextResponse.json(
-      { error: `Cannot delete: ${count} active subscription${count > 1 ? 's' : ''} still use this plan.` },
-      { status: 409 }
-    );
-  }
-
-  const { error } = await supabase.from('membership_plans').delete().eq('id', id);
+  const { error } = await supabase
+    .from('membership_plans')
+    .update({ is_active: false })
+    .eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

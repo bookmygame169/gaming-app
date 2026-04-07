@@ -63,6 +63,18 @@ const debugLog = (...args: unknown[]) => {
   }
 };
 
+const DIGITAL_PAYMENT_MODES = new Set(['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card']);
+
+function normaliseOwnerPaymentMode(mode: string | null | undefined): string {
+  const normalized = mode?.toLowerCase() || '';
+  return DIGITAL_PAYMENT_MODES.has(normalized) ? 'upi' : 'cash';
+}
+
+function getAssignedStationFromItemTitle(title: string | null | undefined): string | null {
+  const station = title?.split('|')[1]?.trim();
+  return station ? station.toLowerCase() : null;
+}
+
 
 
 
@@ -586,6 +598,55 @@ export default function OwnerDashboardPage() {
     }
   }, [editItems, editDuration, editingBooking, editAmountManuallyEdited, getBillingPrice]);
 
+  const handleOrdersUpdated = ({
+    amountDelta,
+    bookingId,
+    orders,
+    updatedAt,
+  }: {
+    amountDelta: number;
+    bookingId: string;
+    orders: any[];
+    updatedAt: string | null;
+  }) => {
+    const safeDelta = Number.isFinite(amountDelta) ? amountDelta : 0;
+
+    refreshData();
+    setBookingsMgmtRefreshKey(k => k + 1);
+
+    setBookings(prev => prev.map((booking: any) => {
+      if (booking.id !== bookingId && booking.originalBookingId !== bookingId) {
+        return booking;
+      }
+
+      return {
+        ...booking,
+        booking_orders: orders,
+        total_amount: Math.max(0, (Number(booking.total_amount) || 0) + safeDelta),
+        ...(updatedAt ? { updated_at: updatedAt } : {}),
+      };
+    }));
+
+    if (editingBooking?.id === bookingId) {
+      setEditingBooking(prev => (
+        prev && prev.id === bookingId
+          ? {
+              ...prev,
+              booking_orders: orders,
+              total_amount: Math.max(0, (Number(prev.total_amount) || 0) + safeDelta),
+              ...(updatedAt ? { updated_at: updatedAt } : {}),
+            }
+          : prev
+      ));
+      setEditAmount(prev => {
+        const current = Number(prev);
+        if (Number.isNaN(current)) return prev;
+        return Math.max(0, current + safeDelta).toString();
+      });
+      if (updatedAt) setEditConflictBase(updatedAt);
+    }
+  };
+
 
   // Handle confirm booking (pending -> confirmed)
   async function handleConfirmBooking(booking: BookingRow) {
@@ -618,12 +679,13 @@ export default function OwnerDashboardPage() {
   async function handlePaymentModeChange(bookingId: string, mode: string) {
     const booking = bookings.find(b => b.id === bookingId) as any;
     const trueBookingId = booking?.originalBookingId || (bookingId.includes('-item-') ? bookingId.split('-item-')[0] : bookingId);
+    const normalizedMode = normaliseOwnerPaymentMode(mode);
     const prevMode = booking?.payment_mode;
 
     // Optimistic update — avoids waiting for the full refreshData round-trip
     setBookings(prev => prev.map((b: any) => {
       if (b.id === bookingId || b.originalBookingId === trueBookingId) {
-        return { ...b, payment_mode: mode };
+        return { ...b, payment_mode: normalizedMode };
       }
       return b;
     }));
@@ -632,7 +694,7 @@ export default function OwnerDashboardPage() {
       const res = await fetch('/api/owner/billing', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: trueBookingId, booking: { payment_mode: mode } }),
+        body: JSON.stringify({ bookingId: trueBookingId, booking: { payment_mode: normalizedMode } }),
       });
 
       if (!res.ok) {
@@ -749,15 +811,14 @@ export default function OwnerDashboardPage() {
     setEditAmount(actualBooking.total_amount?.toString() || "");
     setEditAmountManuallyEdited(true); // Preserve DB amount on open; set to false when user changes items
     setEditStatus(actualBooking.status || "confirmed");
-    setEditPaymentMethod(actualBooking.payment_mode || "cash");
+    setEditPaymentMethod(normaliseOwnerPaymentMode(actualBooking.payment_mode));
     setEditCustomerName(actualBooking.user_name || actualBooking.customer_name || "");
     setEditCustomerPhone(actualBooking.user_phone || actualBooking.customer_phone || "");
     setEditDate(actualBooking.booking_date || "");
     setEditDuration(actualBooking.duration || 60);
     if (actualBooking.booking_items && actualBooking.booking_items.length > 0) {
       setEditItems(actualBooking.booking_items.map(item => {
-        let consoleType = item.console || "";
-        if (consoleType === 'steering') consoleType = 'steering_wheel';
+        const consoleType = normaliseConsoleType(item.console || "") || "ps5";
         
         // Try to get duration from title (stored as string like "60")
         let itemDuration = actualBooking.duration || 60;
@@ -814,12 +875,17 @@ export default function OwnerDashboardPage() {
   async function handleSaveBooking() {
     if (!editingBooking) return;
 
+    const isAppBooking = !!editingBooking.user_id;
+    const sanitizedCustomerName = editCustomerName.trim() || null;
+    const sanitizedCustomerPhone = editCustomerPhone.trim() || null;
+    const normalizedPaymentMode = normaliseOwnerPaymentMode(editPaymentMethod);
+
     // Client-side validation
-    if (!editCustomerName.trim()) {
+    if (!isAppBooking && !sanitizedCustomerName) {
       toast.error('Customer name is required.');
       return;
     }
-    if (editCustomerPhone && !/^\+?\d[\d\s\-()]{7,14}$/.test(editCustomerPhone)) {
+    if (sanitizedCustomerPhone && !/^\+?\d[\d\s\-()]{7,14}$/.test(sanitizedCustomerPhone)) {
       toast.error('Invalid phone number format.');
       return;
     }
@@ -875,9 +941,9 @@ export default function OwnerDashboardPage() {
           booking: {
             total_amount: updatedAmount,
             status: editStatus,
-            payment_mode: editPaymentMethod,
-            customer_name: editCustomerName,
-            customer_phone: editCustomerPhone,
+            payment_mode: normalizedPaymentMode,
+            customer_name: sanitizedCustomerName,
+            customer_phone: sanitizedCustomerPhone,
             booking_date: editDate,
             start_time: startTime12h,
             duration: editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0),
@@ -920,11 +986,11 @@ export default function OwnerDashboardPage() {
               ...b,
               total_amount: parseFloat(editAmount),
               status: editStatus,
-              payment_mode: editPaymentMethod,
-              customer_name: editCustomerName,
-              customer_phone: editCustomerPhone,
-              user_name: editCustomerName,
-              user_phone: editCustomerPhone,
+              payment_mode: normalizedPaymentMode,
+              customer_name: sanitizedCustomerName,
+              customer_phone: sanitizedCustomerPhone,
+              user_name: sanitizedCustomerName ?? b.user_name ?? b.customer_name,
+              user_phone: sanitizedCustomerPhone ?? b.user_phone ?? b.customer_phone,
               booking_date: editDate,
               start_time: startTime12h,
               duration: editItems.reduce((max, item) => Math.max(max, item.duration || 60), 0),
@@ -1635,7 +1701,9 @@ export default function OwnerDashboardPage() {
     // Warn if powering off a station with an active session
     if (!isCurrentlyOff) {
       const hasActiveSession = bookings.some(
-        b => b.status === 'in-progress' && b.booking_items?.some(bi => bi.title === stationName)
+        b => b.status === 'in-progress' && b.booking_items?.some(
+          (bi: any) => getAssignedStationFromItemTitle(bi.title) === stationName.toLowerCase()
+        )
       );
       if (hasActiveSession) {
         toast.warning(`Station "${stationName}" has an active session — powering off anyway.`);
@@ -2450,9 +2518,7 @@ export default function OwnerDashboardPage() {
         bookingId={viewOrdersBookingId}
         cafeId={currentCafeId}
         customerName={viewOrdersCustomerName}
-        onOrdersUpdated={() => {
-          refreshData();
-        }}
+        onOrdersUpdated={handleOrdersUpdated}
       />
 
       {/* Session Ended Popup */}
@@ -2485,7 +2551,7 @@ export default function OwnerDashboardPage() {
           onEndNow={handleEndSessionNow}
           onManageSnacks={() => {
             setViewOrdersBookingId(editingBooking.id);
-            setViewOrdersCustomerName(editingBooking.customer_name || '');
+            setViewOrdersCustomerName(editingBooking.customer_name || editingBooking.user_name || editCustomerName || 'Guest');
             setViewOrdersModalOpen(true);
           }}
           cafe={cafes.find(c => c.id === editingBooking.cafe_id) || currentCafe}

@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
 import { Card, StatusBadge, Button } from './ui';
-import { Search, ChevronLeft, ChevronRight, X, Check, CheckCircle, ShoppingBag } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, CheckCircle, ShoppingBag } from 'lucide-react';
 
 interface BookingsTableProps {
     bookings: any[];
@@ -45,7 +46,7 @@ export function BookingsTable({
     const itemsPerPage = 10;
 
     // Filter logic
-    let filteredBookings = bookings.filter((booking) => {
+    const filteredBookings = bookings.filter((booking) => {
         const matchesSearch =
             (booking.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
             (booking.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
@@ -93,6 +94,11 @@ export function BookingsTable({
         }
         // If it's already HH:MM format, try to format nicely
         return timeString;
+    };
+
+    const isDigitalPaymentMode = (mode: string | null | undefined) => {
+        const normalized = mode?.toLowerCase() || '';
+        return ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'].includes(normalized);
     };
 
     return (
@@ -180,7 +186,8 @@ export function BookingsTable({
                                                 onChange={(e) => {
                                                     e.stopPropagation();
                                                     const next = new Set(selectedIds);
-                                                    e.target.checked ? next.add(booking.id) : next.delete(booking.id);
+                                                    if (e.target.checked) next.add(booking.id);
+                                                    else next.delete(booking.id);
                                                     onSelectionChange!(next);
                                                 }}
                                             />
@@ -293,11 +300,11 @@ export function BookingsTable({
                                                             Cash
                                                         </button>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'online'); }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'online' || booking.payment_mode === 'paytm' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                                                            title="Set Paytm/Online"
+                                                            onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
+                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                                                            title="Set UPI/Digital"
                                                         >
-                                                            Paytm
+                                                            UPI
                                                         </button>
                                                     </div>
                                                 )}
@@ -405,10 +412,10 @@ export function BookingsTable({
                                                     Cash
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'online'); }}
-                                                    className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'online' || booking.payment_mode === 'paytm' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400'}`}
+                                                    onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
+                                                    className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400'}`}
                                                 >
-                                                    Paytm
+                                                    UPI
                                                 </button>
                                             </div>
                                         )}

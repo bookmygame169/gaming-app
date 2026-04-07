@@ -264,6 +264,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             const period = hours >= 12 ? 'pm' : 'am';
             const displayHours = hours % 12 || 12;
             const startTime12h = `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
+            const bookingDuration = items.reduce((max, item) => Math.max(max, item.duration || 60), 0) || 60;
 
             const res = await fetch('/api/owner/billing', {
                 method: 'POST',
@@ -276,7 +277,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                         customer_phone: customerPhone || null,
                         booking_date: bookingDate,
                         start_time: startTime12h,
-                        duration: items[0].duration,
+                        duration: bookingDuration,
                         total_amount: totalAmount,
                         status: 'in-progress',
                         source: 'walk-in',
@@ -400,7 +401,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                 quantity: 1,
                                 duration,
                                 price: amountPerUnit,
-                                title: plan.name,
+                                title: String(duration),
                             }],
                         }),
                     });

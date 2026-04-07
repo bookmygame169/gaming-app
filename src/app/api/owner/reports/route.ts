@@ -6,6 +6,36 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+type BookingRow = {
+  id: string;
+  total_amount: number;
+  created_at?: string;
+  booking_date: string;
+  status: string;
+  payment_mode: string;
+  start_time?: string;
+  customer_name?: string;
+  source?: string;
+  booking_items?: Array<{ console: string; quantity: number; price?: number }>;
+};
+
+type BookingOrderRow = {
+  booking_id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+};
+
+type SubscriptionRow = {
+  id: string;
+  amount_paid: number | string;
+  purchase_date: string;
+  payment_mode?: string | null;
+  customer_name?: string | null;
+  membership_plans?: { name?: string | null } | null;
+};
+
 const getIndiaDateString = (date: Date = new Date()): string => {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -60,16 +90,16 @@ export async function POST(request: NextRequest) {
     // Fetch booking_orders for ALL bookings in the period — not just snack-only ones.
     // A gaming session can also have F&B orders; we need those to correctly split
     // gaming vs snack revenue (total_amount includes both on such bookings).
-    const allBookingIds = (currentData || []).map((b: any) => b.id);
+    const allBookingIds = ((currentData || []) as BookingRow[]).map((b) => b.id);
 
-    let snackOrdersMap: Record<string, any[]> = {};
+    const snackOrdersMap: Record<string, BookingOrderRow[]> = {};
     if (allBookingIds.length > 0) {
       const { data: ordersData } = await supabase
         .from('booking_orders')
         .select('booking_id, item_name, quantity, unit_price, total_price')
         .in('booking_id', allBookingIds);
 
-      (ordersData || []).forEach((o: any) => {
+      ((ordersData || []) as BookingOrderRow[]).forEach((o) => {
         if (!snackOrdersMap[o.booking_id]) snackOrdersMap[o.booking_id] = [];
         snackOrdersMap[o.booking_id].push({
           item_name: o.item_name,
@@ -81,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Attach booking_orders to each booking row
-    const enrichedCurrentData = (currentData || []).map((b: any) => ({
+    const enrichedCurrentData = ((currentData || []) as BookingRow[]).map((b) => ({
       ...b,
       booking_orders: snackOrdersMap[b.id] || [],
     }));
@@ -102,7 +132,6 @@ export async function POST(request: NextRequest) {
       .from('subscriptions')
       .select('id, amount_paid, purchase_date, payment_mode, customer_name, membership_plans(name)')
       .eq('cafe_id', cafeId)
-      .eq('status', 'active')
       .is('deleted_at', null)
       .gte('purchase_date', `${startDate}T00:00:00+05:30`)
       .lte('purchase_date', `${endDate}T23:59:59+05:30`);
@@ -116,7 +145,6 @@ export async function POST(request: NextRequest) {
       .from('subscriptions')
       .select('id, amount_paid, purchase_date, payment_mode')
       .eq('cafe_id', cafeId)
-      .eq('status', 'active')
       .is('deleted_at', null)
       .gte('purchase_date', `${prevStartDate}T00:00:00+05:30`)
       .lte('purchase_date', `${prevEndDate}T23:59:59+05:30`);
@@ -126,7 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map subscriptions to look like bookings
-    const formattedCurrentSubscriptions = (currentSubscriptions || []).map((sub: any) => ({
+    const formattedCurrentSubscriptions = ((currentSubscriptions || []) as SubscriptionRow[]).map((sub) => ({
       id: `sub_${sub.id}`,
       total_amount: sub.amount_paid ? parseFloat(sub.amount_paid) : 0,
       created_at: sub.purchase_date,
@@ -144,7 +172,7 @@ export async function POST(request: NextRequest) {
       }]
     }));
 
-    const formattedPrevSubscriptions = (prevSubscriptions || []).map((sub: any) => ({
+    const formattedPrevSubscriptions = ((prevSubscriptions || []) as SubscriptionRow[]).map((sub) => ({
       id: `sub_${sub.id}`,
       total_amount: sub.amount_paid ? parseFloat(sub.amount_paid) : 0,
       booking_date: sub.purchase_date.split('T')[0],
@@ -162,8 +190,9 @@ export async function POST(request: NextRequest) {
       currentBookings: combinedCurrentData,
       previousBookings: combinedPrevData,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch reports" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to fetch reports";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -208,7 +237,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ bookings: data || [] });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch peak hours data" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to fetch peak hours data";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

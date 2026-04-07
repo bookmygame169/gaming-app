@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { Trash2, RotateCcw, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import { Card, Button } from './ui';
+import { Card } from './ui';
 
 type DeletedBooking = {
   id: string;
@@ -54,8 +54,8 @@ export function DeletedBookingsPanel() {
         setBookings(prev => [...prev, ...(data.deletedBookings || [])]);
       }
       setHasMore(data.hasMore ?? false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -80,8 +80,9 @@ export function DeletedBookingsPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setBookings(prev => prev.filter(b => b.id !== bookingId));
-    } catch (err: any) {
-      alert(`Failed to restore: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to restore: ${message}`);
     } finally {
       setActionId(null);
     }
@@ -101,7 +102,7 @@ export function DeletedBookingsPanel() {
             </div>
             <div className="text-left">
               <div className="text-sm font-semibold text-slate-200">Deleted Bookings</div>
-              <div className="text-xs text-slate-500">Bookings removed by you — restore within 60 days</div>
+              <div className="text-xs text-slate-500">Bookings removed by you — restore anytime from here</div>
             </div>
             {bookings.length > 0 && (
               <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">
@@ -123,7 +124,7 @@ export function DeletedBookingsPanel() {
               <div className="p-4 border-b border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-slate-400">
                   <AlertTriangle size={14} className="text-amber-400" />
-                  <span>Deleted bookings are kept for 60 days before being auto-purged</span>
+                  <span>Deleted bookings stay hidden from the main list until you restore or permanently remove them.</span>
                 </div>
                 <button
                   onClick={() => fetchDeleted()}

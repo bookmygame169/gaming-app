@@ -13,7 +13,12 @@ interface ViewOrdersModalProps {
   bookingId: string;
   cafeId: string;
   customerName: string;
-  onOrdersUpdated: () => void;
+  onOrdersUpdated: (payload: {
+    amountDelta: number;
+    bookingId: string;
+    orders: BookingOrder[];
+    updatedAt: string | null;
+  }) => void;
 }
 
 interface CartItem {
@@ -46,7 +51,7 @@ export default function ViewOrdersModal({
     }
   }, [isOpen, bookingId]);
 
-  async function loadOrders() {
+  async function loadOrders(): Promise<BookingOrder[]> {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -56,12 +61,30 @@ export default function ViewOrdersModal({
         .order("ordered_at", { ascending: false });
 
       if (error) throw error;
-      setOrders(data || []);
+      const nextOrders = data || [];
+      setOrders(nextOrders);
+      return nextOrders;
     } catch (err) {
       console.error("Error loading orders:", err);
+      return [];
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadBookingUpdatedAt(): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("updated_at")
+      .eq("id", bookingId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching booking metadata:", error);
+      return null;
+    }
+
+    return data?.updated_at ?? null;
   }
 
   async function loadInventory() {
@@ -121,16 +144,35 @@ export default function ViewOrdersModal({
         .single();
 
       if (booking) {
+        const currentAmount = Number(booking.total_amount) || 0;
+        const amountDelta = Number(order.total_price) || 0;
         await supabase
           .from("bookings")
-          .update({ total_amount: (booking.total_amount || 0) - order.total_price })
+          .update({ total_amount: Math.max(0, currentAmount - amountDelta) })
           .eq("id", bookingId);
+
+        const latestOrders = await loadOrders();
+        await loadInventory();
+        const updatedAt = await loadBookingUpdatedAt();
+        onOrdersUpdated({
+          amountDelta: -amountDelta,
+          bookingId,
+          orders: latestOrders,
+          updatedAt,
+        });
+        return;
       }
 
       // Refresh orders list and inventory
-      await loadOrders();
+      const latestOrders = await loadOrders();
       await loadInventory();
-      onOrdersUpdated();
+      const updatedAt = await loadBookingUpdatedAt();
+      onOrdersUpdated({
+        amountDelta: -(Number(order.total_price) || 0),
+        bookingId,
+        orders: latestOrders,
+        updatedAt,
+      });
     } catch (err) {
       console.error("Error removing order:", err);
       alert("Failed to remove item. Please try again.");
@@ -265,9 +307,15 @@ export default function ViewOrdersModal({
       // Clear cart, refresh orders and inventory
       setCart([]);
       setShowAddSection(false);
-      await loadOrders();
+      const latestOrders = await loadOrders();
       await loadInventory();
-      onOrdersUpdated();
+      const updatedAt = await loadBookingUpdatedAt();
+      onOrdersUpdated({
+        amountDelta: totalToAdd,
+        bookingId,
+        orders: latestOrders,
+        updatedAt,
+      });
     } catch (err) {
       console.error("Error adding items:", err);
       alert("Failed to add items. Please try again.");

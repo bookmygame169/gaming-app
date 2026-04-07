@@ -5,6 +5,19 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_PAGE_SIZES = [10, 30, 50, 100];
 
+type OwnedCafeRecord = { id: string };
+type BookingListRecord = {
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  user_id?: string | null;
+} & Record<string, unknown>;
+type ProfileRecord = {
+  first_name: string | null;
+  id: string;
+  last_name: string | null;
+  phone: string | null;
+};
+
 // GET /api/owner/bookings — paginated, server-side filtered bookings for the Bookings tab
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +43,7 @@ export async function GET(request: NextRequest) {
       .select("id")
       .eq("owner_id", ownerId);
 
-    const ownedCafeIds = (cafes || []).map((c: any) => c.id);
+    const ownedCafeIds = ((cafes || []) as OwnedCafeRecord[]).map((c) => c.id);
     if (ownedCafeIds.length === 0) {
       return NextResponse.json({ bookings: [], total: 0, page, pageSize: PAGE_SIZE });
     }
@@ -45,6 +58,7 @@ export async function GET(request: NextRequest) {
       .from("bookings")
       .select(`
         id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+        updated_at,
         source, payment_mode, created_at, customer_name, customer_phone, deleted_at,
         booking_items (id, console, quantity, price, title),
         booking_orders (id, item_name, quantity, total_price)
@@ -78,16 +92,47 @@ export async function GET(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    const bookings = (data || []) as BookingListRecord[];
+    const userIds = [...new Set(bookings.map((booking) => booking.user_id).filter((userId): userId is string => Boolean(userId)))];
+    const userProfiles = new Map<string, { name: string | null; phone: string | null }>();
+
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, phone")
+        .in("id", userIds);
+
+      if (profilesError) {
+        return NextResponse.json({ error: profilesError.message }, { status: 500 });
+      }
+
+      (profiles as ProfileRecord[] | null)?.forEach((profile) => {
+        const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || null;
+        userProfiles.set(profile.id, { name: fullName, phone: profile.phone || null });
+      });
+    }
+
+    const enrichedBookings = bookings.map((booking) => {
+      const userProfile = booking.user_id ? userProfiles.get(booking.user_id) : null;
+      return {
+        ...booking,
+        user_name: userProfile?.name || booking.customer_name || null,
+        user_email: null,
+        user_phone: userProfile?.phone || booking.customer_phone || null,
+      };
+    });
+
     return NextResponse.json({
-      bookings: data || [],
+      bookings: enrichedBookings,
       total: count ?? 0,
       page,
       pageSize: PAGE_SIZE,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error fetching paginated bookings:", err);
+    const message = err instanceof Error ? err.message : "Failed to fetch bookings";
     return NextResponse.json(
-      { error: err.message || "Failed to fetch bookings" },
+      { error: message },
       { status: 500 }
     );
   }

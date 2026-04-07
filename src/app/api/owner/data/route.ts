@@ -124,8 +124,9 @@ export async function POST(request: NextRequest) {
             .from("bookings")
             .select(`
               id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+              updated_at,
               source, payment_mode, created_at, customer_name, customer_phone,
-              booking_items (id, console, quantity, price),
+              booking_items (id, console, quantity, price, title),
               booking_orders (id, item_name, quantity, total_price)
             `, { count: 'exact' })
             .in("cafe_id", cafeIds)
@@ -137,8 +138,9 @@ export async function POST(request: NextRequest) {
             .from("bookings")
             .select(`
               id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status,
+              updated_at,
               source, payment_mode, created_at, customer_name, customer_phone,
-              booking_items (id, console, quantity, price),
+              booking_items (id, console, quantity, price, title),
               booking_orders (id, item_name, quantity, total_price)
             `)
             .in("cafe_id", cafeIds)
@@ -262,11 +264,10 @@ export async function POST(request: NextRequest) {
           .then(({ error }) => { if (error) console.error('Auto-complete bookings failed:', error.message); });
     }
 
-    // Profiles enrichment: only for full scope (dashboard uses customer_name directly)
-    // Skipping this sequential DB call on dashboard shaves ~100-300ms per refresh
+    // Profiles enrichment keeps online bookings editable across dashboard and bookings views.
     const userProfiles = new Map();
 
-    if (scope === "full" && !isBookingsOnlyTab && !isPricingOnlyTab) {
+    if (!isPricingOnlyTab) {
       const userIds = [...new Set(ownerBookings.map((b: any) => b.user_id).filter(Boolean))];
       if (userIds.length > 0) {
         const { data: profiles } = await supabase

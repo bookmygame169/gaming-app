@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   X, Plus, Minus, ShoppingCart, Search, Loader2, Check,
-  Coffee, Cookie, Gift, GlassWater, Banknote, Smartphone, User, Lock, AlertCircle, ChevronRight,
+  Coffee, Cookie, Gift, GlassWater, Banknote, Smartphone, User, Lock, ChevronRight,
 } from "lucide-react";
 import { InventoryItem, InventoryCategory, CartItem, CATEGORY_LABELS } from "@/types/inventory";
 
@@ -41,35 +41,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
 
   // Owner-use state
   const [isOwnerUse, setIsOwnerUse] = useState(false);
-  const [showPinPrompt, setShowPinPrompt] = useState(false);
-  const [pin, setPin] = useState(["", "", "", ""]);
-  const [pinError, setPinError] = useState("");
-  const pinRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
 
-  useEffect(() => {
-    if (isOpen) {
-      loadInventory();
-      setCart([]);
-      setSearchQuery("");
-      setCustomerName("");
-      setCustomerPhone("");
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setPaymentMode("cash");
-      setDone(false);
-      setIsOwnerUse(false);
-      setShowPinPrompt(false);
-      setPin(["", "", "", ""]);
-      setPinError("");
-    }
-  }, [isOpen, cafeId]);
-
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -87,7 +60,22 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
     } finally {
       setLoading(false);
     }
-  }
+  }, [cafeId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadInventory();
+      setCart([]);
+      setSearchQuery("");
+      setCustomerName("");
+      setCustomerPhone("");
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setPaymentMode("cash");
+      setDone(false);
+      setIsOwnerUse(false);
+    }
+  }, [isOpen, loadInventory]);
 
   const searchCustomers = useCallback(async (query: string) => {
     if (query.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
@@ -192,36 +180,13 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
   const cartTotal = cart.reduce((s, c) => s + c.total_price, 0);
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
 
-  // PIN input handlers
-  function handlePinChange(index: number, value: string) {
-    if (!/^\d?$/.test(value)) return;
-    const next = [...pin];
-    next[index] = value;
-    setPin(next);
-    setPinError("");
-    if (value && index < 3) pinRefs[index + 1].current?.focus();
-  }
-
-  function handlePinKeyDown(index: number, e: React.KeyboardEvent) {
-    if (e.key === "Backspace" && !pin[index] && index > 0) {
-      pinRefs[index - 1].current?.focus();
-    }
-  }
-
   // Confirm sale button clicked
   function handleConfirmClick() {
     if (cart.length === 0) return;
-    if (isOwnerUse) {
-      setShowPinPrompt(true);
-      setPin(["", "", "", ""]);
-      setPinError("");
-      setTimeout(() => pinRefs[0].current?.focus(), 50);
-    } else {
-      submitSale();
-    }
+    submitSale();
   }
 
-  async function submitSale(ownerPin?: string) {
+  async function submitSale() {
     setSaving(true);
     try {
       const res = await fetch("/api/owner/snack-sale", {
@@ -233,7 +198,6 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
           customerPhone: isOwnerUse ? null : (customerPhone.trim() || null),
           paymentMode: isOwnerUse ? "owner" : paymentMode,
           isOwnerUse,
-          ownerPin: ownerPin || null,
           items: cart.map((c) => ({
             inventory_item_id: c.inventory_item_id,
             name: c.name,
@@ -245,16 +209,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
       });
       const data = await res.json();
       if (!res.ok) {
-        if (data.error === "Invalid PIN") {
-          setPinError("Incorrect PIN. Try again.");
-          setPin(["", "", "", ""]);
-          setTimeout(() => pinRefs[0].current?.focus(), 50);
-          setSaving(false);
-          return;
-        }
         throw new Error(data.error || "Failed");
       }
-      setShowPinPrompt(false);
       setDone(true);
       setTimeout(() => {
         onSaleComplete();
@@ -265,15 +221,6 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
     } finally {
       setSaving(false);
     }
-  }
-
-  function handlePinSubmit() {
-    const entered = pin.join("");
-    if (entered.length < 4) {
-      setPinError("Enter all 4 digits.");
-      return;
-    }
-    submitSale(entered);
   }
 
   if (!isOpen) return null;
@@ -547,75 +494,13 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
               >
                 {done ? <><Check size={14} /> Saved!</>
                   : saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-                  : isOwnerUse ? <><Lock size={14} /> Confirm + PIN</>
+                  : isOwnerUse ? <><Lock size={14} /> Confirm Owner Use</>
                   : "Confirm Sale"}
               </button>
             </div>
           </div>
         </div>
       </div>
-
-      {/* PIN Prompt Overlay */}
-      {showPinPrompt && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-xs rounded-2xl bg-slate-900 border border-purple-500/30 shadow-2xl p-6">
-            <div className="flex flex-col items-center text-center mb-5">
-              <div className="w-12 h-12 rounded-full bg-purple-500/15 flex items-center justify-center mb-3">
-                <Lock size={20} className="text-purple-400" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-100">Owner PIN Required</h3>
-              <p className="text-xs text-slate-500 mt-1">Enter your 4-digit PIN to confirm owner use</p>
-            </div>
-
-            {/* 4-digit PIN boxes */}
-            <div className="flex justify-center gap-3 mb-4">
-              {pin.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={pinRefs[i]}
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={e => handlePinChange(i, e.target.value)}
-                  onKeyDown={e => handlePinKeyDown(i, e)}
-                  className={`w-12 h-12 text-center text-xl font-bold rounded-xl border bg-slate-800 text-slate-100 focus:outline-none transition-all ${
-                    pinError
-                      ? 'border-red-500/60 focus:border-red-500'
-                      : digit
-                      ? 'border-purple-500/60'
-                      : 'border-slate-600/50 focus:border-purple-500/60'
-                  }`}
-                />
-              ))}
-            </div>
-
-            {pinError && (
-              <div className="flex items-center justify-center gap-1.5 mb-4 text-xs text-red-400">
-                <AlertCircle size={12} />
-                {pinError}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setShowPinPrompt(false); setPinError(""); }}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 border border-slate-600/40 text-sm text-slate-400 hover:text-slate-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePinSubmit}
-                disabled={saving || pin.join("").length < 4}
-                className="flex-1 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

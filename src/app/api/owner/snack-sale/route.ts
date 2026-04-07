@@ -3,9 +3,6 @@ import { requireOwnerContext } from "@/lib/ownerAuth";
 
 export const dynamic = "force-dynamic";
 
-// PIN stored server-side only — never sent to client
-const OWNER_SNACK_PIN = "8178";
-
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireOwnerContext(request);
@@ -13,17 +10,10 @@ export async function POST(request: NextRequest) {
     const { supabase } = auth.context;
 
     const body = await request.json();
-    const { cafeId, customerName, customerPhone, paymentMode, isOwnerUse, ownerPin, items } = body;
+    const { cafeId, customerName, customerPhone, paymentMode, isOwnerUse, items } = body;
 
     if (!cafeId || !items?.length) {
       return NextResponse.json({ error: "cafeId and items are required" }, { status: 400 });
-    }
-
-    // Validate owner PIN server-side
-    if (isOwnerUse) {
-      if (!ownerPin || ownerPin !== OWNER_SNACK_PIN) {
-        return NextResponse.json({ error: "Invalid PIN" }, { status: 403 });
-      }
     }
 
     const now = new Date();

@@ -8,6 +8,49 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function getItemDuration(item: { duration?: number; title?: string | null }): number | null {
+  if (typeof item.duration === "number" && item.duration > 0) {
+    return item.duration;
+  }
+
+  const parsedTitleDuration = parseInt(item.title || "", 10);
+  return Number.isNaN(parsedTitleDuration) || parsedTitleDuration <= 0
+    ? null
+    : parsedTitleDuration;
+}
+
+function deriveBookingDuration(
+  items: Array<{ duration?: number; title?: string | null }> | undefined,
+  fallback?: number
+): number {
+  const maxItemDuration = (items || []).reduce((max, item) => {
+    const duration = getItemDuration(item);
+    return duration ? Math.max(max, duration) : max;
+  }, 0);
+
+  if (maxItemDuration > 0) return maxItemDuration;
+  if (typeof fallback === "number" && fallback > 0) return fallback;
+  return 60;
+}
+
+function normalizeBookingItemTitle(item: { duration?: number; title?: string | null }): string {
+  if (item.title?.trim()) {
+    return item.title.trim();
+  }
+
+  const duration = getItemDuration(item);
+  return String(duration || 60);
+}
+
+type BookingItemPayload = {
+  id?: string;
+  console: string;
+  quantity: number;
+  price: number;
+  title?: string | null;
+  duration?: number;
+};
+
 // PUT /api/owner/billing — update booking + optional booking_item or items array
 export async function PUT(request: NextRequest) {
   try {
@@ -70,7 +113,7 @@ export async function PUT(request: NextRequest) {
       const itemIdsToDelete = dbItemIds.filter(id => !itemIdsToKeep.includes(id));
 
       // 2. Upsert (update existing + insert new) BEFORE deleting — if this fails, nothing is lost
-      const itemResults = await Promise.all(items.map((it: any) => {
+      const itemResults = await Promise.all(items.map((it: BookingItemPayload) => {
         if (it.id) {
           return supabase
             .from("booking_items")
@@ -121,9 +164,10 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error updating booking:", err);
-    return NextResponse.json({ error: err.message || "Failed to update booking" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to update booking";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -136,7 +180,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { ownerId, supabase } = auth.context;
-    const { bookingId, bookingItemIds, specificItemId, newTotalAmount, deleted_remark } = await request.json();
+    const { bookingId, specificItemId, newTotalAmount, deleted_remark } = await request.json();
 
     if (!bookingId) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
@@ -198,9 +242,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error deleting booking:", err);
-    return NextResponse.json({ error: err.message || "Failed to delete booking" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to delete booking";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -228,27 +273,33 @@ export async function POST(request: NextRequest) {
     return accessResponse;
   }
 
+  const resolvedDuration = deriveBookingDuration(items, booking.duration);
+
   const { data: newBooking, error: bookingError } = await supabase
     .from('bookings')
-    .insert(booking)
+    .insert({ ...booking, duration: resolvedDuration })
     .select()
     .single();
 
   if (bookingError) return NextResponse.json({ error: bookingError.message }, { status: 500 });
 
   if (items && items.length > 0) {
-    const itemsToInsert = items.map((item: any) => ({
+    const itemsToInsert = items.map((item: BookingItemPayload) => ({
       booking_id: newBooking.id,
       console: item.console,
       quantity: item.quantity,
       price: item.price,
+      title: normalizeBookingItemTitle(item),
     }));
 
     const { error: itemsError } = await supabase
       .from('booking_items')
       .insert(itemsToInsert);
 
-    if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    if (itemsError) {
+      await supabase.from('bookings').delete().eq('id', newBooking.id);
+      return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ success: true, bookingId: newBooking.id });

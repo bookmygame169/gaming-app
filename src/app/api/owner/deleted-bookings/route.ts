@@ -82,8 +82,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-const OWNER_PIN = "8178";
-
 // DELETE /api/owner/deleted-bookings — permanently delete a soft-deleted booking
 export async function DELETE(request: NextRequest) {
   try {
@@ -91,11 +89,7 @@ export async function DELETE(request: NextRequest) {
     if (auth.response) return auth.response;
 
     const { ownerId, supabase } = auth.context;
-    const { bookingId, ownerPin } = await request.json();
-
-    if (!ownerPin || ownerPin !== OWNER_PIN) {
-      return NextResponse.json({ error: "Invalid PIN" }, { status: 403 });
-    }
+    const { bookingId } = await request.json();
 
     if (!bookingId) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
@@ -125,7 +119,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Hard-delete booking_items first, then the booking
-    await supabase.from("booking_items").delete().eq("booking_id", bookingId);
+    const { error: itemsDeleteError } = await supabase
+      .from("booking_items")
+      .delete()
+      .eq("booking_id", bookingId);
+
+    if (itemsDeleteError) {
+      return NextResponse.json({ error: itemsDeleteError.message }, { status: 500 });
+    }
 
     const { error } = await supabase.from("bookings").delete().eq("id", bookingId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -179,7 +180,7 @@ export async function PATCH(request: NextRequest) {
     // Restore: clear deleted_at
     const { error } = await supabase
       .from("bookings")
-      .update({ deleted_at: null })
+      .update({ deleted_at: null, deleted_remark: null })
       .eq("id", bookingId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

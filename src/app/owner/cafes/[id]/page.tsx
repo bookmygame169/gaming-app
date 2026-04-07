@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import useUser from "@/hooks/useUser";
+import { useOwnerAuth } from "@/app/owner/hooks/useOwnerAuth";
 import { colors, fonts } from "@/lib/constants";
 
 type CafeFormData = {
@@ -66,11 +66,10 @@ const CONSOLE_TYPES = [
 export default function OwnerCafeEditPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: userLoading } = useUser();
+  const { allowed, checkingRole } = useOwnerAuth();
   const cafeId = params?.id;
 
-  const [checkingAccess, setCheckingAccess] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,60 +111,57 @@ export default function OwnerCafeEditPage() {
   const [newImageUrl, setNewImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Check if user owns this cafe
+  // Load cafe data via owner-authenticated API routes
   useEffect(() => {
-    async function checkAccess() {
-      if (userLoading || !cafeId) return;
+    if (checkingRole || !allowed || !cafeId) return;
 
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      try {
-        const { data: cafe, error } = await supabase
-          .from("cafes")
-          .select("owner_id")
-          .eq("id", cafeId)
-          .single();
-
-        if (error) throw error;
-
-        if (cafe.owner_id !== user.id) {
-          setError("You don't have permission to edit this café");
-          setHasAccess(false);
-        } else {
-          setHasAccess(true);
-        }
-      } catch (err) {
-        console.error("Error checking access:", err);
-        setError("Could not verify café ownership");
-        setHasAccess(false);
-      } finally {
-        setCheckingAccess(false);
-      }
-    }
-
-    checkAccess();
-  }, [user, userLoading, cafeId, router]);
-
-  // Load cafe data
-  useEffect(() => {
-    if (!hasAccess || !cafeId) return;
+    let cancelled = false;
 
     async function loadData() {
       try {
         setLoading(true);
         setError(null);
+        setHasAccess(null);
 
-        // Load cafe details
-        const { data: cafe, error: cafeError } = await supabase
-          .from("cafes")
-          .select("*")
-          .eq("id", cafeId)
-          .single();
+        const [cafeRes, pricingRes, imagesRes] = await Promise.all([
+          fetch(`/api/owner/cafes?cafeId=${encodeURIComponent(cafeId)}`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+          fetch(`/api/owner/console-pricing?cafeId=${encodeURIComponent(cafeId)}`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+          fetch(`/api/owner/cafe-images?cafeId=${encodeURIComponent(cafeId)}`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+        ]);
 
-        if (cafeError) throw cafeError;
+        const [cafePayload, pricingPayload, imagesPayload] = await Promise.all([
+          cafeRes.json().catch(() => ({})),
+          pricingRes.json().catch(() => ({})),
+          imagesRes.json().catch(() => ({})),
+        ]);
+
+        if (!cafeRes.ok) {
+          if (!cancelled) {
+            setHasAccess(false);
+            setError(cafePayload.error || "Could not verify café ownership");
+          }
+          return;
+        }
+
+        if (!pricingRes.ok) {
+          throw new Error(pricingPayload.error || "Could not load console pricing");
+        }
+
+        if (!imagesRes.ok) {
+          throw new Error(imagesPayload.error || "Could not load café images");
+        }
+
+        const cafe = cafePayload.cafe;
+        if (cancelled) return;
 
         if (cafe) {
           setFormData({
@@ -198,37 +194,28 @@ export default function OwnerCafeEditPage() {
             show_tech_specs: cafe.show_tech_specs || false,
           });
         }
-
-        // Load console pricing
-        const { data: pricing, error: pricingError } = await supabase
-          .from("console_pricing")
-          .select("*")
-          .eq("cafe_id", cafeId);
-
-        if (!pricingError && pricing) {
-          setConsolePricing(pricing as ConsolePricing[]);
-        }
-
-        // Load cafe images
-        const { data: images, error: imagesError } = await supabase
-          .from("cafe_images")
-          .select("*")
-          .eq("cafe_id", cafeId)
-          .order("id", { ascending: true });
-
-        if (!imagesError && images) {
-          setCafeImages(images as CafeImage[]);
-        }
+        setConsolePricing((pricingPayload.pricing || []) as ConsolePricing[]);
+        setCafeImages((imagesPayload.images || []) as CafeImage[]);
+        setHasAccess(true);
       } catch (err) {
         console.error("Error loading data:", err);
-        setError((err instanceof Error ? err.message : String(err)) || "Could not load café details");
+        if (!cancelled) {
+          setHasAccess((prev) => prev ?? true);
+          setError((err instanceof Error ? err.message : String(err)) || "Could not load café details");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     loadData();
-  }, [hasAccess, cafeId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allowed, checkingRole, cafeId]);
 
   // Save cafe details
   async function handleSaveDetails() {
@@ -239,12 +226,17 @@ export default function OwnerCafeEditPage() {
       setError(null);
       setSuccessMessage(null);
 
-      const { error } = await supabase
-        .from("cafes")
-        .update(formData)
-        .eq("id", cafeId);
+      const response = await fetch("/api/owner/cafes", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cafeId, updates: formData }),
+      });
+      const result = await response.json().catch(() => ({}));
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to save changes");
+      }
 
       setSuccessMessage("Café details updated successfully!");
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -271,39 +263,27 @@ export default function OwnerCafeEditPage() {
     );
 
     try {
-      if (existing) {
-        // Update existing
-        const { error } = await supabase
-          .from("console_pricing")
-          .update({ price })
-          .eq("cafe_id", cafeId)
-          .eq("console_type", consoleType)
-          .eq("quantity", quantity)
-          .eq("duration_minutes", duration);
+      const response = await fetch("/api/owner/console-pricing", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cafeId, consoleType, quantity, duration, price }),
+      });
+      const result = await response.json().catch(() => ({}));
 
-        if (error) throw error;
-
-        setConsolePricing((prev) =>
-          prev.map((p) =>
-            p.console_type === consoleType && p.quantity === quantity && p.duration_minutes === duration
-              ? { ...p, price }
-              : p
-          )
-        );
-      } else {
-        // Insert new
-        const { error } = await supabase.from("console_pricing").insert({
-          cafe_id: cafeId,
-          console_type: consoleType,
-          quantity,
-          duration_minutes: duration,
-          price,
-        });
-
-        if (error) throw error;
-
-        setConsolePricing((prev) => [...prev, { console_type: consoleType, quantity, duration_minutes: duration, price }]);
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update pricing");
       }
+
+      setConsolePricing((prev) =>
+        existing
+          ? prev.map((p) =>
+              p.console_type === consoleType && p.quantity === quantity && p.duration_minutes === duration
+                ? { ...p, price }
+                : p
+            )
+          : [...prev, { console_type: consoleType, quantity, duration_minutes: duration, price }]
+      );
 
       setSuccessMessage("Pricing updated!");
       setTimeout(() => setSuccessMessage(null), 2000);
@@ -340,28 +320,32 @@ export default function OwnerCafeEditPage() {
 
       // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
-        .from("cafe-images")
-        .upload(fileName, file);
+        .from("cafe_images")
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from("cafe-images")
+        .from("cafe_images")
         .getPublicUrl(fileName);
 
       const imageUrl = urlData.publicUrl;
 
       // Save to database
-      const { data, error } = await supabase
-        .from("cafe_images")
-        .insert({ cafe_id: cafeId, image_url: imageUrl })
-        .select()
-        .single();
+      const response = await fetch("/api/owner/cafe-images", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cafeId, imageUrl }),
+      });
+      const result = await response.json().catch(() => ({}));
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to upload image");
+      }
 
-      setCafeImages((prev) => [...prev, data as CafeImage]);
+      setCafeImages((prev) => [...prev, result.image as CafeImage]);
       setSuccessMessage("Image uploaded successfully!");
       setTimeout(() => setSuccessMessage(null), 2000);
 
@@ -380,15 +364,19 @@ export default function OwnerCafeEditPage() {
     if (!newImageUrl || !cafeId) return;
 
     try {
-      const { data, error } = await supabase
-        .from("cafe_images")
-        .insert({ cafe_id: cafeId, image_url: newImageUrl })
-        .select()
-        .single();
+      const response = await fetch("/api/owner/cafe-images", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cafeId, imageUrl: newImageUrl }),
+      });
+      const result = await response.json().catch(() => ({}));
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to add image");
+      }
 
-      setCafeImages((prev) => [...prev, data as CafeImage]);
+      setCafeImages((prev) => [...prev, result.image as CafeImage]);
       setNewImageUrl("");
       setSuccessMessage("Image added successfully!");
       setTimeout(() => setSuccessMessage(null), 2000);
@@ -403,12 +391,17 @@ export default function OwnerCafeEditPage() {
     if (!cafeId) return;
 
     try {
-      const { error } = await supabase
-        .from("cafes")
-        .update({ cover_url: imageUrl })
-        .eq("id", cafeId);
+      const response = await fetch("/api/owner/cafes", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cafeId, updates: { cover_url: imageUrl } }),
+      });
+      const result = await response.json().catch(() => ({}));
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update cover photo");
+      }
 
       setFormData((prev) => ({ ...prev, cover_url: imageUrl }));
       setSuccessMessage("Cover photo updated!");
@@ -424,9 +417,17 @@ export default function OwnerCafeEditPage() {
     if (!confirm("Are you sure you want to delete this image?")) return;
 
     try {
-      const { error } = await supabase.from("cafe_images").delete().eq("id", imageId);
+      const response = await fetch("/api/owner/cafe-images", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageId }),
+      });
+      const result = await response.json().catch(() => ({}));
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete image");
+      }
 
       setCafeImages((prev) => prev.filter((img) => img.id !== imageId));
       setSuccessMessage("Image deleted successfully!");
@@ -438,7 +439,7 @@ export default function OwnerCafeEditPage() {
   }
 
   // Loading state
-  if (checkingAccess || userLoading || loading) {
+  if (checkingRole || loading || hasAccess === null) {
     return (
       <div
         style={{
@@ -456,7 +457,7 @@ export default function OwnerCafeEditPage() {
   }
 
   // Access denied
-  if (!hasAccess) {
+  if (hasAccess === false) {
     return (
       <div
         style={{
