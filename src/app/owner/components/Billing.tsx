@@ -514,7 +514,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                     <div className="flex flex-col sm:flex-row gap-3">
                         {lastBooking.phone ? (
                             <a
-                                href={buildWhatsAppUrl(lastBooking.phone, buildBookingTicketMessage(lastBooking))}
+                                href={buildWhatsAppUrl(lastBooking.phone, buildBookingTicketMessage({ customerName: lastBooking.name, cafeName: lastBooking.cafeName, date: lastBooking.date, startTime: lastBooking.time, duration: lastBooking.duration, itemsLabel: lastBooking.itemsLabel, totalAmount: lastBooking.amount, paymentMode: lastBooking.paymentMode }))}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#25D366] hover:bg-[#20b558] text-white rounded-xl font-semibold transition-colors"
