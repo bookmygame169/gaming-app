@@ -110,7 +110,7 @@ export function convertTo12Hour(timeStr?: string | null): string {
  */
 export function normaliseConsoleType(raw: string): string {
   if (!raw) return raw;
-  const s = raw.trim().toLowerCase().replace(/\s+/g, '_');
+  const s = raw.trim().toLowerCase().replace(/[\s-]+/g, '_');
   // Map known aliases to canonical keys
   const aliases: Record<string, string> = {
     steering_wheel: 'steering',

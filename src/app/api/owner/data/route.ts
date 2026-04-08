@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
+import { buildStationPricingMap, dedupeStationPricingRows } from "@/lib/stationNames";
 
 export const dynamic = 'force-dynamic';
 
@@ -236,13 +237,10 @@ export async function POST(request: NextRequest) {
     if (bookingsResult.error) throw bookingsResult.error;
 
     // Process Station Pricing
-    const stationPricingMap: Record<string, any> = {};
     const uniqueTypes: string[] = [];
-    const sortedStations = [...(stationPricingRes.data || [])].sort(
-      (a: any, b: any) => (a.station_number || 0) - (b.station_number || 0)
-    );
-    stationPricingRes.data?.forEach((pricing: any) => {
-      stationPricingMap[pricing.station_name] = pricing;
+    const sortedStations = dedupeStationPricingRows((stationPricingRes.data || []) as any[]);
+    const stationPricingMap = buildStationPricingMap(sortedStations);
+    sortedStations.forEach((pricing: any) => {
       if (!uniqueTypes.includes(pricing.station_type)) uniqueTypes.push(pricing.station_type);
     });
 

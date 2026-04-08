@@ -10,6 +10,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { fonts, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from "@/lib/constants";
+import { buildStationPricingMap } from "@/lib/stationNames";
 import { getEndTime } from "@/lib/timeUtils";
 import {
   CafeRow,
@@ -3383,11 +3384,7 @@ export default function OwnerDashboardPage() {
                         .eq("cafe_id", currentCafeId);
 
                       if (updatedPricing) {
-                        const pricingMap: Record<string, any> = {};
-                        updatedPricing.forEach((pricing: any) => {
-                          pricingMap[pricing.station_name] = pricing;
-                        });
-                        setStationPricing(pricingMap);
+                        setStationPricing(buildStationPricingMap(updatedPricing as any[]));
                       }
 
                       const successMsg = applyToAll

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { CONSOLE_LABELS } from '@/lib/constants';
+import { dedupeStationPricingRows, formatStationOptionLabel, normaliseStationName } from '@/lib/stationNames';
 import { Card, Button, Input, Select, StatusBadge, LoadingSpinner } from './ui';
 import {
     User, Smartphone, Calendar, Clock, Plus, Trash2, X,
@@ -54,6 +55,8 @@ type StationPricingRecord = {
     station_type?: string | null;
     station_number?: number | null;
     is_active?: boolean | null;
+    created_at?: string | null;
+    updated_at?: string | null;
 };
 
 export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembershipSuccess, pricingData, stationPricingList, membershipPlans = [] }: BillingProps) {
@@ -87,10 +90,15 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     const [showSuggestions, setShowSuggestions] = useState(false);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const normalizedStationPricing = useMemo(
+        () => dedupeStationPricingRows((stationPricingData || []) as StationPricingRecord[]),
+        [stationPricingData]
+    );
+
     // Station options per console type (e.g. ps5 → ['ps5-01','ps5-02'])
     const stationOptions = (consoleType: string): string[] => {
         const normalizedConsoleType = normaliseConsoleType(consoleType);
-        const configuredStations = (stationPricingData || [])
+        const configuredStations = normalizedStationPricing
             .filter((station: StationPricingRecord) => {
                 if (!station.station_name) return false;
                 if (station.cafe_id && station.cafe_id !== cafeId) return false;
@@ -108,10 +116,11 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                 if (aNumber !== bNumber) return aNumber - bNumber;
                 return (a.station_name || '').localeCompare(b.station_name || '');
             })
-            .map((station: StationPricingRecord) => station.station_name as string);
+            .map((station: StationPricingRecord) => normaliseStationName(station.station_name, station.station_type, station.station_number))
+            .filter(Boolean);
 
         if (configuredStations.length > 0) {
-            return configuredStations;
+            return Array.from(new Set(configuredStations));
         }
 
         const currentCafe = cafes.find(c => c.id === cafeId) || cafes[0];
@@ -124,8 +133,8 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             steering: (currentCafe as any).steering_wheel_count || 0,
             racing_sim: (currentCafe as any).racing_sim_count || 0,
         };
-        const count = countMap[consoleType.toLowerCase()] || 0;
-        return Array.from({ length: count }, (_, i) => `${consoleType}-${String(i + 1).padStart(2, '0')}`);
+        const count = countMap[normalizedConsoleType] || 0;
+        return Array.from({ length: count }, (_, i) => `${normalizedConsoleType}-${String(i + 1).padStart(2, '0')}`);
     };
 
     // Initialize time and available consoles
@@ -168,8 +177,8 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     }, [stationPricingList]);
 
     const stationPricingMap = useMemo(
-        () => Object.fromEntries((stationPricingData || []).map((station: any) => [station.station_name, station])),
-        [stationPricingData]
+        () => Object.fromEntries(normalizedStationPricing.map((station) => [station.station_name, station])),
+        [normalizedStationPricing]
     );
 
     const consolePricingMap = useMemo(
@@ -178,7 +187,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     );
 
     const getEffectiveStationName = (consoleType: string, stationName?: string) => {
-        if (stationName) return stationName;
+        if (stationName) return normaliseStationName(stationName);
         return stationOptions(consoleType)[0];
     };
 
@@ -235,7 +244,10 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     const updateItem = (id: string, field: keyof BillingItem, value: any) => {
         setItems(items.map(item => {
             if (item.id === id) {
-                const updated = { ...item, [field]: value };
+                const nextValue = field === 'station'
+                    ? (value ? normaliseStationName(String(value)) : undefined)
+                    : value;
+                const updated = { ...item, [field]: nextValue };
 
                 if (field === 'console' && updated.station && !stationOptions(String(value)).includes(updated.station)) {
                     updated.station = undefined;
@@ -503,7 +515,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                                 <Select
                                                     label="Station"
                                                     value={item.station || ''}
-                                                    options={[{ value: '', label: 'Any' }, ...stationOptions(item.console).map(s => ({ value: s, label: s.toUpperCase() }))]}
+                                                    options={[{ value: '', label: 'Any' }, ...stationOptions(item.console).map(s => ({ value: s, label: formatStationOptionLabel(s) }))]}
                                                     onChange={(val) => updateItem(item.id, 'station', val)}
                                                     disabled={!canPickSingleStation(item.console, item.quantity)}
                                                 />

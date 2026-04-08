@@ -1,5 +1,6 @@
 import { PricingTier } from '../types';
 import { normaliseConsoleType } from './index';
+import { dedupeStationPricingRows, normaliseStationName } from '@/lib/stationNames';
 
 type StationPricingRecord = {
   cafe_id?: string | null;
@@ -73,11 +74,14 @@ function getStationPricingCandidate(
   stationPricing: StationPricingMap,
   stationName?: string | null
 ): StationPricingRecord | null {
-  const pricingRows = (Object.values(stationPricing) as StationPricingRecord[])
+  const pricingRows = dedupeStationPricingRows(Object.values(stationPricing) as StationPricingRecord[])
     .filter((row) => !row.cafe_id || row.cafe_id === cafeId);
 
-  if (stationName) {
-    const exactMatch = pricingRows.find((row) => row.station_name === stationName);
+  const normalizedStationName = normaliseStationName(stationName);
+  if (normalizedStationName) {
+    const exactMatch = pricingRows.find(
+      (row) => normaliseStationName(row.station_name, row.station_type, row.station_number) === normalizedStationName
+    );
     if (exactMatch && getNormalizedStationType(exactMatch) === normType) {
       return exactMatch;
     }
