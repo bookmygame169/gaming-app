@@ -18,6 +18,7 @@ interface DashboardBooking {
   booking_date?: string | null;
   payment_mode?: string | null;
   status?: string | null;
+  source?: string | null;
   total_amount?: number | null;
   booking_items?: Array<{ id: string; console?: string | null }> | null;
   booking_orders?: Array<{ id: string; quantity?: number | null; total_price: number | null }>;
