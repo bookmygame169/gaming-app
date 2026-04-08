@@ -348,7 +348,8 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             setBookingDate(getLocalDateString());
             const now = new Date();
             setStartTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
-            if (onSuccess) onSuccess();
+            // Don't call onSuccess here — wait for user to click "New Booking"
+            // so the success card stays visible for WhatsApp sending
 
         } catch (error: any) {
             console.error('Booking failed:', error);
@@ -528,7 +529,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                             </div>
                         )}
                         <button
-                            onClick={() => setLastBooking(null)}
+                            onClick={() => { setLastBooking(null); onSuccess?.(); }}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold transition-colors"
                         >
                             + New Booking
