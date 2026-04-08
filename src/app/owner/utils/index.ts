@@ -168,3 +168,55 @@ export function getConsoleIcon(consoleType: string): string {
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const getTimezoneOffset = (_date?: Date): string => '+05:30';
+
+// ── WhatsApp ticket helpers ──────────────────────────────────────────────────
+
+/** Normalise an Indian phone number to E.164 (without the +) for wa.me links. */
+export function formatPhoneForWhatsApp(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `91${digits}`;
+  return digits; // already has country code
+}
+
+/** Build the wa.me URL that opens WhatsApp with a pre-filled message. */
+export function buildWhatsAppUrl(phone: string, message: string): string {
+  return `https://wa.me/${formatPhoneForWhatsApp(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+/** Build the booking ticket message text sent via WhatsApp. */
+export function buildBookingTicketMessage({
+  customerName,
+  cafeName,
+  date,
+  startTime,
+  duration,
+  itemsLabel,
+  totalAmount,
+  paymentMode,
+}: {
+  customerName: string;
+  cafeName?: string | null;
+  date: string;
+  startTime: string;
+  duration: number;
+  itemsLabel: string;
+  totalAmount: number;
+  paymentMode: string;
+}): string {
+  const header = cafeName
+    ? `Your gaming session is booked at *${cafeName}*.`
+    : `Your gaming session has been booked!`;
+  return [
+    '🎮 *Session Confirmed!*',
+    '',
+    `Hi ${customerName}! 👋`,
+    header,
+    '',
+    `📅 *Date:* ${date}`,
+    `⏰ *Time:* ${startTime} (${duration} min)`,
+    `🕹️ *Console:* ${itemsLabel}`,
+    `💰 *Amount:* ₹${totalAmount} (${paymentMode})`,
+    '',
+    'See you soon! 🙌',
+  ].join('\n');
+}
