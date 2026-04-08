@@ -281,8 +281,8 @@ export function Memberships({
                     customer_name: subCustomerName,
                     customer_phone: subCustomerPhone,
                     membership_plan_id: subSelectedPlanId,
-                    hours_purchased: selectedPlan.hours || 24,
-                    hours_remaining: selectedPlan.hours || 24,
+                    hours_purchased: selectedPlan.plan_type === 'day_pass' ? (selectedPlan.hours ?? 0) : (selectedPlan.hours || 24),
+                    hours_remaining: selectedPlan.plan_type === 'day_pass' ? (selectedPlan.hours ?? 0) : (selectedPlan.hours || 24),
                     amount_paid: parseFloat(subAmountPaid) || selectedPlan.price,
                     payment_mode: subPaymentMode,
                     purchase_date: now.toISOString(),
@@ -440,7 +440,8 @@ export function Memberships({
                                     const elapsed = activeTimers.has(sub.id)
                                         ? (timerElapsed.get(sub.id) || 0) / 3600
                                         : 0;
-                                    const currentRem = Math.max(0, baseHours - elapsed);
+                                    // Round to 4 decimal places to avoid floating-point drift in comparisons
+                                    const currentRem = Math.max(0, Math.round((baseHours - elapsed) * 10000) / 10000);
                                     const percent = (currentRem / (sub.hours_purchased || 1)) * 100;
                                     const isRunning = activeTimers.has(sub.id);
 

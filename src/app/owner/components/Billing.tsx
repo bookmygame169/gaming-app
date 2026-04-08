@@ -209,6 +209,13 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
         }));
     }, [cafeId, consolePricingMap, stationPricingMap]);
 
+    // Clear pending autocomplete timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        };
+    }, []);
+
     // Customer Autocomplete — debounced server-side search (no load-all)
     const searchCustomers = (query: string, field: 'name' | 'phone') => {
         if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -288,7 +295,9 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
         setSubmitting(true);
         try {
-            const [hours, mins] = startTime.split(':').map(Number);
+            const timeParts = startTime.split(':').map(Number);
+            const hours = Number.isFinite(timeParts[0]) ? timeParts[0] : 0;
+            const mins = Number.isFinite(timeParts[1]) ? timeParts[1] : 0;
             const period = hours >= 12 ? 'pm' : 'am';
             const displayHours = hours % 12 || 12;
             const startTime12h = `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
@@ -325,6 +334,9 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             setItems([]);
             setManualAmount(null);
             setPaymentMode('cash');
+            setBookingDate(getLocalDateString());
+            const now = new Date();
+            setStartTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
             if (onSuccess) onSuccess();
             alert('Booking created successfully!');
 

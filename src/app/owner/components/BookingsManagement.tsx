@@ -14,7 +14,6 @@ interface BookingsManagementProps {
     onUpdateStatus: (bookingId: string, status: string) => Promise<void>;
     onEdit?: (booking: any) => void;
     onRefresh?: () => void;
-    isMobile?: boolean;
     onViewOrders?: (bookingId: string, customerName: string) => void;
     onViewCustomer?: (customer: { name: string; phone?: string; email?: string }) => void;
     onPaymentModeChange?: (bookingId: string, mode: string) => Promise<void>;
@@ -67,9 +66,13 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
 
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     const fetchBookings = useCallback(async (search: string) => {
         if (!cafeId) return;
+        // Cancel any previous in-flight request (stale cafeId / rapid filter changes)
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = new AbortController();
         setFetching(true);
         try {
             const { dateFrom, dateTo } = getDateRange(dateRange, customStart, customEnd);
@@ -83,11 +86,21 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 ...(dateFrom && { dateFrom }),
                 ...(dateTo && { dateTo }),
             });
-            const res = await fetch(`/api/owner/bookings?${params}`, { credentials: 'include', cache: 'no-store' });
+            const res = await fetch(`/api/owner/bookings?${params}`, {
+                credentials: 'include',
+                cache: 'no-store',
+                signal: abortControllerRef.current.signal,
+            });
             const data = await res.json();
             if (res.ok) {
                 setBookings(data.bookings || []);
                 setTotal(data.total || 0);
+            } else {
+                console.error('[BookingsManagement] Failed to fetch bookings:', data.error);
+            }
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name !== 'AbortError') {
+                console.error('[BookingsManagement] Fetch error:', err.message);
             }
         } finally {
             setFetching(false);
@@ -248,8 +261,9 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                     ) : filteredSubs.map(s => {
                                         const isRunning = activeTimers?.has(s.id) ?? false;
                                         const elapsed = timerElapsed?.get(s.id) ?? 0;
-                                        const elapsedMins = Math.floor(elapsed / 60);
-                                        const elapsedSecs = elapsed % 60;
+                                        const displayHours = Math.floor(elapsed / 3600);
+                                        const displayMins = Math.floor((elapsed % 3600) / 60);
+                                        const displaySecs = elapsed % 60;
                                         return (
                                         <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
                                             <td className="px-4 py-3.5">
@@ -262,7 +276,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                                 <div className="text-slate-300">{s.hours_remaining != null ? Number(s.hours_remaining).toFixed(2) : '—'} / {s.hours_purchased ?? '—'} hrs</div>
                                                 {isRunning && (
                                                     <div className="text-xs text-emerald-400 mt-0.5 font-mono">
-                                                        ● {String(Math.floor(elapsed / 3600)).padStart(2, '0')}:{String(elapsedMins % 60).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
+                                                        ● {String(displayHours).padStart(2, '0')}:{String(displayMins).padStart(2, '0')}:{String(displaySecs).padStart(2, '0')}
                                                     </div>
                                                 )}
                                             </td>

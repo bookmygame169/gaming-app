@@ -105,7 +105,9 @@ export function useBilling({
 
     setIsSubmitting(true);
 
-    const [hours, minutes] = startTime.split(':').map(Number);
+    const parts = startTime.split(':').map(Number);
+    const hours = Number.isFinite(parts[0]) ? parts[0] : 0;
+    const minutes = Number.isFinite(parts[1]) ? parts[1] : 0;
     const period = hours >= 12 ? 'pm' : 'am';
     const hours12 = hours % 12 || 12;
     const startTime12h = `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
@@ -174,6 +176,13 @@ export function useBilling({
     if (data.racing_sim_count > 0) available.push("racing_sim");
     setAvailableConsoles(available);
   }, [cafeData]);
+
+  // Clear pending autocomplete timeout on unmount to prevent state updates on unmounted hook
+  useEffect(() => {
+    return () => {
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    };
+  }, []);
 
   // Debounced server-side customer search for autocomplete
   const searchCustomers = (query: string) => {

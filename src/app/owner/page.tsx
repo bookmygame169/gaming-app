@@ -2192,7 +2192,6 @@ export default function OwnerDashboardPage() {
               onPaymentModeChange={handlePaymentModeChange}
               onRefresh={() => refreshData()}
               refreshTrigger={bookingsMgmtRefreshKey}
-              isMobile={isMobile}
               onViewOrders={(bookingId, customerName) => {
                 setViewOrdersBookingId(bookingId);
                 setViewOrdersCustomerName(customerName);
