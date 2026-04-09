@@ -32,19 +32,28 @@ interface DashboardSubscription {
 
 function Trend({ today, yesterday }: { today: number; yesterday: number }) {
   if (yesterday === 0 && today === 0) return null;
-  if (yesterday === 0) return <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">New</span>;
+  if (yesterday === 0) return <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">New</span>;
   const pct = Math.round(((today - yesterday) / yesterday) * 100);
-  if (pct === 0) return <span className="flex items-center gap-0.5 text-[10px] font-semibold text-slate-400"><Minus size={10} />0%</span>;
+  if (pct === 0) return <span className="flex items-center gap-0.5 text-[10px] font-semibold text-slate-500"><Minus size={10} />0%</span>;
   const up = pct > 0;
   return (
-    <span className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${up ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
+    <span className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${up ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
       {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-      {up ? '+' : ''}{pct}% vs yesterday
+      {up ? '+' : ''}{pct}%
     </span>
   );
 }
 
-export function DashboardStats({ bookings, subscriptions, activeTimers, loadingData, isMobile }: DashboardStatsProps) {
+const SkeletonCard = () => (
+  <div className="relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col gap-3 min-h-[120px] animate-pulse overflow-hidden">
+    <div className="absolute top-0 left-0 right-0 h-px bg-white/[0.06]" />
+    <div className="h-2.5 w-20 rounded-full bg-white/[0.06]" />
+    <div className="h-8 w-14 rounded-lg bg-white/[0.06]" />
+    <div className="h-2 w-28 rounded-full bg-white/[0.04]" />
+  </div>
+);
+
+export function DashboardStats({ bookings, subscriptions, activeTimers, loadingData }: DashboardStatsProps) {
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [loadedPreference, setLoadedPreference] = useState(false);
@@ -75,7 +84,6 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
       booking.source !== 'membership'
   );
 
-  // Today's stats
   const activeBookingsCount = billableSessionBookings.filter(
     (booking) => booking.status === 'in-progress' && booking.booking_date === todayStr
   ).length;
@@ -83,7 +91,6 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const activeNow = activeBookingsCount + activeSubscriptionsCount;
 
   const todayBookings = billableSessionBookings.filter((booking) => booking.booking_date === todayStr);
-  // Only count gaming sessions (bookings with console items), not standalone snack sales
   const todaySessions = todayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
   const pendingBookings = billableSessionBookings.filter(
     (booking) => booking.booking_date === todayStr && booking.status === 'confirmed'
@@ -102,21 +109,17 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   const totalRevenue = calcRevenue(todayBookings, todaySubscriptions);
 
-  // Yesterday's stats for trend
   const yesterdayBookings = billableSessionBookings.filter((booking) => booking.booking_date === yesterdayStr);
   const yesterdaySessions = yesterdayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
   const yesterdaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === yesterdayStr);
   const yesterdayRevenue = calcRevenue(yesterdayBookings, yesterdaySubscriptions);
 
-  // Revenue breakdown
   const ONLINE_MODES = ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'];
   const membershipRevenue = todaySubscriptions.reduce((s, sub) => {
     const amt = typeof sub.amount_paid === 'number' ? sub.amount_paid : parseFloat(sub.amount_paid ?? '0') || 0;
     return s + amt;
   }, 0);
 
-  // For each booking, extract F&B portion via booking_orders so it shows as Snacks.
-  // Works for both standalone snack sales (no booking_items) and gaming+F&B mixed bookings.
   const getFbTotal = (b: DashboardBooking) =>
     (b.booking_orders || []).reduce((s, o) => s + (o.total_price || 0), 0);
 
@@ -126,12 +129,9 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   for (const b of todayBookings) {
     const isSnackOnly = !b.booking_items || b.booking_items.length === 0;
-    const fbTotal = isSnackOnly
-      ? (b.total_amount || 0)           // standalone snack: all is F&B
-      : getFbTotal(b);                  // gaming+F&B: extract F&B from orders
+    const fbTotal = isSnackOnly ? (b.total_amount || 0) : getFbTotal(b);
     const gamingAmount = (b.total_amount || 0) - fbTotal;
     const mode = b.payment_mode?.toLowerCase() || '';
-
     snacksRevenue += fbTotal;
     if (mode === 'cash') gamingCash += gamingAmount;
     else if (ONLINE_MODES.includes(mode)) gamingOnline += gamingAmount;
@@ -139,95 +139,133 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   const revenueVisible = loadedPreference && showRevenue;
 
-  const cardBase = `relative overflow-hidden rounded-2xl border p-5 flex flex-col justify-between min-h-[120px]`;
-
-  const SkeletonCard = ({ accent }: { accent: string }) => (
-    <div className={`${cardBase} border-slate-800 bg-slate-900/40 animate-pulse`}>
-      <div className={`h-2.5 w-24 rounded-full bg-slate-800 mb-3`} />
-      <div className={`h-9 w-16 rounded-lg bg-slate-800 my-1`} />
-      <div className={`h-2 w-32 rounded-full bg-slate-800 mt-2`} />
-    </div>
-  );
-
   if (loadingData) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <SkeletonCard accent="red" />
-        <SkeletonCard accent="emerald" />
-        <SkeletonCard accent="orange" />
-        <SkeletonCard accent="violet" />
+        <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
       </div>
     );
   }
 
+  // Card config
+  const cards = [
+    {
+      key: 'active',
+      accent: '#ef4444',
+      accentClass: 'bg-red-500',
+      icon: <Zap size={16} className="text-red-400" />,
+      iconBg: 'bg-red-500/10',
+      label: 'Active Now',
+      value: activeNow,
+      sub: 'sessions in progress',
+      trend: null,
+      extra: null,
+    },
+    {
+      key: 'revenue',
+      accent: '#22c55e',
+      accentClass: 'bg-emerald-500',
+      icon: <IndianRupee size={16} className="text-emerald-400" />,
+      iconBg: 'bg-emerald-500/10',
+      label: "Today's Revenue",
+      value: revenueVisible ? `₹${totalRevenue.toLocaleString('en-IN')}` : '••••••',
+      sub: null,
+      trend: revenueVisible ? <Trend today={totalRevenue} yesterday={yesterdayRevenue} /> : null,
+      extra: 'revenue',
+    },
+    {
+      key: 'sessions',
+      accent: '#f97316',
+      accentClass: 'bg-orange-500',
+      icon: <Timer size={16} className="text-orange-400" />,
+      iconBg: 'bg-orange-500/10',
+      label: "Today's Sessions",
+      value: todaySessions,
+      sub: 'gaming sessions',
+      trend: <Trend today={todaySessions} yesterday={yesterdaySessions} />,
+      extra: null,
+    },
+    {
+      key: 'pending',
+      accent: '#8b5cf6',
+      accentClass: 'bg-violet-500',
+      icon: <Clock size={16} className="text-violet-400" />,
+      iconBg: 'bg-violet-500/10',
+      label: 'Pending Today',
+      value: pendingBookings,
+      sub: 'awaiting start',
+      trend: null,
+      extra: null,
+    },
+  ];
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {cards.map((card) => (
+        <div
+          key={card.key}
+          onClick={card.key === 'revenue' && revenueVisible ? () => setShowBreakdown(p => !p) : undefined}
+          className={`
+            relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col gap-3 min-h-[120px] overflow-hidden
+            ${card.key === 'revenue' && revenueVisible ? 'cursor-pointer hover:bg-white/[0.04] transition-colors' : ''}
+          `}
+        >
+          {/* Colored top accent line */}
+          <div className={`absolute top-0 left-0 right-0 h-px ${card.accentClass} opacity-60`} />
 
-      {/* Active Now */}
-      <div className={cardBase} style={{ background: 'radial-gradient(circle at top right, rgba(239,68,68,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#ef444440' }}>
-        <div className="absolute top-4 right-4 text-red-500/10"><Zap size={48} strokeWidth={1.5} /></div>
-        <p className="text-[10px] uppercase tracking-widest font-bold text-red-400/80 mb-1">Active Now</p>
-        <p className="text-4xl font-bold text-red-400 leading-none">{activeNow}</p>
-        <p className="text-[11px] text-slate-500 mt-2">sessions in progress</p>
-      </div>
-
-      {/* Today's Revenue */}
-      <div
-        onClick={() => revenueVisible && setShowBreakdown(p => !p)}
-        className={`${cardBase} ${revenueVisible ? 'cursor-pointer hover:border-emerald-500/40 transition-colors' : ''}`}
-        style={{ background: 'radial-gradient(circle at top right, rgba(34,197,94,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#22c55e40' }}
-      >
-        <div className="absolute top-4 right-4 text-emerald-500/10"><IndianRupee size={48} strokeWidth={1.5} /></div>
-        <div className="flex items-start justify-between">
-          <p className="text-[10px] uppercase tracking-widest font-bold text-emerald-400/80">Today's Revenue</p>
-          <button type="button" onClick={toggleRevenueVisibility} className="p-1 rounded-full text-emerald-400 hover:bg-emerald-500/10 transition-colors z-10" aria-label="toggle revenue">
-            {revenueVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </div>
-        <p className="text-4xl font-bold text-emerald-400 leading-none my-1">
-          {revenueVisible ? `₹${totalRevenue.toLocaleString('en-IN')}` : '••••••'}
-        </p>
-        {revenueVisible && (
-          <div className="flex items-center justify-between mt-1">
-            <Trend today={totalRevenue} yesterday={yesterdayRevenue} />
-            {!showBreakdown && <span className="text-[9px] text-emerald-400/40 animate-pulse">tap for breakdown</span>}
-          </div>
-        )}
-        {showBreakdown && revenueVisible && (
-          <div className="mt-2 pt-2 border-t border-emerald-500/10 grid grid-cols-2 gap-x-3 gap-y-0.5">
-            {([
-              ...(gamingCash > 0 ? [['Cash', gamingCash]] : []),
-              ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : []),
-              ...(membershipRevenue > 0 ? [['Memberships', membershipRevenue]] : []),
-              ...(snacksRevenue > 0 ? [['Snacks', snacksRevenue]] : []),
-            ] as [string, number][]).map(([label, val]) => (
-              <div key={label} className="flex justify-between text-[10px]">
-                <span className="text-slate-400">{label}</span>
-                <span className="text-emerald-400 font-semibold">₹{val.toLocaleString('en-IN')}</span>
+          {/* Header row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-6 h-6 rounded-lg ${card.iconBg} flex items-center justify-center`}>
+                {card.icon}
               </div>
-            ))}
+              <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-500">{card.label}</p>
+            </div>
+            {card.key === 'revenue' && (
+              <button
+                type="button"
+                onClick={toggleRevenueVisibility}
+                className="p-1 rounded-lg text-slate-600 hover:text-slate-400 hover:bg-white/5 transition-colors z-10"
+              >
+                {revenueVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Today's Sessions */}
-      <div className={cardBase} style={{ background: 'radial-gradient(circle at top right, rgba(249,115,22,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#f9731640' }}>
-        <div className="absolute top-4 right-4 text-orange-500/10"><Timer size={48} strokeWidth={1.5} /></div>
-        <p className="text-[10px] uppercase tracking-widest font-bold text-orange-400/80 mb-1">Today's Sessions</p>
-        <p className="text-4xl font-bold text-orange-400 leading-none">{todaySessions}</p>
-        <div className="flex items-center justify-between mt-2">
-          <Trend today={todaySessions} yesterday={yesterdaySessions} />
+          {/* Value */}
+          <p className="text-3xl font-bold text-white leading-none tracking-tight">
+            {card.value}
+          </p>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between mt-auto">
+            {card.sub && <p className="text-[11px] text-slate-600">{card.sub}</p>}
+            {card.trend && card.trend}
+            {!card.sub && !card.trend && <div />}
+
+            {card.key === 'revenue' && revenueVisible && !showBreakdown && (
+              <span className="text-[9px] text-slate-700 animate-pulse">tap for breakdown</span>
+            )}
+          </div>
+
+          {/* Revenue breakdown */}
+          {card.key === 'revenue' && showBreakdown && revenueVisible && (
+            <div className="mt-1 pt-3 border-t border-white/[0.06] grid grid-cols-2 gap-x-3 gap-y-1">
+              {([
+                ...(gamingCash > 0 ? [['Cash', gamingCash]] : []),
+                ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : []),
+                ...(membershipRevenue > 0 ? [['Memberships', membershipRevenue]] : []),
+                ...(snacksRevenue > 0 ? [['Snacks', snacksRevenue]] : []),
+              ] as [string, number][]).map(([label, val]) => (
+                <div key={label} className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{label}</span>
+                  <span className="text-emerald-400 font-semibold">₹{val.toLocaleString('en-IN')}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Pending */}
-      <div className={cardBase} style={{ background: 'radial-gradient(circle at top right, rgba(139,92,246,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#8b5cf640' }}>
-        <div className="absolute top-4 right-4 text-violet-500/10"><Clock size={48} strokeWidth={1.5} /></div>
-        <p className="text-[10px] uppercase tracking-widest font-bold text-violet-400/80 mb-1">Pending Today</p>
-        <p className="text-4xl font-bold text-violet-400 leading-none">{pendingBookings}</p>
-        <p className="text-[11px] text-slate-500 mt-2">bookings awaiting start</p>
-      </div>
-
+      ))}
     </div>
   );
 }
