@@ -203,20 +203,23 @@ export function buildBookingTicketMessage({
   totalAmount: number;
   paymentMode: string;
 }): string {
-  const header = cafeName
-    ? `Your gaming session is booked at *${cafeName}*.`
-    : `Your gaming session has been booked!`;
+  const firstName = customerName.split(' ')[0];
+  const cafeLine = cafeName ? `at *${cafeName}*` : '';
+  const payLabel = paymentMode.charAt(0).toUpperCase() + paymentMode.slice(1);
   return [
-    '🎮 *Session Confirmed!*',
-    '',
-    `Hi ${customerName}! 👋`,
-    header,
-    '',
-    `📅 *Date:* ${date}`,
-    `⏰ *Time:* ${startTime} (${duration} min)`,
-    `🕹️ *Console:* ${itemsLabel}`,
-    `💰 *Amount:* ₹${totalAmount} (${paymentMode})`,
-    '',
-    'See you soon! 🙌',
+    `✅ *Booking Confirmed!*`,
+    ``,
+    `Hey *${firstName}*! 👋`,
+    cafeName ? `Your session is booked ${cafeLine}.` : `Your gaming session is all set!`,
+    ``,
+    `━━━━━━━━━━━━━━━━`,
+    `📅  *Date*     ${date}`,
+    `⏰  *Time*     ${startTime} _(${duration} min)_`,
+    `🎮  *Console*  ${itemsLabel}`,
+    `💵  *Amount*   ₹${totalAmount} · ${payLabel}`,
+    `━━━━━━━━━━━━━━━━`,
+    ``,
+    `_Thanks for visiting${cafeName ? ` ${cafeName}` : ''}!_`,
+    `_See you soon_ 🙌`,
   ].join('\n');
 }
