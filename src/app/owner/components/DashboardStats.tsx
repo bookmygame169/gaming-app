@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer, Clock } from 'lucide-react';
 import { getLocalDateString } from '../utils';
 
 const REVENUE_VISIBILITY_KEY = 'owner-dashboard-revenue-visible';
@@ -141,24 +141,43 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   const cardBase = `relative overflow-hidden rounded-2xl border p-5 flex flex-col justify-between min-h-[120px]`;
 
+  const SkeletonCard = ({ accent }: { accent: string }) => (
+    <div className={`${cardBase} border-slate-800 bg-slate-900/40 animate-pulse`}>
+      <div className={`h-2.5 w-24 rounded-full bg-slate-800 mb-3`} />
+      <div className={`h-9 w-16 rounded-lg bg-slate-800 my-1`} />
+      <div className={`h-2 w-32 rounded-full bg-slate-800 mt-2`} />
+    </div>
+  );
+
+  if (loadingData) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <SkeletonCard accent="red" />
+        <SkeletonCard accent="emerald" />
+        <SkeletonCard accent="orange" />
+        <SkeletonCard accent="violet" />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
 
       {/* Active Now */}
       <div className={cardBase} style={{ background: 'radial-gradient(circle at top right, rgba(239,68,68,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#ef444440' }}>
-        <div className="absolute -top-3 right-8 text-5xl opacity-10">▶️</div>
+        <div className="absolute top-4 right-4 text-red-500/10"><Zap size={48} strokeWidth={1.5} /></div>
         <p className="text-[10px] uppercase tracking-widest font-bold text-red-400/80 mb-1">Active Now</p>
-        <p className="text-4xl font-bold text-red-400 leading-none">{loadingData ? '—' : activeNow}</p>
+        <p className="text-4xl font-bold text-red-400 leading-none">{activeNow}</p>
         <p className="text-[11px] text-slate-500 mt-2">sessions in progress</p>
       </div>
 
       {/* Today's Revenue */}
       <div
         onClick={() => revenueVisible && setShowBreakdown(p => !p)}
-        className={`${cardBase} ${revenueVisible ? 'cursor-pointer hover:border-emerald-500/40' : ''}`}
+        className={`${cardBase} ${revenueVisible ? 'cursor-pointer hover:border-emerald-500/40 transition-colors' : ''}`}
         style={{ background: 'radial-gradient(circle at top right, rgba(34,197,94,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#22c55e40' }}
       >
-        <div className="absolute -top-3 right-8 text-5xl opacity-10">₹</div>
+        <div className="absolute top-4 right-4 text-emerald-500/10"><IndianRupee size={48} strokeWidth={1.5} /></div>
         <div className="flex items-start justify-between">
           <p className="text-[10px] uppercase tracking-widest font-bold text-emerald-400/80">Today's Revenue</p>
           <button type="button" onClick={toggleRevenueVisibility} className="p-1 rounded-full text-emerald-400 hover:bg-emerald-500/10 transition-colors z-10" aria-label="toggle revenue">
@@ -166,7 +185,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           </button>
         </div>
         <p className="text-4xl font-bold text-emerald-400 leading-none my-1">
-          {loadingData ? '—' : revenueVisible ? `₹${totalRevenue.toLocaleString('en-IN')}` : '••••••'}
+          {revenueVisible ? `₹${totalRevenue.toLocaleString('en-IN')}` : '••••••'}
         </p>
         {revenueVisible && (
           <div className="flex items-center justify-between mt-1">
@@ -193,9 +212,9 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
       {/* Today's Sessions */}
       <div className={cardBase} style={{ background: 'radial-gradient(circle at top right, rgba(249,115,22,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#f9731640' }}>
-        <div className="absolute -top-3 right-8 text-5xl opacity-10">🕐</div>
+        <div className="absolute top-4 right-4 text-orange-500/10"><Timer size={48} strokeWidth={1.5} /></div>
         <p className="text-[10px] uppercase tracking-widest font-bold text-orange-400/80 mb-1">Today's Sessions</p>
-        <p className="text-4xl font-bold text-orange-400 leading-none">{loadingData ? '—' : todaySessions}</p>
+        <p className="text-4xl font-bold text-orange-400 leading-none">{todaySessions}</p>
         <div className="flex items-center justify-between mt-2">
           <Trend today={todaySessions} yesterday={yesterdaySessions} />
         </div>
@@ -203,9 +222,9 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
       {/* Pending */}
       <div className={cardBase} style={{ background: 'radial-gradient(circle at top right, rgba(139,92,246,0.15), transparent 70%), linear-gradient(135deg, rgba(30,41,59,0.4), rgba(15,23,42,0.6))', borderColor: '#8b5cf640' }}>
-        <div className="absolute -top-3 right-8 text-5xl opacity-10">📋</div>
+        <div className="absolute top-4 right-4 text-violet-500/10"><Clock size={48} strokeWidth={1.5} /></div>
         <p className="text-[10px] uppercase tracking-widest font-bold text-violet-400/80 mb-1">Pending Today</p>
-        <p className="text-4xl font-bold text-violet-400 leading-none">{loadingData ? '—' : pendingBookings}</p>
+        <p className="text-4xl font-bold text-violet-400 leading-none">{pendingBookings}</p>
         <p className="text-[11px] text-slate-500 mt-2">bookings awaiting start</p>
       </div>
 

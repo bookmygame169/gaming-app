@@ -2006,6 +2006,7 @@ export default function OwnerDashboardPage() {
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
         title="Dashboard"
+        onRefresh={refreshData}
       >
         <div>
           {error && (

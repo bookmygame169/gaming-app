@@ -1,6 +1,7 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Sidebar, MobileMenuButton } from './Sidebar';
 
 interface DashboardLayoutProps {
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
     mobileMenuOpen: boolean;
     setMobileMenuOpen: (open: boolean) => void;
     title: string;
+    onRefresh?: () => void;
 }
 
 // Map tab IDs to display titles
@@ -37,7 +39,24 @@ export function DashboardLayout({
     mobileMenuOpen,
     setMobileMenuOpen,
     title,
+    onRefresh,
 }: DashboardLayoutProps) {
+    const [spinning, setSpinning] = useState(false);
+
+    const handleRefresh = () => {
+        if (!onRefresh || spinning) return;
+        setSpinning(true);
+        onRefresh();
+        setTimeout(() => setSpinning(false), 800);
+    };
+
+    const todayLabel = new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(new Date());
+
     const handleLogout = async () => {
         if (confirm('Are you sure you want to logout?')) {
             try {
@@ -84,9 +103,22 @@ export function DashboardLayout({
                             </h1>
                         </div>
 
-                        {/* Header Actions - can be extended */}
-                        <div className="flex items-center gap-3">
-                            {/* Placeholder for notifications, search, etc. */}
+                        <div className="flex items-center gap-2">
+                            {/* Date chip */}
+                            <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs font-medium text-slate-400">
+                                {todayLabel}
+                            </span>
+
+                            {/* Refresh */}
+                            {onRefresh && (
+                                <button
+                                    onClick={handleRefresh}
+                                    title="Refresh data"
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-700/50 bg-slate-800/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
+                                >
+                                    <RefreshCw size={14} className={spinning ? 'animate-spin' : ''} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </header>

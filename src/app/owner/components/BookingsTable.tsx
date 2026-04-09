@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Card, StatusBadge, Button } from './ui';
-import { Search, ChevronLeft, ChevronRight, X, CheckCircle, ShoppingBag } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, CheckCircle, ShoppingBag, CalendarX } from 'lucide-react';
 import { buildWhatsAppUrl, buildBookingTicketMessage } from '../utils';
 
 interface BookingsTableProps {
@@ -189,15 +189,31 @@ export function BookingsTable({
                     </thead>
                     <tbody className="divide-y divide-white/5">
                         {loading ? (
-                            <tr>
-                                <td colSpan={(showActions ? 6 : 5) + (selectable ? 1 : 0)} className="px-6 py-8 text-center text-slate-500">
-                                    Loading bookings...
-                                </td>
-                            </tr>
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                    {selectable && <td className="px-3 py-3"><div className="w-4 h-4 rounded bg-slate-800" /></td>}
+                                    <td className="px-4 py-3">
+                                        <div className="h-3.5 w-28 rounded bg-slate-800 mb-2" />
+                                        <div className="h-2.5 w-20 rounded bg-slate-800/60" />
+                                    </td>
+                                    <td className="px-4 py-3"><div className="h-3.5 w-20 rounded bg-slate-800" /></td>
+                                    <td className="px-4 py-3">
+                                        <div className="h-3.5 w-20 rounded bg-slate-800 mb-2" />
+                                        <div className="h-2.5 w-14 rounded bg-slate-800/60" />
+                                    </td>
+                                    <td className="px-4 py-3"><div className="h-3.5 w-14 rounded bg-slate-800" /></td>
+                                    <td className="px-4 py-3"><div className="h-5 w-20 rounded-full bg-slate-800" /></td>
+                                    {showActions && <td className="px-4 py-3"><div className="h-7 w-24 rounded bg-slate-800 ml-auto" /></td>}
+                                </tr>
+                            ))
                         ) : paginatedBookings.length === 0 ? (
                             <tr>
-                                <td colSpan={(showActions ? 6 : 5) + (selectable ? 1 : 0)} className="px-6 py-8 text-center text-slate-500">
-                                    No bookings found
+                                <td colSpan={(showActions ? 6 : 5) + (selectable ? 1 : 0)}>
+                                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
+                                        <CalendarX size={36} strokeWidth={1.5} className="text-slate-700" />
+                                        <p className="text-sm font-medium text-slate-400">No bookings found</p>
+                                        <p className="text-xs text-slate-600">Try adjusting your filters</p>
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
@@ -371,9 +387,27 @@ export function BookingsTable({
             {/* Mobile View */}
             <div className="md:hidden">
                 {loading ? (
-                    <div className="p-8 text-center text-slate-500">Loading bookings...</div>
+                    <div className="divide-y divide-white/5 border-t border-white/5 animate-pulse">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="p-4 space-y-3">
+                                <div className="flex justify-between">
+                                    <div>
+                                        <div className="h-3.5 w-28 rounded bg-slate-800 mb-2" />
+                                        <div className="h-2.5 w-20 rounded bg-slate-800/60" />
+                                    </div>
+                                    <div className="h-5 w-20 rounded-full bg-slate-800" />
+                                </div>
+                                <div className="h-10 rounded-lg bg-slate-800/50" />
+                                <div className="h-2.5 w-32 rounded bg-slate-800/40" />
+                            </div>
+                        ))}
+                    </div>
                 ) : paginatedBookings.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">No bookings found</div>
+                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
+                        <CalendarX size={36} strokeWidth={1.5} className="text-slate-700" />
+                        <p className="text-sm font-medium text-slate-400">No bookings found</p>
+                        <p className="text-xs text-slate-600">Try adjusting your filters</p>
+                    </div>
                 ) : (
                     <div className="divide-y divide-white/5 border-t border-white/5">
                         {paginatedBookings.map((booking) => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { ConsoleId, CONSOLE_ICONS } from '@/lib/constants';
-import { Plus, MessageCircle, Banknote, Smartphone } from 'lucide-react';
+import { Plus, MessageCircle, Banknote, Smartphone, Gamepad2 } from 'lucide-react';
 
 import { getLocalDateString } from '../utils';
 
@@ -154,10 +154,12 @@ export function ActiveSessions({
 
     if (sortedActiveBookings.length === 0 && activeMemberships.length === 0) {
         return (
-            <div className="bg-[#0f0f14] border border-[#ffffff14] rounded-2xl p-16 text-center">
-                <div className="text-5xl opacity-30 mb-3">🎮</div>
-                <p className="text-base text-[#9ca3af] mb-1 font-medium">No active sessions</p>
-                <p className="text-sm text-[#6b7280]">Sessions in progress will appear here</p>
+            <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-16 text-center flex flex-col items-center gap-3">
+                <div className="w-14 h-14 rounded-2xl bg-slate-800/60 flex items-center justify-center mb-1">
+                    <Gamepad2 size={28} className="text-slate-600" />
+                </div>
+                <p className="text-base text-slate-400 font-medium">No active sessions</p>
+                <p className="text-sm text-slate-600">Sessions in progress will appear here</p>
             </div>
         );
     }
