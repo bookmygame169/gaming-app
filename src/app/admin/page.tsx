@@ -4,10 +4,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { fonts } from "@/lib/constants";
 import { logAdminAction } from "@/lib/auditLog";
 import { useAdminAuth } from "@/app/admin/hooks/useAdminAuth";
 import { AdminSidebar, AdminMobileMenuButton } from "@/app/admin/components/AdminSidebar";
+import {
+  Store, Users, CalendarCheck, BarChart3, IndianRupee, KeyRound, Shield, Megaphone,
+  Gamepad2, TrendingUp, Settings, ExternalLink, RefreshCw, AlertTriangle,
+  ChevronRight,
+} from "lucide-react";
 
 type AdminStats = {
   totalCafes: number;
@@ -210,46 +214,6 @@ export default function AdminDashboardPage() {
   const [userSort, setUserSort] = useState<{ field: string; order: 'asc' | 'desc' }>({ field: 'created_at', order: 'desc' });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [bookingSort, setBookingSort] = useState<{ field: string; order: 'asc' | 'desc' }>({ field: 'created_at', order: 'desc' });
-
-  // Theme (matching owner dashboard)
-  const theme = {
-    background:
-      "radial-gradient(circle at top left, rgba(34,197,94,0.12), transparent 30%), radial-gradient(circle at top right, rgba(56,189,248,0.16), transparent 28%), linear-gradient(180deg, #09111f 0%, #050915 100%)",
-    cardBackground:
-      "linear-gradient(145deg, rgba(12, 22, 38, 0.92), rgba(8, 15, 28, 0.96))",
-    sidebarBackground:
-      "linear-gradient(180deg, rgba(7, 13, 25, 0.98) 0%, rgba(4, 9, 20, 0.98) 100%)",
-    border: "rgba(148, 163, 184, 0.16)",
-    textPrimary: "#f8fafc",
-    textSecondary: "#c7d2fe",
-    textMuted: "#7c8aa5",
-    headerBackground: "rgba(5, 10, 22, 0.72)",
-    statCardBackground: "#ffffff",
-    statCardText: "#111827",
-    hoverBackground: "rgba(56, 189, 248, 0.08)",
-    activeNavBackground:
-      "linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(34, 197, 94, 0.16))",
-    activeNavText: "#f8fafc",
-    accent: "#38bdf8",
-    accentStrong: "#22c55e",
-    warning: "#f59e0b",
-    danger: "#fb7185",
-  };
-
-  const navItems: { id: NavTab; label: string; icon: string }[] = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'cafes', label: 'Cafés', icon: '🏪' },
-    { id: 'users', label: 'Users', icon: '👥' },
-    { id: 'bookings', label: 'Bookings', icon: '📅' },
-    { id: 'coupons', label: 'Coupons', icon: '🎟️' },
-    { id: 'revenue', label: 'Revenue', icon: '💰' },
-    { id: 'announcements', label: 'Announcements', icon: '📢' },
-    { id: 'audit-logs', label: 'Audit Logs', icon: '📋' },
-    { id: 'reports', label: 'Reports', icon: '📈' },
-    { id: 'owner-access', label: 'Owner Access', icon: '🔑' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
-  ];
-
   const tabMeta: Record<NavTab, { title: string; subtitle: string; eyebrow: string }> = {
     overview: {
       title: "Mission Control",
@@ -1570,7 +1534,7 @@ export default function AdminDashboardPage() {
 
   if (isChecking) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#09090e] flex items-center justify-center">
         <div className="text-center text-slate-400">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm">Verifying admin access...</p>
@@ -1593,7 +1557,7 @@ export default function AdminDashboardPage() {
       blue: "bg-blue-500/15 text-blue-400",
       yellow: "bg-amber-500/15 text-amber-400",
       purple: "bg-violet-500/15 text-violet-400",
-      slate: "bg-slate-700/50 text-slate-400",
+      slate: "bg-white/[0.06] text-slate-400",
     };
     return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[color]}`}>{label}</span>;
   };
@@ -1601,22 +1565,22 @@ export default function AdminDashboardPage() {
   const Pagination = ({ page, total, setPage }: { page: number; total: number; setPage: (p: number) => void }) => {
     if (total <= 1) return null;
     return (
-      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
         <span className="text-xs text-slate-500">{((page-1)*itemsPerPage)+1}–{Math.min(page*itemsPerPage, total*itemsPerPage)} of page {page}/{total}</span>
         <div className="flex gap-1">
-          <button onClick={() => setPage(Math.max(1,page-1))} disabled={page===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+          <button onClick={() => setPage(Math.max(1,page-1))} disabled={page===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
           {Array.from({length: Math.min(5,total)}, (_,i) => {
             const n = total<=5?i+1:page<=3?i+1:page>=total-2?total-4+i:page-2+i;
-            return <button key={n} onClick={()=>setPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${page===n?"bg-blue-500 text-white":"bg-slate-800 text-slate-300 hover:bg-slate-700"}`}>{n}</button>;
+            return <button key={n} onClick={()=>setPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${page===n?"bg-blue-500 text-white":"bg-white/[0.06] text-slate-300 hover:bg-white/[0.08]"}`}>{n}</button>;
           })}
-          <button onClick={() => setPage(Math.min(total,page+1))} disabled={page===total} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
+          <button onClick={() => setPage(Math.min(total,page+1))} disabled={page===total} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#020617", fontFamily: fonts.body, color: "#f8fafc" }}>
+    <div className="min-h-screen flex bg-[#09090e] text-slate-100">
       <AdminSidebar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as NavTab)}
@@ -1628,254 +1592,17 @@ export default function AdminDashboardPage() {
           router.push("/admin/login");
         }}
       />
-      {/* REMOVE OLD SIDEBAR START */}
-      <aside style={{ display: "none" }}>
-        {/* Logo */}
-        <div
-          style={{
-            padding: "28px 24px 24px",
-            borderBottom: `1px solid ${theme.border}`,
-          }}
-        >
-          <div
-            style={{
-              padding: 18,
-              borderRadius: 24,
-              border: `1px solid ${theme.border}`,
-              background:
-                "linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(34, 197, 94, 0.08) 55%, rgba(8, 15, 28, 0.92) 100%)",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 14,
-                    display: "grid",
-                    placeItems: "center",
-                    background: "linear-gradient(135deg, #38bdf8, #22c55e)",
-                    color: "#04101d",
-                    fontSize: 22,
-                    fontWeight: 800,
-                    boxShadow: "0 14px 28px rgba(34,197,94,0.18)",
-                  }}
-                >
-                  A
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#8fe7ff",
-                      fontWeight: 700,
-                      letterSpacing: "0.24em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    BookMyGame
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: fonts.heading,
-                      fontSize: 28,
-                      fontWeight: 800,
-                      letterSpacing: "-0.04em",
-                      lineHeight: 1,
-                    }}
-                  >
-                    Admin Deck
-                  </div>
-                </div>
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  color: theme.textSecondary,
-                }}
-              >
-                Operating surface for network health, bookings, revenue, compliance, and café quality.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: "20px 16px 12px" }}>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              style={{
-                width: "100%",
-                padding: "14px 16px",
-                marginBottom: 8,
-                borderRadius: 18,
-                border: `1px solid ${activeTab === item.id ? "rgba(56, 189, 248, 0.24)" : "transparent"}`,
-                background: activeTab === item.id
-                  ? theme.activeNavBackground
-                  : "transparent",
-                color: activeTab === item.id ? theme.activeNavText : theme.textSecondary,
-                fontSize: 15,
-                fontWeight: activeTab === item.id ? 600 : 500,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                transition: "all 0.24s ease",
-                textAlign: "left",
-                boxShadow: activeTab === item.id ? "0 16px 30px rgba(2, 132, 199, 0.12)" : "none",
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== item.id) {
-                  e.currentTarget.style.background = theme.hoverBackground;
-                  e.currentTarget.style.borderColor = "rgba(56, 189, 248, 0.12)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== item.id) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor = "transparent";
-                }
-              }}
-            >
-              <span
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 14,
-                  display: "grid",
-                  placeItems: "center",
-                  background: activeTab === item.id ? "rgba(255,255,255,0.12)" : "rgba(148, 163, 184, 0.08)",
-                  fontSize: 20,
-                }}
-              >
-                {item.icon}
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span>{item.label}</span>
-                <span style={{ fontSize: 11, color: activeTab === item.id ? "rgba(255,255,255,0.72)" : theme.textMuted, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  {tabMeta[item.id].eyebrow}
-                </span>
-              </div>
-            </button>
-          ))}
-        </nav>
-
-        <div
-          style={{
-            margin: "0 16px 16px",
-            padding: 18,
-            borderRadius: 20,
-            border: `1px solid ${theme.border}`,
-            background:
-              "linear-gradient(180deg, rgba(12, 22, 38, 0.94), rgba(7, 13, 25, 0.96))",
-          }}
-        >
-          <div style={{ fontSize: 11, color: "#8fe7ff", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 12 }}>
-            Platform Pulse
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ color: theme.textMuted, fontSize: 13 }}>Today revenue</span>
-              <strong style={{ fontSize: 20, color: theme.textPrimary }}>{formatCurrency(stats?.todayRevenue || 0)}</strong>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ color: theme.textMuted, fontSize: 13 }}>Today bookings</span>
-              <strong style={{ fontSize: 20, color: "#8fe7ff" }}>{stats?.todayBookings || 0}</strong>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ color: theme.textMuted, fontSize: 13 }}>Active cafés</span>
-              <strong style={{ fontSize: 20, color: "#86efac" }}>{activeCafeRate}%</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: "18px 16px 20px",
-            borderTop: `1px solid ${theme.border}`,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          <button
-            onClick={() => router.push("/dashboard")}
-            style={{
-              width: "100%",
-              padding: "13px 16px",
-              borderRadius: 16,
-              border: `1px solid ${theme.border}`,
-              background: "rgba(148, 163, 184, 0.04)",
-              color: theme.textSecondary,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = theme.hoverBackground;
-              e.currentTarget.style.borderColor = theme.activeNavText;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.borderColor = theme.border;
-            }}
-          >
-            👤 User Dashboard
-          </button>
-          <button
-            onClick={async () => {
-              await fetch("/api/admin/login", { method: "DELETE", credentials: "include" });
-              router.push("/admin/login");
-            }}
-            style={{
-              width: "100%",
-              padding: "13px 16px",
-              borderRadius: 16,
-              border: `1px solid rgba(251, 113, 133, 0.28)`,
-              background: "rgba(251, 113, 133, 0.06)",
-              color: "#fda4af",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(248, 113, 113, 0.1)";
-              e.currentTarget.style.borderColor = "#f87171";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.borderColor = "rgba(248, 113, 113, 0.3)";
-            }}
-          >
-            🚪 Logout Admin
-          </button>
-        </div>
-      </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto" style={{ marginLeft: isMobile ? 0 : 288 }}>
+      <main className={`flex-1 overflow-auto ${isMobile ? '' : 'ml-72'}`}>
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/50">
+        <header className="sticky top-0 z-30 bg-[#09090e]/90 backdrop-blur-md border-b border-white/[0.06]">
           <div className="flex items-center justify-between px-5 py-3.5 md:px-8">
             <div className="flex items-center gap-3">
               {isMobile && <AdminMobileMenuButton onClick={() => setMobileMenuOpen(true)} />}
               <div>
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{activeTabMeta.eyebrow}</p>
-                <h1 className="text-lg font-bold text-white leading-tight" style={{ fontFamily: fonts.heading }}>
+                <h1 className="text-lg font-bold text-white leading-tight">
                   {activeTabMeta.title}
                 </h1>
               </div>
@@ -1883,15 +1610,15 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-2">
               {!isMobile && (
                 <div className="flex items-center gap-2 mr-2">
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-center min-w-[80px]">
+                  <div className="px-3 py-1.5 rounded-xl bg-[#0d0d14] border border-white/[0.08] text-center min-w-[80px]">
                     <div className="text-[9px] text-slate-500 uppercase tracking-widest">Active Cafés</div>
                     <div className="text-base font-bold text-white">{loadingData ? "…" : stats?.activeCafes || 0}</div>
                   </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-center min-w-[80px]">
+                  <div className="px-3 py-1.5 rounded-xl bg-[#0d0d14] border border-white/[0.08] text-center min-w-[80px]">
                     <div className="text-[9px] text-slate-500 uppercase tracking-widest">Today</div>
                     <div className="text-base font-bold text-emerald-400">{loadingData ? "…" : formatCurrency(stats?.todayRevenue || 0)}</div>
                   </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-center min-w-[80px]">
+                  <div className="px-3 py-1.5 rounded-xl bg-[#0d0d14] border border-white/[0.08] text-center min-w-[80px]">
                     <div className="text-[9px] text-slate-500 uppercase tracking-widest">Bookings</div>
                     <div className="text-base font-bold text-blue-400">{loadingData ? "…" : stats?.totalBookings || 0}</div>
                   </div>
@@ -1900,9 +1627,9 @@ export default function AdminDashboardPage() {
               <span className="hidden md:block text-xs text-slate-600 mr-1">{formattedToday}</span>
               <button
                 onClick={() => window.location.reload()}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
               >
-                ↻ Refresh
+                <RefreshCw size={14} />Refresh
               </button>
             </div>
           </div>
@@ -1913,7 +1640,7 @@ export default function AdminDashboardPage() {
           {/* Error Message */}
           {error && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
-              ⚠️ {error}
+              <AlertTriangle size={16} className="shrink-0" />{error}
             </div>
           )}
 
@@ -1928,7 +1655,7 @@ export default function AdminDashboardPage() {
                   { label: "This Month", value: formatCurrency(stats?.monthRevenue || 0), sub: "Last 30 days", color: "text-violet-400", glow: "from-violet-500/10" },
                   { label: "All Time", value: formatCurrency(stats?.totalRevenue || 0), sub: "Platform total", color: "text-amber-400", glow: "from-amber-500/10" },
                 ].map(c => (
-                  <div key={c.label} className={`relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-5`}>
+                  <div key={c.label} className={`relative overflow-hidden rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5`}>
                     <div className={`absolute inset-0 bg-gradient-to-br ${c.glow} to-transparent pointer-events-none`} />
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label} Revenue</p>
                     <p className={`text-2xl font-bold ${c.color} leading-none`}>{loadingData ? "…" : c.value}</p>
@@ -1940,17 +1667,17 @@ export default function AdminDashboardPage() {
               {/* Platform Stats Row */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Total Cafés", value: stats?.totalCafes || 0, sub: `${stats?.activeCafes || 0} active · ${stats?.pendingCafes || 0} inactive`, icon: "🏪", tab: "cafes" as NavTab },
-                  { label: "Registered Users", value: stats?.totalUsers || 0, sub: `${stats?.totalOwners || 0} café owners`, icon: "👥", tab: "users" as NavTab },
-                  { label: "Total Bookings", value: stats?.totalBookings || 0, sub: `${stats?.todayBookings || 0} booked today`, icon: "📅", tab: "bookings" as NavTab },
-                  { label: "Avg per Booking", value: formatCurrency(averageRevenuePerBooking), sub: `${averageBookingsPerCafe} bookings / café avg`, icon: "📊", tab: "revenue" as NavTab },
+                  { label: "Total Cafés", value: stats?.totalCafes || 0, sub: `${stats?.activeCafes || 0} active · ${stats?.pendingCafes || 0} inactive`, icon: <Store size={16} />, iconBg: "bg-blue-500/10 text-blue-400", tab: "cafes" as NavTab },
+                  { label: "Registered Users", value: stats?.totalUsers || 0, sub: `${stats?.totalOwners || 0} café owners`, icon: <Users size={16} />, iconBg: "bg-violet-500/10 text-violet-400", tab: "users" as NavTab },
+                  { label: "Total Bookings", value: stats?.totalBookings || 0, sub: `${stats?.todayBookings || 0} booked today`, icon: <CalendarCheck size={16} />, iconBg: "bg-emerald-500/10 text-emerald-400", tab: "bookings" as NavTab },
+                  { label: "Avg per Booking", value: formatCurrency(averageRevenuePerBooking), sub: `${averageBookingsPerCafe} bookings / café avg`, icon: <BarChart3 size={16} />, iconBg: "bg-amber-500/10 text-amber-400", tab: "revenue" as NavTab },
                 ].map(c => (
-                  <button key={c.label} onClick={() => setActiveTab(c.tab)} className="rounded-2xl bg-slate-900 border border-slate-800 p-5 text-left hover:border-slate-700 hover:bg-slate-800/60 transition-all group">
+                  <button key={c.label} onClick={() => setActiveTab(c.tab)} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 text-left hover:border-white/[0.09] hover:bg-white/[0.04] transition-all group">
                     <div className="flex items-start justify-between mb-3">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{c.label}</p>
-                      <span className="text-xl">{c.icon}</span>
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${c.iconBg}`}>{c.icon}</div>
                     </div>
-                    <p className="text-2xl font-bold text-white leading-none" style={{ fontFamily: fonts.heading }}>{loadingData ? "…" : c.value}</p>
+                    <p className="text-2xl font-bold text-white leading-none">{loadingData ? "…" : c.value}</p>
                     <p className="text-xs text-slate-600 mt-1.5">{c.sub}</p>
                   </button>
                 ))}
@@ -1959,7 +1686,7 @@ export default function AdminDashboardPage() {
               {/* Bottom row: Platform health + Quick actions */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Health metrics */}
-                <div className="lg:col-span-2 rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                <div className="lg:col-span-2 rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                   <h3 className="text-sm font-semibold text-white mb-4">Platform Health</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
@@ -1967,11 +1694,11 @@ export default function AdminDashboardPage() {
                       { label: "Avg Booking Value", value: formatCurrency(averageRevenuePerBooking), note: "Gross ÷ total bookings", color: "text-blue-400", bar: Math.min(100, averageRevenuePerBooking / 10) },
                       { label: "Bookings / Café", value: `${averageBookingsPerCafe}`, note: "Platform activity density", color: "text-amber-400", bar: Math.min(100, averageBookingsPerCafe) },
                     ].map(m => (
-                      <div key={m.label} className="rounded-xl bg-slate-800/50 border border-slate-700/50 p-4">
+                      <div key={m.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
                         <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{m.label}</p>
                         <p className={`text-xl font-bold ${m.color} mb-1`}>{loadingData ? "…" : m.value}</p>
-                        <div className="h-1 rounded-full bg-slate-700 mb-2 overflow-hidden">
-                          <div className="h-full rounded-full bg-current transition-all" style={{ width: `${m.bar}%`, color: m.color.replace("text-","") === m.color ? undefined : undefined }} />
+                        <div className="h-1 rounded-full bg-white/[0.08] mb-2 overflow-hidden">
+                          <div className="h-full rounded-full bg-current transition-all" style={{ width: `${m.bar}%` }} />
                         </div>
                         <p className="text-[11px] text-slate-600">{m.note}</p>
                       </div>
@@ -1980,20 +1707,20 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                   <h3 className="text-sm font-semibold text-white mb-4">Quick Actions</h3>
                   <div className="space-y-2">
                     {[
-                      { label: "Manage Cafés", icon: "🏪", tab: "cafes" as NavTab },
-                      { label: "View Bookings", icon: "📅", tab: "bookings" as NavTab },
-                      { label: "Revenue Report", icon: "💰", tab: "revenue" as NavTab },
-                      { label: "Owner Access", icon: "🔑", tab: "owner-access" as NavTab },
-                      { label: "Audit Trail", icon: "🛡️", tab: "audit-logs" as NavTab },
-                      { label: "Announcements", icon: "📢", tab: "announcements" as NavTab },
+                      { label: "Manage Cafés", icon: <Store size={14} />, tab: "cafes" as NavTab },
+                      { label: "View Bookings", icon: <CalendarCheck size={14} />, tab: "bookings" as NavTab },
+                      { label: "Revenue Report", icon: <IndianRupee size={14} />, tab: "revenue" as NavTab },
+                      { label: "Owner Access", icon: <KeyRound size={14} />, tab: "owner-access" as NavTab },
+                      { label: "Audit Trail", icon: <Shield size={14} />, tab: "audit-logs" as NavTab },
+                      { label: "Announcements", icon: <Megaphone size={14} />, tab: "announcements" as NavTab },
                     ].map(a => (
-                      <button key={a.tab} onClick={() => setActiveTab(a.tab)} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 bg-slate-800/40 hover:bg-slate-800 hover:text-white transition-all">
-                        <span className="flex items-center gap-2.5"><span>{a.icon}</span>{a.label}</span>
-                        <span className="text-slate-600">→</span>
+                      <button key={a.tab} onClick={() => setActiveTab(a.tab)} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 bg-white/[0.03] hover:bg-white/[0.06] hover:text-white transition-all">
+                        <span className="flex items-center gap-2.5 text-slate-500">{a.icon}<span className="text-slate-300">{a.label}</span></span>
+                        <ChevronRight size={14} className="text-slate-600" />
                       </button>
                     ))}
                   </div>
@@ -2006,32 +1733,32 @@ export default function AdminDashboardPage() {
           {/* ─── CAFES TAB ─── */}
           {activeTab === 'cafes' && !managedCafeId && (
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-[#0d0d14] border border-white/[0.08]">
                 <input
                   type="text"
                   placeholder="Search cafés by name or address…"
                   value={cafeSearch}
                   onChange={(e) => { setCafeSearch(e.target.value); setCafePage(1); }}
-                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                 />
                 <select
                   value={cafeFilter}
                   onChange={(e) => { setCafeFilter(e.target.value); setCafePage(1); }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                  className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                 >
                   <option value="all">All Cafés</option>
                   <option value="active">Active Only</option>
                   <option value="inactive">Inactive Only</option>
                 </select>
-                <div className="flex items-center px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs text-slate-500">
+                <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
                   {filteredCafes.length} result{filteredCafes.length !== 1 ? 's' : ''}
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                    <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                       <tr>
                         {[
                           { label: 'Café', field: 'name' },
@@ -2053,13 +1780,13 @@ export default function AdminDashboardPage() {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-white/[0.06]">
                       {loadingData ? (
                         <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Loading cafés…</td></tr>
                       ) : paginatedCafes.length === 0 ? (
                         <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No cafés found</td></tr>
                       ) : paginatedCafes.map(cafe => (
-                        <tr key={cafe.id} className="hover:bg-slate-800/30 transition-colors">
+                        <tr key={cafe.id} className="hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3.5 text-sm font-semibold text-white">{cafe.name}</td>
                           <td className="px-4 py-3.5 text-sm text-slate-300">{cafe.owner_name}</td>
                           <td className="px-4 py-3.5 text-sm text-slate-400 max-w-[160px] truncate">{cafe.address}</td>
@@ -2080,7 +1807,7 @@ export default function AdminDashboardPage() {
                               <button onClick={() => toggleCafeStatus(cafe.id, cafe.is_active, cafe.name)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${cafe.is_active ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
                                 {cafe.is_active ? 'Deactivate' : 'Activate'}
                               </button>
-                              <button onClick={() => toggleFeaturedCafe(cafe.id, cafe.is_featured || false, cafe.name)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${cafe.is_featured ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'}`}>
+                              <button onClick={() => toggleFeaturedCafe(cafe.id, cafe.is_featured || false, cafe.name)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${cafe.is_featured ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-white/[0.06] text-slate-400 hover:bg-white/[0.08]'}`}>
                                 {cafe.is_featured ? '⭐ Featured' : '☆ Feature'}
                               </button>
                               <button onClick={() => deleteCafe(cafe.id, cafe.name)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
@@ -2092,12 +1819,12 @@ export default function AdminDashboardPage() {
                   </table>
                 </div>
                 {totalCafePages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
                     <span className="text-xs text-slate-500">{((cafePage-1)*itemsPerPage)+1}–{Math.min(cafePage*itemsPerPage, filteredCafes.length)} of {filteredCafes.length}</span>
                     <div className="flex gap-1">
-                      <button onClick={() => setCafePage(p=>Math.max(1,p-1))} disabled={cafePage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
-                      {Array.from({length:Math.min(5,totalCafePages)},(_,i)=>{const n=totalCafePages<=5?i+1:cafePage<=3?i+1:cafePage>=totalCafePages-2?totalCafePages-4+i:cafePage-2+i;return <button key={n} onClick={()=>setCafePage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${cafePage===n?'bg-blue-500 text-white':'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{n}</button>;})}
-                      <button onClick={() => setCafePage(p=>Math.min(totalCafePages,p+1))} disabled={cafePage===totalCafePages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
+                      <button onClick={() => setCafePage(p=>Math.max(1,p-1))} disabled={cafePage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+                      {Array.from({length:Math.min(5,totalCafePages)},(_,i)=>{const n=totalCafePages<=5?i+1:cafePage<=3?i+1:cafePage>=totalCafePages-2?totalCafePages-4+i:cafePage-2+i;return <button key={n} onClick={()=>setCafePage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${cafePage===n?'bg-blue-500 text-white':'bg-white/[0.06] text-slate-300 hover:bg-white/[0.08]'}`}>{n}</button>;})}
+                      <button onClick={() => setCafePage(p=>Math.min(totalCafePages,p+1))} disabled={cafePage===totalCafePages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
                     </div>
                   </div>
                 )}
@@ -2125,7 +1852,7 @@ export default function AdminDashboardPage() {
               <div className="space-y-4">
                 {/* Back + header */}
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setManagedCafeId(null)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 transition-colors">
+                  <button onClick={() => setManagedCafeId(null)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 bg-white/[0.06] hover:bg-white/[0.08] transition-colors">
                     ← Back to Cafés
                   </button>
                   <div>
@@ -2136,12 +1863,21 @@ export default function AdminDashboardPage() {
                     {mc.is_active
                       ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
                       : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Inactive</span>}
-                    <button onClick={() => router.push(`/cafes/${mc.slug}`)} className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">View Live Page</button>
+                    <button onClick={() => router.push(`/cafes/${mc.slug}`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">
+                      <ExternalLink size={11} />View Live Page
+                    </button>
+                    <button
+                      onClick={() => window.open(`/owner`, '_blank')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 transition-colors"
+                      title="Open owner dashboard (owner must be logged in)"
+                    >
+                      <Gamepad2 size={11} />Owner Dashboard
+                    </button>
                   </div>
                 </div>
 
                 {/* Sub-tabs */}
-                <div className="flex gap-1 p-1 rounded-2xl bg-slate-900 border border-slate-800 w-fit">
+                <div className="flex gap-1 p-1 rounded-2xl bg-[#0d0d14] border border-white/[0.08] w-fit">
                   {(['info', 'stations', 'memberships', 'coupons'] as const).map(tab => (
                     <button
                       key={tab}
@@ -2150,9 +1886,9 @@ export default function AdminDashboardPage() {
                         if (tab === 'memberships' && cafeMembershipPlans.length === 0) loadCafeMemberships(managedCafeId);
                         if (tab === 'coupons' && cafeCoupons.length === 0) loadCafeCoupons(managedCafeId);
                       }}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-colors ${cafeManageSubTab === tab ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-colors ${cafeManageSubTab === tab ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
                     >
-                      {tab === 'info' ? '🏪 Info' : tab === 'stations' ? '🎮 Stations' : tab === 'memberships' ? '👑 Memberships' : '🎟️ Coupons'}
+                      {tab === 'info' ? 'Info' : tab === 'stations' ? 'Stations' : tab === 'memberships' ? 'Memberships' : 'Coupons'}
                     </button>
                   ))}
                 </div>
@@ -2160,7 +1896,7 @@ export default function AdminDashboardPage() {
                 {/* ── INFO SUB-TAB ── */}
                 {cafeManageSubTab === 'info' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 space-y-4">
                       <h3 className="text-sm font-semibold text-white">Basic Info</h3>
                       {cafeInfoMsg && (
                         <div className={`px-3 py-2 rounded-xl text-xs border ${cafeInfoMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>{cafeInfoMsg.text}</div>
@@ -2179,7 +1915,7 @@ export default function AdminDashboardPage() {
                             type={f.key.includes('price') ? 'number' : 'text'}
                             value={editCafeForm[f.key] || ''}
                             onChange={e => setEditCafeForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
+                            className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                           />
                         </div>
                       ))}
@@ -2193,14 +1929,14 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* Quick stats card */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-3">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 space-y-3">
                       <h3 className="text-sm font-semibold text-white">Café Overview</h3>
                       {[
                         { label: 'Total Bookings', value: mc.total_bookings || 0 },
                         { label: 'Total Revenue', value: formatCurrency(mc.total_revenue || 0) },
                         { label: 'Owner', value: mc.owner_name || '—' },
                       ].map(r => (
-                        <div key={r.label} className="flex justify-between items-center py-2.5 border-b border-slate-800/50">
+                        <div key={r.label} className="flex justify-between items-center py-2.5 border-b border-white/[0.06]">
                           <span className="text-xs text-slate-500">{r.label}</span>
                           <span className="text-sm font-semibold text-white">{r.value}</span>
                         </div>
@@ -2209,7 +1945,7 @@ export default function AdminDashboardPage() {
                         <button onClick={() => toggleCafeStatus(mc.id, mc.is_active, mc.name!)} className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors ${mc.is_active ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
                           {mc.is_active ? 'Deactivate Café' : 'Activate Café'}
                         </button>
-                        <button onClick={() => toggleFeaturedCafe(mc.id, mc.is_featured || false, mc.name!)} className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors ${mc.is_featured ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'}`}>
+                        <button onClick={() => toggleFeaturedCafe(mc.id, mc.is_featured || false, mc.name!)} className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors ${mc.is_featured ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-white/[0.06] text-slate-400 hover:bg-white/[0.08]'}`}>
                           {mc.is_featured ? '⭐ Remove Featured' : '☆ Mark as Featured'}
                         </button>
                       </div>
@@ -2221,13 +1957,13 @@ export default function AdminDashboardPage() {
                 {cafeManageSubTab === 'stations' && (
                   <div className="space-y-4">
                     {/* Current station counts */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                       <h3 className="text-sm font-semibold text-white mb-4">Station Inventory</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                         {STATION_TYPES.map(st => {
                           const count = (mc as any)[st.key] || 0;
                           return (
-                            <div key={st.id} className="rounded-xl bg-slate-800/60 border border-slate-700/50 p-3">
+                            <div key={st.id} className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
                               <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{st.label}</p>
                               <div className="flex items-center justify-between">
                                 <span className="text-xl font-bold text-white">{count}</span>
@@ -2235,7 +1971,7 @@ export default function AdminDashboardPage() {
                                   <button
                                     onClick={() => updateStationCount(st.id, -1)}
                                     disabled={savingStation || count === 0}
-                                    className="w-6 h-6 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                                    className="w-6 h-6 rounded-lg bg-white/[0.08] text-slate-300 hover:bg-slate-600 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
                                   >−</button>
                                   <button
                                     onClick={() => updateStationCount(st.id, 1)}
@@ -2251,13 +1987,13 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* Add stations in bulk */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                       <h3 className="text-sm font-semibold text-white mb-3">Add Stations in Bulk</h3>
                       <div className="flex flex-wrap gap-3">
                         <select
                           value={addStationType}
                           onChange={e => setAddStationType(e.target.value)}
-                          className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                          className="px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                         >
                           {STATION_TYPES.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
                         </select>
@@ -2267,7 +2003,7 @@ export default function AdminDashboardPage() {
                           max={50}
                           value={addStationCount}
                           onChange={e => setAddStationCount(Math.max(1, Number(e.target.value)))}
-                          className="w-20 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                          className="w-20 px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                         />
                         <button
                           onClick={() => updateStationCount(addStationType, addStationCount)}
@@ -2285,7 +2021,7 @@ export default function AdminDashboardPage() {
                 {cafeManageSubTab === 'memberships' && (
                   <div className="space-y-4">
                     {/* Add plan form */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 space-y-4">
                       <h3 className="text-sm font-semibold text-white">Add Membership Plan</h3>
                       {membershipMsg && (
                         <div className={`px-3 py-2 rounded-xl text-xs border ${membershipMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>{membershipMsg.text}</div>
@@ -2293,38 +2029,38 @@ export default function AdminDashboardPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Plan Name</label>
-                          <input type="text" placeholder="e.g. PS5 Day Pass" value={membershipForm.name} onChange={e => setMembershipForm(p => ({...p, name: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="text" placeholder="e.g. PS5 Day Pass" value={membershipForm.name} onChange={e => setMembershipForm(p => ({...p, name: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Type</label>
-                          <select value={membershipForm.plan_type} onChange={e => setMembershipForm(p => ({...p, plan_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                          <select value={membershipForm.plan_type} onChange={e => setMembershipForm(p => ({...p, plan_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                             <option value="hourly_package">Hourly Package</option>
                             <option value="day_pass">Day Pass</option>
                           </select>
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Console</label>
-                          <select value={membershipForm.console_type} onChange={e => setMembershipForm(p => ({...p, console_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                          <select value={membershipForm.console_type} onChange={e => setMembershipForm(p => ({...p, console_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                             {['ps5','ps4','xbox','pc','vr','pool','snooker','arcade'].map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Price (₹)</label>
-                          <input type="number" placeholder="500" value={membershipForm.price} onChange={e => setMembershipForm(p => ({...p, price: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="number" placeholder="500" value={membershipForm.price} onChange={e => setMembershipForm(p => ({...p, price: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                         {membershipForm.plan_type !== 'day_pass' && (
                           <div>
                             <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Hours</label>
-                            <input type="number" placeholder="10" value={membershipForm.hours} onChange={e => setMembershipForm(p => ({...p, hours: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                            <input type="number" placeholder="10" value={membershipForm.hours} onChange={e => setMembershipForm(p => ({...p, hours: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                           </div>
                         )}
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Validity (days)</label>
-                          <input type="number" placeholder="30" value={membershipForm.validity_days} onChange={e => setMembershipForm(p => ({...p, validity_days: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="number" placeholder="30" value={membershipForm.validity_days} onChange={e => setMembershipForm(p => ({...p, validity_days: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Players</label>
-                          <select value={membershipForm.player_count} onChange={e => setMembershipForm(p => ({...p, player_count: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                          <select value={membershipForm.player_count} onChange={e => setMembershipForm(p => ({...p, player_count: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                             <option value="single">Single</option>
                             <option value="double">Double</option>
                           </select>
@@ -2336,8 +2072,8 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* Plans list */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
-                      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                      <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-white">Existing Plans</h3>
                         <button onClick={() => loadCafeMemberships(managedCafeId)} className="text-xs text-slate-500 hover:text-white transition-colors">↻ Refresh</button>
                       </div>
@@ -2347,7 +2083,7 @@ export default function AdminDashboardPage() {
                         <div className="py-10 text-center text-sm text-slate-500">No membership plans yet.</div>
                       ) : (
                         <table className="w-full text-sm">
-                          <thead className="bg-slate-800/40 border-b border-slate-800">
+                          <thead className="bg-white/[0.03] border-b border-white/[0.08]">
                             <tr>
                               <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Name</th>
                               <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Type</th>
@@ -2358,9 +2094,9 @@ export default function AdminDashboardPage() {
                               <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-800/50">
+                          <tbody className="divide-y divide-white/[0.06]">
                             {cafeMembershipPlans.map(plan => (
-                              <tr key={plan.id} className="hover:bg-slate-800/30 transition-colors">
+                              <tr key={plan.id} className="hover:bg-white/[0.03] transition-colors">
                                 <td className="px-4 py-3 text-sm font-semibold text-white">{plan.name}</td>
                                 <td className="px-4 py-3 text-sm">
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${plan.plan_type === 'day_pass' ? 'bg-amber-500/15 text-amber-400' : 'bg-violet-500/15 text-violet-400'}`}>
@@ -2387,7 +2123,7 @@ export default function AdminDashboardPage() {
                 {cafeManageSubTab === 'coupons' && (
                   <div className="space-y-4">
                     {/* Add coupon form */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 space-y-4">
                       <h3 className="text-sm font-semibold text-white">Create Coupon</h3>
                       {couponMsg && (
                         <div className={`px-3 py-2 rounded-xl text-xs border ${couponMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>{couponMsg.text}</div>
@@ -2395,11 +2131,11 @@ export default function AdminDashboardPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Coupon Code</label>
-                          <input type="text" placeholder="SAVE20" value={couponForm.code} onChange={e => setCouponForm(p => ({...p, code: e.target.value.toUpperCase()}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white font-mono outline-none" />
+                          <input type="text" placeholder="SAVE20" value={couponForm.code} onChange={e => setCouponForm(p => ({...p, code: e.target.value.toUpperCase()}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white font-mono outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Discount Type</label>
-                          <select value={couponForm.discount_type} onChange={e => setCouponForm(p => ({...p, discount_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                          <select value={couponForm.discount_type} onChange={e => setCouponForm(p => ({...p, discount_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                             <option value="percentage">Percentage %</option>
                             <option value="fixed">Fixed ₹</option>
                             <option value="bonus_minutes">Bonus Minutes</option>
@@ -2407,19 +2143,19 @@ export default function AdminDashboardPage() {
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Discount Value</label>
-                          <input type="number" placeholder={couponForm.discount_type === 'percentage' ? '20' : couponForm.discount_type === 'fixed' ? '100' : '30'} value={couponForm.discount_value} onChange={e => setCouponForm(p => ({...p, discount_value: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="number" placeholder={couponForm.discount_type === 'percentage' ? '20' : couponForm.discount_type === 'fixed' ? '100' : '30'} value={couponForm.discount_value} onChange={e => setCouponForm(p => ({...p, discount_value: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Bonus Minutes</label>
-                          <input type="number" placeholder="0" value={couponForm.bonus_minutes} onChange={e => setCouponForm(p => ({...p, bonus_minutes: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="number" placeholder="0" value={couponForm.bonus_minutes} onChange={e => setCouponForm(p => ({...p, bonus_minutes: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Max Uses (blank = ∞)</label>
-                          <input type="number" placeholder="∞" value={couponForm.max_uses} onChange={e => setCouponForm(p => ({...p, max_uses: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="number" placeholder="∞" value={couponForm.max_uses} onChange={e => setCouponForm(p => ({...p, max_uses: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Valid Until (optional)</label>
-                          <input type="date" value={couponForm.valid_until} onChange={e => setCouponForm(p => ({...p, valid_until: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                          <input type="date" value={couponForm.valid_until} onChange={e => setCouponForm(p => ({...p, valid_until: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                         </div>
                       </div>
                       <button onClick={() => saveCoupon(managedCafeId)} disabled={savingCoupon || !couponForm.code} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white transition-colors disabled:opacity-50">
@@ -2428,8 +2164,8 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* Coupons list */}
-                    <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
-                      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                      <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-white">Existing Coupons</h3>
                         <button onClick={() => loadCafeCoupons(managedCafeId)} className="text-xs text-slate-500 hover:text-white transition-colors">↻ Refresh</button>
                       </div>
@@ -2439,7 +2175,7 @@ export default function AdminDashboardPage() {
                         <div className="py-10 text-center text-sm text-slate-500">No coupons for this café yet.</div>
                       ) : (
                         <table className="w-full text-sm">
-                          <thead className="bg-slate-800/40 border-b border-slate-800">
+                          <thead className="bg-white/[0.03] border-b border-white/[0.08]">
                             <tr>
                               <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Code</th>
                               <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Discount</th>
@@ -2449,12 +2185,12 @@ export default function AdminDashboardPage() {
                               <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-800/50">
+                          <tbody className="divide-y divide-white/[0.06]">
                             {cafeCoupons.map(coupon => {
                               const expired = coupon.valid_until && new Date(coupon.valid_until) < new Date();
                               const display = coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : coupon.bonus_minutes > 0 ? `${coupon.bonus_minutes} mins FREE` : `₹${coupon.discount_value} OFF`;
                               return (
-                                <tr key={coupon.id} className="hover:bg-slate-800/30 transition-colors">
+                                <tr key={coupon.id} className="hover:bg-white/[0.03] transition-colors">
                                   <td className="px-4 py-3 font-mono text-sm font-semibold text-white">{coupon.code}</td>
                                   <td className="px-4 py-3 text-sm">
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${coupon.discount_type === 'percentage' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-blue-500/15 text-blue-400'}`}>{display}</span>
@@ -2466,7 +2202,7 @@ export default function AdminDashboardPage() {
                                       ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Expired</span>
                                       : coupon.is_active
                                       ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
-                                      : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Inactive</span>}
+                                      : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.06] text-slate-400">Inactive</span>}
                                   </td>
                                   <td className="px-4 py-3 text-right">
                                     <button onClick={() => deleteCoupon(coupon.id, managedCafeId)} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
@@ -2491,13 +2227,13 @@ export default function AdminDashboardPage() {
             return (
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <button onClick={() => { setManagedUserId(null); setUserBookings([]); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 transition-colors">← Back to Users</button>
+                  <button onClick={() => { setManagedUserId(null); setUserBookings([]); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 bg-white/[0.06] hover:bg-white/[0.08] transition-colors">← Back to Users</button>
                   <div>
                     <h2 className="text-base font-bold text-white">{mu.name}</h2>
                     <p className="text-xs text-slate-500">{mu.phone || 'No phone'} · {mu.role}</p>
                   </div>
                   <div className="ml-auto flex items-center gap-2">
-                    <select value={mu.role} onChange={e => updateUserRole(mu.id, e.target.value, mu.name)} className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white outline-none">
+                    <select value={mu.role} onChange={e => updateUserRole(mu.id, e.target.value, mu.name)} className="px-3 py-1.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-xs text-white outline-none">
                       <option value="user">User</option>
                       <option value="owner">Owner</option>
                       <option value="admin">Admin</option>
@@ -2513,15 +2249,15 @@ export default function AdminDashboardPage() {
                     { label: 'Role', value: mu.role, color: 'text-violet-400' },
                     { label: 'Joined', value: formatDate(mu.created_at), color: 'text-amber-400' },
                   ].map(s => (
-                    <div key={s.label} className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
+                    <div key={s.label} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-4">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">{s.label}</p>
                       <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-slate-800">
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-white/[0.08]">
                     <h3 className="text-sm font-semibold text-white">Booking History</h3>
                   </div>
                   {loadingUserBookings ? (
@@ -2530,7 +2266,7 @@ export default function AdminDashboardPage() {
                     <div className="py-10 text-center text-sm text-slate-500">No bookings for this user.</div>
                   ) : (
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-800/40 border-b border-slate-800">
+                      <thead className="bg-white/[0.03] border-b border-white/[0.08]">
                         <tr>
                           <th className={thCls}>Café</th>
                           <th className={thCls}>Date</th>
@@ -2542,9 +2278,9 @@ export default function AdminDashboardPage() {
                           <th className={`${thCls} text-right`}>Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/50">
+                      <tbody className="divide-y divide-white/[0.06]">
                         {userBookings.map(b => (
-                          <tr key={b.id} className="hover:bg-slate-800/30 transition-colors">
+                          <tr key={b.id} className="hover:bg-white/[0.03] transition-colors">
                             <td className={`${tdCls} font-semibold text-white`}>{b.cafe_name}</td>
                             <td className={tdCls}>{formatDate(b.booking_date)}</td>
                             <td className={tdCls}>{b.start_time}</td>
@@ -2552,7 +2288,7 @@ export default function AdminDashboardPage() {
                             <td className={`${tdCls} font-semibold text-emerald-400`}>{formatCurrency(b.total_amount)}</td>
                             <td className={tdCls}>{b.source}</td>
                             <td className={tdCls}>
-                              <select value={b.status} onChange={e => updateBookingStatus(b.id, e.target.value)} className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white outline-none">
+                              <select value={b.status} onChange={e => updateBookingStatus(b.id, e.target.value)} className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.09] text-xs text-white outline-none">
                                 {['pending','confirmed','in-progress','completed','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
                               </select>
                             </td>
@@ -2571,32 +2307,32 @@ export default function AdminDashboardPage() {
 
           {activeTab === 'users' && !managedUserId && (
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-[#0d0d14] border border-white/[0.08]">
                 <input
                   type="text"
                   placeholder="Search users by name…"
                   value={userSearch}
                   onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
-                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                 />
                 <select
                   value={userRoleFilter}
                   onChange={(e) => { setUserRoleFilter(e.target.value); setUserPage(1); }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                  className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                 >
                   <option value="all">All Roles</option>
                   <option value="user">Users</option>
                   <option value="owner">Owners</option>
                   <option value="admin">Admins</option>
                 </select>
-                <div className="flex items-center px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs text-slate-500">
+                <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
                   {filteredUsers.length} result{filteredUsers.length !== 1 ? 's' : ''}
                 </div>
               </div>
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                    <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                       <tr>
                         {[
                           { label: 'Name', field: 'name' },
@@ -2617,20 +2353,20 @@ export default function AdminDashboardPage() {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-white/[0.06]">
                       {loadingData ? (
                         <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading users…</td></tr>
                       ) : paginatedUsers.length === 0 ? (
                         <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
                       ) : paginatedUsers.map(u => (
-                        <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">
+                        <tr key={u.id} className="hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3.5 text-sm font-semibold text-white">{u.name}</td>
                           <td className="px-4 py-3.5 text-sm text-slate-400">{u.phone || '—'}</td>
                           <td className="px-4 py-3.5 text-sm">
                             <select
                               value={u.role}
                               onChange={(e) => updateUserRole(u.id, e.target.value, u.name)}
-                              className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white outline-none"
+                              className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.09] text-xs text-white outline-none"
                             >
                               <option value="user">User</option>
                               <option value="owner">Owner</option>
@@ -2652,12 +2388,12 @@ export default function AdminDashboardPage() {
                   </table>
                 </div>
                 {totalUserPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
                     <span className="text-xs text-slate-500">{((userPage-1)*itemsPerPage)+1}–{Math.min(userPage*itemsPerPage, filteredUsers.length)} of {filteredUsers.length}</span>
                     <div className="flex gap-1">
-                      <button onClick={() => setUserPage(p=>Math.max(1,p-1))} disabled={userPage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
-                      {Array.from({length:Math.min(5,totalUserPages)},(_,i)=>{const n=totalUserPages<=5?i+1:userPage<=3?i+1:userPage>=totalUserPages-2?totalUserPages-4+i:userPage-2+i;return <button key={n} onClick={()=>setUserPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${userPage===n?'bg-blue-500 text-white':'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{n}</button>;})}
-                      <button onClick={() => setUserPage(p=>Math.min(totalUserPages,p+1))} disabled={userPage===totalUserPages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
+                      <button onClick={() => setUserPage(p=>Math.max(1,p-1))} disabled={userPage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+                      {Array.from({length:Math.min(5,totalUserPages)},(_,i)=>{const n=totalUserPages<=5?i+1:userPage<=3?i+1:userPage>=totalUserPages-2?totalUserPages-4+i:userPage-2+i;return <button key={n} onClick={()=>setUserPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${userPage===n?'bg-blue-500 text-white':'bg-white/[0.06] text-slate-300 hover:bg-white/[0.08]'}`}>{n}</button>;})}
+                      <button onClick={() => setUserPage(p=>Math.min(totalUserPages,p+1))} disabled={userPage===totalUserPages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
                     </div>
                   </div>
                 )}
@@ -2668,18 +2404,18 @@ export default function AdminDashboardPage() {
           {/* ─── BOOKINGS TAB ─── */}
           {activeTab === 'bookings' && (
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-[#0d0d14] border border-white/[0.08]">
                 <input
                   type="text"
                   placeholder="Search by customer or café…"
                   value={bookingSearch}
                   onChange={(e) => { setBookingSearch(e.target.value); setBookingPage(1); }}
-                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                 />
                 <select
                   value={bookingStatusFilter}
                   onChange={(e) => { setBookingStatusFilter(e.target.value); setBookingPage(1); }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                  className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
@@ -2692,16 +2428,16 @@ export default function AdminDashboardPage() {
                   type="date"
                   value={bookingDateFilter}
                   onChange={(e) => { setBookingDateFilter(e.target.value); setBookingPage(1); }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                  className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                 />
-                <div className="flex items-center px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs text-slate-500">
+                <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
                   {filteredBookings.length} result{filteredBookings.length !== 1 ? 's' : ''}
                 </div>
               </div>
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                    <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                       <tr>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Customer</th>
@@ -2714,13 +2450,13 @@ export default function AdminDashboardPage() {
                         <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-white/[0.06]">
                       {loadingData ? (
                         <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">Loading bookings…</td></tr>
                       ) : paginatedBookings.length === 0 ? (
                         <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No bookings found</td></tr>
                       ) : paginatedBookings.map(b => (
-                        <tr key={b.id} className="hover:bg-slate-800/30 transition-colors">
+                        <tr key={b.id} className="hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3.5 text-sm font-semibold text-white">{b.cafe_name}</td>
                           <td className="px-4 py-3.5 text-sm">
                             <div className="text-slate-200">{b.user_name}</div>
@@ -2735,10 +2471,10 @@ export default function AdminDashboardPage() {
                               ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">Online</span>
                               : b.source === 'membership'
                               ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">Member</span>
-                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Walk-in</span>}
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/[0.06] text-slate-400">Walk-in</span>}
                           </td>
                           <td className="px-4 py-3.5 text-sm">
-                            <select value={b.status} onChange={e => updateBookingStatus(b.id, e.target.value)} className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white outline-none">
+                            <select value={b.status} onChange={e => updateBookingStatus(b.id, e.target.value)} className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/[0.09] text-xs text-white outline-none">
                               {['pending','confirmed','in-progress','completed','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                           </td>
@@ -2751,12 +2487,12 @@ export default function AdminDashboardPage() {
                   </table>
                 </div>
                 {totalBookingPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800/50">
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
                     <span className="text-xs text-slate-500">{((bookingPage-1)*itemsPerPage)+1}–{Math.min(bookingPage*itemsPerPage, filteredBookings.length)} of {filteredBookings.length}</span>
                     <div className="flex gap-1">
-                      <button onClick={() => setBookingPage(p=>Math.max(1,p-1))} disabled={bookingPage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
-                      {Array.from({length:Math.min(5,totalBookingPages)},(_,i)=>{const n=totalBookingPages<=5?i+1:bookingPage<=3?i+1:bookingPage>=totalBookingPages-2?totalBookingPages-4+i:bookingPage-2+i;return <button key={n} onClick={()=>setBookingPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${bookingPage===n?'bg-blue-500 text-white':'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>{n}</button>;})}
-                      <button onClick={() => setBookingPage(p=>Math.min(totalBookingPages,p+1))} disabled={bookingPage===totalBookingPages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
+                      <button onClick={() => setBookingPage(p=>Math.max(1,p-1))} disabled={bookingPage===1} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Prev</button>
+                      {Array.from({length:Math.min(5,totalBookingPages)},(_,i)=>{const n=totalBookingPages<=5?i+1:bookingPage<=3?i+1:bookingPage>=totalBookingPages-2?totalBookingPages-4+i:bookingPage-2+i;return <button key={n} onClick={()=>setBookingPage(n)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${bookingPage===n?'bg-blue-500 text-white':'bg-white/[0.06] text-slate-300 hover:bg-white/[0.08]'}`}>{n}</button>;})}
+                      <button onClick={() => setBookingPage(p=>Math.min(totalBookingPages,p+1))} disabled={bookingPage===totalBookingPages} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next</button>
                     </div>
                   </div>
                 )}
@@ -2782,15 +2518,15 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
 
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-800">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08]">
                   <h3 className="text-sm font-semibold text-white">Revenue by Café</h3>
                 </div>
                 {cafes.length === 0 ? (
                   <p className="px-5 py-8 text-sm text-slate-500">Visit the Cafés tab first to load café data.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-800/40 border-b border-slate-800">
+                    <thead className="bg-white/[0.03] border-b border-white/[0.08]">
                       <tr>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Owner</th>
@@ -2799,11 +2535,11 @@ export default function AdminDashboardPage() {
                         <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Share</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-white/[0.06]">
                       {[...cafes].sort((a,b)=>(b.total_revenue||0)-(a.total_revenue||0)).map(cafe => {
                         const share = stats?.totalRevenue ? ((cafe.total_revenue||0)/stats.totalRevenue*100).toFixed(1) : '0';
                         return (
-                          <tr key={cafe.id} className="hover:bg-slate-800/30 transition-colors">
+                          <tr key={cafe.id} className="hover:bg-white/[0.03] transition-colors">
                             <td className="px-4 py-3.5">
                               <div className="text-sm font-semibold text-white">{cafe.name}</div>
                               <div className="text-xs text-slate-500 mt-0.5 truncate max-w-[200px]">{cafe.address}</div>
@@ -2834,7 +2570,7 @@ export default function AdminDashboardPage() {
                   { label: 'Total Cafés', value: `${stats?.totalCafes||0}`, colorClass: 'text-violet-400' },
                   { label: 'Registered Users', value: `${stats?.totalUsers||0}`, colorClass: 'text-amber-400' },
                 ].map(c => (
-                  <div key={c.label} className="rounded-2xl bg-slate-900 border border-slate-800 p-5 text-center">
+                  <div key={c.label} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 text-center">
                     <p className={`text-2xl font-bold ${c.colorClass}`}>{loadingData ? '…' : c.value}</p>
                     <p className="text-xs text-slate-500 mt-1">{c.label}</p>
                   </div>
@@ -2842,7 +2578,7 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                   <h3 className="text-sm font-semibold text-white mb-4">Top Cafés by Revenue</h3>
                   {cafes.length === 0 ? (
                     <p className="text-sm text-slate-500">Visit the Cafés tab first.</p>
@@ -2859,7 +2595,7 @@ export default function AdminDashboardPage() {
                                 <span className="text-sm text-slate-300 truncate">{cafe.name}</span>
                                 <span className="text-sm font-semibold text-emerald-400 ml-2 shrink-0">{formatCurrency(cafe.total_revenue||0)}</span>
                               </div>
-                              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
                                 <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{width:`${w}%`}} />
                               </div>
                             </div>
@@ -2870,9 +2606,9 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
 
-                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                   <h3 className="text-sm font-semibold text-white mb-4">Revenue Breakdown</h3>
-                  <div className="divide-y divide-slate-800/50">
+                  <div className="divide-y divide-white/[0.06]">
                     {[
                       { label: 'Today', value: formatCurrency(stats?.todayRevenue||0), colorClass: 'text-emerald-400' },
                       { label: 'This Week', value: formatCurrency(stats?.weekRevenue||0), colorClass: 'text-blue-400' },
@@ -2907,36 +2643,35 @@ export default function AdminDashboardPage() {
               </div>
 
               {showAnnouncementForm && (
-                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 space-y-4">
                   <h4 className="text-sm font-semibold text-white">New Announcement</h4>
                   <input
                     type="text"
                     placeholder="Title"
                     value={announcementForm.title}
                     onChange={e => setAnnouncementForm({...announcementForm, title: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none"
                   />
                   <textarea
                     placeholder="Message"
                     value={announcementForm.message}
                     onChange={e => setAnnouncementForm({...announcementForm, message: e.target.value})}
                     rows={3}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none resize-none"
-                    style={{fontFamily: fonts.body}}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none resize-none"
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <select value={announcementForm.type} onChange={e => setAnnouncementForm({...announcementForm, type: e.target.value as 'info'|'warning'|'success'|'error'})} className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                    <select value={announcementForm.type} onChange={e => setAnnouncementForm({...announcementForm, type: e.target.value as 'info'|'warning'|'success'|'error'})} className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                       <option value="info">Info</option>
                       <option value="warning">Warning</option>
                       <option value="success">Success</option>
                       <option value="error">Error</option>
                     </select>
-                    <select value={announcementForm.target_audience} onChange={e => setAnnouncementForm({...announcementForm, target_audience: e.target.value as 'all'|'users'|'owners'})} className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                    <select value={announcementForm.target_audience} onChange={e => setAnnouncementForm({...announcementForm, target_audience: e.target.value as 'all'|'users'|'owners'})} className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                       <option value="all">All Users</option>
                       <option value="users">Users Only</option>
                       <option value="owners">Owners Only</option>
                     </select>
-                    <input type="datetime-local" value={announcementForm.expires_at} onChange={e => setAnnouncementForm({...announcementForm, expires_at: e.target.value})} className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                    <input type="datetime-local" value={announcementForm.expires_at} onChange={e => setAnnouncementForm({...announcementForm, expires_at: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                   </div>
                   <button onClick={createAnnouncement} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white transition-colors">
                     Create Announcement
@@ -2950,7 +2685,7 @@ export default function AdminDashboardPage() {
                 ) : announcements.length === 0 ? (
                   <div className="py-12 text-center text-slate-500 text-sm">No announcements yet. Create the first one above.</div>
                 ) : announcements.map(a => (
-                  <div key={a.id} className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+                  <div key={a.id} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -2962,7 +2697,7 @@ export default function AdminDashboardPage() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">{a.target_audience}</span>
                           {a.is_active
                             ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
-                            : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Inactive</span>}
+                            : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.06] text-slate-400">Inactive</span>}
                         </div>
                         <p className="text-sm text-slate-400 leading-relaxed">{a.message}</p>
                         <p className="text-xs text-slate-600 mt-2">Created: {formatDate(a.created_at)}</p>
@@ -2982,10 +2717,10 @@ export default function AdminDashboardPage() {
 
           {/* ─── AUDIT LOGS TAB ─── */}
           {activeTab === 'audit-logs' && (
-            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+            <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-800/60 border-b border-slate-800">
+                  <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                     <tr>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Timestamp</th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Action</th>
@@ -2994,13 +2729,13 @@ export default function AdminDashboardPage() {
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Details</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-white/[0.06]">
                     {loadingData ? (
                       <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">Loading audit logs…</td></tr>
                     ) : auditLogs.length === 0 ? (
                       <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No audit logs found</td></tr>
                     ) : auditLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
+                      <tr key={log.id} className="hover:bg-white/[0.03] transition-colors">
                         <td className="px-4 py-3.5 text-sm text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString('en-IN')}</td>
                         <td className="px-4 py-3.5 text-sm">
                           {log.action === 'delete'
@@ -3035,7 +2770,7 @@ export default function AdminDashboardPage() {
               </div>
 
               {showGlobalCouponForm && (
-                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 space-y-4">
                   <h4 className="text-sm font-semibold text-white">Create New Coupon</h4>
                   {globalCouponMsg && (
                     <div className={`px-3 py-2 rounded-xl text-xs border ${globalCouponMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>{globalCouponMsg.text}</div>
@@ -3043,18 +2778,18 @@ export default function AdminDashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Café</label>
-                      <select value={globalCouponCafeId} onChange={e => setGlobalCouponCafeId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                      <select value={globalCouponCafeId} onChange={e => setGlobalCouponCafeId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                         <option value="">— Select Café —</option>
                         {cafes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Coupon Code</label>
-                      <input type="text" placeholder="SAVE20" value={globalCouponForm.code} onChange={e => setGlobalCouponForm(p => ({...p, code: e.target.value.toUpperCase()}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white font-mono outline-none" />
+                      <input type="text" placeholder="SAVE20" value={globalCouponForm.code} onChange={e => setGlobalCouponForm(p => ({...p, code: e.target.value.toUpperCase()}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white font-mono outline-none" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Discount Type</label>
-                      <select value={globalCouponForm.discount_type} onChange={e => setGlobalCouponForm(p => ({...p, discount_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none">
+                      <select value={globalCouponForm.discount_type} onChange={e => setGlobalCouponForm(p => ({...p, discount_type: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
                         <option value="percentage">Percentage %</option>
                         <option value="fixed">Fixed ₹</option>
                         <option value="bonus_minutes">Bonus Minutes</option>
@@ -3062,15 +2797,15 @@ export default function AdminDashboardPage() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Discount Value</label>
-                      <input type="number" placeholder="20" value={globalCouponForm.discount_value} onChange={e => setGlobalCouponForm(p => ({...p, discount_value: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                      <input type="number" placeholder="20" value={globalCouponForm.discount_value} onChange={e => setGlobalCouponForm(p => ({...p, discount_value: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Max Uses (blank = ∞)</label>
-                      <input type="number" placeholder="∞" value={globalCouponForm.max_uses} onChange={e => setGlobalCouponForm(p => ({...p, max_uses: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                      <input type="number" placeholder="∞" value={globalCouponForm.max_uses} onChange={e => setGlobalCouponForm(p => ({...p, max_uses: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Valid Until (optional)</label>
-                      <input type="date" value={globalCouponForm.valid_until} onChange={e => setGlobalCouponForm(p => ({...p, valid_until: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none" />
+                      <input type="date" value={globalCouponForm.valid_until} onChange={e => setGlobalCouponForm(p => ({...p, valid_until: e.target.value}))} className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none" />
                     </div>
                   </div>
                   <button onClick={saveGlobalCoupon} disabled={savingGlobalCoupon || !globalCouponForm.code || !globalCouponCafeId} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white transition-colors disabled:opacity-50">
@@ -3079,10 +2814,10 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-800/60 border-b border-slate-800">
+                    <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                       <tr>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Code</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
@@ -3093,7 +2828,7 @@ export default function AdminDashboardPage() {
                         <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-white/[0.06]">
                       {loadingData ? (
                         <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading coupons…</td></tr>
                       ) : coupons.length === 0 ? (
@@ -3102,7 +2837,7 @@ export default function AdminDashboardPage() {
                         const isExpired = coupon.valid_until && new Date(coupon.valid_until) < new Date();
                         const discountDisplay = coupon.discount_type === 'percentage' ? `${coupon.discount_value}% OFF` : coupon.bonus_minutes > 0 ? `${coupon.bonus_minutes} mins FREE` : `₹${coupon.discount_value} OFF`;
                         return (
-                          <tr key={coupon.id} className="hover:bg-slate-800/30 transition-colors">
+                          <tr key={coupon.id} className="hover:bg-white/[0.03] transition-colors">
                             <td className="px-4 py-3.5 font-mono text-sm font-semibold text-white">{coupon.code}</td>
                             <td className="px-4 py-3.5 text-sm text-slate-400">{coupon.cafe_name}</td>
                             <td className="px-4 py-3.5 text-sm">
@@ -3117,7 +2852,7 @@ export default function AdminDashboardPage() {
                                 ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Expired</span>
                                 : coupon.is_active
                                 ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
-                                : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-400">Inactive</span>}
+                                : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/[0.06] text-slate-400">Inactive</span>}
                             </td>
                             <td className="px-4 py-3.5 text-right">
                               <div className="flex items-center justify-end gap-1.5">
@@ -3139,8 +2874,8 @@ export default function AdminDashboardPage() {
 
           {/* ─── SETTINGS TAB ─── */}
           {activeTab === 'settings' && (
-            <div className="max-w-xl">
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-5">
+            <div className="max-w-2xl space-y-5">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-6 space-y-5">
                 <div>
                   <h3 className="text-base font-semibold text-white">Admin Credentials</h3>
                   <p className="text-xs text-slate-500 mt-1">Update your admin login username and password</p>
@@ -3155,20 +2890,20 @@ export default function AdminDashboardPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">Current Password *</label>
-                    <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
+                    <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
                   </div>
-                  <div className="h-px bg-slate-800" />
+                  <div className="h-px bg-white/[0.06]" />
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">New Username <span className="text-slate-600 normal-case font-normal">(optional)</span></label>
-                    <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Leave blank to keep current" className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
+                    <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Leave blank to keep current" className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">New Password <span className="text-slate-600 normal-case font-normal">(optional)</span></label>
-                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Leave blank to keep current" className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Leave blank to keep current" className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-widest">Confirm Password</label>
-                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" disabled={!newPassword} className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50 disabled:opacity-40 disabled:cursor-not-allowed" />
+                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" disabled={!newPassword} className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50 disabled:opacity-40 disabled:cursor-not-allowed" />
                   </div>
                   <button
                     onClick={saveAdminSettings}
@@ -3180,13 +2915,58 @@ export default function AdminDashboardPage() {
                   <p className="text-xs text-slate-600">* Current password is required to make any changes</p>
                 </div>
               </div>
+
+              {/* Platform Info */}
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-6 space-y-4">
+                <div>
+                  <h3 className="text-base font-semibold text-white">Platform Overview</h3>
+                  <p className="text-xs text-slate-500 mt-1">Live stats across the entire BookMyGame network</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: 'Total Cafés', value: stats?.totalCafes || 0 },
+                    { label: 'Active Cafés', value: stats?.activeCafes || 0 },
+                    { label: 'Total Users', value: stats?.totalUsers || 0 },
+                    { label: 'Total Bookings', value: stats?.totalBookings || 0 },
+                    { label: 'Today Revenue', value: formatCurrency(stats?.todayRevenue || 0) },
+                    { label: 'Platform Revenue', value: formatCurrency(stats?.totalRevenue || 0) },
+                  ].map(s => (
+                    <div key={s.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] px-4 py-3">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">{s.label}</p>
+                      <p className="text-lg font-bold text-white">{loadingData ? '…' : s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 space-y-4">
+                <div>
+                  <h3 className="text-base font-semibold text-red-400">Danger Zone</h3>
+                  <p className="text-xs text-slate-500 mt-1">Destructive admin actions — proceed with extreme caution</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => { if (window.confirm('Reload all platform data from database?')) window.location.reload(); }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.06] border border-white/[0.09] text-slate-300 hover:bg-white/[0.09] transition-colors"
+                  >
+                    <RefreshCw size={14} />Force Full Reload
+                  </button>
+                  <button
+                    onClick={() => { if (window.confirm('Clear all browser caches and reload?')) { localStorage.clear(); sessionStorage.clear(); window.location.reload(); } }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/15 transition-colors"
+                  >
+                    <AlertTriangle size={14} />Clear Client Cache
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
           {/* ─── OWNER ACCESS TAB ─── */}
           {activeTab === 'owner-access' && (
             <div className="space-y-5 max-w-3xl">
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
                 <h3 className="text-sm font-semibold text-white mb-1">Authorize Gmail Account</h3>
                 <p className="text-xs text-slate-500 mb-4">Add a Google account that can sign in to the owner dashboard. Must be linked to a café.</p>
                 <form onSubmit={handleAddOwnerEmail} className="flex flex-wrap gap-3">
@@ -3196,13 +2976,13 @@ export default function AdminDashboardPage() {
                     onChange={e => setNewOwnerEmail(e.target.value)}
                     placeholder="owner@gmail.com"
                     required
-                    className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
+                    className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                   />
                   <select
                     value={newOwnerCafeId}
                     onChange={e => setNewOwnerCafeId(e.target.value)}
                     required
-                    className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white outline-none"
+                    className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
                   >
                     <option value="">— Select Café —</option>
                     {cafes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -3218,8 +2998,8 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-800">
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08]">
                   <h3 className="text-sm font-semibold text-white">Authorized Accounts</h3>
                 </div>
                 {ownerEmailsLoading ? (
@@ -3228,7 +3008,7 @@ export default function AdminDashboardPage() {
                   <div className="py-10 text-center text-slate-500 text-sm">No authorized emails yet. Add one above.</div>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-800/40 border-b border-slate-800">
+                    <thead className="bg-white/[0.03] border-b border-white/[0.08]">
                       <tr>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Gmail Address</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
@@ -3236,9 +3016,9 @@ export default function AdminDashboardPage() {
                         <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-white/[0.06]">
                       {ownerEmails.map(row => (
-                        <tr key={row.id} className="hover:bg-slate-800/30 transition-colors">
+                        <tr key={row.id} className="hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3.5 text-sm">
                             <div className="flex items-center gap-2">
                               <svg width="14" height="14" viewBox="0 0 24 24" className="shrink-0">

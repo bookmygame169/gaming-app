@@ -65,19 +65,19 @@ export function AdminSidebar({
       <aside
         className={`
           fixed top-0 left-0 z-50 h-screen w-72
-          bg-gradient-to-b from-slate-900 to-slate-950
-          border-r border-slate-800/50
+          bg-[#0d0d12]
+          border-r border-white/[0.07]
           flex flex-col
           transition-transform duration-300 ease-out
           ${isMobile ? (isOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
         `}
       >
         {/* Header */}
-        <div className="p-6 border-b border-slate-800/50">
+        <div className="p-6 border-b border-white/[0.07]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
-                <LayoutGrid size={18} className="text-slate-900" />
+              <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
+                <LayoutGrid size={18} className="text-white" />
               </div>
               <div>
                 <h1 className="text-base font-bold text-white">Admin Panel</h1>
@@ -89,7 +89,7 @@ export function AdminSidebar({
             {isMobile && (
               <button
                 onClick={onClose}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
@@ -114,17 +114,17 @@ export function AdminSidebar({
                   w-full flex items-center gap-3 px-4 py-3 rounded-xl
                   transition-all duration-200 group relative
                   ${isActive
-                    ? 'bg-gradient-to-r from-blue-500/15 to-blue-600/15 text-blue-400'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'bg-violet-500/10 text-violet-400'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
                   }
                 `}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-violet-500 rounded-r-full" />
                 )}
                 <Icon
                   size={20}
-                  className={isActive ? 'text-blue-400' : 'group-hover:text-white'}
+                  className={isActive ? 'text-violet-400' : 'group-hover:text-white'}
                 />
                 <span className="font-medium text-sm">{item.label}</span>
               </button>
@@ -133,10 +133,10 @@ export function AdminSidebar({
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800/50 space-y-2">
+        <div className="p-4 border-t border-white/[0.07] space-y-2">
           <button
             onClick={() => (window.location.href = '/dashboard')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors"
           >
             <Users size={20} />
             <span className="font-medium text-sm">User Dashboard</span>
@@ -162,7 +162,7 @@ export function AdminMobileMenuButton({ onClick }: AdminMobileMenuButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-700 text-white hover:bg-slate-800 transition-colors"
+      className="flex items-center justify-center w-10 h-10 rounded-lg border border-white/[0.09] text-white hover:bg-white/[0.06] transition-colors"
     >
       <Menu size={20} />
     </button>
