@@ -213,6 +213,7 @@ export default function AdminDashboardPage() {
   const [offlineCustomersLoading, setOfflineCustomersLoading] = useState(false);
   const [offlineSearch, setOfflineSearch] = useState("");
   const [offlineCafeFilter, setOfflineCafeFilter] = useState("all");
+  const [offlineSort, setOfflineSort] = useState<'visits' | 'spend' | 'recent'>("recent");
   const [bookingStatusFilter, setBookingStatusFilter] = useState<string>("all");
   const [bookingDateFilter, setBookingDateFilter] = useState<string>("");
   const [bookingSearch, setBookingSearch] = useState<string>("");
@@ -1313,13 +1314,19 @@ export default function AdminDashboardPage() {
   const totalUserPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const totalBookingPages = Math.ceil(filteredBookings.length / itemsPerPage);
 
-  // Offline customers filtered list
-  const filteredOfflineCustomers = offlineCustomers.filter(c => {
-    const q = offlineSearch.toLowerCase();
-    const matchSearch = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q);
-    const matchCafe = offlineCafeFilter === 'all' || c.cafe_id === offlineCafeFilter;
-    return matchSearch && matchCafe;
-  });
+  // Offline customers filtered + sorted list
+  const filteredOfflineCustomers = offlineCustomers
+    .filter(c => {
+      const q = offlineSearch.toLowerCase();
+      const matchSearch = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q);
+      const matchCafe = offlineCafeFilter === 'all' || c.cafe_id === offlineCafeFilter;
+      return matchSearch && matchCafe;
+    })
+    .sort((a, b) =>
+      offlineSort === 'visits' ? b.total_bookings - a.total_bookings :
+      offlineSort === 'spend'  ? b.total_spent - a.total_spent :
+      b.last_visit.localeCompare(a.last_visit)
+    );
 
   // Format currency
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
@@ -2514,6 +2521,22 @@ export default function AdminDashboardPage() {
                   <option value="all">All Cafés</option>
                   {cafes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                {/* Sort buttons */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                  {([
+                    { key: 'recent', label: 'Recent' },
+                    { key: 'visits', label: 'Top Visits' },
+                    { key: 'spend',  label: 'Top Spend' },
+                  ] as const).map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => setOfflineSort(s.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${offlineSort === s.key ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
                   {filteredOfflineCustomers.length} result{filteredOfflineCustomers.length !== 1 ? 's' : ''}
                 </div>
