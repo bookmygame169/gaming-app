@@ -311,7 +311,7 @@ export default function AdminDashboardPage() {
         const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
         const todayStr = istNow.toISOString().slice(0, 10);
         const weekStr = new Date(istNow.getTime() - 7 * 86400_000).toISOString().slice(0, 10);
-        const monthStr = new Date(istNow.getTime() - 30 * 86400_000).toISOString().slice(0, 10);
+        const monthStr = `${istNow.getFullYear()}-${String(istNow.getMonth() + 1).padStart(2, '0')}-01`;
 
         // Run all counts + revenue queries in parallel
         const [
@@ -1651,7 +1651,7 @@ export default function AdminDashboardPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: "Today", value: formatCurrency(stats?.todayRevenue || 0), sub: `${stats?.todayBookings || 0} bookings today`, color: "text-emerald-400", glow: "from-emerald-500/10" },
-                  { label: "This Month", value: formatCurrency(stats?.monthRevenue || 0), sub: "Last 30 days", color: "text-blue-400", glow: "from-blue-500/10" },
+                  { label: "This Month", value: formatCurrency(stats?.monthRevenue || 0), sub: `${new Date().toLocaleString('en-IN', { month: 'long' })} 1st onwards`, color: "text-blue-400", glow: "from-blue-500/10" },
                   { label: "This Week", value: formatCurrency(stats?.weekRevenue || 0), sub: "Last 7 days", color: "text-violet-400", glow: "from-violet-500/10" },
                   { label: "All Time", value: formatCurrency(stats?.totalRevenue || 0), sub: "Platform total", color: "text-amber-400", glow: "from-amber-500/10" },
                 ].map(c => (
@@ -2507,7 +2507,7 @@ export default function AdminDashboardPage() {
                 {[
                   { label: 'Today', value: formatCurrency(stats?.todayRevenue||0), sub: `${stats?.todayBookings||0} bookings`, colorClass: 'text-emerald-400', borderClass: 'border-emerald-500/20', bgClass: 'bg-emerald-500/5' },
                   { label: 'This Week', value: formatCurrency(stats?.weekRevenue||0), sub: 'Last 7 days', colorClass: 'text-blue-400', borderClass: 'border-blue-500/20', bgClass: 'bg-blue-500/5' },
-                  { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), sub: 'Last 30 days', colorClass: 'text-violet-400', borderClass: 'border-violet-500/20', bgClass: 'bg-violet-500/5' },
+                  { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), sub: `${new Date().toLocaleString('en-IN', { month: 'long' })} 1 onwards`, colorClass: 'text-violet-400', borderClass: 'border-violet-500/20', bgClass: 'bg-violet-500/5' },
                   { label: 'All Time', value: formatCurrency(stats?.totalRevenue||0), sub: `${stats?.totalBookings||0} total bookings`, colorClass: 'text-amber-400', borderClass: 'border-amber-500/20', bgClass: 'bg-amber-500/5' },
                 ].map(c => (
                   <div key={c.label} className={`rounded-2xl ${c.bgClass} border ${c.borderClass} p-5`}>
