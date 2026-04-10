@@ -631,10 +631,11 @@ export default function AdminDashboardPage() {
         for (const b of data || []) {
           const phone = b.customer_phone as string;
           const cafeName = (b.cafes as any)?.name || "Unknown";
+          const amount = Number(b.total_amount) || 0;
           if (map.has(phone)) {
             const existing = map.get(phone)!;
             existing.total_bookings += 1;
-            existing.total_spent += b.total_amount || 0;
+            existing.total_spent += amount;
             if (b.booking_date > existing.last_visit) {
               existing.last_visit = b.booking_date;
               existing.cafe_name = cafeName;
@@ -647,7 +648,7 @@ export default function AdminDashboardPage() {
               cafe_name: cafeName,
               cafe_id: b.cafe_id,
               total_bookings: 1,
-              total_spent: b.total_amount || 0,
+              total_spent: amount,
               last_visit: b.booking_date,
             });
           }
@@ -1335,6 +1336,29 @@ export default function AdminDashboardPage() {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // Download offline customers as CSV
+  const downloadOfflineCustomersCSV = () => {
+    const rows = [
+      ['Name', 'Phone', 'Last Café', 'Total Visits', 'Total Spent (₹)', 'Last Visit'],
+      ...filteredOfflineCustomers.map(c => [
+        c.name,
+        c.phone,
+        c.cafe_name,
+        c.total_bookings,
+        c.total_spent,
+        c.last_visit,
+      ]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `offline-customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ─── Cafe management handlers ───────────────────────────────────────────────
@@ -2540,6 +2564,13 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
                   {filteredOfflineCustomers.length} result{filteredOfflineCustomers.length !== 1 ? 's' : ''}
                 </div>
+                <button
+                  onClick={downloadOfflineCustomersCSV}
+                  disabled={filteredOfflineCustomers.length === 0}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ↓ Export CSV
+                </button>
               </div>
 
               {/* Table */}
