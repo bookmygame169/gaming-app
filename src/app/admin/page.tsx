@@ -1651,8 +1651,8 @@ export default function AdminDashboardPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: "Today", value: formatCurrency(stats?.todayRevenue || 0), sub: `${stats?.todayBookings || 0} bookings today`, color: "text-emerald-400", glow: "from-emerald-500/10" },
-                  { label: "This Week", value: formatCurrency(stats?.weekRevenue || 0), sub: "Last 7 days", color: "text-blue-400", glow: "from-blue-500/10" },
-                  { label: "This Month", value: formatCurrency(stats?.monthRevenue || 0), sub: "Last 30 days", color: "text-violet-400", glow: "from-violet-500/10" },
+                  { label: "This Month", value: formatCurrency(stats?.monthRevenue || 0), sub: "Last 30 days", color: "text-blue-400", glow: "from-blue-500/10" },
+                  { label: "This Week", value: formatCurrency(stats?.weekRevenue || 0), sub: "Last 7 days", color: "text-violet-400", glow: "from-violet-500/10" },
                   { label: "All Time", value: formatCurrency(stats?.totalRevenue || 0), sub: "Platform total", color: "text-amber-400", glow: "from-amber-500/10" },
                 ].map(c => (
                   <div key={c.label} className={`relative overflow-hidden rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5`}>
