@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8 rounded-2xl bg-slate-900 border border-red-500/20 text-center">
+        <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8 rounded-2xl bg-white/[0.03] border border-red-500/20 text-center">
           <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
             <AlertTriangle size={24} className="text-red-400" />
           </div>
@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.06] text-slate-300 hover:bg-slate-700 text-sm font-medium transition-colors"
           >
             <RefreshCw size={14} /> Try again
           </button>

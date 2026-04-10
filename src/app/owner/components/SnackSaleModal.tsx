@@ -430,7 +430,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                               <div className="flex items-center gap-1.5 mt-2">
                                 {qty > 0 ? (
                                   <>
-                                    <button onClick={() => removeFromCart(item.id)} className="flex-1 flex items-center justify-center h-7 rounded-lg bg-white/[0.08] hover:bg-slate-600 text-slate-300 transition-colors">
+                                    <button onClick={() => removeFromCart(item.id)} className="flex-1 flex items-center justify-center h-7 rounded-lg bg-white/[0.08] hover:bg-white/[0.10] text-slate-300 transition-colors">
                                       <Minus size={12} />
                                     </button>
                                     <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className={`flex-1 flex items-center justify-center h-7 rounded-lg transition-colors disabled:opacity-40 ${isOwnerUse ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-400' : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-400'}`}>

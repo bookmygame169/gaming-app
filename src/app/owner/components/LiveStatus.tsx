@@ -384,7 +384,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                         <div className="text-2xl font-bold text-amber-400">{totalEndingSoon}</div>
                         <div className="text-xs text-amber-600 font-semibold uppercase tracking-wide mt-0.5">Ending Soon</div>
                     </div>
-                    <div className="bg-slate-700/30 border border-slate-700/50 rounded-xl p-3 text-center">
+                    <div className="bg-white/[0.05] border border-white/[0.09]/50 rounded-xl p-3 text-center">
                         <div className="text-2xl font-bold text-slate-400">{totalOff}</div>
                         <div className="text-xs text-slate-600 font-semibold uppercase tracking-wide mt-0.5">Powered Off</div>
                     </div>
@@ -425,11 +425,11 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                             const duration = station.booking?.duration || 60;
                             const progressPct = isOngoing ? 100 : Math.min(100, (timeRemaining / duration) * 100);
 
-                            const bgColor = isFree ? 'bg-emerald-500/5' : isEnding ? 'bg-amber-500/5' : isBusy ? 'bg-red-500/5' : 'bg-slate-800/20';
-                            const borderColor = isFree ? 'border-emerald-500/40' : isEnding ? 'border-amber-500/40' : isBusy ? 'border-red-500/40' : 'border-slate-700/40';
+                            const bgColor = isFree ? 'bg-emerald-500/5' : isEnding ? 'bg-amber-500/5' : isBusy ? 'bg-red-500/5' : 'bg-white/[0.06]/20';
+                            const borderColor = isFree ? 'border-emerald-500/40' : isEnding ? 'border-amber-500/40' : isBusy ? 'border-red-500/40' : 'border-white/[0.09]/40';
                             const timerColor = isEnding ? 'text-amber-500' : isBusy ? 'text-red-400' : 'text-emerald-500';
                             const barColor = isFree ? 'bg-emerald-500' : isEnding ? 'bg-amber-500' : 'bg-red-500';
-                            const badgeBg = isFree ? 'bg-emerald-500/20' : isEnding ? 'bg-amber-500/20' : isBusy ? 'bg-red-500/20' : 'bg-slate-600/20';
+                            const badgeBg = isFree ? 'bg-emerald-500/20' : isEnding ? 'bg-amber-500/20' : isBusy ? 'bg-red-500/20' : 'bg-white/[0.06]';
                             const badgeText = isFree ? 'text-emerald-500' : isEnding ? 'text-amber-500' : isBusy ? 'text-red-500' : 'text-slate-500';
                             const badgeBorder = isFree ? 'border-emerald-500' : isEnding ? 'border-amber-500' : isBusy ? 'border-red-500' : 'border-slate-600';
                             const badgeLabel = isFree ? 'FREE' : isEnding ? 'ENDING SOON' : isBusy ? 'BUSY' : 'OFF';

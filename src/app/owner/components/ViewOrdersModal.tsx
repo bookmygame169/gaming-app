@@ -448,7 +448,7 @@ export default function ViewOrdersModal({
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => removeFromCart(item.id)}
-                                className="p-1 bg-white/[0.08] hover:bg-slate-600 rounded text-white"
+                                className="p-1 bg-white/[0.08] hover:bg-white/[0.10] rounded text-white"
                               >
                                 <Minus className="w-4 h-4" />
                               </button>

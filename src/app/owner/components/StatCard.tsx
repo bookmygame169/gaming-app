@@ -16,7 +16,7 @@ export default function StatCard({
     subtitle,
 }: StatCardProps) {
     return (
-        <div className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/60 p-5 md:p-6 flex flex-col justify-between min-h-[110px]">
+        <div className="relative overflow-hidden rounded-2xl border border-white/[0.09]/50 bg-white/[0.03]/60 p-5 md:p-6 flex flex-col justify-between min-h-[110px]">
             <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
                 {title}
             </p>

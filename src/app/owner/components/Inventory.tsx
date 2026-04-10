@@ -470,7 +470,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
                         <button
                           onClick={() => updateStock(item, -1)}
                           disabled={item.stock_quantity === 0}
-                          className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-slate-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           -
                         </button>
@@ -479,7 +479,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
                         </span>
                         <button
                           onClick={() => updateStock(item, 1)}
-                          className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-slate-600 text-white rounded-lg"
+                          className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg"
                         >
                           +
                         </button>
@@ -492,7 +492,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
                           className={`p-2 rounded-lg transition ${
                             item.is_available
                               ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                              : "bg-white/[0.08] text-slate-400 hover:bg-slate-600"
+                              : "bg-white/[0.08] text-slate-400 hover:bg-white/[0.10]"
                           }`}
                           title={item.is_available ? "Mark unavailable" : "Mark available"}
                         >
@@ -500,7 +500,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
                         </button>
                         <button
                           onClick={() => openEditModal(item)}
-                          className="p-2 bg-white/[0.08] hover:bg-slate-600 text-slate-300 rounded-lg transition"
+                          className="p-2 bg-white/[0.08] hover:bg-white/[0.10] text-slate-300 rounded-lg transition"
                           title="Edit"
                         >
                           <Pencil className="w-4 h-4" />

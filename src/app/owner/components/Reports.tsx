@@ -1540,7 +1540,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium border ${booking.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                                             booking.status === 'completed' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                                'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                                'bg-white/[0.04] text-slate-400 border-white/[0.09]'
                                             }`}>
                                             {booking.status}
                                         </span>

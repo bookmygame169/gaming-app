@@ -14,7 +14,7 @@ const STYLES = {
   success: 'border-emerald-500/30 bg-emerald-950/80',
   error: 'border-red-500/30 bg-red-950/80',
   warning: 'border-amber-500/30 bg-amber-950/80',
-  info: 'border-blue-500/30 bg-slate-900/90',
+  info: 'border-blue-500/30 bg-white/[0.03]/90',
 };
 
 interface ToastContainerProps {

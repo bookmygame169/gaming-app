@@ -169,7 +169,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const statusColor: Record<string, string> = {
         active: 'bg-emerald-500/15 text-emerald-400',
         expired: 'bg-red-500/15 text-red-400',
-        cancelled: 'bg-slate-700/50 text-slate-400',
+        cancelled: 'bg-white/[0.05] text-slate-400',
     };
 
     async function handleBulkStatus(status: string) {

@@ -349,7 +349,7 @@ export default function AddItemsModal({
                                 <>
                                   <button
                                     onClick={() => removeFromCart(item.id)}
-                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-slate-600 text-white rounded-lg transition"
+                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg transition"
                                   >
                                     <Minus className="w-4 h-4" />
                                   </button>

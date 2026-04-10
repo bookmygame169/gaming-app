@@ -393,7 +393,7 @@ See you soon! 🎯`;
                                                 placeholder="e.g., SUMMER50 (Auto-generated if empty)"
                                                 value={formData.code}
                                                 onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                                                className="w-full pl-4 pr-12 py-3 bg-slate-950 border border-white/[0.09] rounded-xl text-white font-mono text-lg tracking-wider placeholder-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                                                className="w-full pl-4 pr-12 py-3 bg-[#09090e] border border-white/[0.09] rounded-xl text-white font-mono text-lg tracking-wider placeholder-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
                                             />
                                             <div className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-white/[0.06] text-slate-400 rounded-md text-xs font-mono border border-white/[0.09]">
                                                 CODE
@@ -438,7 +438,7 @@ See you soon! 🎯`;
                                     </div>
 
                                     {/* Value Inputs */}
-                                    <div className="p-5 rounded-xl bg-slate-950 border border-white/[0.08]">
+                                    <div className="p-5 rounded-xl bg-[#09090e] border border-white/[0.08]">
                                         {formData.discountType === 'percentage' ? (
                                             <div className="grid grid-cols-2 gap-6">
                                                 <div>
@@ -503,7 +503,7 @@ See you soon! 🎯`;
                                                 type="date"
                                                 value={formData.validFrom}
                                                 onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
-                                                className="w-full px-3 py-2 bg-slate-950 border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
                                             />
                                         </div>
                                         <div>
@@ -512,7 +512,7 @@ See you soon! 🎯`;
                                                 type="date"
                                                 value={formData.validUntil}
                                                 onChange={e => setFormData({ ...formData, validUntil: e.target.value })}
-                                                className="w-full px-3 py-2 bg-slate-950 border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
                                             />
                                         </div>
                                     </div>
@@ -524,7 +524,7 @@ See you soon! 🎯`;
                                                 type="number"
                                                 value={formData.minOrderAmount}
                                                 onChange={e => setFormData({ ...formData, minOrderAmount: e.target.value })}
-                                                className="w-full px-3 py-2 bg-slate-950 border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
                                                 placeholder="0"
                                             />
                                         </div>
@@ -534,7 +534,7 @@ See you soon! 🎯`;
                                                 type="number"
                                                 value={formData.maxUses}
                                                 onChange={e => setFormData({ ...formData, maxUses: e.target.value })}
-                                                className="w-full px-3 py-2 bg-slate-950 border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
                                                 placeholder="Unlimited"
                                             />
                                         </div>
@@ -607,7 +607,7 @@ See you soon! 🎯`;
                                 <div className="flex justify-between items-start mb-6">
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${formData.isActive
                                             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                            : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                            : 'bg-white/[0.04] text-slate-400 border-white/[0.09]'
                                         }`}>
                                         {formData.isActive ? 'Active' : 'Inactive'}
                                     </span>
@@ -717,7 +717,7 @@ See you soon! 🎯`;
                             </div>
                             <span className={`inline-block text-xs px-2 py-1 rounded-full ${status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
                                 status === 'expired' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                                    'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                                    'bg-white/[0.04] text-slate-400 border border-white/[0.09]'
                                 }`}>
                                 {status.charAt(0).toUpperCase() + status.slice(1)}
                             </span>
@@ -1181,7 +1181,7 @@ See you soon! 🎯`;
                                         ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                         : status === 'expired'
                                             ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                            : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                            : 'bg-white/[0.04] text-slate-400 border-white/[0.09]'
                                         }`}>
                                         {status === 'active' ? 'Active' : status === 'expired' ? 'Expired' : 'Inactive'}
                                     </span>

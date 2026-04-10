@@ -64,10 +64,10 @@ export function SessionEndedPopup({
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 pointer-events-none">
       <div
-        className="pointer-events-auto bg-slate-900 border-2 border-red-500/50 rounded-2xl shadow-2xl shadow-red-500/20 w-full max-w-md mx-4 animate-in slide-in-from-top-4 fade-in duration-300"
+        className="pointer-events-auto bg-white/[0.03] border-2 border-red-500/50 rounded-2xl shadow-2xl shadow-red-500/20 w-full max-w-md mx-4 animate-in slide-in-from-top-4 fade-in duration-300"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-500/20 rounded-xl">
               <AlertCircle className="w-6 h-6 text-red-500" />
@@ -79,7 +79,7 @@ export function SessionEndedPopup({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-800 rounded-xl transition-colors"
+            className="p-2 hover:bg-white/[0.06] rounded-xl transition-colors"
           >
             <X className="w-5 h-5 text-slate-400" />
           </button>
@@ -87,7 +87,7 @@ export function SessionEndedPopup({
 
         {/* Content */}
         <div className="p-5">
-          <div className="bg-slate-800/50 rounded-xl p-4 mb-4">
+          <div className="bg-white/[0.06]/50 rounded-xl p-4 mb-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="text-3xl">🎮</div>
               <div>
@@ -109,7 +109,7 @@ export function SessionEndedPopup({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-white/[0.08]">
           <button
             onClick={onClose}
             className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors"
@@ -119,7 +119,7 @@ export function SessionEndedPopup({
         </div>
 
         {/* Auto-close indicator */}
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-800 rounded-b-2xl overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-white/[0.06] rounded-b-2xl overflow-hidden">
           <div
             className="h-full bg-red-500 animate-shrink-width"
             style={{
