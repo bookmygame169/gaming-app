@@ -99,7 +99,7 @@ type OfflineCustomer = {
   last_visit: string;
 };
 
-type NavTab = 'overview' | 'cafes' | 'users' | 'offline-customers' | 'bookings' | 'revenue' | 'reports' | 'settings' | 'announcements' | 'audit-logs' | 'coupons' | 'owner-access';
+type NavTab = 'overview' | 'cafes' | 'users' | 'offline-customers' | 'bookings' | 'revenue' | 'reports' | 'settings' | 'announcements' | 'audit-logs' | 'coupons' | 'owner-access' | 'subscriptions';
 
 type AnnouncementRow = {
   id: string;
@@ -251,6 +251,36 @@ export default function AdminDashboardPage() {
   const [bookingStatusFilter, setBookingStatusFilter] = useState<string>("all");
   const [bookingDateFilter, setBookingDateFilter] = useState<string>("");
   const [bookingSearch, setBookingSearch] = useState<string>("");
+  const [bookingDateFrom, setBookingDateFrom] = useState<string>("");
+  const [bookingDateTo, setBookingDateTo] = useState<string>("");
+  const [bookingSourceFilter, setBookingSourceFilter] = useState<string>("all");
+
+  // Revenue tab filters
+  const [revenueFrom, setRevenueFrom] = useState<string>("");
+  const [revenueTo, setRevenueTo] = useState<string>("");
+  const [revenueSourceBreakdown, setRevenueSourceBreakdown] = useState<{ online: number; walkin: number; membership: number }>({ online: 0, walkin: 0, membership: 0 });
+  const [revenueCafeFilter, setRevenueCafeFilter] = useState<string>("all");
+
+  // Reports tab data
+  const [reportDailyData, setReportDailyData] = useState<{ date: string; bookings: number; revenue: number; cancelled: number }[]>([]);
+  const [reportPeakHours, setReportPeakHours] = useState<{ hour: string; count: number }[]>([]);
+  const [reportSourceSplit, setReportSourceSplit] = useState<{ online: number; walkin: number; membership: number; onlineRev: number; walkinRev: number; membershipRev: number }>({ online: 0, walkin: 0, membership: 0, onlineRev: 0, walkinRev: 0, membershipRev: 0 });
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [reportDays, setReportDays] = useState<30 | 60 | 90>(30);
+
+  // Subscriptions tab
+  const [platformSubscriptions, setPlatformSubscriptions] = useState<any[]>([]);
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
+  const [subscriptionSearch, setSubscriptionSearch] = useState("");
+  const [subscriptionCafeFilter, setSubscriptionCafeFilter] = useState("all");
+
+  // Audit log filters
+  const [auditActionFilter, setAuditActionFilter] = useState("all");
+  const [auditEntityFilter, setAuditEntityFilter] = useState("all");
+
+  // Maintenance mode
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   // Pagination
   const [cafePage, setCafePage] = useState(1);
@@ -323,6 +353,11 @@ export default function AdminDashboardPage() {
       title: "Owner Access",
       subtitle: "Manage which Google accounts can sign in to the owner dashboard.",
       eyebrow: "Access Control",
+    },
+    subscriptions: {
+      title: "Subscriptions",
+      subtitle: "Track active memberships, hours remaining, and subscription revenue across all cafés.",
+      eyebrow: "Members",
     },
   };
 
@@ -806,6 +841,97 @@ export default function AdminDashboardPage() {
 
     loadCoupons();
   }, [isAdmin, activeTab]);
+
+  // Load subscriptions
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'subscriptions') return;
+    async function loadSubscriptions() {
+      setLoadingSubscriptions(true);
+      try {
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .select('id, cafe_id, customer_name, customer_phone, amount_paid, purchase_date, hours_remaining, timer_active, membership_plans(name, console_type, plan_type)')
+          .order('purchase_date', { ascending: false })
+          .limit(300);
+        if (error) throw error;
+        // Enrich with cafe name using already-loaded cafes if available
+        const enriched = await Promise.all((data || []).map(async (s) => {
+          const { data: cafe } = await supabase.from('cafes').select('name').eq('id', s.cafe_id).maybeSingle();
+          return { ...s, cafe_name: cafe?.name || 'Unknown' };
+        }));
+        setPlatformSubscriptions(enriched);
+      } catch (err) { console.error(err); }
+      finally { setLoadingSubscriptions(false); }
+    }
+    loadSubscriptions();
+  }, [isAdmin, activeTab]);
+
+  // Load reports data
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'reports') return;
+    async function loadReports() {
+      setLoadingReport(true);
+      try {
+        const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        const fromDate = new Date(istNow.getTime() - reportDays * 86400_000).toISOString().slice(0, 10);
+
+        const { data } = await supabase
+          .from('bookings')
+          .select('booking_date, start_time, total_amount, status, source')
+          .gte('booking_date', fromDate)
+          .is('deleted_at', null)
+          .order('booking_date', { ascending: true });
+
+        const rows = data || [];
+
+        // Daily aggregation
+        const dailyMap = new Map<string, { bookings: number; revenue: number; cancelled: number }>();
+        const hourMap = new Map<string, number>();
+        let online = 0, walkin = 0, membership = 0;
+        let onlineRev = 0, walkinRev = 0, membershipRev = 0;
+
+        for (const b of rows) {
+          const d = (b.booking_date || '').slice(0, 10);
+          if (!dailyMap.has(d)) dailyMap.set(d, { bookings: 0, revenue: 0, cancelled: 0 });
+          const entry = dailyMap.get(d)!;
+          entry.bookings++;
+          if (b.status !== 'cancelled') entry.revenue += b.total_amount || 0;
+          if (b.status === 'cancelled') entry.cancelled++;
+
+          // Peak hours
+          const timeStr = (b.start_time || '').trim();
+          const hour = timeStr ? timeStr.split(':')[0].replace(/[^0-9]/g, '') || '?' : '?';
+          // Parse 12hr format
+          let h = parseInt(hour) || 0;
+          const isPM = /pm/i.test(timeStr);
+          const isAM = /am/i.test(timeStr);
+          if (isPM && h !== 12) h += 12;
+          if (isAM && h === 12) h = 0;
+          const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
+          hourMap.set(label, (hourMap.get(label) || 0) + 1);
+
+          // Source split
+          const src = (b.source || '').toLowerCase();
+          const rev = b.status !== 'cancelled' ? (b.total_amount || 0) : 0;
+          if (src === 'online') { online++; onlineRev += rev; }
+          else if (src === 'membership') { membership++; membershipRev += rev; }
+          else { walkin++; walkinRev += rev; }
+        }
+
+        const dailyArr = Array.from(dailyMap.entries()).map(([date, v]) => ({ date, ...v }));
+        const hourArr = Array.from(hourMap.entries())
+          .map(([hour, count]) => ({ hour, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+
+        setReportDailyData(dailyArr);
+        setReportPeakHours(hourArr);
+        setReportSourceSplit({ online, walkin, membership, onlineRev, walkinRev, membershipRev });
+      } catch (err) { console.error(err); }
+      finally { setLoadingReport(false); }
+    }
+    loadReports();
+  }, [isAdmin, activeTab, reportDays]);
 
   // Load owner emails when tab is active
   useEffect(() => {
@@ -1343,13 +1469,50 @@ export default function AdminDashboardPage() {
     bookings.filter(booking => {
       if (bookingStatusFilter !== "all" && booking.status !== bookingStatusFilter) return false;
       if (bookingDateFilter && booking.booking_date !== bookingDateFilter) return false;
-      if (bookingSearch && !booking.user_name?.toLowerCase().includes(bookingSearch.toLowerCase()) &&
-        !booking.cafe_name?.toLowerCase().includes(bookingSearch.toLowerCase())) return false;
+      if (bookingDateFrom && booking.booking_date < bookingDateFrom) return false;
+      if (bookingDateTo && booking.booking_date > bookingDateTo) return false;
+      if (bookingSourceFilter !== "all") {
+        const src = (booking.source || '').toLowerCase();
+        if (bookingSourceFilter === 'online' && src !== 'online') return false;
+        if (bookingSourceFilter === 'walkin' && src !== 'walk_in' && src !== 'walk-in') return false;
+        if (bookingSourceFilter === 'membership' && src !== 'membership') return false;
+      }
+      if (bookingSearch) {
+        const q = bookingSearch.toLowerCase();
+        const matchName = booking.user_name?.toLowerCase().includes(q);
+        const matchCafe = booking.cafe_name?.toLowerCase().includes(q);
+        const matchPhone = booking.customer_phone?.toLowerCase().includes(q);
+        if (!matchName && !matchCafe && !matchPhone) return false;
+      }
       return true;
     }),
     bookingSort.field,
     bookingSort.order
   );
+
+  // Filtered audit logs
+  const filteredAuditLogs = auditLogs.filter(log => {
+    if (auditActionFilter !== 'all' && log.action !== auditActionFilter) return false;
+    if (auditEntityFilter !== 'all' && log.entity_type !== auditEntityFilter) return false;
+    return true;
+  });
+
+  // Revenue filtered cafes
+  const revenueFilteredCafes = cafes
+    .filter(c => revenueCafeFilter === 'all' || c.id === revenueCafeFilter)
+    .sort((a, b) => (b.total_revenue || 0) - (a.total_revenue || 0));
+
+  // Filtered subscriptions
+  const filteredSubscriptions = platformSubscriptions.filter(s => {
+    if (subscriptionCafeFilter !== 'all' && s.cafe_id !== subscriptionCafeFilter) return false;
+    if (subscriptionSearch) {
+      const q = subscriptionSearch.toLowerCase();
+      if (!s.customer_name?.toLowerCase().includes(q) && !s.cafe_name?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  const activeSubscriptions = filteredSubscriptions.filter(s => s.timer_active);
+  const subscriptionRevenue = filteredSubscriptions.reduce((sum: number, s: any) => sum + (s.amount_paid || 0), 0);
 
   // Paginate data
   const paginatedCafes = filteredCafes.slice((cafePage - 1) * itemsPerPage, cafePage * itemsPerPage);
@@ -1722,6 +1885,62 @@ export default function AdminDashboardPage() {
     a.download = `cafes-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadBookingsCSV() {
+    const rows = [
+      ['Café', 'Customer', 'Phone', 'Date', 'Time', 'Duration (min)', 'Amount (₹)', 'Source', 'Status'],
+      ...filteredBookings.map(b => [
+        b.cafe_name || '', b.user_name || '', b.customer_phone || '',
+        b.booking_date, b.start_time, b.duration, b.total_amount,
+        b.source, b.status,
+      ]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadAuditCSV() {
+    const rows = [
+      ['Timestamp', 'Action', 'Entity Type', 'Entity ID', 'Details'],
+      ...filteredAuditLogs.map(l => [
+        new Date(l.created_at).toLocaleString('en-IN'),
+        l.action, l.entity_type,
+        l.entity_id || '',
+        l.details ? JSON.stringify(l.details) : '',
+      ]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function toggleMaintenanceMode() {
+    setSavingMaintenance(true);
+    try {
+      const newVal = !maintenanceMode;
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({ key: 'maintenance_mode', value: newVal ? 'true' : 'false' }, { onConflict: 'key' });
+      if (error) throw error;
+      setMaintenanceMode(newVal);
+      await logAdminAction({ action: newVal ? 'enable_maintenance' : 'disable_maintenance', entityType: 'settings', details: { maintenance_mode: newVal } });
+    } catch (err: any) {
+      alert(err.message || 'Failed to toggle maintenance mode');
+    } finally {
+      setSavingMaintenance(false);
+    }
   }
 
   async function bulkToggleCafeStatus(newStatus: boolean) {
@@ -3138,10 +3357,25 @@ export default function AdminDashboardPage() {
           {/* ─── BOOKINGS TAB ─── */}
           {activeTab === 'bookings' && (
             <div className="space-y-4">
+              {/* Quick stats bar */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: 'Showing', value: `${filteredBookings.length} bookings`, color: 'text-white' },
+                  { label: 'Total Revenue', value: formatCurrency(filteredBookings.filter(b => b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0)), color: 'text-emerald-400' },
+                  { label: 'Online', value: `${filteredBookings.filter(b => (b.source || '').toLowerCase() === 'online').length}`, color: 'text-blue-400' },
+                  { label: 'Walk-in', value: `${filteredBookings.filter(b => { const s = (b.source || '').toLowerCase(); return s === 'walk_in' || s === 'walk-in'; }).length}`, color: 'text-amber-400' },
+                ].map(s => (
+                  <div key={s.label} className="rounded-xl bg-[#0d0d14] border border-white/[0.08] px-4 py-3">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-0.5">{s.label}</p>
+                    <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-[#0d0d14] border border-white/[0.08]">
                 <input
                   type="text"
-                  placeholder="Search by customer or café…"
+                  placeholder="Search by customer, café or phone…"
                   value={bookingSearch}
                   onChange={(e) => { setBookingSearch(e.target.value); setBookingPage(1); }}
                   className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
@@ -3158,15 +3392,40 @@ export default function AdminDashboardPage() {
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-                <input
-                  type="date"
-                  value={bookingDateFilter}
-                  onChange={(e) => { setBookingDateFilter(e.target.value); setBookingPage(1); }}
+                <select
+                  value={bookingSourceFilter}
+                  onChange={(e) => { setBookingSourceFilter(e.target.value); setBookingPage(1); }}
                   className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
-                />
-                <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
-                  {filteredBookings.length} result{filteredBookings.length !== 1 ? 's' : ''}
+                >
+                  <option value="all">All Sources</option>
+                  <option value="online">Online</option>
+                  <option value="walkin">Walk-in</option>
+                  <option value="membership">Membership</option>
+                </select>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-slate-500">From</span>
+                  <input
+                    type="date"
+                    value={bookingDateFrom}
+                    onChange={(e) => { setBookingDateFrom(e.target.value); setBookingDateFilter(''); setBookingPage(1); }}
+                    className="px-3 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
+                  />
+                  <span className="text-xs text-slate-500">To</span>
+                  <input
+                    type="date"
+                    value={bookingDateTo}
+                    onChange={(e) => { setBookingDateTo(e.target.value); setBookingDateFilter(''); setBookingPage(1); }}
+                    className="px-3 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none"
+                  />
                 </div>
+                {(bookingDateFrom || bookingDateTo || bookingSourceFilter !== 'all' || bookingStatusFilter !== 'all' || bookingSearch) && (
+                  <button onClick={() => { setBookingDateFrom(''); setBookingDateTo(''); setBookingDateFilter(''); setBookingSourceFilter('all'); setBookingStatusFilter('all'); setBookingSearch(''); setBookingPage(1); }} className="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/[0.06] text-slate-400 hover:bg-white/[0.09] transition-colors">
+                    ✕ Clear
+                  </button>
+                )}
+                <button onClick={downloadBookingsCSV} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.09] text-slate-300 transition-colors">
+                  ↓ Export CSV
+                </button>
               </div>
               <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
                 <div className="overflow-x-auto">
@@ -3237,11 +3496,12 @@ export default function AdminDashboardPage() {
           {/* ─── REVENUE TAB ─── */}
           {activeTab === 'revenue' && (
             <div className="space-y-5">
+              {/* Summary cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'Today', value: formatCurrency(stats?.todayRevenue||0), sub: `${stats?.todayBookings||0} bookings`, colorClass: 'text-emerald-400', borderClass: 'border-emerald-500/20', bgClass: 'bg-emerald-500/5' },
                   { label: 'This Week', value: formatCurrency(stats?.weekRevenue||0), sub: 'Last 7 days', colorClass: 'text-blue-400', borderClass: 'border-blue-500/20', bgClass: 'bg-blue-500/5' },
-                  { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), sub: `${new Date().toLocaleString('en-IN', { month: 'long' })} 1 onwards`, colorClass: 'text-violet-400', borderClass: 'border-violet-500/20', bgClass: 'bg-violet-500/5' },
+                  { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), sub: `${new Date().toLocaleString('en-IN', { month: 'long' })} 1st onwards`, colorClass: 'text-violet-400', borderClass: 'border-violet-500/20', bgClass: 'bg-violet-500/5' },
                   { label: 'All Time', value: formatCurrency(stats?.totalRevenue||0), sub: `${stats?.totalBookings||0} total bookings`, colorClass: 'text-amber-400', borderClass: 'border-amber-500/20', bgClass: 'bg-amber-500/5' },
                 ].map(c => (
                   <div key={c.label} className={`rounded-2xl ${c.bgClass} border ${c.borderClass} p-5`}>
@@ -3252,6 +3512,56 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
 
+              {/* Source breakdown */}
+              {bookings.length > 0 && (() => {
+                const onlineRev = bookings.filter(b => b.source?.toLowerCase() === 'online' && b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0);
+                const walkinRev = bookings.filter(b => { const src = b.source?.toLowerCase() || ''; return (src === 'walk_in' || src === 'walk-in') && b.status !== 'cancelled'; }).reduce((s, b) => s + (b.total_amount || 0), 0);
+                const memberRev = bookings.filter(b => b.source?.toLowerCase() === 'membership' && b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0);
+                const total = onlineRev + walkinRev + memberRev || 1;
+                return (
+                  <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
+                    <h3 className="text-sm font-semibold text-white mb-4">Revenue by Source <span className="text-[11px] text-slate-500 font-normal ml-1">(from loaded bookings)</span></h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {[
+                        { label: 'Online', rev: onlineRev, pct: (onlineRev/total*100).toFixed(1), color: 'bg-blue-500', textColor: 'text-blue-400' },
+                        { label: 'Walk-in', rev: walkinRev, pct: (walkinRev/total*100).toFixed(1), color: 'bg-amber-500', textColor: 'text-amber-400' },
+                        { label: 'Membership', rev: memberRev, pct: (memberRev/total*100).toFixed(1), color: 'bg-violet-500', textColor: 'text-violet-400' },
+                      ].map(s => (
+                        <div key={s.label} className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
+                          <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{s.label}</p>
+                          <p className={`text-xl font-bold ${s.textColor} mb-2`}>{formatCurrency(s.rev)}</p>
+                          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                            <div className={`h-full ${s.color} rounded-full`} style={{ width: `${s.pct}%` }} />
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">{s.pct}% of loaded revenue</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Café filter + export */}
+              <div className="flex flex-wrap gap-3 items-center">
+                <select value={revenueCafeFilter} onChange={e => setRevenueCafeFilter(e.target.value)} className="px-4 py-2.5 rounded-xl bg-[#0d0d14] border border-white/[0.08] text-sm text-white outline-none">
+                  <option value="all">All Cafés</option>
+                  {cafes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button onClick={() => {
+                  const rows = [['Café', 'Owner', 'City', 'Bookings', 'Revenue (₹)', 'Share %', 'Status']];
+                  const total = revenueFilteredCafes.reduce((s, c) => s + (c.total_revenue || 0), 0) || 1;
+                  revenueFilteredCafes.forEach(c => rows.push([c.name, c.owner_name||'', c.city||'', String(c.total_bookings||0), String(c.total_revenue||0), ((c.total_revenue||0)/total*100).toFixed(1), c.is_active ? 'Active' : 'Inactive']));
+                  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a'); a.href = url; a.download = `revenue-by-cafe-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+                }} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.09] text-slate-300 transition-colors">
+                  ↓ Export CSV
+                </button>
+                <span className="text-xs text-slate-500">{revenueFilteredCafes.length} café{revenueFilteredCafes.length !== 1 ? 's' : ''} · Total: {formatCurrency(revenueFilteredCafes.reduce((s, c) => s + (c.total_revenue||0), 0))}</span>
+              </div>
+
+              {/* Revenue by Café table */}
               <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
                 <div className="px-5 py-4 border-b border-white/[0.08]">
                   <h3 className="text-sm font-semibold text-white">Revenue by Café</h3>
@@ -3259,36 +3569,54 @@ export default function AdminDashboardPage() {
                 {cafes.length === 0 ? (
                   <p className="px-5 py-8 text-sm text-slate-500">Visit the Cafés tab first to load café data.</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead className="bg-white/[0.03] border-b border-white/[0.08]">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
-                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Owner</th>
-                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Bookings</th>
-                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Revenue</th>
-                        <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Share</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.06]">
-                      {[...cafes].sort((a,b)=>(b.total_revenue||0)-(a.total_revenue||0)).map(cafe => {
-                        const share = stats?.totalRevenue ? ((cafe.total_revenue||0)/stats.totalRevenue*100).toFixed(1) : '0';
-                        return (
-                          <tr key={cafe.id} className="hover:bg-white/[0.03] transition-colors">
-                            <td className="px-4 py-3.5">
-                              <div className="text-sm font-semibold text-white">{cafe.name}</div>
-                              <div className="text-xs text-slate-500 mt-0.5 truncate max-w-[200px]">{cafe.address}</div>
-                            </td>
-                            <td className="px-4 py-3.5 text-sm text-slate-400">{cafe.owner_name||'—'}</td>
-                            <td className="px-4 py-3.5 text-sm text-slate-300 text-right">{cafe.total_bookings||0}</td>
-                            <td className="px-4 py-3.5 text-sm font-semibold text-emerald-400 text-right">{formatCurrency(cafe.total_revenue||0)}</td>
-                            <td className="px-4 py-3.5 text-right">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">{share}%</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-white/[0.03] border-b border-white/[0.08]">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Café</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Owner</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">City</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Bookings</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Revenue</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Share</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Avg / Booking</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.06]">
+                        {revenueFilteredCafes.map(cafe => {
+                          const totalRev = revenueFilteredCafes.reduce((s, c) => s + (c.total_revenue||0), 0) || 1;
+                          const share = ((cafe.total_revenue||0)/totalRev*100).toFixed(1);
+                          const avgPerBooking = (cafe.total_bookings || 0) > 0 ? Math.round((cafe.total_revenue||0) / cafe.total_bookings!) : 0;
+                          const barWidth = ((cafe.total_revenue||0)/totalRev*100).toFixed(0);
+                          return (
+                            <tr key={cafe.id} className="hover:bg-white/[0.03] transition-colors">
+                              <td className="px-4 py-3.5">
+                                <div className="text-sm font-semibold text-white">{cafe.name}</div>
+                                <div className="text-xs text-slate-500 mt-0.5 truncate max-w-[180px]">{cafe.address}</div>
+                                <div className="mt-1.5 h-1 bg-white/[0.06] rounded-full overflow-hidden w-32">
+                                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${barWidth}%` }} />
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5 text-sm text-slate-400">{cafe.owner_name||'—'}</td>
+                              <td className="px-4 py-3.5 text-sm text-slate-400">{cafe.city||'—'}</td>
+                              <td className="px-4 py-3.5 text-sm text-slate-300 text-right">{cafe.total_bookings||0}</td>
+                              <td className="px-4 py-3.5 text-sm font-semibold text-emerald-400 text-right">{formatCurrency(cafe.total_revenue||0)}</td>
+                              <td className="px-4 py-3.5 text-right">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400">{share}%</span>
+                              </td>
+                              <td className="px-4 py-3.5 text-sm text-slate-400 text-right">{avgPerBooking > 0 ? formatCurrency(avgPerBooking) : '—'}</td>
+                              <td className="px-4 py-3.5">
+                                {cafe.is_active
+                                  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>
+                                  : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Inactive</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
@@ -3297,42 +3625,119 @@ export default function AdminDashboardPage() {
           {/* ─── REPORTS TAB ─── */}
           {activeTab === 'reports' && (
             <div className="space-y-5">
+              {/* Period selector */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Period:</span>
+                {([30, 60, 90] as const).map(d => (
+                  <button key={d} onClick={() => setReportDays(d)} className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${reportDays === d ? 'bg-blue-500 text-white' : 'bg-white/[0.06] text-slate-400 hover:bg-white/[0.08]'}`}>Last {d} days</button>
+                ))}
+                {loadingReport && <span className="text-xs text-slate-500">Loading…</span>}
+              </div>
+
+              {/* KPI row */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: 'Total Revenue', value: formatCurrency(stats?.totalRevenue||0), colorClass: 'text-emerald-400' },
-                  { label: 'Total Bookings', value: `${stats?.totalBookings||0}`, colorClass: 'text-blue-400' },
-                  { label: 'Total Cafés', value: `${stats?.totalCafes||0}`, colorClass: 'text-violet-400' },
-                  { label: 'Registered Users', value: `${stats?.totalUsers||0}`, colorClass: 'text-amber-400' },
+                  { label: `Total Bookings (${reportDays}d)`, value: reportDailyData.reduce((s, d) => s + d.bookings, 0), color: 'text-blue-400' },
+                  { label: `Revenue (${reportDays}d)`, value: formatCurrency(reportDailyData.reduce((s, d) => s + d.revenue, 0)), color: 'text-emerald-400' },
+                  { label: `Cancellations (${reportDays}d)`, value: reportDailyData.reduce((s, d) => s + d.cancelled, 0), color: 'text-red-400' },
+                  { label: 'Cancellation Rate', value: (() => { const total = reportDailyData.reduce((s, d) => s + d.bookings, 0); const cancelled = reportDailyData.reduce((s, d) => s + d.cancelled, 0); return total > 0 ? `${(cancelled/total*100).toFixed(1)}%` : '0%'; })(), color: 'text-amber-400' },
                 ].map(c => (
-                  <div key={c.label} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5 text-center">
-                    <p className={`text-2xl font-bold ${c.colorClass}`}>{loadingData ? '…' : c.value}</p>
-                    <p className="text-xs text-slate-500 mt-1">{c.label}</p>
+                  <div key={c.label} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">{c.label}</p>
+                    <p className={`text-2xl font-bold ${c.color}`}>{loadingReport ? '…' : c.value}</p>
                   </div>
                 ))}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Daily trend table */}
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Daily Trend</h3>
+                    <button onClick={() => {
+                      const rows = [['Date','Bookings','Revenue (₹)','Cancelled'], ...reportDailyData.map(d => [d.date, d.bookings, d.revenue, d.cancelled])];
+                      const csv = rows.map(r => r.join(',')).join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `daily-report-${reportDays}d.csv`; a.click(); URL.revokeObjectURL(url);
+                    }} className="text-xs text-slate-500 hover:text-white transition-colors">↓ CSV</button>
+                  </div>
+                  <div className="overflow-y-auto max-h-80">
+                    {reportDailyData.length === 0 ? (
+                      <p className="px-5 py-8 text-sm text-slate-500 text-center">{loadingReport ? 'Loading…' : 'No data for this period.'}</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="bg-white/[0.03] border-b border-white/[0.08] sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Date</th>
+                            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Bookings</th>
+                            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Revenue</th>
+                            <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Cancelled</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.04]">
+                          {[...reportDailyData].reverse().map(d => (
+                            <tr key={d.date} className="hover:bg-white/[0.02]">
+                              <td className="px-4 py-2.5 text-xs text-slate-300">{formatDate(d.date)}</td>
+                              <td className="px-4 py-2.5 text-xs text-blue-400 text-right font-semibold">{d.bookings}</td>
+                              <td className="px-4 py-2.5 text-xs text-emerald-400 text-right font-semibold">{formatCurrency(d.revenue)}</td>
+                              <td className="px-4 py-2.5 text-xs text-right">{d.cancelled > 0 ? <span className="text-red-400">{d.cancelled}</span> : <span className="text-slate-600">—</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
+                {/* Peak hours */}
                 <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
-                  <h3 className="text-sm font-semibold text-white mb-4">Top Cafés by Revenue</h3>
-                  {cafes.length === 0 ? (
-                    <p className="text-sm text-slate-500">Visit the Cafés tab first.</p>
+                  <h3 className="text-sm font-semibold text-white mb-4">Peak Booking Hours</h3>
+                  {reportPeakHours.length === 0 ? (
+                    <p className="text-sm text-slate-500">{loadingReport ? 'Loading…' : 'No data.'}</p>
                   ) : (
-                    <div className="space-y-3">
-                      {[...cafes].sort((a,b)=>(b.total_revenue||0)-(a.total_revenue||0)).slice(0,5).map((cafe,i) => {
-                        const max = Math.max(...cafes.map(c=>c.total_revenue||0), 1);
-                        const w = ((cafe.total_revenue||0)/max*100).toFixed(0);
+                    <div className="space-y-2.5">
+                      {reportPeakHours.map((h, i) => {
+                        const max = reportPeakHours[0].count || 1;
+                        const w = (h.count / max * 100).toFixed(0);
                         return (
-                          <div key={cafe.id} className="flex items-center gap-3">
-                            <span className={`w-5 text-xs font-bold shrink-0 ${i===0?'text-amber-400':'text-slate-500'}`}>#{i+1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between mb-1">
-                                <span className="text-sm text-slate-300 truncate">{cafe.name}</span>
-                                <span className="text-sm font-semibold text-emerald-400 ml-2 shrink-0">{formatCurrency(cafe.total_revenue||0)}</span>
-                              </div>
-                              <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{width:`${w}%`}} />
+                          <div key={h.hour} className="flex items-center gap-3">
+                            <span className={`w-14 text-xs shrink-0 ${i === 0 ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>{h.hour}</span>
+                            <div className="flex-1">
+                              <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${i === 0 ? 'bg-amber-400' : 'bg-blue-500/70'}`} style={{ width: `${w}%` }} />
                               </div>
                             </div>
+                            <span className="text-xs text-slate-400 w-10 text-right">{h.count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Source split */}
+                <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
+                  <h3 className="text-sm font-semibold text-white mb-4">Booking Source Split</h3>
+                  {loadingReport ? <p className="text-sm text-slate-500">Loading…</p> : (
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Online', count: reportSourceSplit.online, rev: reportSourceSplit.onlineRev, color: 'bg-blue-500', textColor: 'text-blue-400' },
+                        { label: 'Walk-in', count: reportSourceSplit.walkin, rev: reportSourceSplit.walkinRev, color: 'bg-amber-500', textColor: 'text-amber-400' },
+                        { label: 'Membership', count: reportSourceSplit.membership, rev: reportSourceSplit.membershipRev, color: 'bg-violet-500', textColor: 'text-violet-400' },
+                      ].map(s => {
+                        const total = (reportSourceSplit.online + reportSourceSplit.walkin + reportSourceSplit.membership) || 1;
+                        const pct = (s.count / total * 100).toFixed(1);
+                        return (
+                          <div key={s.label} className="rounded-xl bg-white/[0.04] p-3">
+                            <div className="flex justify-between mb-1.5">
+                              <span className={`text-sm font-semibold ${s.textColor}`}>{s.label}</span>
+                              <span className="text-xs text-slate-400">{s.count} bookings · {formatCurrency(s.rev)}</span>
+                            </div>
+                            <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                              <div className={`h-full ${s.color} rounded-full`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">{pct}% of bookings</p>
                           </div>
                         );
                       })}
@@ -3340,24 +3745,33 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
 
+                {/* Top cafés */}
                 <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
-                  <h3 className="text-sm font-semibold text-white mb-4">Revenue Breakdown</h3>
-                  <div className="divide-y divide-white/[0.06]">
-                    {[
-                      { label: 'Today', value: formatCurrency(stats?.todayRevenue||0), colorClass: 'text-emerald-400' },
-                      { label: 'This Week', value: formatCurrency(stats?.weekRevenue||0), colorClass: 'text-blue-400' },
-                      { label: 'This Month', value: formatCurrency(stats?.monthRevenue||0), colorClass: 'text-violet-400' },
-                      { label: 'All Time', value: formatCurrency(stats?.totalRevenue||0), colorClass: 'text-amber-400' },
-                      { label: 'Active Cafés', value: `${stats?.activeCafes||0} / ${stats?.totalCafes||0}`, colorClass: 'text-slate-200' },
-                      { label: 'Avg Revenue / Booking', value: formatCurrency(averageRevenuePerBooking), colorClass: 'text-slate-200' },
-                      { label: 'Avg Bookings / Café', value: `${averageBookingsPerCafe}`, colorClass: 'text-slate-200' },
-                    ].map(r => (
-                      <div key={r.label} className="flex justify-between items-center py-3">
-                        <span className="text-sm text-slate-400">{r.label}</span>
-                        <span className={`text-sm font-semibold ${r.colorClass}`}>{loadingData ? '…' : r.value}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <h3 className="text-sm font-semibold text-white mb-4">Top Cafés by Revenue</h3>
+                  {cafes.length === 0 ? (
+                    <p className="text-sm text-slate-500">Visit Cafés tab first.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {[...cafes].sort((a,b)=>(b.total_revenue||0)-(a.total_revenue||0)).slice(0,7).map((cafe, i) => {
+                        const max = Math.max(...cafes.map(c=>c.total_revenue||0), 1);
+                        const w = ((cafe.total_revenue||0)/max*100).toFixed(0);
+                        return (
+                          <div key={cafe.id} className="flex items-center gap-3">
+                            <span className={`w-5 text-xs font-bold shrink-0 ${i===0?'text-amber-400':i===1?'text-slate-300':i===2?'text-amber-700':'text-slate-600'}`}>#{i+1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-xs text-slate-300 truncate">{cafe.name}</span>
+                                <span className="text-xs font-semibold text-emerald-400 ml-2 shrink-0">{formatCurrency(cafe.total_revenue||0)}</span>
+                              </div>
+                              <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{width:`${w}%`}} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -3451,44 +3865,64 @@ export default function AdminDashboardPage() {
 
           {/* ─── AUDIT LOGS TAB ─── */}
           {activeTab === 'audit-logs' && (
-            <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-white/[0.04] border-b border-white/[0.08]">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Timestamp</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Action</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity ID</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.06]">
-                    {loadingData ? (
-                      <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">Loading audit logs…</td></tr>
-                    ) : auditLogs.length === 0 ? (
-                      <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No audit logs found</td></tr>
-                    ) : auditLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-white/[0.03] transition-colors">
-                        <td className="px-4 py-3.5 text-sm text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString('en-IN')}</td>
-                        <td className="px-4 py-3.5 text-sm">
-                          {log.action === 'delete'
-                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Delete</span>
-                            : log.action === 'create'
-                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Create</span>
-                            : log.action === 'activate'
-                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Activate</span>
-                            : log.action === 'deactivate'
-                            ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">Deactivate</span>
-                            : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">{log.action}</span>}
-                        </td>
-                        <td className="px-4 py-3.5 text-sm font-medium text-slate-200">{log.entity_type}</td>
-                        <td className="px-4 py-3.5 text-xs font-mono text-slate-500">{log.entity_id ? log.entity_id.substring(0,8)+'…' : '—'}</td>
-                        <td className="px-4 py-3.5 text-sm text-slate-400 max-w-[300px] truncate">{log.details ? JSON.stringify(log.details).substring(0,80)+'…' : '—'}</td>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-[#0d0d14] border border-white/[0.08]">
+                <select value={auditActionFilter} onChange={e => setAuditActionFilter(e.target.value)} className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
+                  <option value="all">All Actions</option>
+                  {Array.from(new Set(auditLogs.map(l => l.action))).sort().map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <select value={auditEntityFilter} onChange={e => setAuditEntityFilter(e.target.value)} className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
+                  <option value="all">All Entities</option>
+                  {Array.from(new Set(auditLogs.map(l => l.entity_type))).sort().map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+                <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
+                  {filteredAuditLogs.length} of {auditLogs.length} log{auditLogs.length !== 1 ? 's' : ''}
+                </div>
+                <button onClick={downloadAuditCSV} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.09] text-slate-300 transition-colors">
+                  ↓ Export CSV
+                </button>
+              </div>
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-white/[0.04] border-b border-white/[0.08]">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Timestamp</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Action</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity ID</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Details</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.06]">
+                      {loadingData ? (
+                        <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">Loading audit logs…</td></tr>
+                      ) : filteredAuditLogs.length === 0 ? (
+                        <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No audit logs found</td></tr>
+                      ) : filteredAuditLogs.map(log => (
+                        <tr key={log.id} className="hover:bg-white/[0.03] transition-colors">
+                          <td className="px-4 py-3.5 text-xs text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString('en-IN')}</td>
+                          <td className="px-4 py-3.5 text-sm">
+                            {['delete','deactivate','disable_maintenance'].includes(log.action)
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">{log.action}</span>
+                              : ['create','activate','enable_maintenance'].includes(log.action)
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">{log.action}</span>
+                              : ['update','change_role','feature','unfeature'].includes(log.action)
+                              ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400">{log.action}</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/[0.06] text-slate-400">{log.action}</span>}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm font-medium text-slate-200">{log.entity_type}</td>
+                          <td className="px-4 py-3.5 text-xs font-mono text-slate-500">{log.entity_id ? log.entity_id.substring(0,8)+'…' : '—'}</td>
+                          <td className="px-4 py-3.5 text-xs text-slate-400 max-w-[320px]">
+                            {log.details
+                              ? <span title={JSON.stringify(log.details, null, 2)} className="cursor-help">{JSON.stringify(log.details).substring(0, 100)}{JSON.stringify(log.details).length > 100 ? '…' : ''}</span>
+                              : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -3606,6 +4040,108 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
+          {/* ─── SUBSCRIPTIONS TAB ─── */}
+          {activeTab === 'subscriptions' && (
+            <div className="space-y-4">
+              {/* Stats row */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Subscriptions', value: filteredSubscriptions.length, color: 'text-white' },
+                  { label: 'Currently Active', value: activeSubscriptions.length, color: 'text-emerald-400' },
+                  { label: 'Total Revenue', value: formatCurrency(subscriptionRevenue), color: 'text-amber-400' },
+                  { label: 'Avg Paid', value: filteredSubscriptions.length > 0 ? formatCurrency(Math.round(subscriptionRevenue / filteredSubscriptions.length)) : '—', color: 'text-blue-400' },
+                ].map(s => (
+                  <div key={s.label} className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">{s.label}</p>
+                    <p className={`text-2xl font-bold ${s.color}`}>{loadingSubscriptions ? '…' : s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 p-4 rounded-2xl bg-[#0d0d14] border border-white/[0.08]">
+                <input
+                  type="text"
+                  placeholder="Search by customer name or café…"
+                  value={subscriptionSearch}
+                  onChange={e => setSubscriptionSearch(e.target.value)}
+                  className="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
+                />
+                <select value={subscriptionCafeFilter} onChange={e => setSubscriptionCafeFilter(e.target.value)} className="px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none">
+                  <option value="all">All Cafés</option>
+                  {cafes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <div className="flex items-center px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs text-slate-500">
+                  {filteredSubscriptions.length} result{filteredSubscriptions.length !== 1 ? 's' : ''}
+                </div>
+                <button onClick={() => {
+                  const rows = [['Customer', 'Phone', 'Café', 'Plan', 'Console', 'Amount Paid (₹)', 'Hours Remaining', 'Timer Active', 'Purchase Date']];
+                  filteredSubscriptions.forEach((s: any) => rows.push([s.customer_name||'', s.customer_phone||'', s.cafe_name||'', s.membership_plans?.name||'', s.membership_plans?.console_type||'', s.amount_paid||0, s.hours_remaining||0, s.timer_active?'Yes':'No', s.purchase_date||'']));
+                  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=`subscriptions-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+                }} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.09] text-slate-300 transition-colors">
+                  ↓ Export CSV
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-white/[0.04] border-b border-white/[0.08]">
+                      <tr>
+                        <th className={thCls}>Customer</th>
+                        <th className={thCls}>Café</th>
+                        <th className={thCls}>Plan</th>
+                        <th className={thCls}>Console</th>
+                        <th className={thCls}>Hours Left</th>
+                        <th className={thCls}>Amount Paid</th>
+                        <th className={thCls}>Status</th>
+                        <th className={thCls}>Purchase Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.06]">
+                      {loadingSubscriptions ? (
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Loading subscriptions…</td></tr>
+                      ) : filteredSubscriptions.length === 0 ? (
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No subscriptions found</td></tr>
+                      ) : filteredSubscriptions.map((s: any) => (
+                        <tr key={s.id} className="hover:bg-white/[0.03] transition-colors">
+                          <td className="px-4 py-3.5">
+                            <div className="text-sm font-semibold text-white">{s.customer_name || 'Unknown'}</div>
+                            {s.customer_phone && <div className="text-xs text-slate-500 mt-0.5">{s.customer_phone}</div>}
+                          </td>
+                          <td className={tdCls}>{s.cafe_name}</td>
+                          <td className="px-4 py-3.5">
+                            <div className="text-sm text-slate-300">{s.membership_plans?.name || '—'}</div>
+                            <div className="text-xs text-slate-500 mt-0.5 uppercase">{s.membership_plans?.plan_type || ''}</div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 uppercase">
+                              {s.membership_plans?.console_type || '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`text-sm font-semibold ${(s.hours_remaining || 0) <= 1 ? 'text-red-400' : (s.hours_remaining || 0) <= 3 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {s.hours_remaining != null ? `${Number(s.hours_remaining).toFixed(1)}h` : '—'}
+                            </span>
+                          </td>
+                          <td className={`${tdCls} font-semibold text-emerald-400`}>{formatCurrency(s.amount_paid || 0)}</td>
+                          <td className="px-4 py-3.5">
+                            {s.timer_active
+                              ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />Active</span>
+                              : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/[0.06] text-slate-400">Idle</span>}
+                          </td>
+                          <td className={tdCls}>{s.purchase_date ? formatDate(s.purchase_date.slice(0, 10)) : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ─── SETTINGS TAB ─── */}
           {activeTab === 'settings' && (
             <div className="max-w-2xl space-y-5">
@@ -3670,6 +4206,29 @@ export default function AdminDashboardPage() {
                       <p className="text-lg font-bold text-white">{loadingData ? '…' : s.value}</p>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Maintenance Mode */}
+              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-6 space-y-4">
+                <div>
+                  <h3 className="text-base font-semibold text-white">Maintenance Mode</h3>
+                  <p className="text-xs text-slate-500 mt-1">When enabled, users see a maintenance banner. Owners and admin can still access their dashboards.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${maintenanceMode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/[0.04] border-white/[0.08]'}`}>
+                    <div className={`w-2.5 h-2.5 rounded-full ${maintenanceMode ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
+                    <span className={`text-sm font-semibold ${maintenanceMode ? 'text-amber-400' : 'text-slate-400'}`}>
+                      {maintenanceMode ? 'Maintenance ON' : 'Platform Normal'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={toggleMaintenanceMode}
+                    disabled={savingMaintenance}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${maintenanceMode ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'}`}
+                  >
+                    {savingMaintenance ? 'Saving…' : maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
+                  </button>
                 </div>
               </div>
 

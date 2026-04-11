@@ -15,7 +15,9 @@ export type AuditAction =
   | "unfeature"
   | "change_role"
   | "approve"
-  | "reject";
+  | "reject"
+  | "enable_maintenance"
+  | "disable_maintenance";
 
 export type EntityType = "cafe" | "user" | "booking" | "announcement" | "settings";
 

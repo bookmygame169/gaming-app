@@ -17,6 +17,7 @@ import {
   LayoutGrid,
   KeyRound,
   UserX,
+  CreditCard,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -25,11 +26,12 @@ const NAV_ITEMS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'offline-customers', label: 'Offline Customers', icon: UserX },
   { id: 'bookings', label: 'Bookings', icon: CalendarCheck },
+  { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
   { id: 'coupons', label: 'Coupons', icon: Ticket },
   { id: 'revenue', label: 'Revenue', icon: TrendingUp },
+  { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { id: 'audit-logs', label: 'Audit Logs', icon: Shield },
-  { id: 'reports', label: 'Reports', icon: BarChart3 },
   { id: 'owner-access', label: 'Owner Access', icon: KeyRound },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
