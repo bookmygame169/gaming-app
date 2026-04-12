@@ -446,8 +446,8 @@ export default function OwnerDashboardPage() {
 
   // Auto-refresh time every second for active sessions (only when sessions tab is active)
   useEffect(() => {
-    // Only run timer when viewing sessions or dashboard tabs
-    if (activeTab !== 'sessions' && activeTab !== 'dashboard') return;
+    // Only run timer when viewing sessions, dashboard, or bookings tabs
+    if (activeTab !== 'sessions' && activeTab !== 'dashboard' && activeTab !== 'bookings') return;
 
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -2407,44 +2407,6 @@ export default function OwnerDashboardPage() {
 
           {/* Bookings Tab */}
           {activeTab === 'bookings' && (
-            <section className="mb-6">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center">
-                  <Zap size={14} className="text-red-400" />
-                </div>
-                <h2 className="text-base font-semibold text-white">Active Sessions</h2>
-                {(() => {
-                  const count = bookings.filter((b: any) => b.status === 'in-progress' && b.booking_date === getLocalDateString()).length;
-                  return count > 0 ? (
-                    <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[11px] font-bold">{count}</span>
-                  ) : null;
-                })()}
-              </div>
-              <ActiveSessions
-                bookings={bookings}
-                subscriptions={subscriptions}
-                activeTimers={activeTimers}
-                timerElapsed={timerElapsed}
-                currentTime={currentTime}
-                isMobile={isMobile}
-                onAddItems={(bookingId, customerName) => {
-                  setAddItemsBookingId(bookingId);
-                  setAddItemsCustomerName(customerName);
-                  setAddItemsModalOpen(true);
-                }}
-                onSessionEnded={(info) => {
-                  setSessionEndedInfo(info);
-                  setSessionEndedPopupOpen(true);
-                  refreshData();
-                }}
-                onEndCollect={async (bookingId, paymentMode) => {
-                  await handlePaymentModeChange(bookingId, paymentMode);
-                  await handleBookingStatusChange(bookingId, 'completed');
-                }}
-              />
-            </section>
-          )}
-          {activeTab === 'bookings' && (
             <BookingsManagement
               cafeId={selectedCafeId || undefined}
               loading={loadingData}
@@ -2461,6 +2423,22 @@ export default function OwnerDashboardPage() {
               onViewCustomer={handleViewCustomer}
               activeTimers={activeTimers}
               timerElapsed={timerElapsed}
+              pageSubscriptions={subscriptions}
+              isMobile={isMobile}
+              onAddItems={(bookingId, customerName) => {
+                setAddItemsBookingId(bookingId);
+                setAddItemsCustomerName(customerName);
+                setAddItemsModalOpen(true);
+              }}
+              onSessionEnded={(info) => {
+                setSessionEndedInfo(info);
+                setSessionEndedPopupOpen(true);
+                refreshData();
+              }}
+              onEndCollect={async (bookingId, paymentMode) => {
+                await handlePaymentModeChange(bookingId, paymentMode);
+                await handleBookingStatusChange(bookingId, 'completed');
+              }}
               onStartTimer={handleStartTimer}
               onStopTimer={handleStopTimer}
             />

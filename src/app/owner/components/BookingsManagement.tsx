@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookingsTable } from './BookingsTable';
+import { ActiveSessions } from './ActiveSessions';
 import { Card, Button } from './ui';
-import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2, Zap } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -23,6 +24,12 @@ interface BookingsManagementProps {
     timerElapsed?: Map<string, number>;
     onStartTimer?: (subscriptionId: string) => Promise<void>;
     onStopTimer?: (subscriptionId: string) => Promise<void>;
+    // Active Sessions props
+    pageSubscriptions?: any[];
+    isMobile?: boolean;
+    onAddItems?: (bookingId: string, customerName: string) => void;
+    onSessionEnded?: (info: { customerName: string; stationName: string; duration: number }) => void;
+    onEndCollect?: (bookingId: string, paymentMode: 'cash' | 'upi') => Promise<void>;
 }
 
 function getDateRange(range: string, customStart: string, customEnd: string): { dateFrom: string; dateTo: string } {
@@ -44,7 +51,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
     return { dateFrom: '', dateTo: '' };
 }
 
-export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer }: BookingsManagementProps) {
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, isMobile, onAddItems, onSessionEnded, onEndCollect }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [limit, setLimit] = useState(30);
@@ -63,6 +70,13 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const [subscriptions, setSubscriptions] = useState<any[]>([]);
     const [subsLoading, setSubsLoading] = useState(false);
     const [subSearch, setSubSearch] = useState('');
+
+    // Current time for ActiveSessions countdown
+    const [currentTime, setCurrentTime] = useState(new Date());
+    useEffect(() => {
+        const t = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(t);
+    }, []);
 
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -195,8 +209,35 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         }
     }
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const activeSessionCount = bookings.filter(b => b.status === 'in-progress' && b.booking_date === todayStr).length;
+
     return (
         <div className="space-y-4">
+            {/* Active Sessions */}
+            <section className="mb-2">
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center">
+                        <Zap size={14} className="text-red-400" />
+                    </div>
+                    <h2 className="text-base font-semibold text-white">Active Sessions</h2>
+                    {activeSessionCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[11px] font-bold">{activeSessionCount}</span>
+                    )}
+                </div>
+                <ActiveSessions
+                    bookings={bookings}
+                    subscriptions={pageSubscriptions || []}
+                    activeTimers={activeTimers || new Map()}
+                    timerElapsed={timerElapsed || new Map()}
+                    currentTime={currentTime}
+                    isMobile={isMobile || false}
+                    onAddItems={onAddItems}
+                    onSessionEnded={onSessionEnded}
+                    onEndCollect={onEndCollect}
+                />
+            </section>
+
             {/* Sub-tabs */}
             <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.08] w-fit">
                 {([
