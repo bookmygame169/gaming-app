@@ -366,65 +366,67 @@ export function Memberships({
             {/* Subscriptions Content */}
             {subTab === 'subscriptions' && (
                 <div className="space-y-4">
-                    {/* Filters */}
-                    <Card padding="sm" className="bg-white/[0.02] border-white/[0.06]">
-                        <div className="flex flex-col md:flex-row gap-4">
-                            <div className="flex-1 relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Search customer..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2 bg-white/[0.03] border border-white/[0.09] rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
-                                />
+                    {/* Expiring soon banner */}
+                    {(() => {
+                        const soonCount = cafeSubscriptions.filter(s => {
+                            if (s.status !== 'active' || !s.expiry_date) return false;
+                            const daysLeft = Math.ceil((new Date(s.expiry_date).getTime() - Date.now()) / 86400000);
+                            return daysLeft >= 0 && daysLeft <= 7;
+                        }).length;
+                        if (!soonCount) return null;
+                        return (
+                            <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-sm">
+                                <span className="text-lg">⏳</span>
+                                <span className="text-amber-300 font-semibold">{soonCount} subscription{soonCount > 1 ? 's' : ''} expiring within 7 days</span>
+                                <button onClick={() => { setStatusFilter('active'); setSearch(''); }} className="ml-auto text-xs text-amber-400/70 hover:text-amber-300 underline">View</button>
                             </div>
-                            <div className="flex gap-2 items-center">
-                                <Select
-                                    value={statusFilter}
-                                    onChange={setStatusFilter}
-                                    options={[
-                                        { value: 'all', label: 'All Status' },
-                                        { value: 'active', label: 'Active' },
-                                        { value: 'expired', label: 'Expired' },
-                                    ]}
-                                    className="w-32"
-                                />
-                                <Select
-                                    value={planFilter}
-                                    onChange={setPlanFilter}
-                                    options={[
-                                        { value: 'all', label: 'All Plans' },
-                                        ...cafeMembershipPlans.map(p => ({ value: p.id, label: p.name }))
-                                    ]}
-                                    className="w-40"
-                                />
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={() => {
-                                        setSubCustomerName('');
-                                        setSubCustomerPhone('');
-                                        setSubSelectedPlanId(cafeMembershipPlans[0]?.id || '');
-                                        setSubAmountPaid(cafeMembershipPlans[0]?.price?.toString() || '');
-                                        setSubPaymentMode('cash');
-                                        setSuggestions([]);
-                                        setShowSuggestions(false);
-                                        // Pre-fetch customers for autocomplete
-                                        if (cafeId && allCustomers.length === 0) {
-                                            fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
-                                                .then(r => r.json())
-                                                .then(data => { if (Array.isArray(data)) setAllCustomers(data); });
-                                        }
-                                        setShowAddSubModal(true);
-                                    }}
-                                    className="whitespace-nowrap"
-                                >
-                                    <Plus size={16} className="mr-1" /> Add Subscription
-                                </Button>
-                            </div>
+                        );
+                    })()}
+
+                    {/* Top action bar */}
+                    <div className="flex gap-2 items-center justify-between">
+                        <div className="relative flex-1 max-w-sm">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                            <input
+                                type="text"
+                                placeholder="Search customer..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30"
+                            />
                         </div>
-                    </Card>
+                        <div className="flex gap-1.5 items-center">
+                            {/* Status chips */}
+                            {(['all', 'active', 'expired'] as const).map(s => (
+                                <button key={s} onClick={() => setStatusFilter(s)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${statusFilter === s ? (s === 'active' ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40' : s === 'expired' ? 'bg-red-600/20 text-red-300 border-red-500/40' : 'bg-white/[0.1] text-white border-white/20') : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}>
+                                    {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                                </button>
+                            ))}
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => {
+                                    setSubCustomerName('');
+                                    setSubCustomerPhone('');
+                                    setSubSelectedPlanId(cafeMembershipPlans[0]?.id || '');
+                                    setSubAmountPaid(cafeMembershipPlans[0]?.price?.toString() || '');
+                                    setSubPaymentMode('cash');
+                                    setSuggestions([]);
+                                    setShowSuggestions(false);
+                                    if (cafeId && allCustomers.length === 0) {
+                                        fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
+                                            .then(r => r.json())
+                                            .then(data => { if (Array.isArray(data)) setAllCustomers(data); });
+                                    }
+                                    setShowAddSubModal(true);
+                                }}
+                                className="whitespace-nowrap"
+                            >
+                                <Plus size={15} className="mr-1" /> Sell Membership
+                            </Button>
+                        </div>
+                    </div>
 
                     {/* List */}
                     <div className="space-y-3">
@@ -447,9 +449,13 @@ export function Memberships({
 
                                     const isLowHours = sub.status === 'active' && currentRem < 1 && sub.membership_plans?.plan_type !== 'day_pass';
                                     const isAlmostEmpty = sub.status === 'active' && currentRem < 0.25;
+                                    const daysToExpiry = sub.expiry_date
+                                        ? Math.ceil((new Date(sub.expiry_date).getTime() - Date.now()) / 86400000)
+                                        : null;
+                                    const isExpiringSoon = sub.status === 'active' && daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
 
                                     return (
-                                        <Card key={sub.id} padding="sm" className={`hover:border-white/[0.15] transition-colors ${isAlmostEmpty ? 'border-red-500/50' : isLowHours ? 'border-amber-500/40' : ''}`}>
+                                        <Card key={sub.id} padding="sm" className={`hover:border-white/[0.15] transition-colors ${isAlmostEmpty ? 'border-red-500/50' : isLowHours ? 'border-amber-500/40' : isExpiringSoon ? 'border-amber-500/30' : ''}`}>
                                             {isLowHours && (
                                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-sm -mx-3 -mt-2 mb-2 text-xs font-medium ${isAlmostEmpty ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
                                                     <span>{isAlmostEmpty ? '🔴' : '⚠️'}</span>
@@ -471,14 +477,18 @@ export function Memberships({
                                                 {/* Plan Info */}
                                                 <div className="md:w-1/4">
                                                     <div className="text-xs text-slate-400 mb-1">{sub.membership_plans?.name || 'Unknown Plan'}</div>
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className={`px-2 py-0.5 rounded-full ${sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'
-                                                            }`}>
+                                                    <div className="flex items-center gap-2 text-xs flex-wrap">
+                                                        <span className={`px-2 py-0.5 rounded-full ${sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                                                             {sub.status}
                                                         </span>
-                                                        <span className="text-slate-600">•</span>
-                                                        <span className="text-slate-400">Paid ₹{sub.amount_paid}</span>
+                                                        <span className="text-slate-400">₹{sub.amount_paid}</span>
                                                     </div>
+                                                    {sub.expiry_date && (
+                                                        <div className={`text-[10px] mt-1 ${isExpiringSoon ? 'text-amber-400 font-semibold' : 'text-slate-600'}`}>
+                                                            {isExpiringSoon && '⚠️ '}
+                                                            Expires {daysToExpiry === 0 ? 'today' : daysToExpiry === 1 ? 'tomorrow' : daysToExpiry !== null && daysToExpiry > 0 ? `in ${daysToExpiry}d` : new Date(sub.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* Progress */}
@@ -508,7 +518,28 @@ export function Memberships({
                                                 </div>
 
                                                 {/* Actions */}
-                                                <div className="flex items-center gap-2 md:justify-end md:w-auto">
+                                                <div className="flex items-center gap-2 md:justify-end md:w-auto flex-wrap">
+                                                    {sub.status === 'active' && (
+                                                        isRunning ? (
+                                                            <Button
+                                                                variant="danger"
+                                                                size="sm"
+                                                                onClick={() => onStopTimer(sub.id)}
+                                                                className="flex-none font-semibold"
+                                                            >
+                                                                ⏹ Stop
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="primary"
+                                                                size="sm"
+                                                                onClick={() => onStartTimer(sub.id)}
+                                                                className="flex-none bg-emerald-600 hover:bg-emerald-700 font-semibold"
+                                                            >
+                                                                ▶ Start
+                                                            </Button>
+                                                        )
+                                                    )}
                                                     {sub.status === 'active' && sub.membership_plans?.plan_type !== 'day_pass' && (
                                                         <Button
                                                             variant="ghost"

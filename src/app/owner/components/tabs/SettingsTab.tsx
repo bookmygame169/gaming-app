@@ -70,7 +70,33 @@ export default function SettingsTab({
   const [cafe] = cafes;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease-out" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease-out", paddingBottom: settingsChanged ? 80 : 0 }}>
+      {/* Sticky save bar */}
+      {settingsChanged && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 px-6 py-4 bg-[#0d0d14]/95 border-t border-white/[0.08] backdrop-blur-md shadow-2xl shadow-black/50">
+          <div className="flex items-center gap-2 text-sm text-amber-400">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <span className="font-medium">Unsaved changes</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSettingsChanged(false)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              {savingSettings ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
+              ) : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
       {/* Café Information Section */}
       <div
         style={{

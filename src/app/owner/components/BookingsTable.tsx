@@ -221,8 +221,10 @@ export function BookingsTable({
                                 </td>
                             </tr>
                         ) : (
-                            paginatedBookings.map((booking) => (
-                                <tr key={booking.id} className={`hover:bg-white/5 transition-colors ${selectedIds?.has(booking.id) ? 'bg-indigo-500/5' : ''}`}>
+                            paginatedBookings.map((booking) => {
+                                const rowAccent = booking.status === 'completed' ? 'border-l-2 border-l-emerald-500/40' : booking.status === 'in-progress' ? 'border-l-2 border-l-blue-500/40' : booking.status === 'cancelled' ? 'border-l-2 border-l-red-500/30 opacity-60' : booking.status === 'confirmed' ? 'border-l-2 border-l-amber-500/40' : '';
+                                return (
+                                <tr key={booking.id} className={`hover:bg-white/5 transition-colors ${rowAccent} ${selectedIds?.has(booking.id) ? 'bg-indigo-500/5' : ''}`}>
                                     {selectable && (
                                         <td className="px-3 py-1.5">
                                             <input
@@ -382,7 +384,8 @@ export function BookingsTable({
                                         </td>
                                     )}
                                 </tr>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

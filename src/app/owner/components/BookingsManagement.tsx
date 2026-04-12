@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookingsTable } from './BookingsTable';
-import { Card, Button, Select } from './ui';
-import { RefreshCw, Search, Check, X } from 'lucide-react';
+import { Card, Button } from './ui';
+import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2 } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -53,7 +53,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const [bookingSubTab, setBookingSubTab] = useState<'all' | 'normal' | 'membership'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [dateRange, setDateRange] = useState('all');
+    const [dateRange, setDateRange] = useState('today');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -317,46 +317,54 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 </div>
             ) : (
                 <>
+                            {/* Summary bar — derived from fetched bookings */}
+                    {(() => {
+                        const completed = bookings.filter(b => b.status === 'completed').length;
+                        const inProgress = bookings.filter(b => b.status === 'in-progress').length;
+                        const pending = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length;
+                        const cashTotal = bookings.filter(b => b.payment_mode?.toLowerCase() === 'cash' && b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0);
+                        const onlineModes = ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'];
+                        const upiTotal = bookings.filter(b => onlineModes.includes(b.payment_mode?.toLowerCase() || '') && b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0);
+                        return (
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                <div className="col-span-2 md:col-span-1 flex items-center gap-2.5 rounded-xl bg-emerald-500/[0.07] border border-emerald-500/20 px-3 py-2.5">
+                                    <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Completed</p><p className="text-lg font-bold text-emerald-400 leading-none mt-0.5">{completed}</p></div>
+                                </div>
+                                <div className="flex items-center gap-2.5 rounded-xl bg-blue-500/[0.07] border border-blue-500/20 px-3 py-2.5">
+                                    <Timer size={15} className="text-blue-400 shrink-0" />
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Active</p><p className="text-lg font-bold text-blue-400 leading-none mt-0.5">{inProgress}</p></div>
+                                </div>
+                                <div className="flex items-center gap-2.5 rounded-xl bg-amber-500/[0.07] border border-amber-500/20 px-3 py-2.5">
+                                    <Clock size={15} className="text-amber-400 shrink-0" />
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Pending</p><p className="text-lg font-bold text-amber-400 leading-none mt-0.5">{pending}</p></div>
+                                </div>
+                                <div className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5">
+                                    <IndianRupee size={15} className="text-slate-400 shrink-0" />
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Cash</p><p className="text-base font-bold text-white leading-none mt-0.5">₹{cashTotal.toLocaleString('en-IN')}</p></div>
+                                </div>
+                                <div className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5">
+                                    <IndianRupee size={15} className="text-violet-400 shrink-0" />
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Online/UPI</p><p className="text-base font-bold text-white leading-none mt-0.5">₹{upiTotal.toLocaleString('en-IN')}</p></div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* Filters */}
                     <Card padding="md" className="space-y-3">
                         {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                            <input
-                                type="text"
-                                placeholder="Search by name, phone, or ID..."
-                                value={searchTerm}
-                                onChange={(e) => handleSearchChange(e.target.value)}
-                                className="w-full lg:max-w-md pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 text-white placeholder-slate-600 text-sm"
-                            />
-                        </div>
-                        {/* Filter row */}
                         <div className="flex gap-2 items-center">
-                            <Select
-                                value={statusFilter}
-                                onChange={handleFilterChange(setStatusFilter)}
-                                className="flex-1"
-                                options={[
-                                    { value: 'all', label: 'All Status' },
-                                    { value: 'pending', label: 'Pending' },
-                                    { value: 'confirmed', label: 'Confirmed' },
-                                    { value: 'in-progress', label: 'In Progress' },
-                                    { value: 'completed', label: 'Completed' },
-                                    { value: 'cancelled', label: 'Cancelled' },
-                                ]}
-                            />
-                            <Select
-                                value={dateRange}
-                                onChange={handleFilterChange(setDateRange)}
-                                className="flex-1"
-                                options={[
-                                    { value: 'all', label: 'All Time' },
-                                    { value: 'today', label: 'Today' },
-                                    { value: 'tomorrow', label: 'Tomorrow' },
-                                    { value: 'week', label: 'This Week' },
-                                    { value: 'custom', label: 'Custom' },
-                                ]}
-                            />
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, phone, or ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 text-white placeholder-slate-600 text-sm"
+                                />
+                            </div>
                             <button
                                 onClick={() => { fetchBookings(debouncedSearch); onRefresh?.(); }}
                                 title="Refresh"
@@ -364,6 +372,46 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                             >
                                 <RefreshCw size={15} />
                             </button>
+                        </div>
+                        {/* Date chips */}
+                        <div className="flex flex-wrap gap-1.5">
+                            {([
+                                { v: 'today', l: 'Today' },
+                                { v: 'tomorrow', l: 'Tomorrow' },
+                                { v: 'week', l: 'This Week' },
+                                { v: 'all', l: 'All Time' },
+                                { v: 'custom', l: 'Custom' },
+                            ] as const).map(({ v, l }) => (
+                                <button key={v} onClick={() => setDateRange(v)}
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${dateRange === v ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white hover:bg-white/[0.07]'}`}>
+                                    {l}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Status chips */}
+                        <div className="flex flex-wrap gap-1.5">
+                            {([
+                                { v: 'all', l: 'All', color: '' },
+                                { v: 'in-progress', l: 'Active', color: 'blue' },
+                                { v: 'confirmed', l: 'Confirmed', color: 'amber' },
+                                { v: 'completed', l: 'Done', color: 'emerald' },
+                                { v: 'cancelled', l: 'Cancelled', color: 'red' },
+                            ] as { v: string; l: string; color: string }[]).map(({ v, l, color }) => {
+                                const isActive = statusFilter === v;
+                                const colorMap: Record<string, string> = {
+                                    blue: isActive ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'text-blue-400/60 border-blue-500/20 hover:bg-blue-500/10',
+                                    amber: isActive ? 'bg-amber-600/20 text-amber-300 border-amber-500/40' : 'text-amber-400/60 border-amber-500/20 hover:bg-amber-500/10',
+                                    emerald: isActive ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40' : 'text-emerald-400/60 border-emerald-500/20 hover:bg-emerald-500/10',
+                                    red: isActive ? 'bg-red-600/20 text-red-300 border-red-500/40' : 'text-red-400/60 border-red-500/20 hover:bg-red-500/10',
+                                };
+                                const base = !color ? (isActive ? 'bg-white/[0.1] text-white border-white/20' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white') : '';
+                                return (
+                                    <button key={v} onClick={() => setStatusFilter(v)}
+                                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${color ? colorMap[color] : base}`}>
+                                        {l}
+                                    </button>
+                                );
+                            })}
                         </div>
                         {dateRange === 'custom' && (
                             <div className="flex flex-wrap gap-4 pt-2 border-t border-white/[0.06]">

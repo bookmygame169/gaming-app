@@ -44,6 +44,12 @@ export default function Inventory({ cafeId }: InventoryProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<InventoryCategory | "all">("all");
 
+  // Quick add states
+  const [quickName, setQuickName] = useState('');
+  const [quickPrice, setQuickPrice] = useState('');
+  const [quickQty, setQuickQty] = useState('');
+  const [quickSaving, setQuickSaving] = useState(false);
+
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -232,6 +238,29 @@ export default function Inventory({ cafeId }: InventoryProps) {
     }
   }
 
+  // Quick add item
+  async function handleQuickAdd() {
+    if (!quickName.trim() || !quickPrice) return;
+    setQuickSaving(true);
+    try {
+      const { error } = await supabase.from('inventory_items').insert({
+        cafe_id: cafeId,
+        name: quickName.trim(),
+        category: 'snacks' as InventoryCategory,
+        price: parseFloat(quickPrice),
+        stock_quantity: parseInt(quickQty) || 0,
+        is_available: true,
+      });
+      if (error) throw error;
+      setQuickName(''); setQuickPrice(''); setQuickQty('');
+      loadItems();
+    } catch (err) {
+      console.error('Quick add error:', err);
+    } finally {
+      setQuickSaving(false);
+    }
+  }
+
   // Toggle availability
   async function toggleAvailability(item: InventoryItem) {
     try {
@@ -354,9 +383,41 @@ export default function Inventory({ cafeId }: InventoryProps) {
       {/* Items Tab Content */}
       {activeTab === 'items' && (
         <>
-          {/* Filters */}
+          {/* Quick add bar */}
+          <div className="flex gap-2 items-center p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+            <input
+              type="text"
+              placeholder="Item name"
+              value={quickName}
+              onChange={e => setQuickName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+              className="flex-1 px-3 py-1.5 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
+            />
+            <input
+              type="number"
+              placeholder="₹ Price"
+              value={quickPrice}
+              onChange={e => setQuickPrice(e.target.value)}
+              className="w-24 px-3 py-1.5 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
+            />
+            <input
+              type="number"
+              placeholder="Qty"
+              value={quickQty}
+              onChange={e => setQuickQty(e.target.value)}
+              className="w-20 px-3 py-1.5 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
+            />
+            <button
+              onClick={handleQuickAdd}
+              disabled={!quickName || !quickPrice || quickSaving}
+              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5"
+            >
+              {quickSaving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Add
+            </button>
+          </div>
 
-      {/* Filters */}
+          {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -466,22 +527,29 @@ export default function Inventory({ cafeId }: InventoryProps) {
                       </div>
 
                       {/* Stock controls */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => updateStock(item, -1)}
                           disabled={item.stock_quantity === 0}
-                          className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-7 h-7 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                          -
+                          −
                         </button>
-                        <span className="w-12 text-center font-medium text-white">
+                        <span className="w-10 text-center font-semibold text-white text-sm">
                           {item.stock_quantity}
                         </span>
                         <button
                           onClick={() => updateStock(item, 1)}
-                          className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg"
+                          className="w-7 h-7 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg text-sm"
                         >
                           +
+                        </button>
+                        <button
+                          onClick={() => updateStock(item, 10)}
+                          title="Restock +10"
+                          className="px-2 h-7 flex items-center justify-center bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-lg text-[10px] font-bold transition-colors"
+                        >
+                          +10
                         </button>
                       </div>
 
