@@ -111,7 +111,8 @@ export function Sidebar({
     onToggleCollapsed,
 }: SidebarProps) {
     const isManageActive = MANAGE_NAV.some(item => item.id === activeTab);
-    const [manageOpen, setManageOpen] = useState<boolean>(isManageActive || true);
+    // Default collapsed — expands only when a manage tab is active
+    const [manageOpen, setManageOpen] = useState<boolean>(isManageActive);
 
     const handleNav = (id: NavTabId) => {
         onTabChange(id);

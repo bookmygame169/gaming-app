@@ -57,6 +57,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const [showRevenue, setShowRevenue] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [loadedPreference, setLoadedPreference] = useState(false);
+  const [period, setPeriod] = useState<'today' | 'week'>('today');
 
   useEffect(() => {
     try { setShowRevenue(localStorage.getItem(REVENUE_VISIBILITY_KEY) === 'true'); } catch { setShowRevenue(false); }
@@ -73,15 +74,15 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   };
 
   const todayStr = getLocalDateString();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = getLocalDateString(yesterday);
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoStr = getLocalDateString(weekAgo);
+  const prevWeekStart = new Date(); prevWeekStart.setDate(prevWeekStart.getDate() - 14);
+  const prevWeekStartStr = getLocalDateString(prevWeekStart);
 
   const billableSessionBookings = bookings.filter(
-    (booking) =>
-      booking.payment_mode !== 'owner' &&
-      booking.status !== 'cancelled' &&
-      booking.source !== 'membership'
+    (booking) => booking.payment_mode !== 'owner' && booking.status !== 'cancelled' && booking.source !== 'membership'
   );
 
   const activeBookingsCount = billableSessionBookings.filter(
@@ -95,8 +96,21 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const pendingBookings = billableSessionBookings.filter(
     (booking) => booking.booking_date === todayStr && booking.status === 'confirmed'
   ).length;
-
   const todaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === todayStr);
+
+  // Week data
+  const weekBookings = billableSessionBookings.filter(b => (b.booking_date ?? '') >= weekAgoStr && (b.booking_date ?? '') <= todayStr);
+  const weekSessions = weekBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
+  const weekPending = billableSessionBookings.filter(b => (b.booking_date ?? '') >= weekAgoStr && (b.booking_date ?? '') <= todayStr && b.status === 'confirmed').length;
+  const weekSubscriptions = subscriptions.filter(sub => {
+    const d = sub.purchase_date ? getLocalDateString(new Date(sub.purchase_date)) : '';
+    return d >= weekAgoStr && d <= todayStr;
+  });
+  const prevWeekBookings = billableSessionBookings.filter(b => (b.booking_date ?? '') >= prevWeekStartStr && (b.booking_date ?? '') < weekAgoStr);
+  const prevWeekSubscriptions = subscriptions.filter(sub => {
+    const d = sub.purchase_date ? getLocalDateString(new Date(sub.purchase_date)) : '';
+    return d >= prevWeekStartStr && d < weekAgoStr;
+  });
 
   const calcRevenue = (bkgs: DashboardBooking[], subs: DashboardSubscription[]) => {
     const bkgTotal = bkgs.reduce((s, b) => s + (b.total_amount || 0), 0);
@@ -108,11 +122,20 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   };
 
   const totalRevenue = calcRevenue(todayBookings, todaySubscriptions);
-
   const yesterdayBookings = billableSessionBookings.filter((booking) => booking.booking_date === yesterdayStr);
   const yesterdaySessions = yesterdayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
   const yesterdaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === yesterdayStr);
   const yesterdayRevenue = calcRevenue(yesterdayBookings, yesterdaySubscriptions);
+
+  const weekRevenue = calcRevenue(weekBookings, weekSubscriptions);
+  const prevWeekRevenue = calcRevenue(prevWeekBookings, prevWeekSubscriptions);
+
+  // Active card values based on period
+  const displaySessions = period === 'today' ? todaySessions : weekSessions;
+  const displayRevenue = period === 'today' ? totalRevenue : weekRevenue;
+  const displayPrevRevenue = period === 'today' ? yesterdayRevenue : prevWeekRevenue;
+  const displayPrevSessions = period === 'today' ? yesterdaySessions : Math.round(prevWeekBookings.filter(b => b.booking_items && b.booking_items.length > 0).length);
+  const displayPending = period === 'today' ? pendingBookings : weekPending;
 
   const ONLINE_MODES = ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'];
   const membershipRevenue = todaySubscriptions.reduce((s, sub) => {
@@ -167,10 +190,10 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
       accentClass: 'bg-emerald-500',
       icon: <IndianRupee size={16} className="text-emerald-400" />,
       iconBg: 'bg-emerald-500/10',
-      label: "Today's Revenue",
-      value: revenueVisible ? `₹${totalRevenue.toLocaleString('en-IN')}` : '••••••',
+      label: period === 'today' ? "Today's Revenue" : "Week Revenue",
+      value: revenueVisible ? `₹${displayRevenue.toLocaleString('en-IN')}` : '••••••',
       sub: null,
-      trend: revenueVisible ? <Trend today={totalRevenue} yesterday={yesterdayRevenue} /> : null,
+      trend: revenueVisible ? <Trend today={displayRevenue} yesterday={displayPrevRevenue} /> : null,
       extra: 'revenue',
     },
     {
@@ -179,10 +202,10 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
       accentClass: 'bg-orange-500',
       icon: <Timer size={16} className="text-orange-400" />,
       iconBg: 'bg-orange-500/10',
-      label: "Today's Sessions",
-      value: todaySessions,
+      label: period === 'today' ? "Today's Sessions" : "Week Sessions",
+      value: displaySessions,
       sub: 'gaming sessions',
-      trend: <Trend today={todaySessions} yesterday={yesterdaySessions} />,
+      trend: <Trend today={displaySessions} yesterday={displayPrevSessions} />,
       extra: null,
     },
     {
@@ -191,8 +214,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
       accentClass: 'bg-violet-500',
       icon: <Clock size={16} className="text-violet-400" />,
       iconBg: 'bg-violet-500/10',
-      label: 'Pending Today',
-      value: pendingBookings,
+      label: period === 'today' ? 'Pending Today' : 'Pending (Week)',
+      value: displayPending,
       sub: 'awaiting start',
       trend: null,
       extra: null,
@@ -200,7 +223,22 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   ];
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+    <div className="mb-6 space-y-3">
+      {/* Period toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Performance</p>
+        <div className="flex rounded-lg overflow-hidden border border-white/[0.08] text-xs">
+          <button
+            onClick={() => setPeriod('today')}
+            className={`px-3 py-1.5 font-semibold transition-colors ${period === 'today' ? 'bg-white/[0.08] text-white' : 'bg-transparent text-slate-500 hover:text-slate-300'}`}
+          >Today</button>
+          <button
+            onClick={() => setPeriod('week')}
+            className={`px-3 py-1.5 font-semibold transition-colors ${period === 'week' ? 'bg-white/[0.08] text-white' : 'bg-transparent text-slate-500 hover:text-slate-300'}`}
+          >7 Days</button>
+        </div>
+      </div>
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
       {cards.map((card) => (
         <div
           key={card.key}
@@ -265,6 +303,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           )}
         </div>
       ))}
+    </div>
     </div>
   );
 }

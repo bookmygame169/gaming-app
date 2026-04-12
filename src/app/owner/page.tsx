@@ -6,7 +6,7 @@
 // are used for flexibility. These can be refactored incrementally with proper typing.
 
 import { useEffect, useState } from "react";
-import { AlarmClock, Zap, CalendarDays, ShoppingBag, BarChart3, ChevronRight } from 'lucide-react';
+import { AlarmClock, Zap, CalendarDays, ShoppingBag, BarChart3, ChevronRight, Gamepad2 } from 'lucide-react';
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -2080,6 +2080,70 @@ export default function OwnerDashboardPage() {
                 );
               })()}
 
+              {/* Quick Start Session + Upcoming Arrivals row */}
+              {(() => {
+                const todayStr = getLocalDateString();
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const upcoming = bookings.filter((b: any) => {
+                  if (b.booking_date !== todayStr) return false;
+                  if (!['confirmed', 'pending'].includes(b.status)) return false;
+                  if (!b.start_time) return false;
+                  const tp = b.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+                  if (!tp) return false;
+                  let h = parseInt(tp[1]); const m = parseInt(tp[2]); const p = tp[3];
+                  if (p) { if (p.toLowerCase() === 'pm' && h !== 12) h += 12; else if (p.toLowerCase() === 'am' && h === 12) h = 0; }
+                  const startMin = h * 60 + m;
+                  return startMin >= currentMinutes && startMin <= currentMinutes + 120;
+                }).sort((a: any, b: any) => a.start_time?.localeCompare(b.start_time));
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Quick Start Session */}
+                    <button
+                      onClick={() => setActiveTab('billing')}
+                      className="flex items-center gap-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 hover:bg-blue-500/15 hover:border-blue-500/40 transition-all text-left group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Zap size={22} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-white text-sm">Start Session</p>
+                        <p className="text-xs text-blue-300/70 mt-0.5">New walk-in booking</p>
+                      </div>
+                      <ChevronRight size={16} className="text-blue-400/50 ml-auto" />
+                    </button>
+
+                    {/* Upcoming Arrivals */}
+                    <div className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Arriving Next 2 Hours</p>
+                      {upcoming.length === 0 ? (
+                        <p className="text-xs text-slate-600 py-1">No upcoming bookings</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {upcoming.slice(0, 3).map((b: any) => (
+                            <div key={b.id} className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-[10px] font-bold text-cyan-400 font-mono w-14 shrink-0">{b.start_time}</span>
+                                <span className="text-xs text-white truncate">{b.customer_name || b.user_name || 'Guest'}</span>
+                              </div>
+                              <button
+                                onClick={() => handleBookingStatusChange(b.id, 'in-progress')}
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors whitespace-nowrap shrink-0"
+                              >
+                                ▶ Start
+                              </button>
+                            </div>
+                          ))}
+                          {upcoming.length > 3 && (
+                            <p className="text-[10px] text-slate-600">+{upcoming.length - 3} more</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* KPI Stats */}
               <DashboardStats
                 bookings={bookings}
@@ -2088,6 +2152,59 @@ export default function OwnerDashboardPage() {
                 loadingData={loadingData}
                 isMobile={isMobile}
               />
+
+              {/* Station Grid */}
+              {(() => {
+                if (!currentCafe || cafeConsoles.length === 0) return null;
+                const activeItems = bookings
+                  .filter((b: any) => b.status === 'in-progress' && b.booking_date === getLocalDateString())
+                  .flatMap((b: any) => b.booking_items || []);
+                const occupiedStations = new Set(
+                  activeItems.map((it: any) => {
+                    const parts = it.title?.split('|');
+                    return parts && parts.length > 1 ? parts[1].trim().toLowerCase() : null;
+                  }).filter(Boolean)
+                );
+                return (
+                  <section>
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-slate-500/15 flex items-center justify-center">
+                        <Gamepad2 size={14} className="text-slate-400" />
+                      </div>
+                      <h2 className="text-base font-semibold text-white">Station Overview</h2>
+                      <span className="text-xs text-slate-500 ml-1">
+                        {cafeConsoles.filter((s: any) => !occupiedStations.has(s.station_name?.toLowerCase())).length} free
+                        · {occupiedStations.size} occupied
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {cafeConsoles.map((station: any) => {
+                        const sName = station.station_name?.toLowerCase();
+                        const isOccupied = occupiedStations.has(sName);
+                        const isOffline = station.is_active === false;
+                        return (
+                          <div
+                            key={station.station_name}
+                            title={station.station_name}
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold border transition-colors ${
+                              isOffline
+                                ? 'bg-white/[0.03] border-white/[0.06] text-slate-600'
+                                : isOccupied
+                                  ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                                  : 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400'
+                            }`}
+                          >
+                            {station.station_name?.toUpperCase()}
+                            <span className="ml-1.5 text-[9px] opacity-70">
+                              {isOffline ? '⚫ OFF' : isOccupied ? '🔴' : '🟢'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })()}
 
               {/* Active Sessions */}
               <section>
@@ -2121,6 +2238,10 @@ export default function OwnerDashboardPage() {
                     setSessionEndedInfo(info);
                     setSessionEndedPopupOpen(true);
                     refreshData();
+                  }}
+                  onEndCollect={async (bookingId, paymentMode) => {
+                    await handlePaymentModeChange(bookingId, paymentMode);
+                    await handleBookingStatusChange(bookingId, 'completed');
                   }}
                 />
               </section>
@@ -2221,6 +2342,43 @@ export default function OwnerDashboardPage() {
                       showActions={false}
                       onViewAll={() => setActiveTab('bookings')}
                     />
+                  </section>
+                );
+              })()}
+
+              {/* End-of-Day Cash Summary */}
+              {(() => {
+                const todayStr = getLocalDateString();
+                const todayDone = bookings.filter((b: any) =>
+                  b.booking_date === todayStr &&
+                  b.status !== 'cancelled' &&
+                  b.payment_mode !== 'owner' &&
+                  b.source !== 'membership'
+                );
+                const cashTotal = todayDone
+                  .filter((b: any) => b.payment_mode?.toLowerCase() === 'cash')
+                  .reduce((s: number, b: any) => s + (b.total_amount || 0), 0);
+                const upiTotal = todayDone
+                  .filter((b: any) => b.payment_mode?.toLowerCase() !== 'cash')
+                  .reduce((s: number, b: any) => s + (b.total_amount || 0), 0);
+                if (cashTotal === 0 && upiTotal === 0) return null;
+                return (
+                  <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Cash Drawer Summary</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 p-3 text-center">
+                        <p className="text-[10px] text-emerald-400/70 uppercase tracking-widest mb-1">Cash</p>
+                        <p className="text-lg font-bold text-emerald-400">₹{cashTotal.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="rounded-xl bg-blue-500/8 border border-blue-500/20 p-3 text-center">
+                        <p className="text-[10px] text-blue-400/70 uppercase tracking-widest mb-1">UPI</p>
+                        <p className="text-lg font-bold text-blue-400">₹{upiTotal.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-3 text-center">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Total</p>
+                        <p className="text-lg font-bold text-white">₹{(cashTotal + upiTotal).toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
                   </section>
                 );
               })()}

@@ -457,13 +457,32 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                         </>
                     )}
                 </div>
-                <Input
-                    label={mode === 'membership' ? 'Phone (Required)' : 'Phone (Optional)'}
-                    value={customerPhone}
-                    onChange={setCustomerPhone}
-                    placeholder="Enter phone number"
-                    type="tel"
-                />
+                <div className="relative">
+                    <Input
+                        label={mode === 'membership' ? 'Phone (Required)' : 'Phone (Optional)'}
+                        value={customerPhone}
+                        onChange={(val) => { setCustomerPhone(val); searchCustomers(val, 'phone'); }}
+                        placeholder="Enter phone number"
+                        type="tel"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowSuggestions(false)} />
+                            <div className="absolute top-full mt-1 left-0 w-full z-50 bg-white/[0.06] border border-white/[0.09] rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                                {suggestions.map((s, idx) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => { setCustomerName(s.name); setCustomerPhone(s.phone); setShowSuggestions(false); }}
+                                        className="px-4 py-3 hover:bg-white/[0.05] cursor-pointer border-b border-white/[0.09]/50 last:border-0"
+                                    >
+                                        <div className="font-medium text-white">{s.name}</div>
+                                        <div className="text-xs text-slate-400">{s.phone}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </Card>
     );
@@ -610,18 +629,25 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                                     ]}
                                                     onChange={(val) => updateItem(item.id, 'quantity', parseInt(val))}
                                                 />
-                                                <Select
-                                                    label="Duration"
-                                                    value={String(item.duration)}
-                                                    options={[
-                                                        { value: '30', label: '30 Mins' },
-                                                        { value: '60', label: '1 Hour' },
-                                                        { value: '90', label: '1.5 Hours' },
-                                                        { value: '120', label: '2 Hours' },
-                                                        { value: '180', label: '3 Hours' },
-                                                    ]}
-                                                    onChange={(val) => updateItem(item.id, 'duration', parseInt(val))}
-                                                />
+                                                <div>
+                                                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Duration</label>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {[30, 60, 90, 120, 180].map(d => (
+                                                            <button
+                                                                key={d}
+                                                                type="button"
+                                                                onClick={() => updateItem(item.id, 'duration', d)}
+                                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                                                    item.duration === d
+                                                                        ? 'bg-blue-500 border-blue-500 text-white'
+                                                                        : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:border-white/[0.15] hover:text-white'
+                                                                }`}
+                                                            >
+                                                                {d < 60 ? `${d}m` : d === 60 ? '1h' : d === 90 ? '1.5h' : d === 120 ? '2h' : '3h'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                                 <div className="flex flex-col justify-end">
                                                     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-right">
                                                         <div className="text-xs text-slate-500 mb-0.5">Price</div>
