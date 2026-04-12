@@ -88,6 +88,10 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
         paymentMode: string; cafeName: string;
     };
     const [lastBooking, setLastBooking] = useState<LastBooking | null>(null);
+    const [autoResetSecs, setAutoResetSecs] = useState<number | null>(null);
+
+    // Recent customers for quick-pick
+    const [recentCustomers, setRecentCustomers] = useState<CustomerSuggestion[]>([]);
 
     // Data State — seeded from props, avoids direct Supabase calls on ISP-blocked networks
     const [pricing, setPricing] = useState<any>(pricingData || null);
@@ -224,6 +228,34 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
         };
     }, []);
+
+    // Auto-reset countdown after successful booking
+    useEffect(() => {
+        if (!lastBooking) { setAutoResetSecs(null); return; }
+        setAutoResetSecs(8);
+        const interval = setInterval(() => {
+            setAutoResetSecs(s => {
+                if (s === null || s <= 1) {
+                    clearInterval(interval);
+                    setLastBooking(null);
+                    onSuccess?.();
+                    return null;
+                }
+                return s - 1;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lastBooking]);
+
+    // Fetch recent customers for quick-pick
+    useEffect(() => {
+        if (!cafeId) return;
+        fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
+            .then(r => r.json())
+            .then(data => { if (Array.isArray(data)) setRecentCustomers(data.slice(0, 6)); })
+            .catch(() => {});
+    }, [cafeId]);
 
     // Customer Autocomplete — debounced server-side search (no load-all)
     const searchCustomers = (query: string, field: 'name' | 'phone') => {
@@ -424,6 +456,27 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <User className="text-blue-500" size={20} /> Customer Info
             </h3>
+            {/* Recent customers quick-pick */}
+            {recentCustomers.length > 0 && !customerName && (
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Recent</p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {recentCustomers.map((c, i) => (
+                            <button
+                                key={i}
+                                type="button"
+                                onClick={() => { setCustomerName(c.name); setCustomerPhone(c.phone); setSuggestions([]); setShowSuggestions(false); }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/[0.09] hover:bg-white/[0.09] hover:border-white/[0.15] transition-colors text-xs"
+                            >
+                                <span className="w-5 h-5 rounded-md bg-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-400 shrink-0">
+                                    {c.name.charAt(0).toUpperCase()}
+                                </span>
+                                <span className="text-slate-300 font-medium truncate max-w-[80px]">{c.name.split(' ')[0]}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative z-20">
                     <Input
@@ -488,7 +541,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     );
 
     return (
-        <div className={`space-y-6 ${isMobile ? 'pb-20' : ''}`}>
+        <div className={`space-y-6 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
             {/* Mode Toggle */}
             <div className="flex rounded-xl overflow-hidden border border-white/[0.08] w-fit">
                 <button
@@ -544,6 +597,19 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                         ))}
                     </div>
 
+                    {/* Auto-reset countdown */}
+                    {autoResetSecs !== null && (
+                        <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                            <span className="text-xs text-slate-500">Auto-reset in</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-white tabular-nums">{autoResetSecs}s</span>
+                                <div className="w-24 h-1 bg-white/[0.08] rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Action buttons */}
                     <div className="grid grid-cols-2 gap-3">
                         {lastBooking.phone ? (
@@ -589,9 +655,33 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                             </div>
 
                             {items.length === 0 ? (
-                                <div className="py-8 text-center border-2 border-dashed border-white/[0.08] rounded-xl">
-                                    <p className="text-slate-500 mb-4">No stations added yet</p>
-                                    <Button size="sm" onClick={addItem}>Add First Station</Button>
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Tap to add</p>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                        {availableConsoles.map(c => {
+                                            const icons: Record<string, string> = { ps5: '🎮', ps4: '🎮', xbox: '🕹️', pc: '🖥️', pool: '🎱', snooker: '🎱', arcade: '👾', vr: '🥽', steering: '🏎️', racing_sim: '🏁' };
+                                            return (
+                                                <button
+                                                    key={c}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newItem: BillingItem = {
+                                                            id: Math.random().toString(36).substr(2, 9),
+                                                            console: c, quantity: 1, duration: 60,
+                                                            price: calculatePrice(c, 1, 60),
+                                                        };
+                                                        setItems([newItem]);
+                                                    }}
+                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-blue-500/10 hover:border-blue-500/30 transition-all group"
+                                                >
+                                                    <span className="text-2xl">{icons[c] || '🎮'}</span>
+                                                    <span className="text-[11px] font-semibold text-slate-400 group-hover:text-blue-300 transition-colors">
+                                                        {CONSOLE_LABELS[c as keyof typeof CONSOLE_LABELS] || c.toUpperCase()}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -951,6 +1041,32 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                 Add Membership
                             </Button>
                         </Card>
+                    </div>
+                </div>
+            )}
+
+            {/* Sticky mobile confirm bar */}
+            {isMobile && mode === 'gaming' && !lastBooking && items.length > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 px-4 py-3 bg-[#0d0d14]/95 border-t border-white/[0.08] backdrop-blur-md">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-slate-500 font-medium">Total</p>
+                        <p className="text-xl font-bold text-white leading-none">₹{totalAmount}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPaymentMode(paymentMode === 'cash' ? 'upi' : 'cash')}
+                            className={`px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${paymentMode === 'cash' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-violet-500/15 text-violet-400 border-violet-500/30'}`}
+                        >
+                            {paymentMode === 'cash' ? '💵 Cash' : '📱 UPI'}
+                        </button>
+                        <Button
+                            onClick={handleSubmit}
+                            loading={submitting}
+                            disabled={submitting}
+                            className="px-5 py-2 rounded-xl text-sm font-bold"
+                        >
+                            Confirm
+                        </Button>
                     </div>
                 </div>
             )}
