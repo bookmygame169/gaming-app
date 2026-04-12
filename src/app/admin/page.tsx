@@ -170,6 +170,12 @@ export default function AdminDashboardPage() {
   const [addStationType, setAddStationType] = useState('ps5');
   const [addStationCount, setAddStationCount] = useState(1);
   const [savingStation, setSavingStation] = useState(false);
+  const [stationPricing, setStationPricing] = useState<Record<string, any>>({});
+  const [loadingStationPricing, setLoadingStationPricing] = useState(false);
+  const [savingStationPricing, setSavingStationPricing] = useState(false);
+  const [stationPricingMsg, setStationPricingMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Per-type price edit form: { [stationType]: { half_hour_rate, hourly_rate, ... } }
+  const [stationPriceForm, setStationPriceForm] = useState<Record<string, Record<string, string>>>({});
   const [cafeMembershipPlans, setCafeMembershipPlans] = useState<any[]>([]);
   const [loadingMemberships, setLoadingMemberships] = useState(false);
   const [membershipForm, setMembershipForm] = useState({ name: '', price: '', hours: '', validity_days: '30', plan_type: 'hourly_package', console_type: 'ps5', player_count: 'single' });
@@ -1711,6 +1717,91 @@ export default function AdminDashboardPage() {
     }
   }
 
+  async function loadStationPricing(cafeId: string) {
+    setLoadingStationPricing(true);
+    try {
+      const res = await fetch(`/api/admin/station-pricing?cafeId=${cafeId}`, { credentials: 'include' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load pricing');
+      // Aggregate pricing per type — take the first row found for each station_type
+      const byType: Record<string, any> = {};
+      for (const row of (json.pricing || [])) {
+        const t = row.station_type;
+        if (t && !byType[t]) byType[t] = row;
+      }
+      setStationPricing(byType);
+      // Seed form from existing pricing
+      const form: Record<string, Record<string, string>> = {};
+      for (const [type, row] of Object.entries(byType) as [string, any][]) {
+        form[type] = {
+          half_hour_rate: String(row.half_hour_rate ?? ''),
+          hourly_rate: String(row.hourly_rate ?? ''),
+          single_player_half_hour_rate: String(row.single_player_half_hour_rate ?? ''),
+          single_player_rate: String(row.single_player_rate ?? ''),
+          multi_player_half_hour_rate: String(row.multi_player_half_hour_rate ?? ''),
+          multi_player_rate: String(row.multi_player_rate ?? ''),
+          controller_1_half_hour: String(row.controller_1_half_hour ?? ''),
+          controller_1_full_hour: String(row.controller_1_full_hour ?? ''),
+          controller_2_half_hour: String(row.controller_2_half_hour ?? ''),
+          controller_2_full_hour: String(row.controller_2_full_hour ?? ''),
+          controller_3_half_hour: String(row.controller_3_half_hour ?? ''),
+          controller_3_full_hour: String(row.controller_3_full_hour ?? ''),
+          controller_4_half_hour: String(row.controller_4_half_hour ?? ''),
+          controller_4_full_hour: String(row.controller_4_full_hour ?? ''),
+        };
+      }
+      setStationPriceForm(form);
+    } catch (err: any) {
+      console.error('Failed to load station pricing:', err);
+    } finally {
+      setLoadingStationPricing(false);
+    }
+  }
+
+  async function saveStationTypePricing(cafeId: string, stationType: string, count: number) {
+    setSavingStationPricing(true);
+    setStationPricingMsg(null);
+    try {
+      const f = stationPriceForm[stationType] || {};
+      const n = (v: string) => (v.trim() === '' ? null : parseFloat(v) || 0);
+      const payload: Record<string, any> = { cafeId, stationType, count };
+
+      if (stationType === 'PS5' || stationType === 'Xbox') {
+        payload.controller_1_half_hour = n(f.controller_1_half_hour);
+        payload.controller_1_full_hour = n(f.controller_1_full_hour);
+        payload.controller_2_half_hour = n(f.controller_2_half_hour);
+        payload.controller_2_full_hour = n(f.controller_2_full_hour);
+        payload.controller_3_half_hour = n(f.controller_3_half_hour);
+        payload.controller_3_full_hour = n(f.controller_3_full_hour);
+        payload.controller_4_half_hour = n(f.controller_4_half_hour);
+        payload.controller_4_full_hour = n(f.controller_4_full_hour);
+      } else if (stationType === 'PS4') {
+        payload.single_player_half_hour_rate = n(f.single_player_half_hour_rate);
+        payload.single_player_rate = n(f.single_player_rate);
+        payload.multi_player_half_hour_rate = n(f.multi_player_half_hour_rate);
+        payload.multi_player_rate = n(f.multi_player_rate);
+      } else {
+        payload.half_hour_rate = n(f.half_hour_rate);
+        payload.hourly_rate = n(f.hourly_rate);
+      }
+
+      const res = await fetch('/api/admin/station-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to save pricing');
+      setStationPricingMsg({ type: 'success', text: `Saved pricing for all ${count} ${stationType} station${count !== 1 ? 's' : ''}` });
+      await loadStationPricing(cafeId);
+    } catch (err: any) {
+      setStationPricingMsg({ type: 'error', text: err.message || 'Failed to save' });
+    } finally {
+      setSavingStationPricing(false);
+    }
+  }
+
   async function saveMembershipPlan(cafeId: string) {
     setSavingMembership(true);
     setMembershipMsg(null);
@@ -2602,6 +2693,7 @@ export default function AdminDashboardPage() {
                         if (tab === 'memberships' && cafeMembershipPlans.length === 0) loadCafeMemberships(managedCafeId);
                         if (tab === 'coupons' && cafeCoupons.length === 0) loadCafeCoupons(managedCafeId);
                         if (tab === 'bookings' && cafeBookings.length === 0) loadCafeBookings(managedCafeId);
+                        if (tab === 'stations') { setStationPricing({}); setStationPriceForm({}); loadStationPricing(managedCafeId); }
                       }}
                       className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-colors ${cafeManageSubTab === tab ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
                     >
@@ -2772,6 +2864,104 @@ export default function AdminDashboardPage() {
                           {savingStation ? 'Saving…' : `+ Add ${addStationCount}`}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Station Prices */}
+                    <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-white">Station Prices</h3>
+                        <button onClick={() => loadStationPricing(managedCafeId)} className="text-xs text-slate-500 hover:text-white transition-colors">↻ Refresh</button>
+                      </div>
+
+                      {stationPricingMsg && (
+                        <div className={`mb-4 px-3 py-2 rounded-xl text-xs border ${stationPricingMsg.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                          {stationPricingMsg.text}
+                        </div>
+                      )}
+
+                      {loadingStationPricing ? (
+                        <p className="text-xs text-slate-500 py-4 text-center">Loading pricing…</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {STATION_TYPES.filter(st => ((mc as any)[st.key] || 0) > 0).map(st => {
+                            const count = (mc as any)[st.key] || 0;
+                            const f = stationPriceForm[st.label] || {};
+                            const setF = (field: string, val: string) =>
+                              setStationPriceForm(prev => ({ ...prev, [st.label]: { ...prev[st.label], [field]: val } }));
+                            const inp = (label: string, field: string) => (
+                              <div key={field}>
+                                <label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">{label}</label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">₹</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={f[field] ?? ''}
+                                    onChange={e => setF(field, e.target.value)}
+                                    placeholder="0"
+                                    className="w-full pl-6 pr-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-600 outline-none focus:border-blue-500/50"
+                                  />
+                                </div>
+                              </div>
+                            );
+
+                            return (
+                              <div key={st.id} className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-white">{st.label}</p>
+                                    <p className="text-[10px] text-slate-500">{count} station{count !== 1 ? 's' : ''} · prices apply to all</p>
+                                  </div>
+                                  <button
+                                    onClick={() => saveStationTypePricing(managedCafeId, st.label, count)}
+                                    disabled={savingStationPricing}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500 hover:bg-blue-400 text-white transition-colors disabled:opacity-50"
+                                  >
+                                    {savingStationPricing ? 'Saving…' : 'Save'}
+                                  </button>
+                                </div>
+
+                                {/* PS5 / Xbox — per-controller pricing */}
+                                {(st.label === 'PS5' || st.label === 'Xbox') && (
+                                  <div className="space-y-3">
+                                    {[1, 2, 3, 4].map(n => (
+                                      <div key={n}>
+                                        <p className="text-[10px] text-slate-400 font-semibold mb-2">{n} Controller{n > 1 ? 's' : ''}</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {inp('30 min', `controller_${n}_half_hour`)}
+                                          {inp('60 min', `controller_${n}_full_hour`)}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* PS4 — single / multi player */}
+                                {st.label === 'PS4' && (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {inp('Single 30 min', 'single_player_half_hour_rate')}
+                                    {inp('Single 60 min', 'single_player_rate')}
+                                    {inp('Multi 30 min', 'multi_player_half_hour_rate')}
+                                    {inp('Multi 60 min', 'multi_player_rate')}
+                                  </div>
+                                )}
+
+                                {/* All other stations — simple half/full hour */}
+                                {st.label !== 'PS5' && st.label !== 'Xbox' && st.label !== 'PS4' && (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {inp('30 min', 'half_hour_rate')}
+                                    {inp('60 min', 'hourly_rate')}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {STATION_TYPES.filter(st => ((mc as any)[st.key] || 0) > 0).length === 0 && (
+                            <p className="text-xs text-slate-500 text-center py-4">No stations added yet. Add stations above first.</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
