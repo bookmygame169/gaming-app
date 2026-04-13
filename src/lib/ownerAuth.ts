@@ -11,6 +11,7 @@ export type OwnerSession = {
   userId: string;
   username: string;
   expiresAt: number;
+  issuedAt: number;
 };
 
 type OwnerContext = {
@@ -84,10 +85,12 @@ function toBase64UrlJson(value: OwnerSession): string {
 }
 
 export function createOwnerSession(userId: string, username: string): OwnerSession {
+  const now = Date.now();
   return {
     userId,
     username,
-    expiresAt: Date.now() + OWNER_SESSION_TTL_MS,
+    issuedAt: now,
+    expiresAt: now + OWNER_SESSION_TTL_MS,
   };
 }
 
@@ -135,13 +138,22 @@ export function parseOwnerSession(token?: string | null): OwnerSession | null {
       return null;
     }
 
-    if (parsed.expiresAt <= Date.now()) {
+    const now = Date.now();
+
+    if (parsed.expiresAt <= now) {
+      return null;
+    }
+
+    // issuedAt is optional for backward compat with existing sessions,
+    // but must not be in the future (clock skew tolerance: 60s)
+    if (typeof parsed.issuedAt === "number" && parsed.issuedAt > now + 60_000) {
       return null;
     }
 
     return {
       userId: parsed.userId,
       username: parsed.username,
+      issuedAt: typeof parsed.issuedAt === "number" ? parsed.issuedAt : now,
       expiresAt: parsed.expiresAt,
     };
   } catch {

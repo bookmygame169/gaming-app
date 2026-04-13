@@ -64,7 +64,7 @@ export function SessionEndedPopup({
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 pointer-events-none">
       <div
-        className="pointer-events-auto bg-white/[0.03] border-2 border-red-500/50 rounded-2xl shadow-2xl shadow-red-500/20 w-full max-w-md mx-4 animate-in slide-in-from-top-4 fade-in duration-300"
+        className="pointer-events-auto bg-[#13131f] border-2 border-red-500/50 rounded-2xl shadow-2xl shadow-red-500/20 w-full max-w-md mx-4 animate-in slide-in-from-top-4 fade-in duration-300"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/[0.08]">

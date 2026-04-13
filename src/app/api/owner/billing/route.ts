@@ -15,6 +15,14 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+const PHONE_REGEX = /^\+?\d[\d\s\-()]{7,14}$/;
+
+function validatePhone(phone: unknown): boolean {
+  if (!phone || phone === null) return true; // phone is optional
+  if (typeof phone !== "string") return false;
+  return PHONE_REGEX.test(phone.trim());
+}
+
 function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
   const message = error?.message?.toLowerCase() || "";
   return message.includes("bookings.updated_at") && message.includes("does not exist");
@@ -76,6 +84,10 @@ export async function PUT(request: NextRequest) {
 
     if (!bookingId) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
+    }
+
+    if (booking?.customer_phone && !validatePhone(booking.customer_phone)) {
+      return NextResponse.json({ error: "Invalid phone number format" }, { status: 400 });
     }
 
     const ownedCafeId = await getOwnedCafeIdForBooking(supabase, bookingId, ownerId);
@@ -177,6 +189,7 @@ export async function PUT(request: NextRequest) {
         .eq("id", bookingId);
 
       if (bookingError) {
+        console.error("Error updating booking fields:", { bookingId, ownerId }, bookingError.message);
         return NextResponse.json({ error: bookingError.message }, { status: 500 });
       }
     }
@@ -280,6 +293,10 @@ export async function POST(request: NextRequest) {
 
   if (!booking?.cafe_id) {
     return NextResponse.json({ error: "booking.cafe_id is required" }, { status: 400 });
+  }
+
+  if (booking.customer_phone && !validatePhone(booking.customer_phone)) {
+    return NextResponse.json({ error: "Invalid phone number format" }, { status: 400 });
   }
 
   const accessResponse = await requireOwnerCafeAccess(

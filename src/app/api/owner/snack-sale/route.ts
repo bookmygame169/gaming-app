@@ -76,21 +76,33 @@ export async function POST(request: NextRequest) {
       throw new Error(ordersError.message || JSON.stringify(ordersError));
     }
 
-    // 3. Decrement stock
-    for (const item of items) {
-      const { data: inv } = await supabase
-        .from("inventory_items")
-        .select("stock_quantity")
-        .eq("id", item.inventory_item_id)
-        .single();
-
-      if (inv) {
-        await supabase
+    // 3. Decrement stock — run in parallel; log but do not abort on individual failures
+    // (booking + orders are already committed; inventory is best-effort without DB transactions)
+    await Promise.all(
+      items.map(async (item: { inventory_item_id: string; quantity: number }) => {
+        const { data: inv, error: fetchErr } = await supabase
           .from("inventory_items")
-          .update({ stock_quantity: Math.max(0, inv.stock_quantity - item.quantity) })
-          .eq("id", item.inventory_item_id);
-      }
-    }
+          .select("stock_quantity")
+          .eq("id", item.inventory_item_id)
+          .single();
+
+        if (fetchErr) {
+          console.error(`[snack-sale] Failed to fetch inventory for item ${item.inventory_item_id}:`, fetchErr.message);
+          return;
+        }
+
+        if (inv) {
+          const { error: updateErr } = await supabase
+            .from("inventory_items")
+            .update({ stock_quantity: Math.max(0, inv.stock_quantity - item.quantity) })
+            .eq("id", item.inventory_item_id);
+
+          if (updateErr) {
+            console.error(`[snack-sale] Failed to decrement stock for item ${item.inventory_item_id}:`, updateErr.message);
+          }
+        }
+      })
+    );
 
     return NextResponse.json({ success: true, bookingId: booking.id });
   } catch (err: unknown) {

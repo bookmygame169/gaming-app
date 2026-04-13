@@ -32,8 +32,6 @@ export async function GET(request: NextRequest) {
       timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
     }).formatToParts(new Date());
     const todayStr = `${indiaDateParts.find(p => p.type === 'year')?.value}-${indiaDateParts.find(p => p.type === 'month')?.value}-${indiaDateParts.find(p => p.type === 'day')?.value}`;
-    console.log('[live-status] cafeId:', cafeId, 'todayStr (IST):', todayStr);
-
     // Fetch cafe console counts
     const { data: cafe, error: cafeError } = await supabase
       .from("cafes")
@@ -44,17 +42,6 @@ export async function GET(request: NextRequest) {
     if (cafeError) {
       return NextResponse.json({ error: cafeError.message }, { status: 500 });
     }
-
-    // DEBUG: diagnose which filter causes 0 results
-    const [{ data: allForCafe }, { data: todayForCafe }, { data: inProgressForCafe }] = await Promise.all([
-      supabase.from("bookings").select("id, booking_date, status").eq("cafe_id", cafeId).limit(5),
-      supabase.from("bookings").select("id, booking_date, status").eq("cafe_id", cafeId).eq("booking_date", todayStr),
-      supabase.from("bookings").select("id, booking_date, status").eq("cafe_id", cafeId).eq("status", "in-progress"),
-    ]);
-    console.log('[live-status DEBUG] cafeId:', cafeId, 'todayStr:', todayStr,
-      '| allForCafe (sample):', allForCafe?.map(b => ({date: b.booking_date, status: b.status})),
-      '| todayForCafe:', todayForCafe?.length, todayForCafe?.map(b => b.status),
-      '| inProgressForCafe:', inProgressForCafe?.length, inProgressForCafe?.map(b => b.booking_date));
 
     // Fetch today's in-progress bookings
     const { data: bookings, error: bookingsError } = await supabase
@@ -70,7 +57,6 @@ export async function GET(request: NextRequest) {
     if (bookingsError) {
       return NextResponse.json({ error: bookingsError.message }, { status: 500 });
     }
-    console.log('[live-status] bookings fetched:', bookings?.length, bookings?.map((b:any) => ({ id: b.id, status: b.status, date: b.booking_date, items: b.booking_items?.length })));
 
     // Fetch profiles for bookings with user_id
     const userIds = (bookings || []).filter(b => b.user_id).map(b => b.user_id as string);

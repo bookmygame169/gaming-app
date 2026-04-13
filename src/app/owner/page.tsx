@@ -132,6 +132,12 @@ export default function OwnerDashboardPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Centralised tab-change: always close mobile menu when navigating
+  const handleTabChange = (tab: NavTab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
+
 
 
 
@@ -2018,7 +2024,7 @@ export default function OwnerDashboardPage() {
     <>
       <DashboardLayout
         activeTab={activeTab}
-        onTabChange={(tab: string) => setActiveTab(tab as NavTab)}
+        onTabChange={(tab: string) => handleTabChange(tab as NavTab)}
         cafeName={currentCafe?.name || (cafes.length > 0 ? "Your Café" : "Loading...")}
         isMobile={isMobile}
         mobileMenuOpen={mobileMenuOpen}
@@ -2088,7 +2094,7 @@ export default function OwnerDashboardPage() {
                       </span>
                     </div>
                     <button
-                      onClick={() => setActiveTab('bookings')}
+                      onClick={() => handleTabChange('bookings')}
                       className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                     >
                       View <ChevronRight size={12} />
@@ -2117,7 +2123,7 @@ export default function OwnerDashboardPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Quick Start Session */}
                     <button
-                      onClick={() => setActiveTab('billing')}
+                      onClick={() => handleTabChange('billing')}
                       className="flex items-center gap-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 hover:bg-blue-500/15 hover:border-blue-500/40 transition-all text-left group"
                     >
                       <div className="w-11 h-11 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -2279,7 +2285,7 @@ export default function OwnerDashboardPage() {
                     })()}
                   </div>
                   <button
-                    onClick={() => setActiveTab('bookings')}
+                    onClick={() => handleTabChange('bookings')}
                     className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition-colors"
                   >
                     View all <ChevronRight size={12} />
@@ -2345,7 +2351,7 @@ export default function OwnerDashboardPage() {
                         </span>
                       </div>
                       <button
-                        onClick={() => setActiveTab('bookings')}
+                        onClick={() => handleTabChange('bookings')}
                         className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition-colors"
                       >
                         View all <ChevronRight size={12} />
@@ -2357,7 +2363,7 @@ export default function OwnerDashboardPage() {
                       loading={loadingData}
                       limit={10}
                       showActions={false}
-                      onViewAll={() => setActiveTab('bookings')}
+                      onViewAll={() => handleTabChange('bookings')}
                     />
                   </section>
                 );
@@ -2696,11 +2702,11 @@ export default function OwnerDashboardPage() {
                 membershipPlans={membershipPlans.filter((p: any) => p.cafe_id === currentCafeId)}
                 onSuccess={() => {
                   refreshData();
-                  setActiveTab('dashboard');
+                  handleTabChange('dashboard');
                 }}
                 onMembershipSuccess={() => {
                   refreshData();
-                  setActiveTab('memberships');
+                  handleTabChange('memberships');
                 }}
               />
             </div>

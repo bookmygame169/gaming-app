@@ -96,6 +96,7 @@ export function EditBookingModal({
   const [showSugg, setShowSugg] = useState(false);
   const suggRef = useRef<HTMLDivElement>(null);
   const [endNowMsg, setEndNowMsg] = useState<string | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   const configuredConsoleOptions = useMemo(() => {
     const configuredConsoleIds = new Set<ConsoleId>(getAvailableConsoleIds(cafe));
@@ -117,14 +118,23 @@ export function EditBookingModal({
 
   const searchCustomers = useCallback(async (query: string) => {
     if (query.trim().length < 2) { setSuggestions([]); setShowSugg(false); return; }
+
+    // Cancel any previous in-flight request
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
     try {
       const [bookRes, profRes] = await Promise.all([
         supabase.from('bookings').select('customer_name, customer_phone')
           .eq('cafe_id', booking.cafe_id || '').ilike('customer_name', `%${query}%`)
-          .not('customer_name', 'is', null).limit(8),
+          .not('customer_name', 'is', null).limit(8)
+          .abortSignal(controller.signal),
         supabase.from('profiles').select('first_name, last_name, phone')
-          .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`).limit(5),
+          .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`).limit(5)
+          .abortSignal(controller.signal),
       ]);
+      if (controller.signal.aborted) return;
       const seen = new Set<string>();
       const results: { name: string; phone: string | null }[] = [];
       profRes.data?.forEach(p => {
@@ -138,7 +148,7 @@ export function EditBookingModal({
       setSuggestions(results);
       setShowSugg(results.length > 0);
     } catch {
-      // Autocomplete is best-effort — silently suppress network errors
+      // Autocomplete is best-effort — silently suppress abort and network errors
       setSuggestions([]);
       setShowSugg(false);
     }
@@ -148,6 +158,11 @@ export function EditBookingModal({
     const t = setTimeout(() => searchCustomers(customerName), 300);
     return () => clearTimeout(t);
   }, [customerName, searchCustomers]);
+
+  // Abort any pending search on unmount
+  useEffect(() => {
+    return () => { searchAbortRef.current?.abort(); };
+  }, []);
 
   // Close suggestions on outside click
   useEffect(() => {

@@ -77,7 +77,12 @@ export async function PATCH(request: NextRequest) {
       });
 
     if (historyError) {
-      return NextResponse.json({ error: historyError.message }, { status: 500 });
+      // Subscription was updated but usage log failed — surface a clear partial-state error
+      console.error('[subscriptions PATCH] Usage log insert failed after subscription update:', historyError.message, '| subscription_id:', id);
+      return NextResponse.json({
+        error: `Subscription updated but usage history could not be recorded: ${historyError.message}`,
+        partialSuccess: true,
+      }, { status: 500 });
     }
   }
 

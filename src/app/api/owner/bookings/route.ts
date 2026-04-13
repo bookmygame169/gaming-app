@@ -98,8 +98,10 @@ export async function GET(request: NextRequest) {
       if (dateTo) query = query.lte("booking_date", dateTo);
 
       if (search) {
+        // Strip PostgREST filter special chars to prevent query injection via .or() interpolation
+        const safeSearch = search.replace(/[(),\s]/g, '');
         query = query.or(
-          `customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%,id.ilike.${search}%`
+          `customer_name.ilike.%${safeSearch}%,customer_phone.ilike.%${safeSearch}%,id.ilike.${safeSearch}%`
         );
       }
 
