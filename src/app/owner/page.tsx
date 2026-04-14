@@ -10,7 +10,7 @@ import { AlarmClock, Zap, CalendarDays, ShoppingBag, BarChart3, ChevronRight, Ga
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { fonts, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from "@/lib/constants";
+import { fonts, type ConsoleId } from "@/lib/constants";
 import { buildStationPricingMap } from "@/lib/stationNames";
 import { getEndTime } from "@/lib/timeUtils";
 import {
@@ -313,29 +313,8 @@ export default function OwnerDashboardPage() {
   const [savingPricing, setSavingPricing] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
 
-  // useBilling hook replacing old billing state
-  const {
-    customerName: billingCustomerName, setCustomerName: setBillingCustomerName,
-    customerPhone: billingCustomerPhone, setCustomerPhone: setBillingCustomerPhone,
-    bookingDate: billingBookingDate, setBookingDate: setBillingBookingDate,
-    startTime: billingStartTime, setStartTime: setBillingStartTime,
-    items: billingItems,
-    paymentMode: billingPaymentMode, setPaymentMode: setBillingPaymentMode,
-    totalAmount: billingTotalAmount,
-    isSubmitting: billingSubmitting,
-    availableConsoles: billingAvailableConsoles,
-    showSuggestions: billingShowSuggestions, setShowSuggestions: setBillingShowSuggestions,
-    filteredSuggestions: billingFilteredSuggestions,
-    activeSuggestionField: billingActiveSuggestionField,
-    addBillingItem,
-    removeItem: removeBillingItem,
-    updateItem: updateBillingItem,
-    handleSubmit: handleBillingSubmit,
-    handleNameChange: handleBillingNameChange,
-    handlePhoneChange: handleBillingPhoneChange,
-    handleSuggestionClick: handleBillingSuggestionClick,
-    getBillingPrice
-  } = useBilling({
+  // useBilling hook — only getBillingPrice is used here; Billing component owns the full form state
+  const { getBillingPrice } = useBilling({
     enabled: activeTab === 'billing',
     selectedCafeId,
     consolePricing,
@@ -548,12 +527,6 @@ export default function OwnerDashboardPage() {
   // Realtime subscription removed — ISP blocks WebSocket to Supabase (ERR_CERT_COMMON_NAME_INVALID)
   // Mutations call refreshData() directly to keep UI in sync
 
-  // Quick Actions for Editing Bookings
-  const handleExtendSession = (minutes: number) => {
-    setEditDuration(prev => prev + minutes);
-    setEditAmountManuallyEdited(false);
-  };
-
   const handleEndSessionNow = () => {
     if (!editingBooking?.start_time || !editingBooking?.booking_date) return;
 
@@ -675,34 +648,6 @@ export default function OwnerDashboardPage() {
   };
 
 
-  // Handle confirm booking (pending -> confirmed)
-  async function handleConfirmBooking(booking: BookingRow) {
-    if (booking.status !== "pending") {
-      toast.warning("Only pending bookings can be confirmed");
-      return;
-    }
-
-    const trueBookingId = (booking as any).originalBookingId || (booking.id.includes('-item-') ? booking.id.split('-item-')[0] : booking.id);
-    try {
-      const res = await fetch('/api/owner/billing', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: trueBookingId, booking: { status: 'confirmed' } }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error('Failed to confirm booking: ' + (data.error || 'Unknown error'));
-        return;
-      }
-      refreshData();
-      setBookingsMgmtRefreshKey(k => k + 1);
-      toast.success("Booking confirmed successfully!");
-    } catch (err) {
-      console.error("Error confirming booking:", err);
-      toast.error("Failed to confirm booking");
-    }
-  }
-
   async function handlePaymentModeChange(bookingId: string, mode: string) {
     const booking = bookings.find(b => b.id === bookingId) as any;
     const trueBookingId = booking?.originalBookingId || (bookingId.includes('-item-') ? bookingId.split('-item-')[0] : bookingId);
@@ -744,35 +689,6 @@ export default function OwnerDashboardPage() {
       if (err instanceof Error && err.name === 'TimeoutError') {
         toast.error('Request timed out — payment mode may not have saved.');
       }
-    }
-  }
-
-  // Handle start booking (confirmed -> in-progress)
-  async function handleStartBooking(booking: BookingRow) {
-    if (booking.status !== "confirmed") {
-      toast.warning("Only confirmed bookings can be started");
-      return;
-    }
-
-    const trueBookingId = (booking as any).originalBookingId || (booking.id.includes('-item-') ? booking.id.split('-item-')[0] : booking.id);
-    try {
-      const currentTime = convertTo12Hour();
-      const res = await fetch('/api/owner/billing', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: trueBookingId, booking: { status: 'in-progress', start_time: currentTime } }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error('Failed to start booking: ' + (data.error || 'Unknown error'));
-        return;
-      }
-      refreshData();
-      setBookingsMgmtRefreshKey(k => k + 1);
-      toast.success("Booking started successfully!");
-    } catch (err) {
-      console.error("Error starting booking:", err);
-      toast.error("Failed to start booking");
     }
   }
 
@@ -1607,42 +1523,6 @@ export default function OwnerDashboardPage() {
     });
   };
 
-  // Walk-in booking handlers (for billing tab)
-  const consoleOptions: { id: ConsoleId; label: string; icon: string }[] = [
-    { id: "ps5", label: CONSOLE_LABELS.ps5, icon: CONSOLE_ICONS.ps5 },
-    { id: "ps4", label: CONSOLE_LABELS.ps4, icon: CONSOLE_ICONS.ps4 },
-    { id: "xbox", label: CONSOLE_LABELS.xbox, icon: CONSOLE_ICONS.xbox },
-    { id: "pc", label: CONSOLE_LABELS.pc, icon: CONSOLE_ICONS.pc },
-    { id: "pool", label: CONSOLE_LABELS.pool, icon: CONSOLE_ICONS.pool },
-    { id: "snooker", label: CONSOLE_LABELS.snooker, icon: CONSOLE_ICONS.snooker },
-    { id: "arcade", label: CONSOLE_LABELS.arcade, icon: CONSOLE_ICONS.arcade },
-    { id: "vr", label: CONSOLE_LABELS.vr, icon: CONSOLE_ICONS.vr },
-    { id: "steering", label: CONSOLE_LABELS.steering, icon: CONSOLE_ICONS.steering },
-  ];
-
-
-
-  // Auto-update billing time and date in real-time when billing tab is active
-  useEffect(() => {
-    if (activeTab !== 'billing') return;
-
-    // Update immediately when tab is selected
-    const updateTime = () => {
-      const now = new Date();
-      setBillingStartTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
-      setBillingBookingDate(getLocalDateString(now));
-    };
-
-    updateTime();
-
-    // Update every 10 seconds while on billing tab
-    const interval = setInterval(updateTime, 10000);
-
-    return () => clearInterval(interval);
-  }, [activeTab, setBillingStartTime, setBillingBookingDate]);
-
-
-
   // Handle settings save
   const handleSaveSettings = async () => {
     if (!currentCafeId) return;
@@ -2294,7 +2174,7 @@ export default function OwnerDashboardPage() {
                     <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
                       <CalendarDays size={14} className="text-blue-400" />
                     </div>
-                    <h2 className="text-base font-semibold text-white">Today's Bookings</h2>
+                    <h2 className="text-base font-semibold text-white">Today&apos;s Bookings</h2>
                     {(() => {
                       const count = bookings.filter((b: any) => b.booking_date === getLocalDateString()).length;
                       return count > 0 ? (
