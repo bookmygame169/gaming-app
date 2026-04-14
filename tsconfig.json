@@ -17,7 +17,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": ".", // <— add this
     "plugins": [
       {
         "name": "next"
@@ -29,7 +28,7 @@
       ],
       "@hooks/*": [
         "./src/hooks/*"
-      ] // <— add this
+      ]
     }
   },
   "include": [
