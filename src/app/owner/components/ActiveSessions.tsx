@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConsoleId, CONSOLE_ICONS } from '@/lib/constants';
 import { Plus, MessageCircle, Banknote, Smartphone, Gamepad2, CheckCircle, X } from 'lucide-react';
 
@@ -36,6 +36,14 @@ export function ActiveSessions({
     onEndCollect,
 }: ActiveSessionsProps) {
     const endedSessionsRef = useRef<Set<string>>(new Set());
+    // Clear ended-session tracking when bookings list changes (prevents unbounded Set growth)
+    useEffect(() => {
+        const activeIds = new Set(bookings.map((b: any) => b.id));
+        endedSessionsRef.current.forEach(id => {
+            if (!activeIds.has(id)) endedSessionsRef.current.delete(id);
+        });
+    }, [bookings]);
+
     // Track which card has the End & Collect panel open
     const [endCollectId, setEndCollectId] = useState<string | null>(null);
     const [endCollectPayment, setEndCollectPayment] = useState<'cash' | 'upi'>('cash');
@@ -82,20 +90,24 @@ export function ActiveSessions({
         return endMinutes - currentMinutes;
     };
 
-    const sortedActiveBookings = [...flattenedBookings].sort((a, b) => {
-        const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-        const getTimeRemaining = (booking: typeof a) => {
-            if (!booking.start_time) return 999;
-            const bi = booking.booking_items?.[0];
-            const parsedTitle = parseInt(bi?.title || '');
-            const duration = !isNaN(parsedTitle) && parsedTitle > 0 ? parsedTitle : booking.duration;
-            if (!duration) return 999;
-            const startMinutes = parseStartMinutes(booking.start_time);
-            if (startMinutes === null) return 999;
-            return Math.max(0, calcTimeRemaining(startMinutes, duration, currentMinutes));
-        };
-        return getTimeRemaining(a) - getTimeRemaining(b);
-    });
+    // Compute sort keys once per minute (not every second) so cards don't shuffle every tick
+    const sortMinute = currentTime.getHours() * 60 + currentTime.getMinutes();
+    const sortedActiveBookings = useMemo(() => {
+        return [...flattenedBookings].sort((a, b) => {
+            const getTimeRemaining = (booking: typeof a) => {
+                if (!booking.start_time) return 999;
+                const bi = booking.booking_items?.[0];
+                const parsedTitle = parseInt(bi?.title || '');
+                const duration = !isNaN(parsedTitle) && parsedTitle > 0 ? parsedTitle : booking.duration;
+                if (!duration) return 999;
+                const startMinutes = parseStartMinutes(booking.start_time);
+                if (startMinutes === null) return 999;
+                return Math.max(0, calcTimeRemaining(startMinutes, duration, sortMinute));
+            };
+            return getTimeRemaining(a) - getTimeRemaining(b);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [flattenedBookings, sortMinute]);
 
     const getConsoleIcon = (consoleName: string) => {
         const key = consoleName?.toLowerCase() as ConsoleId;

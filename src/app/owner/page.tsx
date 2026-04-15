@@ -12,27 +12,21 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { fonts, type ConsoleId } from "@/lib/constants";
 import { buildStationPricingMap } from "@/lib/stationNames";
-import { getEndTime } from "@/lib/timeUtils";
 import {
   CafeRow,
   BookingRow,
   NavTab,
-  PricingTier,
-  BillingItem
 } from "./types";
-import { convertTo12Hour, getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "./utils";
+import { getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "./utils";
 import { theme } from "./utils/theme";
 import {
-  Sidebar,
   DashboardLayout,
   DashboardStats,
   BookingsTable,
   ActiveSessions,
-  Card,
   TabSkeleton,
 } from './components';
 import OwnerPWAInstaller from './components/OwnerPWAInstaller';
-import StatCard from './components/StatCard';
 import { useBilling } from "./hooks/useBilling";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
 import { useOwnerData } from "./hooks/useOwnerData";
@@ -103,13 +97,12 @@ export default function OwnerDashboardPage() {
     return 'dashboard';
   });
 
-  const { ownerId, ownerUsername, allowed, checkingRole } = useOwnerAuth();
+  const { allowed, checkingRole } = useOwnerAuth();
   const { toasts, toast, removeToast } = useToast();
   const canFetchOwnerData = checkingRole || allowed;
   const canAutoRefreshOwnerData = allowed && !checkingRole;
 
   const {
-    stats,
     cafes,
     bookings,
     loadingData,
@@ -117,10 +110,8 @@ export default function OwnerDashboardPage() {
     membershipPlans,
     subscriptions,
     cafeConsoles,
-    availableConsoleTypes,
     consolePricing,
     stationPricing,
-    totalBookingsCount,
     hasLoadedData,
     setSubscriptions,
     setBookings,
@@ -148,11 +139,6 @@ export default function OwnerDashboardPage() {
   const [viewingCustomer, setViewingCustomer] = useState<any>(null);
   const [customerBookings, setCustomerBookings] = useState<any[]>([]);
   const [loadingCustomerData, setLoadingCustomerData] = useState(false);
-  const [newSubCustomerName, setNewSubCustomerName] = useState('');
-  const [newSubCustomerPhone, setNewSubCustomerPhone] = useState('');
-  const [newSubCustomerEmail, setNewSubCustomerEmail] = useState('');
-  const [newSubPlanId, setNewSubPlanId] = useState('');
-  const [newSubAmountPaid, setNewSubAmountPaid] = useState('');
 
 
 
@@ -173,9 +159,6 @@ export default function OwnerDashboardPage() {
   // Booking filters
 
 
-
-  // Revenue filter for overview
-  const [revenueFilter, setRevenueFilter] = useState<string>("today"); // today, week, month, quarter, all
 
   // Customer tab state
   const [customerSearch, setCustomerSearch] = useState("");
@@ -260,20 +243,7 @@ export default function OwnerDashboardPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteRemark, setDeleteRemark] = useState('');
 
-  // Helper functions for editing multiple items
-  const addEditItem = () => {
-    const cafe = cafes.find(c => c.id === (editingBooking?.cafe_id)) || (cafes.length > 0 ? cafes[0] : null);
-    const defaultConsole = getPreferredConsoleForCafe(cafe);
-    setEditItems(prev => [...prev, { console: defaultConsole, quantity: 1, duration: editDuration || 60 }]);
-    setEditAmountManuallyEdited(false);
-  };
-
-  const removeEditItem = (index: number) => {
-    if (editItems.length <= 1) return;
-    setEditItems(prev => prev.filter((_, i) => i !== index));
-    setEditAmountManuallyEdited(false);
-  };
-
+  // Helper function for editing multiple items
   const updateEditItem = (index: number, updates: Partial<{ console: string, quantity: number, duration: number }>) => {
     setEditItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item));
     setEditAmountManuallyEdited(false);
@@ -306,9 +276,6 @@ export default function OwnerDashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Station management state
-  const [stationSearch, setStationSearch] = useState("");
-  const [stationTypeFilter, setStationTypeFilter] = useState("all");
-  const [stationStatusFilter, setStationStatusFilter] = useState("all");
   const [editingStation, setEditingStation] = useState<any>(null);
   const [savingPricing, setSavingPricing] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
@@ -1019,6 +986,7 @@ export default function OwnerDashboardPage() {
         const res = await fetch('/api/owner/billing', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             bookingId: editingBooking.id,
             specificItemId: editingBookingItemId,
@@ -1052,6 +1020,7 @@ export default function OwnerDashboardPage() {
         const res = await fetch('/api/owner/billing', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             bookingId: editingBooking.id,
             bookingItemIds,

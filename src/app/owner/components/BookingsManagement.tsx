@@ -81,6 +81,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const abortControllerRef = useRef<AbortController | null>(null);
+    const subsAbortRef = useRef<AbortController | null>(null);
 
     const fetchBookings = useCallback(async (search: string) => {
         if (!cafeId) return;
@@ -153,14 +154,22 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     // Fetch subscriptions when Membership tab is active
     const fetchSubscriptions = useCallback(async () => {
         if (!cafeId) return;
+        // Cancel previous in-flight subscription fetch
+        subsAbortRef.current?.abort();
+        subsAbortRef.current = new AbortController();
         setSubsLoading(true);
         try {
             const { data } = await supabase
                 .from('subscriptions')
                 .select('*, membership_plans(name, console_type, plan_type, hours, validity_days)')
                 .eq('cafe_id', cafeId)
-                .order('purchase_date', { ascending: false });
+                .order('purchase_date', { ascending: false })
+                .abortSignal(subsAbortRef.current.signal);
             setSubscriptions(data || []);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name !== 'AbortError') {
+                console.error('[BookingsManagement] Subscriptions fetch error:', err.message);
+            }
         } finally {
             setSubsLoading(false);
         }
