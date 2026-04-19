@@ -34,6 +34,7 @@ import { useOwnerData } from "./hooks/useOwnerData";
 import { useToast } from "./hooks/useToast";
 import { ToastContainer } from "./components/ToastContainer";
 import { TodaySnackOrders } from "./components/TodaySnackOrders";
+import { DashboardBookingsTable } from "./components/DashboardBookingsTable";
 import SnackSaleModal from "./components/SnackSaleModal";
 import { EditBookingModal } from "./components/EditBookingModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -2185,42 +2186,11 @@ export default function OwnerDashboardPage() {
                 />
               </section>
 
-              {/* Today's Bookings */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                      <CalendarDays size={14} className="text-blue-400" />
-                    </div>
-                    <h2 className="text-base font-semibold text-white">Today&apos;s Bookings</h2>
-                    {(() => {
-                      const count = bookings.filter((b: any) => b.booking_date === getLocalDateString()).length;
-                      return count > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 text-[11px] font-bold">{count}</span>
-                      ) : null;
-                    })()}
-                  </div>
-                  <button
-                    onClick={() => handleTabChange('bookings')}
-                    className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition-colors"
-                  >
-                    View all <ChevronRight size={12} />
-                  </button>
-                </div>
-                <BookingsTable
-                  title=""
-                  bookings={bookings.filter((b: any) => b.booking_date === getLocalDateString())}
-                  loading={loadingData}
-                  onStatusChange={handleBookingStatusChange}
-                  onPaymentModeChange={handlePaymentModeChange}
-                  onEdit={handleEditBooking}
-                  onViewOrders={(bookingId, customerName) => {
-                    setViewOrdersBookingId(bookingId);
-                    setViewOrdersCustomerName(customerName);
-                    setViewOrdersModalOpen(true);
-                  }}
-                />
-              </section>
+              {/* Today's Bookings — clean design-matching table */}
+              <DashboardBookingsTable
+                bookings={bookings.filter((b: any) => b.booking_date === getLocalDateString())}
+                onViewAll={() => handleTabChange('bookings')}
+              />
 
               {/* Today's Snack Orders */}
               <section>
