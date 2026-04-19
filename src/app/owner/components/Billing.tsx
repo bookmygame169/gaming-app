@@ -855,7 +855,11 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
                                 {paymentMode === 'upi' && totalAmount > 0 && (
                                     <div className="flex flex-col items-center gap-2 py-3">
-                                        <div className="p-3 rounded-xl bg-[#d4d4d4]">
+                                        <div
+                                            className="p-3 rounded-xl bg-[#d4d4d4] cursor-pointer transition-all duration-300"
+                                            onClick={() => setQrExpanded(v => !v)}
+                                            title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
+                                        >
                                             <QRCodeSVG
                                                 value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
                                                 size={qrExpanded ? 260 : 180}
@@ -864,13 +868,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                                 level="Q"
                                             />
                                         </div>
-                                        <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{totalAmount}</span> via UPI</p>
-                                        <button
-                                            onClick={() => setQrExpanded(v => !v)}
-                                            className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-2 transition-colors"
-                                        >
-                                            {qrExpanded ? 'Make smaller' : 'Make bigger'}
-                                        </button>
+                                        <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{totalAmount}</span> via UPI · <span className="text-slate-500">tap QR to resize</span></p>
                                     </div>
                                 )}
 
@@ -1064,7 +1062,11 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
                             {memPaymentMode === 'upi' && memTotalAmount > 0 && (
                                 <div className="flex flex-col items-center gap-2 py-3">
-                                    <div className="p-3 rounded-xl bg-[#d4d4d4]">
+                                    <div
+                                        className="p-3 rounded-xl bg-[#d4d4d4] cursor-pointer transition-all duration-300"
+                                        onClick={() => setQrExpanded(v => !v)}
+                                        title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
+                                    >
                                         <QRCodeSVG
                                             value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${memTotalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Membership Payment')}`}
                                             size={qrExpanded ? 260 : 180}
@@ -1073,13 +1075,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                             level="Q"
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{memTotalAmount}</span> via UPI</p>
-                                    <button
-                                        onClick={() => setQrExpanded(v => !v)}
-                                        className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-2 transition-colors"
-                                    >
-                                        {qrExpanded ? 'Make smaller' : 'Make bigger'}
-                                    </button>
+                                    <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{memTotalAmount}</span> via UPI · <span className="text-slate-500">tap QR to resize</span></p>
                                 </div>
                             )}
 
