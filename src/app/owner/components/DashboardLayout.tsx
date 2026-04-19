@@ -94,7 +94,7 @@ export function DashboardLayout({
     const sidebarWidth = !isMobile && collapsed ? 'ml-16' : !isMobile ? 'ml-64' : '';
 
     return (
-        <div className="min-h-screen bg-[#09090e] flex">
+        <div className="min-h-screen owner-bg flex">
             <Sidebar
                 activeTab={activeTab}
                 onTabChange={(tab) => onTabChange(tab)}
@@ -111,7 +111,7 @@ export function DashboardLayout({
             <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarWidth}`}>
 
                 {/* Top Header */}
-                <header className="sticky top-0 z-30 h-14 flex items-center justify-between px-5 md:px-8 bg-[#09090e]/90 backdrop-blur-md border-b border-white/[0.06]">
+                <header className="sticky top-0 z-30 h-14 flex items-center justify-between px-5 md:px-8 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/[0.06]" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 4px 24px -4px rgba(0,0,0,0.4)' }}>
                     <div className="flex items-center gap-3">
                         {isMobile && (
                             <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />

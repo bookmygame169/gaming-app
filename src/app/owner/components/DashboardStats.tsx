@@ -45,7 +45,7 @@ function Trend({ today, yesterday }: { today: number; yesterday: number }) {
 }
 
 const SkeletonCard = () => (
-  <div className="relative rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-4 flex flex-col gap-3 animate-pulse overflow-hidden">
+  <div className="relative rounded-xl glass px-4 py-4 flex flex-col gap-3 animate-pulse overflow-hidden">
     <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/[0.08]" />
     <div className="h-2 w-20 rounded-full bg-white/[0.07]" />
     <div className="h-7 w-12 rounded-lg bg-white/[0.07]" />
@@ -244,8 +244,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           key={card.key}
           onClick={card.key === 'revenue' && revenueVisible ? () => setShowBreakdown(p => !p) : undefined}
           className={`
-            relative rounded-xl border border-white/[0.09] bg-white/[0.04] px-3 py-3 md:px-4 md:py-4 flex flex-col gap-2.5 overflow-hidden
-            ${card.key === 'revenue' && revenueVisible ? 'cursor-pointer hover:bg-white/[0.06] transition-colors' : ''}
+            relative rounded-xl glass px-3 py-3 md:px-4 md:py-4 flex flex-col gap-2.5 overflow-hidden transition-all duration-200
+            ${card.key === 'revenue' && revenueVisible ? 'cursor-pointer hover:brightness-110' : ''}
           `}
         >
           {/* Colored top accent line */}
@@ -271,7 +271,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           </div>
 
           {/* Value */}
-          <p className="text-[22px] md:text-[28px] font-bold text-white leading-none tracking-tight">
+          <p className="mono text-[22px] md:text-[28px] font-bold text-white leading-none tracking-tight">
             {card.value}
           </p>
 

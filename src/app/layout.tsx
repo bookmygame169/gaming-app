@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import LoadingBar from "@/components/LoadingBar";
-import { Inter, Roboto_Mono, Orbitron, Rajdhani } from "next/font/google";
+import { Inter, JetBrains_Mono, Orbitron, Rajdhani } from "next/font/google";
 import "./globals.css";
 
 const localhostServiceWorkerCleanupScript = `
@@ -49,11 +49,12 @@ const geistSans = Inter({
   preload: false,
 });
 
-const geistMono = Roboto_Mono({
+const geistMono = JetBrains_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
   preload: false,
+  weight: ["400", "500", "600", "700"],
 });
 
 const orbitron = Orbitron({

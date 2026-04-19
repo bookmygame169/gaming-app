@@ -16,11 +16,11 @@ export default function StatCard({
     subtitle,
 }: StatCardProps) {
     return (
-        <div className="relative overflow-hidden rounded-2xl border border-white/[0.09]/50 bg-white/[0.03]/60 p-5 md:p-6 flex flex-col justify-between min-h-[110px]">
+        <div className="relative overflow-hidden rounded-2xl glass p-5 md:p-6 flex flex-col justify-between min-h-[110px]">
             <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
                 {title}
             </p>
-            <p className="text-3xl md:text-4xl font-bold text-white leading-none my-1">
+            <p className="mono text-3xl md:text-4xl font-bold text-white leading-none my-1">
                 {value}
             </p>
             <p className="text-[11px] text-slate-500 mt-2">{subtitle}</p>

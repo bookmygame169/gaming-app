@@ -3,6 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Design system tokens */
+  --bg: #0a0a0f;
+  --card: #0d0d14;
+  --card-2: #11111a;
+  --stroke: rgba(255,255,255,0.07);
+  --stroke-2: rgba(255,255,255,0.12);
+  --text: #e7e9ee;
+  --muted: #8a8f9c;
+  --dim: #5b6170;
+  --cyan: #06b6d4;
+  --emerald: #10b981;
+  --violet: #8b5cf6;
+  --amber: #f59e0b;
+  --red: #ef4444;
 }
 
 @theme inline {
@@ -23,6 +38,92 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Owner dashboard design system ── */
+
+/* Glass card — primary */
+.glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.00)), var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 1px 0 rgba(0,0,0,0.4),
+    0 20px 40px -24px rgba(0,0,0,0.6);
+}
+
+/* Glass card — secondary (nested panels) */
+.glass-2 {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)), var(--card-2);
+  border: 1px solid var(--stroke);
+}
+
+/* Station glow states */
+.glow-free {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 0 0 1px rgba(16,185,129,0.35),
+    0 0 24px -4px rgba(16,185,129,0.35);
+}
+.glow-busy {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 0 0 1px rgba(239,68,68,0.45),
+    0 0 28px -4px rgba(239,68,68,0.45);
+}
+.glow-off {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 0 0 1px rgba(255,255,255,0.05);
+  opacity: 0.55;
+}
+.glow-selected {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 0 1.5px var(--cyan),
+    0 0 36px -6px rgba(6,182,212,0.6);
+}
+
+/* Dot grid background pattern for cards */
+.grid-dots {
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+/* Pulse dot animation (live indicators) */
+.pulse-dot {
+  position: relative;
+}
+.pulse-dot::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 0 currentColor;
+  animation: pulse-ring 1.8s infinite;
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.8; }
+  70%  { box-shadow: 0 0 0 10px transparent; opacity: 0; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
+}
+
+/* Mono numbers (use with JetBrains Mono) */
+.mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus ring for inputs */
+.focus-ring:focus-within {
+  box-shadow: 0 0 0 1.5px rgba(6,182,212,0.9), 0 0 28px -6px rgba(6,182,212,0.6);
+  border-color: transparent;
+}
+
+/* Owner background atmosphere */
+.owner-bg {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(6,182,212,0.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(139,92,246,0.05), transparent 60%),
+    #0a0a0f;
 }
 
 /* Performance optimizations */

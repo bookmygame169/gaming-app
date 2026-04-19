@@ -77,20 +77,20 @@ function NavItem({
                 ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}
                 ${isBilling
                     ? isActive
-                        ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
-                        : 'text-blue-400/70 hover:bg-blue-500/8 border border-blue-500/15'
+                        ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
+                        : 'text-cyan-400/70 hover:bg-cyan-500/8 border border-cyan-500/15'
                     : isActive
-                        ? 'bg-white/[0.06] text-white'
+                        ? 'bg-white/[0.07] text-white'
                         : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.04]'
                 }
             `}
         >
             {isActive && !isBilling && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-blue-500 rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style={{ background: '#06b6d4' }} />
             )}
             <Icon
                 size={17}
-                className={`shrink-0 ${isActive ? (isBilling ? 'text-blue-400' : 'text-white') : isBilling ? 'text-blue-400/70' : 'text-slate-500 group-hover:text-slate-200'}`}
+                className={`shrink-0 ${isActive ? (isBilling ? 'text-cyan-400' : 'text-cyan-300') : isBilling ? 'text-cyan-400/70' : 'text-slate-500 group-hover:text-slate-200'}`}
             />
             {!collapsed && (
                 <span className="font-medium text-sm truncate">{item.label}</span>
@@ -130,11 +130,11 @@ export function Sidebar({
             <aside className={`
                 fixed top-0 left-0 z-50 h-screen
                 ${sidebarWidth}
-                bg-[#0d0d12] border-r border-white/[0.06]
+                border-r border-white/[0.06]
                 flex flex-col
                 transition-all duration-300 ease-out
                 ${isMobile ? (isOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
-            `}>
+            `} style={{ background: 'linear-gradient(180deg, #0e0e16, #0a0a0f)', boxShadow: '1px 0 0 rgba(255,255,255,0.04)' }}>
                 {/* Header */}
                 <div className={`shrink-0 h-14 flex items-center border-b border-white/[0.06] ${collapsed && !isMobile ? 'justify-center px-0' : 'px-4 justify-between'}`}>
                     {(!collapsed || isMobile) && (
