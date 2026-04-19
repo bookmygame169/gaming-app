@@ -2090,58 +2090,6 @@ export default function OwnerDashboardPage() {
                 isMobile={isMobile}
               />
 
-              {/* Station Grid */}
-              {(() => {
-                if (!currentCafe || cafeConsoles.length === 0) return null;
-                const activeItems = bookings
-                  .filter((b: any) => b.status === 'in-progress' && b.booking_date === getLocalDateString())
-                  .flatMap((b: any) => b.booking_items || []);
-                const occupiedStations = new Set(
-                  activeItems.map((it: any) => {
-                    const parts = it.title?.split('|');
-                    return parts && parts.length > 1 ? parts[1].trim().toLowerCase() : null;
-                  }).filter(Boolean)
-                );
-                return (
-                  <section>
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="w-7 h-7 rounded-lg bg-slate-500/15 flex items-center justify-center">
-                        <Gamepad2 size={14} className="text-slate-400" />
-                      </div>
-                      <h2 className="text-base font-semibold text-white">Station Overview</h2>
-                      <span className="text-xs text-slate-500 ml-1">
-                        {cafeConsoles.filter((s: any) => !occupiedStations.has(s.station_name?.toLowerCase())).length} free
-                        · {occupiedStations.size} occupied
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {cafeConsoles.map((station: any) => {
-                        const sName = station.station_name?.toLowerCase();
-                        const isOccupied = occupiedStations.has(sName);
-                        const isOffline = station.is_active === false;
-                        return (
-                          <div
-                            key={station.station_name}
-                            title={station.station_name}
-                            className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold border transition-colors ${
-                              isOffline
-                                ? 'bg-white/[0.03] border-white/[0.06] text-slate-600'
-                                : isOccupied
-                                  ? 'bg-red-500/15 border-red-500/30 text-red-400'
-                                  : 'bg-emerald-500/12 border-emerald-500/25 text-emerald-400'
-                            }`}
-                          >
-                            {station.station_name?.toUpperCase()}
-                            <span className="ml-1.5 text-[9px] opacity-70">
-                              {isOffline ? '⚫ OFF' : isOccupied ? '🔴' : '🟢'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                );
-              })()}
 
               {/* Active Sessions */}
               <section>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer, Clock } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer } from 'lucide-react';
 import { getLocalDateString } from '../utils';
 
 function Sparkline({ data }: { data: number[] }) {
@@ -221,35 +221,6 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
     );
   }
 
-  const smallCards = [
-    {
-      key: 'active',
-      accentClass: 'bg-red-500',
-      icon: <Zap size={14} className="text-red-400" />,
-      iconBg: 'bg-red-500/10',
-      label: 'Active Now',
-      value: activeNow,
-      sub: 'in progress now',
-    },
-    {
-      key: 'sessions',
-      accentClass: 'bg-cyan-500',
-      icon: <Timer size={14} className="text-cyan-400" />,
-      iconBg: 'bg-cyan-500/10',
-      label: period === 'today' ? 'Sessions Today' : 'Week Sessions',
-      value: displaySessions,
-      sub: <Trend today={displaySessions} yesterday={displayPrevSessions} />,
-    },
-    {
-      key: 'pending',
-      accentClass: 'bg-violet-500',
-      icon: <Clock size={14} className="text-violet-400" />,
-      iconBg: 'bg-violet-500/10',
-      label: period === 'today' ? 'Pending' : 'Pending (Week)',
-      value: displayPending,
-      sub: 'awaiting start',
-    },
-  ];
 
   return (
     <div className="mb-6 space-y-3">
@@ -355,20 +326,62 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
         </div>
 
         {/* ── 3 SMALL STACKED CARDS ── */}
-        <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
-          {smallCards.map((card) => (
-            <div key={card.key} className="relative glass rounded-xl px-4 py-3 flex flex-col justify-between overflow-hidden min-h-[52px]">
-              <div className={`absolute top-0 left-0 right-0 h-[2px] ${card.accentClass}`} />
-              <div className="flex items-center gap-1.5 mt-0.5 mb-1.5">
-                <div className={`w-5 h-5 rounded-md ${card.iconBg} flex items-center justify-center shrink-0`}>{card.icon}</div>
-                <span className="text-[9px] uppercase tracking-widest font-semibold text-slate-500">{card.label}</span>
+        <div className="grid grid-cols-1 gap-3">
+
+          {/* Collections — PayBreakdown tile */}
+          <div className="relative glass rounded-xl px-4 py-4 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-violet-500" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.18)', color: '#c4b5fd' }}>
+                <IndianRupee size={13} />
               </div>
-              <div className="flex items-end justify-between gap-1">
-                <p className="mono text-2xl font-bold text-white leading-none">{card.value}</p>
-                <div className="text-[10px] text-slate-500 text-right leading-tight">{card.sub}</div>
-              </div>
+              <span className="text-[9px] text-slate-600 uppercase tracking-widest">Today</span>
             </div>
-          ))}
+            <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-0.5">Collections</p>
+            <p className="mono text-2xl font-bold text-white leading-none mb-3">₹{(cashTotal + upiTotal).toLocaleString('en-IN')}</p>
+            {(cashTotal + upiTotal) > 0 && (
+              <>
+                <div className="h-1.5 rounded-full overflow-hidden flex mb-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div style={{ width: `${Math.round(upiTotal / (cashTotal + upiTotal) * 100)}%`, background: '#06b6d4' }} />
+                  <div style={{ width: `${Math.round(cashTotal / (cashTotal + upiTotal) * 100)}%`, background: '#10b981' }} />
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="flex items-center gap-1.5 text-slate-400"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />UPI <span className="mono text-white ml-1">₹{upiTotal.toLocaleString('en-IN')}</span></span>
+                  <span className="flex items-center gap-1.5 text-slate-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Cash <span className="mono text-white ml-1">₹{cashTotal.toLocaleString('en-IN')}</span></span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Active Now */}
+          <div className="relative glass rounded-xl px-4 py-4 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-emerald-500" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10">
+                <Zap size={13} className="text-emerald-400" />
+              </div>
+              <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" style={{ color: '#10b981' }} />
+            </div>
+            <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-0.5">Active Now</p>
+            <div className="flex items-baseline gap-1.5">
+              <p className="mono text-2xl font-bold text-white leading-none">{activeNow}</p>
+              <span className="text-[10px] text-slate-500">in progress</span>
+            </div>
+          </div>
+
+          {/* Sessions */}
+          <div className="relative glass rounded-xl px-4 py-4 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-cyan-500" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-cyan-500/10">
+                <Timer size={13} className="text-cyan-400" />
+              </div>
+              <Trend today={displaySessions} yesterday={displayPrevSessions} />
+            </div>
+            <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-0.5">{period === 'today' ? 'Sessions Today' : 'Week Sessions'}</p>
+            <p className="mono text-2xl font-bold text-white leading-none">{displaySessions}</p>
+          </div>
+
         </div>
       </div>
     </div>
