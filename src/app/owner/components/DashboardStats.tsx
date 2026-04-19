@@ -161,149 +161,172 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   }
 
   const revenueVisible = loadedPreference && showRevenue;
+  const gamingRevenue = gamingCash + gamingOnline;
+  const totalForSplit = gamingRevenue + snacksRevenue + membershipRevenue;
+  const gamingPct = totalForSplit > 0 ? Math.round((gamingRevenue / totalForSplit) * 100) : 0;
+  const snacksPct = totalForSplit > 0 ? Math.round((snacksRevenue / totalForSplit) * 100) : 0;
+  const memberPct = totalForSplit > 0 ? 100 - gamingPct - snacksPct : 0;
+  const cashTotal = todayBookings.filter(b => (b.payment_mode || '').toLowerCase() === 'cash').reduce((s, b) => s + (b.total_amount || 0), 0);
+  const upiTotal = todayBookings.filter(b => ONLINE_MODES.includes((b.payment_mode || '').toLowerCase())).reduce((s, b) => s + (b.total_amount || 0), 0);
 
   if (loadingData) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+      <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3 mb-6">
+        <SkeletonCard />
+        <div className="grid grid-rows-3 gap-3">
+          <SkeletonCard /><SkeletonCard /><SkeletonCard />
+        </div>
       </div>
     );
   }
 
-  // Card config
-  const cards = [
+  const smallCards = [
     {
       key: 'active',
-      accent: '#ef4444',
       accentClass: 'bg-red-500',
-      icon: <Zap size={16} className="text-red-400" />,
+      icon: <Zap size={14} className="text-red-400" />,
       iconBg: 'bg-red-500/10',
       label: 'Active Now',
       value: activeNow,
-      sub: 'sessions in progress',
-      trend: null,
-      extra: null,
-    },
-    {
-      key: 'revenue',
-      accent: '#22c55e',
-      accentClass: 'bg-emerald-500',
-      icon: <IndianRupee size={16} className="text-emerald-400" />,
-      iconBg: 'bg-emerald-500/10',
-      label: period === 'today' ? "Today's Revenue" : "Week Revenue",
-      value: revenueVisible ? `₹${displayRevenue.toLocaleString('en-IN')}` : '••••••',
-      sub: null,
-      trend: revenueVisible ? <Trend today={displayRevenue} yesterday={displayPrevRevenue} /> : null,
-      extra: 'revenue',
+      sub: 'in progress now',
     },
     {
       key: 'sessions',
-      accent: '#f97316',
-      accentClass: 'bg-orange-500',
-      icon: <Timer size={16} className="text-orange-400" />,
-      iconBg: 'bg-orange-500/10',
-      label: period === 'today' ? "Today's Sessions" : "Week Sessions",
+      accentClass: 'bg-cyan-500',
+      icon: <Timer size={14} className="text-cyan-400" />,
+      iconBg: 'bg-cyan-500/10',
+      label: period === 'today' ? 'Sessions Today' : 'Week Sessions',
       value: displaySessions,
-      sub: 'gaming sessions',
-      trend: <Trend today={displaySessions} yesterday={displayPrevSessions} />,
-      extra: null,
+      sub: <Trend today={displaySessions} yesterday={displayPrevSessions} />,
     },
     {
       key: 'pending',
-      accent: '#8b5cf6',
       accentClass: 'bg-violet-500',
-      icon: <Clock size={16} className="text-violet-400" />,
+      icon: <Clock size={14} className="text-violet-400" />,
       iconBg: 'bg-violet-500/10',
-      label: period === 'today' ? 'Pending Today' : 'Pending (Week)',
+      label: period === 'today' ? 'Pending' : 'Pending (Week)',
       value: displayPending,
       sub: 'awaiting start',
-      trend: null,
-      extra: null,
     },
   ];
 
   return (
     <div className="mb-6 space-y-3">
-      {/* Period toggle */}
+      {/* Header row with period toggle */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Performance</p>
+        <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">Performance</p>
         <div className="flex rounded-lg overflow-hidden border border-white/[0.08] text-xs">
-          <button
-            onClick={() => setPeriod('today')}
-            className={`px-3 py-1.5 font-semibold transition-colors ${period === 'today' ? 'bg-white/[0.08] text-white' : 'bg-transparent text-slate-500 hover:text-slate-300'}`}
-          >Today</button>
-          <button
-            onClick={() => setPeriod('week')}
-            className={`px-3 py-1.5 font-semibold transition-colors ${period === 'week' ? 'bg-white/[0.08] text-white' : 'bg-transparent text-slate-500 hover:text-slate-300'}`}
-          >7 Days</button>
+          <button onClick={() => setPeriod('today')} className={`px-3 py-1.5 font-semibold transition-colors ${period === 'today' ? 'bg-white/[0.08] text-white' : 'bg-transparent text-slate-500 hover:text-slate-300'}`}>Today</button>
+          <button onClick={() => setPeriod('week')} className={`px-3 py-1.5 font-semibold transition-colors ${period === 'week' ? 'bg-white/[0.08] text-white' : 'bg-transparent text-slate-500 hover:text-slate-300'}`}>7 Days</button>
         </div>
       </div>
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      {cards.map((card) => (
-        <div
-          key={card.key}
-          onClick={card.key === 'revenue' && revenueVisible ? () => setShowBreakdown(p => !p) : undefined}
-          className={`
-            relative rounded-xl glass px-3 py-3 md:px-4 md:py-4 flex flex-col gap-2.5 overflow-hidden transition-all duration-200
-            ${card.key === 'revenue' && revenueVisible ? 'cursor-pointer hover:brightness-110' : ''}
-          `}
-        >
-          {/* Colored top accent line */}
-          <div className={`absolute top-0 left-0 right-0 h-[2px] ${card.accentClass}`} />
 
-          {/* Header row — icon left, eye button right */}
-          <div className="flex items-start justify-between gap-1 mt-0.5">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className={`w-5 h-5 md:w-6 md:h-6 rounded-md md:rounded-lg ${card.iconBg} flex items-center justify-center shrink-0`}>
-                {card.icon}
+      {/* Main grid: big revenue card + 3 stacked small cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3">
+
+        {/* ── BIG REVENUE CARD ── */}
+        <div className="relative glass rounded-2xl p-5 overflow-hidden flex flex-col justify-between min-h-[180px]">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-emerald-500" />
+          {/* Subtle glow */}
+          <div className="absolute bottom-0 left-0 w-60 h-40 rounded-full opacity-10 blur-3xl pointer-events-none" style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }} />
+
+          {/* Top row */}
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <IndianRupee size={13} className="text-emerald-400" />
               </div>
-              <p className="text-[9px] md:text-[10px] uppercase tracking-wide md:tracking-widest font-semibold text-slate-400 leading-tight break-words">{card.label}</p>
+              <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">
+                {period === 'today' ? 'Today · Revenue' : '7 Days · Revenue'}
+              </span>
             </div>
-            {card.key === 'revenue' && (
-              <button
-                type="button"
-                onClick={toggleRevenueVisibility}
-                className="p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors z-10 shrink-0 mt-0.5"
-              >
-                {revenueVisible ? <EyeOff size={11} /> : <Eye size={11} />}
+            <div className="flex items-center gap-2">
+              {revenueVisible && <Trend today={displayRevenue} yesterday={displayPrevRevenue} />}
+              <button type="button" onClick={toggleRevenueVisibility} className="p-1 rounded text-slate-500 hover:text-slate-300 transition-colors">
+                {revenueVisible ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Value */}
-          <p className="mono text-[22px] md:text-[28px] font-bold text-white leading-none tracking-tight">
-            {card.value}
+          {/* Revenue amount */}
+          <p className="mono text-4xl md:text-5xl font-bold text-white leading-none tracking-tight mb-4">
+            {revenueVisible ? `₹${displayRevenue.toLocaleString('en-IN')}` : '₹ ••••••'}
           </p>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between gap-1">
-            {card.sub && <p className="text-[9px] md:text-[10px] text-slate-500 leading-tight">{card.sub}</p>}
-            {card.trend && card.trend}
-            {!card.sub && !card.trend && <div />}
-            {card.key === 'revenue' && revenueVisible && !showBreakdown && (
-              <span className="text-[8px] md:text-[9px] text-slate-600 animate-pulse">breakdown</span>
-            )}
-          </div>
+          {/* Collections row */}
+          {revenueVisible && (period === 'today') && (cashTotal > 0 || upiTotal > 0) && (
+            <div className="flex items-center gap-4 mb-3">
+              {upiTotal > 0 && (
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
+                  UPI <span className="text-white font-semibold ml-1">₹{upiTotal.toLocaleString('en-IN')}</span>
+                </span>
+              )}
+              {cashTotal > 0 && (
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                  Cash <span className="text-white font-semibold ml-1">₹{cashTotal.toLocaleString('en-IN')}</span>
+                </span>
+              )}
+            </div>
+          )}
 
-          {/* Revenue breakdown */}
-          {card.key === 'revenue' && showBreakdown && revenueVisible && (
-            <div className="mt-1 pt-2 border-t border-white/[0.06] grid grid-cols-1 gap-y-1">
-              {([
-                ...(gamingCash > 0 ? [['Cash', gamingCash]] : []),
-                ...(gamingOnline > 0 ? [['Online/UPI', gamingOnline]] : []),
-                ...(membershipRevenue > 0 ? [['Members', membershipRevenue]] : []),
-                ...(snacksRevenue > 0 ? [['Snacks', snacksRevenue]] : []),
-              ] as [string, number][]).map(([label, val]) => (
-                <div key={label} className="flex justify-between text-[9px] md:text-[10px]">
-                  <span className="text-slate-500">{label}</span>
-                  <span className="text-emerald-400 font-semibold">₹{val.toLocaleString('en-IN')}</span>
-                </div>
-              ))}
+          {/* Gaming / Snacks split bar */}
+          {revenueVisible && totalForSplit > 0 && (
+            <div>
+              <div className="flex rounded-full overflow-hidden h-1.5 gap-px mb-2.5">
+                {gamingPct > 0 && <div className="h-full rounded-l-full" style={{ width: `${gamingPct}%`, background: '#06b6d4' }} />}
+                {snacksPct > 0 && <div className="h-full" style={{ width: `${snacksPct}%`, background: '#f59e0b' }} />}
+                {memberPct > 0 && <div className="h-full rounded-r-full" style={{ width: `${memberPct}%`, background: '#8b5cf6' }} />}
+              </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                {gamingRevenue > 0 && (
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" /> Gaming · {gamingPct}%
+                    </span>
+                    <p className="mono text-sm font-bold text-white">₹{gamingRevenue.toLocaleString('en-IN')}</p>
+                  </div>
+                )}
+                {snacksRevenue > 0 && (
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" /> Snacks · {snacksPct}%
+                    </span>
+                    <p className="mono text-sm font-bold text-white">₹{snacksRevenue.toLocaleString('en-IN')}</p>
+                  </div>
+                )}
+                {membershipRevenue > 0 && (
+                  <div>
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" /> Members · {memberPct}%
+                    </span>
+                    <p className="mono text-sm font-bold text-white">₹{membershipRevenue.toLocaleString('en-IN')}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
-      ))}
-    </div>
+
+        {/* ── 3 SMALL STACKED CARDS ── */}
+        <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
+          {smallCards.map((card) => (
+            <div key={card.key} className="relative glass rounded-xl px-4 py-3 flex flex-col justify-between overflow-hidden min-h-[52px]">
+              <div className={`absolute top-0 left-0 right-0 h-[2px] ${card.accentClass}`} />
+              <div className="flex items-center gap-1.5 mt-0.5 mb-1.5">
+                <div className={`w-5 h-5 rounded-md ${card.iconBg} flex items-center justify-center shrink-0`}>{card.icon}</div>
+                <span className="text-[9px] uppercase tracking-widest font-semibold text-slate-500">{card.label}</span>
+              </div>
+              <div className="flex items-end justify-between gap-1">
+                <p className="mono text-2xl font-bold text-white leading-none">{card.value}</p>
+                <div className="text-[10px] text-slate-500 text-right leading-tight">{card.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
+

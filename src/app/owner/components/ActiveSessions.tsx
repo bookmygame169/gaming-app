@@ -237,92 +237,84 @@ export function ActiveSessions({
                 const customerName = isWalkIn ? booking.customer_name : (booking.user_name || 'Guest');
                 const isShowingEndCollect = endCollectId === booking.id;
 
+                const ringProgress = Math.min(1, Math.max(0, timeRemaining / (itemDuration || booking.duration || 60)));
+                const ringR = 34;
+                const ringCircumference = 2 * Math.PI * ringR;
+                const ringOffset = ringCircumference * (1 - ringProgress);
+                const ringStroke = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
+
                 return (
                     <div
                         key={booking.id}
-                        className={`group relative flex flex-col justify-between ${bgColor} border-2 ${borderColor} ${pulseClass} rounded-2xl p-5 min-h-[160px] transition-all duration-300 overflow-hidden`}
+                        className={`group relative flex flex-col glass ${pulseClass} rounded-2xl overflow-hidden transition-all duration-300`}
+                        style={{ borderLeft: `2px solid ${ringStroke}`, boxShadow: `0 0 0 1px ${ringStroke}22, 0 0 28px -8px ${ringStroke}44` }}
                     >
-                        {/* Badge */}
-                        <div className={`absolute top-3 right-3 ${badgeBg} border ${badgeBorder} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeText}`}>
-                            {isCritical ? '⏰ URGENT' : isWarning ? 'ENDING SOON' : 'ACTIVE'}
+                        {/* Card header */}
+                        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center shrink-0">
+                                    <Gamepad2 size={16} className="text-slate-300" />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-bold text-white tracking-wide">{stationName}</p>
+                                    <p className="text-[10px] text-slate-500">{consoleType.charAt(0) + consoleType.slice(1).toLowerCase()}</p>
+                                </div>
+                            </div>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${badgeBg} ${badgeText}`}>
+                                {isCritical ? 'Urgent' : isWarning ? 'Ending' : 'Live'}
+                            </span>
                         </div>
 
-                        {/* Header */}
-                        <div className="flex items-center gap-2.5 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-white/[0.08] flex items-center justify-center shrink-0">
-                                <Gamepad2 size={20} className="text-slate-300" />
+                        {/* Middle: ring + customer info */}
+                        <div className="flex items-center gap-4 px-4 py-3">
+                            {/* Circular ring */}
+                            <div className="relative w-[76px] h-[76px] shrink-0 flex items-center justify-center">
+                                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
+                                    <circle cx="40" cy="40" r={ringR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+                                    <circle
+                                        cx="40" cy="40" r={ringR} fill="none"
+                                        stroke={ringStroke} strokeWidth="5"
+                                        strokeLinecap="round"
+                                        strokeDasharray={ringCircumference}
+                                        strokeDashoffset={ringOffset}
+                                        style={{ transition: 'stroke-dashoffset 1s linear' }}
+                                    />
+                                </svg>
+                                <div className="text-center z-10">
+                                    <p className="mono text-xl font-bold leading-none" style={{ color: ringStroke }}>{timeRemaining}</p>
+                                    <p className="text-[9px] text-slate-500 mt-0.5 uppercase tracking-wide">min</p>
+                                </div>
                             </div>
+
+                            {/* Customer info */}
                             <div className="flex-1 min-w-0">
-                                <div className="text-xs text-[#6b7280] font-semibold uppercase tracking-wide">{stationName}</div>
-                                <div className="text-base font-bold text-white truncate">{customerName}</div>
-                                <div className="flex items-center gap-2 mt-1">
+                                <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-0.5">Customer</p>
+                                <p className="text-sm font-bold text-white truncate">{customerName}</p>
+                                {endTime && <p className="text-[11px] text-slate-500 mt-1">ends {endTime}</p>}
+                                <div className="flex items-center gap-1.5 mt-1.5">
                                     {booking.payment_mode && (
-                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#ffffff08] text-[10px] font-semibold text-[#9ca3af] uppercase tracking-wide">
-                                            {booking.payment_mode.toLowerCase() === 'cash' ? <Banknote size={10} /> : <Smartphone size={10} />}
+                                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.06] text-[9px] font-semibold text-slate-400 uppercase">
+                                            {booking.payment_mode.toLowerCase() === 'cash' ? <Banknote size={9} /> : <Smartphone size={9} />}
                                             {booking.payment_mode}
                                         </span>
                                     )}
                                     {(isWalkIn ? booking.customer_phone : booking.user_phone) && (
                                         <a
                                             href={`https://wa.me/${(isWalkIn ? booking.customer_phone : booking.user_phone)?.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                            target="_blank" rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
-                                            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-500/10 text-[10px] font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
+                                            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/10 text-[9px] font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
                                         >
-                                            <MessageCircle size={10} />WA
+                                            <MessageCircle size={9} />WA
                                         </a>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Timer row */}
-                        <div className="flex justify-between items-end">
-                            <div>
-                                <p className="text-xs text-[#6b7280] mb-0.5">Time Remaining</p>
-                                <p className={`text-2xl font-bold font-mono ${timerColor}`}>
-                                    {Math.floor(timeRemaining / 60)}h {timeRemaining % 60}m
-                                </p>
-                            </div>
-                            <div className="flex items-end gap-2">
-                                {onAddItems && !isShowingEndCollect && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onAddItems(bookingId, customerName);
-                                        }}
-                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-semibold transition-colors"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        Add
-                                    </button>
-                                )}
-                                {onEndCollect && !isShowingEndCollect && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEndCollectId(booking.id);
-                                            setEndCollectPayment('cash');
-                                        }}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${isCritical ? 'bg-red-500/25 text-red-300 hover:bg-red-500/35' : 'bg-white/[0.08] text-slate-300 hover:bg-white/[0.12]'}`}
-                                    >
-                                        <CheckCircle className="w-3.5 h-3.5" />
-                                        End
-                                    </button>
-                                )}
-                                {!isShowingEndCollect && (
-                                    <div className="text-right">
-                                        <p className="text-xs text-[#6b7280] mb-0.5">Ends At</p>
-                                        <p className="text-sm font-semibold text-white">{endTime}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
                         {/* End & Collect inline panel */}
                         {isShowingEndCollect && (
-                            <div className="mt-3 pt-3 border-t border-white/[0.10] space-y-3">
+                            <div className="mx-4 mb-3 pt-3 border-t border-white/[0.08] space-y-2.5">
                                 <div className="flex items-center justify-between">
                                     <p className="text-xs font-semibold text-white">End & Collect</p>
                                     <button onClick={() => setEndCollectId(null)} className="text-slate-500 hover:text-white transition-colors">
@@ -330,42 +322,44 @@ export function ActiveSessions({
                                     </button>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setEndCollectPayment('cash')}
-                                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-colors ${endCollectPayment === 'cash' ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}
-                                    >
-                                        <Banknote size={13} /> Cash
+                                    <button onClick={() => setEndCollectPayment('cash')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${endCollectPayment === 'cash' ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}>
+                                        <Banknote size={12} /> Cash
                                     </button>
-                                    <button
-                                        onClick={() => setEndCollectPayment('upi')}
-                                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-colors ${endCollectPayment === 'upi' ? 'bg-blue-500/15 border-blue-500/50 text-blue-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}
-                                    >
-                                        <Smartphone size={13} /> UPI
+                                    <button onClick={() => setEndCollectPayment('upi')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${endCollectPayment === 'upi' ? 'bg-blue-500/15 border-blue-500/50 text-blue-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}>
+                                        <Smartphone size={12} /> UPI
                                     </button>
                                 </div>
-                                <div className="flex items-center justify-between text-xs mb-1">
+                                <div className="flex justify-between text-xs mb-1">
                                     <span className="text-slate-400">Amount</span>
-                                    <span className="font-bold text-emerald-400 text-sm">₹{booking.total_amount || 0}</span>
+                                    <span className="font-bold text-emerald-400">₹{booking.total_amount || 0}</span>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        onEndCollect!(bookingId, endCollectPayment);
-                                        setEndCollectId(null);
-                                    }}
-                                    className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-colors"
-                                >
+                                <button onClick={() => { onEndCollect!(bookingId, endCollectPayment); setEndCollectId(null); }} className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-colors">
                                     ✓ Confirm & End Session
                                 </button>
                             </div>
                         )}
 
-                        {/* Progress Bar */}
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-[#ffffff10]">
-                            <div
-                                className={`h-full ${progressColor}`}
-                                style={{ width: `${Math.min(100, (timeRemaining / (itemDuration || booking.duration || 60)) * 100)}%` }}
-                            />
-                        </div>
+                        {/* Action buttons */}
+                        {!isShowingEndCollect && (
+                            <div className="flex border-t border-white/[0.06] mt-auto">
+                                {onAddItems && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onAddItems(bookingId, customerName); }}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[11px] font-semibold text-slate-400 hover:text-white hover:bg-white/[0.04] transition-colors border-r border-white/[0.06]"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" /> Add Time
+                                    </button>
+                                )}
+                                {onEndCollect && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setEndCollectId(booking.id); setEndCollectPayment('cash'); }}
+                                        className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[11px] font-semibold transition-colors ${isCritical ? 'text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'}`}
+                                    >
+                                        <CheckCircle className="w-3.5 h-3.5" /> End
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 );
             })}
