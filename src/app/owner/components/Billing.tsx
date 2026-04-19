@@ -855,11 +855,11 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                 {paymentMode === 'upi' && totalAmount > 0 && (
                                     <div className="flex flex-col items-center gap-2 py-3">
                                         <QRCodeSVG
-                                            value={`upi://pay?pa=paytmqr6k4kf1@ptys&pn=BookMyGame&am=${totalAmount}&cu=INR&tn=Booking+Payment`}
+                                            value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
                                             size={180}
                                             bgColor="#ffffff"
                                             fgColor="#000000"
-                                            level="M"
+                                            level="Q"
                                         />
                                         <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{totalAmount}</span> via UPI</p>
                                     </div>
@@ -1056,11 +1056,11 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                             {memPaymentMode === 'upi' && memTotalAmount > 0 && (
                                 <div className="flex flex-col items-center gap-2 py-3">
                                     <QRCodeSVG
-                                        value={`upi://pay?pa=paytmqr6k4kf1@ptys&pn=BookMyGame&am=${memTotalAmount}&cu=INR&tn=Membership+Payment`}
+                                        value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${memTotalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Membership Payment')}`}
                                         size={180}
                                         bgColor="#ffffff"
                                         fgColor="#000000"
-                                        level="M"
+                                        level="Q"
                                     />
                                     <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{memTotalAmount}</span> via UPI</p>
                                 </div>
