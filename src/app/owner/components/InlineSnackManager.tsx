@@ -31,10 +31,11 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
   const [inventory, setInventory]       = useState<InventoryItem[]>([]);
   const [orders, setOrders]             = useState<BookingOrder[]>(existingOrders);
   const [cart, setCart]                 = useState<CartItem[]>([]);
-  const [loading, setLoading]           = useState(true);
+  const [loading, setLoading]           = useState(false);
   const [adding, setAdding]             = useState(false);
   const [deletingId, setDeletingId]     = useState<string | null>(null);
   const [addedAnim, setAddedAnim]       = useState(false);
+  const [showAddItems, setShowAddItems] = useState(false);
 
   // Keep local orders in sync when parent updates
   useEffect(() => { setOrders(existingOrders); }, [existingOrders]);
@@ -59,7 +60,7 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
     }
   }, [cafeId]);
 
-  useEffect(() => { loadInventory(); }, [loadInventory]);
+  useEffect(() => { if (showAddItems) loadInventory(); }, [showAddItems, loadInventory]);
 
   // ---- Cart helpers ----
   function addToCart(item: InventoryItem) {
@@ -229,63 +230,71 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
         className="rounded-xl overflow-hidden"
         style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
       >
-        <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <button
+          type="button"
+          onClick={() => setShowAddItems(v => !v)}
+          className="w-full px-3 py-2 flex items-center gap-2 hover:bg-white/[0.03] transition-colors"
+          style={{ borderBottom: showAddItems ? '1px solid rgba(255,255,255,0.05)' : 'none' }}
+        >
           <ShoppingCart size={12} className="text-slate-500" />
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Add Items</span>
-        </div>
+          <span className="ml-auto text-[11px] text-slate-600">{showAddItems ? '▲' : '▼'}</span>
+        </button>
 
-        {loading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 size={18} className="animate-spin text-slate-600" />
-          </div>
-        ) : inventory.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-6">
-            <Package size={22} className="text-slate-700" />
-            <p className="text-xs text-slate-600">No inventory items available</p>
-          </div>
-        ) : (
-          <div className="p-2.5 grid grid-cols-2 gap-2">
-            {inventory.map(item => {
-              const qty = cartQty(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className="rounded-lg p-2.5 transition-all"
-                  style={{
-                    background: qty > 0 ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.03)',
-                    border: qty > 0 ? '1px solid rgba(251,146,60,0.25)' : '1px solid rgba(255,255,255,0.05)',
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-1">
-                    <span className="text-[12px] font-medium text-slate-200 leading-tight pr-1">{item.name}</span>
-                    {qty > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">{qty}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-emerald-400">₹{item.price}</span>
-                    <span className="text-[10px] text-slate-600">{item.stock_quantity} left</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {qty > 0 ? (
-                      <>
-                        <button onClick={() => removeFromCart(item.id)} className="flex-1 h-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.11] text-slate-300 transition-colors">
-                          <Minus size={11} />
+        {showAddItems && (
+          loading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 size={18} className="animate-spin text-slate-600" />
+            </div>
+          ) : inventory.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <Package size={22} className="text-slate-700" />
+              <p className="text-xs text-slate-600">No inventory items available</p>
+            </div>
+          ) : (
+            <div className="p-2.5 grid grid-cols-2 gap-2">
+              {inventory.map(item => {
+                const qty = cartQty(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-lg p-2.5 transition-all"
+                    style={{
+                      background: qty > 0 ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.03)',
+                      border: qty > 0 ? '1px solid rgba(251,146,60,0.25)' : '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <span className="text-[12px] font-medium text-slate-200 leading-tight pr-1">{item.name}</span>
+                      {qty > 0 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">{qty}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-bold text-emerald-400">₹{item.price}</span>
+                      <span className="text-[10px] text-slate-600">{item.stock_quantity} left</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {qty > 0 ? (
+                        <>
+                          <button onClick={() => removeFromCart(item.id)} className="flex-1 h-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.11] text-slate-300 transition-colors">
+                            <Minus size={11} />
+                          </button>
+                          <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className="flex-1 h-6 flex items-center justify-center rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors disabled:opacity-40">
+                            <Plus size={11} />
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => addToCart(item)} className="w-full h-6 flex items-center justify-center gap-1 rounded-md bg-white/[0.07] hover:bg-amber-500/15 text-slate-400 hover:text-amber-400 text-[11px] font-medium transition-all">
+                          <Plus size={10} /> Add
                         </button>
-                        <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className="flex-1 h-6 flex items-center justify-center rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors disabled:opacity-40">
-                          <Plus size={11} />
-                        </button>
-                      </>
-                    ) : (
-                      <button onClick={() => addToCart(item)} className="w-full h-6 flex items-center justify-center gap-1 rounded-md bg-white/[0.07] hover:bg-amber-500/15 text-slate-400 hover:text-amber-400 text-[11px] font-medium transition-all">
-                        <Plus size={10} /> Add
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
         )}
 
         {/* Cart / confirm strip */}
