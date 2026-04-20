@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BookingsTable } from './BookingsTable';
 import { ActiveSessions } from './ActiveSessions';
@@ -31,7 +32,6 @@ interface BookingsManagementProps {
     onStopTimer?: (subscriptionId: string) => Promise<void>;
     // Active Sessions props
     pageSubscriptions?: any[];
-    isMobile?: boolean;
     onAddItems?: (bookingId: string, customerName: string) => void;
     onSessionEnded?: (info: { customerName: string; stationName: string; duration: number }) => void;
     onEndCollect?: (bookingId: string, paymentMode: 'cash' | 'upi') => Promise<void>;
@@ -56,7 +56,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
     return { dateFrom: '', dateTo: '' };
 }
 
-export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, isMobile, onAddItems, onSessionEnded, onEndCollect }: BookingsManagementProps) {
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, onAddItems, onSessionEnded, onEndCollect }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [limit, setLimit] = useState(30);
@@ -173,10 +173,6 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         }, 400);
     };
 
-    const handleFilterChange = (setter: (v: string) => void) => (val: string) => {
-        setter(val);
-    };
-
     const loading = fetching || externalLoading;
 
     // Fetch subscriptions when Membership tab is active
@@ -268,7 +264,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                     activeTimers={activeTimers || new Map()}
                     timerElapsed={timerElapsed || new Map()}
                     currentTime={currentTime}
-                    isMobile={isMobile || false}
+                    onAddTime={onEdit}
                     onAddItems={onAddItems}
                     onSessionEnded={onSessionEnded}
                     onEndCollect={onEndCollect}

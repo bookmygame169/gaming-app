@@ -1,8 +1,10 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConsoleId, CONSOLE_ICONS, CONSOLE_COLORS, CONSOLE_LABELS } from '@/lib/constants';
-import { Plus, MessageCircle, Banknote, Smartphone, Gamepad2, CheckCircle, X, Square } from 'lucide-react';
+import { Clock3, MessageCircle, Banknote, Smartphone, Gamepad2, X, Square, UtensilsCrossed } from 'lucide-react';
 
 import { getLocalDateString } from '../utils';
 
@@ -12,13 +14,37 @@ interface SessionEndedInfo {
     duration: number;
 }
 
+function parseStartMinutes(startTime: string): number | null {
+    const timeParts = startTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+    if (!timeParts) return null;
+    let hours = parseInt(timeParts[1]);
+    const minutes = parseInt(timeParts[2]);
+    const period = timeParts[3];
+    if (period) {
+        if (period.toLowerCase() === 'pm' && hours !== 12) hours += 12;
+        else if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
+    }
+    return hours * 60 + minutes;
+}
+
+function calcTimeRemaining(startMinutes: number, duration: number, currentMinutes: number): number {
+    const endMinutes = startMinutes + duration;
+    if (endMinutes > 1440) {
+        const remaining = currentMinutes < startMinutes
+            ? (endMinutes - 1440) - currentMinutes
+            : endMinutes - currentMinutes;
+        return remaining;
+    }
+    return endMinutes - currentMinutes;
+}
+
 interface ActiveSessionsProps {
     bookings: any[];
     subscriptions: any[];
     activeTimers: Map<string, any>;
     timerElapsed: Map<string, number>;
     currentTime: Date;
-    isMobile: boolean;
+    onAddTime?: (booking: any) => void;
     onAddItems?: (bookingId: string, customerName: string) => void;
     onSessionEnded?: (info: SessionEndedInfo) => void;
     onEndCollect?: (bookingId: string, paymentMode: 'cash' | 'upi') => void;
@@ -30,7 +56,7 @@ export function ActiveSessions({
     activeTimers,
     timerElapsed,
     currentTime,
-    isMobile,
+    onAddTime,
     onAddItems,
     onSessionEnded,
     onEndCollect,
@@ -66,30 +92,6 @@ export function ActiveSessions({
         }));
     });
 
-    const parseStartMinutes = (startTime: string): number | null => {
-        const timeParts = startTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-        if (!timeParts) return null;
-        let hours = parseInt(timeParts[1]);
-        const minutes = parseInt(timeParts[2]);
-        const period = timeParts[3];
-        if (period) {
-            if (period.toLowerCase() === 'pm' && hours !== 12) hours += 12;
-            else if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
-        }
-        return hours * 60 + minutes;
-    };
-
-    const calcTimeRemaining = (startMinutes: number, duration: number, currentMinutes: number): number => {
-        const endMinutes = startMinutes + duration;
-        if (endMinutes > 1440) {
-            const remaining = currentMinutes < startMinutes
-                ? (endMinutes - 1440) - currentMinutes
-                : endMinutes - currentMinutes;
-            return remaining;
-        }
-        return endMinutes - currentMinutes;
-    };
-
     // Compute sort keys once per minute (not every second) so cards don't shuffle every tick
     const sortMinute = currentTime.getHours() * 60 + currentTime.getMinutes();
     const sortedActiveBookings = useMemo(() => {
@@ -106,7 +108,6 @@ export function ActiveSessions({
             };
             return getTimeRemaining(a) - getTimeRemaining(b);
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [flattenedBookings, sortMinute]);
 
     const getConsoleIcon = (consoleName: string) => {
@@ -230,15 +231,8 @@ export function ActiveSessions({
                 // Thresholds: ≤5 min = critical (pulse), 5–15 min = warning, >15 min = healthy
                 const isCritical = timeRemaining <= 5;
                 const isWarning = timeRemaining > 5 && timeRemaining <= 15;
-                const isHealthy = timeRemaining > 15;
-
-                const bgColor = isCritical ? 'bg-red-500/8' : isWarning ? 'bg-amber-500/5' : 'bg-emerald-500/5';
-                const borderColor = isCritical ? 'border-red-500/60' : isWarning ? 'border-amber-500/40' : 'border-emerald-500/40';
                 const badgeBg = isCritical ? 'bg-red-500/25' : isWarning ? 'bg-amber-500/20' : 'bg-emerald-500/20';
                 const badgeText = isCritical ? 'text-red-400' : isWarning ? 'text-amber-500' : 'text-emerald-500';
-                const badgeBorder = isCritical ? 'border-red-400' : isWarning ? 'border-amber-500' : 'border-emerald-500';
-                const timerColor = isCritical ? 'text-red-400' : isWarning ? 'text-amber-500' : 'text-emerald-500';
-                const progressColor = isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500';
                 const pulseClass = isCritical ? 'animate-pulse' : '';
 
                 const bookingId = booking.originalBookingId || booking.id;
@@ -350,20 +344,29 @@ export function ActiveSessions({
 
                         {/* Action buttons */}
                         {!isShowingEndCollect && (
-                            <div className="flex items-center gap-1.5 mt-3 px-4 pb-4">
+                            <div className="mt-3 grid grid-cols-2 gap-1.5 px-4 pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                {onAddTime && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onAddTime(booking); }}
+                                        className="flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-semibold text-slate-300 hover:text-white hover:border-cyan-500/30 hover:bg-cyan-500/8 transition-colors rounded-lg"
+                                        style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+                                    >
+                                        <Clock3 className="w-3 h-3" /> Add time
+                                    </button>
+                                )}
                                 {onAddItems && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onAddItems(bookingId, customerName); }}
-                                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-slate-400 hover:text-white hover:border-white/20 transition-colors rounded-lg"
+                                        className="flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-semibold text-slate-300 hover:text-white hover:border-amber-500/30 hover:bg-amber-500/8 transition-colors rounded-lg"
                                         style={{ border: '1px solid rgba(255,255,255,0.07)' }}
                                     >
-                                        <Plus className="w-3 h-3" /> Add time
+                                        <UtensilsCrossed className="w-3 h-3" /> Add item
                                     </button>
                                 )}
                                 {onEndCollect && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setEndCollectId(booking.id); setEndCollectPayment('cash'); }}
-                                        className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-colors hover:border-white/20"
+                                        className="col-span-2 flex items-center justify-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-colors hover:border-white/20 sm:col-span-1"
                                         style={{ border: '1px solid rgba(255,255,255,0.07)', color: '#fca5a5' }}
                                     >
                                         <Square className="w-3 h-3" /> End

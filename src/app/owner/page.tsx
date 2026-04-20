@@ -2052,7 +2052,7 @@ export default function OwnerDashboardPage() {
                   activeTimers={activeTimers}
                   timerElapsed={timerElapsed}
                   currentTime={currentTime}
-                  isMobile={isMobile}
+                  onAddTime={handleEditBooking}
                   onAddItems={(bookingId, customerName) => {
                     setAddItemsBookingId(bookingId);
                     setAddItemsCustomerName(customerName);
@@ -2201,7 +2201,6 @@ export default function OwnerDashboardPage() {
               activeTimers={activeTimers}
               timerElapsed={timerElapsed}
               pageSubscriptions={subscriptions}
-              isMobile={isMobile}
               onAddItems={(bookingId, customerName) => {
                 setAddItemsBookingId(bookingId);
                 setAddItemsCustomerName(customerName);
