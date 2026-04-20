@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         : supabase
             .from('subscriptions')
             .select(`
-              id, amount_paid, purchase_date, customer_name, assigned_console_station,
+              id, amount_paid, purchase_date, payment_mode, customer_name, assigned_console_station,
               timer_active, timer_start_time, hours_remaining, membership_plans(name, console_type)
             `)
             .in('cafe_id', cafeIds)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer, Activity, Hourglass } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer } from 'lucide-react';
 import { getLocalDateString } from '../utils';
 
 function Sparkline({ data }: { data: number[] }) {
@@ -54,7 +54,15 @@ interface DashboardBooking {
 interface DashboardSubscription {
   amount_paid?: number | string | null;
   id: string;
+  payment_mode?: string | null;
   purchase_date?: string | null;
+}
+
+const DIGITAL_PAYMENT_MODES = new Set(['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card']);
+
+function getPaymentBucket(mode?: string | null): 'cash' | 'upi' {
+  const normalized = mode?.toLowerCase().trim() || 'cash';
+  return DIGITAL_PAYMENT_MODES.has(normalized) ? 'upi' : 'cash';
 }
 
 function Trend({ today, yesterday }: { today: number; yesterday: number }) {
@@ -82,9 +90,8 @@ const SkeletonCard = () => (
 
 export function DashboardStats({ bookings, subscriptions, activeTimers, loadingData }: DashboardStatsProps) {
   const [showRevenue, setShowRevenue] = useState(false);
-  const [showBreakdown, setShowBreakdown] = useState(false);
   const [loadedPreference, setLoadedPreference] = useState(false);
-  const [period, setPeriod] = useState<'today' | 'week'>('today');
+  const [period] = useState<'today' | 'week'>('today');
 
   useEffect(() => {
     try { setShowRevenue(localStorage.getItem(REVENUE_VISIBILITY_KEY) === 'true'); } catch { setShowRevenue(false); }
@@ -120,15 +127,11 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   const todayBookings = billableSessionBookings.filter((booking) => booking.booking_date === todayStr);
   const todaySessions = todayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
-  const pendingBookings = billableSessionBookings.filter(
-    (booking) => booking.booking_date === todayStr && booking.status === 'confirmed'
-  ).length;
   const todaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === todayStr);
 
   // Week data
   const weekBookings = billableSessionBookings.filter(b => (b.booking_date ?? '') >= weekAgoStr && (b.booking_date ?? '') <= todayStr);
   const weekSessions = weekBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
-  const weekPending = billableSessionBookings.filter(b => (b.booking_date ?? '') >= weekAgoStr && (b.booking_date ?? '') <= todayStr && b.status === 'confirmed').length;
   const weekSubscriptions = subscriptions.filter(sub => {
     const d = sub.purchase_date ? getLocalDateString(new Date(sub.purchase_date)) : '';
     return d >= weekAgoStr && d <= todayStr;
@@ -150,7 +153,6 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   const totalRevenue = calcRevenue(todayBookings, todaySubscriptions);
   const yesterdayBookings = billableSessionBookings.filter((booking) => booking.booking_date === yesterdayStr);
-  const yesterdaySessions = yesterdayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
   const yesterdaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === yesterdayStr);
   const yesterdayRevenue = calcRevenue(yesterdayBookings, yesterdaySubscriptions);
 
@@ -161,10 +163,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const displaySessions = period === 'today' ? todaySessions : weekSessions;
   const displayRevenue = period === 'today' ? totalRevenue : weekRevenue;
   const displayPrevRevenue = period === 'today' ? yesterdayRevenue : prevWeekRevenue;
-  const displayPrevSessions = period === 'today' ? yesterdaySessions : Math.round(prevWeekBookings.filter(b => b.booking_items && b.booking_items.length > 0).length);
-  const displayPending = period === 'today' ? pendingBookings : weekPending;
 
-  const ONLINE_MODES = ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'];
   const membershipRevenue = todaySubscriptions.reduce((s, sub) => {
     const amt = typeof sub.amount_paid === 'number' ? sub.amount_paid : parseFloat(sub.amount_paid ?? '0') || 0;
     return s + amt;
@@ -175,16 +174,16 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
   let snacksRevenue = 0;
   let gamingCash = 0;
-  let gamingOnline = 0;
+  let gamingUpi = 0;
 
   for (const b of todayBookings) {
     const isSnackOnly = !b.booking_items || b.booking_items.length === 0;
     const fbTotal = isSnackOnly ? (b.total_amount || 0) : getFbTotal(b);
     const gamingAmount = (b.total_amount || 0) - fbTotal;
-    const mode = b.payment_mode?.toLowerCase() || '';
+    const paymentBucket = getPaymentBucket(b.payment_mode);
     snacksRevenue += fbTotal;
-    if (mode === 'cash') gamingCash += gamingAmount;
-    else if (ONLINE_MODES.includes(mode)) gamingOnline += gamingAmount;
+    if (paymentBucket === 'cash') gamingCash += gamingAmount;
+    else gamingUpi += gamingAmount;
   }
 
   const revenueVisible = loadedPreference && showRevenue;
@@ -202,13 +201,35 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
     }
     return days;
   }, [bookings]);
-  const gamingRevenue = gamingCash + gamingOnline;
+  const gamingRevenue = gamingCash + gamingUpi;
   const totalForSplit = gamingRevenue + snacksRevenue + membershipRevenue;
   const gamingPct = totalForSplit > 0 ? Math.round((gamingRevenue / totalForSplit) * 100) : 0;
   const snacksPct = totalForSplit > 0 ? Math.round((snacksRevenue / totalForSplit) * 100) : 0;
   const memberPct = totalForSplit > 0 ? 100 - gamingPct - snacksPct : 0;
-  const cashTotal = todayBookings.filter(b => (b.payment_mode || '').toLowerCase() === 'cash').reduce((s, b) => s + (b.total_amount || 0), 0);
-  const upiTotal = todayBookings.filter(b => ONLINE_MODES.includes((b.payment_mode || '').toLowerCase())).reduce((s, b) => s + (b.total_amount || 0), 0);
+  const bookingPaymentSplit = todayBookings.reduce(
+    (totals, booking) => {
+      const bucket = getPaymentBucket(booking.payment_mode);
+      totals[bucket] += booking.total_amount || 0;
+      return totals;
+    },
+    { cash: 0, upi: 0 }
+  );
+  const subscriptionPaymentSplit = todaySubscriptions.reduce(
+    (totals, subscription) => {
+      const bucket = getPaymentBucket(subscription.payment_mode);
+      const amount = typeof subscription.amount_paid === 'number'
+        ? subscription.amount_paid
+        : parseFloat(subscription.amount_paid ?? '0') || 0;
+      totals[bucket] += amount;
+      return totals;
+    },
+    { cash: 0, upi: 0 }
+  );
+  const cashTotal = bookingPaymentSplit.cash + subscriptionPaymentSplit.cash;
+  const upiTotal = bookingPaymentSplit.upi + subscriptionPaymentSplit.upi;
+  const paymentSplitTotal = cashTotal + upiTotal;
+  const upiPct = paymentSplitTotal > 0 ? Math.round((upiTotal / paymentSplitTotal) * 100) : 0;
+  const cashPct = paymentSplitTotal > 0 ? 100 - upiPct : 0;
 
   if (loadingData) {
     return (
@@ -302,6 +323,37 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                   </div>
                 )}
               </div>
+              {paymentSplitTotal > 0 && (
+                <div className="mt-3 border-t border-white/[0.06] pt-3">
+                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
+                    Payments
+                  </div>
+                  <div className="mt-2 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: 'linear-gradient(90deg,#0891b2,#22d3ee)' }} />}
+                    {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: 'linear-gradient(90deg,#059669,#34d399)' }} />}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-8 rounded shrink-0" style={{ background: '#059669' }} />
+                      <div>
+                        <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
+                          Cash · {cashPct}%
+                        </div>
+                        <p className="mono font-bold text-white text-base">₹{cashTotal.toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-8 rounded shrink-0" style={{ background: '#06b6d4' }} />
+                      <div>
+                        <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
+                          UPI · {upiPct}%
+                        </div>
+                        <p className="mono font-bold text-white text-base">₹{upiTotal.toLocaleString('en-IN')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -323,11 +375,11 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
             <div className="mt-0.5 flex items-baseline gap-1.5 relative">
               <span className="mono font-bold text-white" style={{ fontSize: 26 }}>₹{(cashTotal + upiTotal).toLocaleString('en-IN')}</span>
             </div>
-            {(cashTotal + upiTotal) > 0 && (
+            {paymentSplitTotal > 0 && (
               <>
                 <div className="mt-3 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <div style={{ width: `${Math.round(upiTotal / (cashTotal + upiTotal) * 100)}%`, background: '#06b6d4' }} />
-                  <div style={{ width: `${Math.round(cashTotal / (cashTotal + upiTotal) * 100)}%`, background: '#10b981' }} />
+                  {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: '#06b6d4' }} />}
+                  {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: '#10b981' }} />}
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px]">
                   <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" /><span className="text-slate-500">UPI</span> <span className="mono text-white ml-1">₹{upiTotal.toLocaleString('en-IN')}</span></span>
@@ -377,4 +429,3 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
     </div>
   );
 }
-
