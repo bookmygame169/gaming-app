@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer, Banknote, Smartphone } from 'lucide-react';
 import { getLocalDateString } from '../utils';
 
 function Sparkline({ data }: { data: number[] }) {
@@ -325,30 +325,32 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
               </div>
               {paymentSplitTotal > 0 && (
                 <div className="mt-3 border-t border-white/[0.06] pt-3">
-                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
-                    Payments
-                  </div>
-                  <div className="mt-2 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                    {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: 'linear-gradient(90deg,#0891b2,#22d3ee)' }} />}
-                    {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: 'linear-gradient(90deg,#059669,#34d399)' }} />}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-8 rounded shrink-0" style={{ background: '#059669' }} />
-                      <div>
-                        <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
-                          Cash · {cashPct}%
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
+                      Payments
+                    </span>
+                    <div className="flex flex-1 flex-wrap gap-2">
+                      <div className="inline-flex min-w-[150px] items-center gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
+                          <Banknote size={13} />
+                        </span>
+                        <div className="leading-none">
+                          <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
+                            Cash · {cashPct}%
+                          </div>
+                          <p className="mono mt-1 text-sm font-bold text-white">₹{cashTotal.toLocaleString('en-IN')}</p>
                         </div>
-                        <p className="mono font-bold text-white text-base">₹{cashTotal.toLocaleString('en-IN')}</p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-8 rounded shrink-0" style={{ background: '#06b6d4' }} />
-                      <div>
-                        <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
-                          UPI · {upiPct}%
+                      <div className="inline-flex min-w-[150px] items-center gap-2 rounded-xl border border-cyan-500/15 bg-cyan-500/8 px-2.5 py-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300">
+                          <Smartphone size={13} />
+                        </span>
+                        <div className="leading-none">
+                          <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
+                            UPI · {upiPct}%
+                          </div>
+                          <p className="mono mt-1 text-sm font-bold text-white">₹{upiTotal.toLocaleString('en-IN')}</p>
                         </div>
-                        <p className="mono font-bold text-white text-base">₹{upiTotal.toLocaleString('en-IN')}</p>
                       </div>
                     </div>
                   </div>
