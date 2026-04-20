@@ -314,7 +314,10 @@ export function Billing({
         if (!cafeId) return;
         fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
             .then(r => r.json())
-            .then(data => { if (Array.isArray(data)) setRecentCustomers(data.slice(0, 6)); })
+            .then(data => {
+                if (Array.isArray(data))
+                    setRecentCustomers(data.sort((a, b) => (b.visits || 0) - (a.visits || 0)).slice(0, 5));
+            })
             .catch(() => {});
     }, [cafeId]);
 
@@ -641,7 +644,7 @@ export function Billing({
 
             {recentCustomers.length > 0 && (
                 <div className="space-y-2">
-                    <div className="text-[10px] smallcaps text-[var(--dim)]">Recent customers</div>
+                    <div className="text-[10px] smallcaps text-[var(--dim)]">Top customers</div>
                     <div className="flex flex-wrap gap-2">
                         {recentCustomers.slice(0, 5).map((customer) => (
                             <button
