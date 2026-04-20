@@ -38,7 +38,7 @@ interface CardProps {
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
     const p = { none: '', sm: 'p-3 md:p-4', md: 'p-4 md:p-5', lg: 'p-5 md:p-6' };
     return (
-        <div className={`bg-white/[0.03] border border-white/[0.08] rounded-xl ${p[padding]} ${className}`}>
+        <div className={`glass rounded-2xl ${p[padding]} ${className}`}>
             {children}
         </div>
     );
@@ -58,15 +58,15 @@ export function Button({
     disabled = false, loading = false, className = '', type = 'button', ...props
 }: ButtonProps) {
     const variants = {
-        primary:   'bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-500/20',
-        secondary: 'bg-white/[0.06] hover:bg-white/[0.10] text-white border border-white/[0.10]',
-        danger:    'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20',
-        ghost:     'hover:bg-white/[0.06] text-slate-400 hover:text-white',
+        primary:   'bg-cyan-500/15 hover:bg-cyan-500/22 text-cyan-100 border border-cyan-400/25 shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]',
+        secondary: 'glass-2 hover:border-white/15 text-white border border-white/[0.08]',
+        danger:    'bg-red-500/10 hover:bg-red-500/18 text-red-300 border border-red-500/20',
+        ghost:     'hover:bg-white/[0.05] text-slate-400 hover:text-white',
     };
     const sizes = {
-        sm: 'px-3 py-1.5 text-xs',
-        md: 'px-4 py-2 text-sm',
-        lg: 'px-5 py-2.5 text-sm',
+        sm: 'px-3 py-1.5 text-xs rounded-lg',
+        md: 'px-4 py-2.5 text-sm rounded-xl',
+        lg: 'px-5 py-3 text-sm rounded-xl',
     };
     return (
         <button
@@ -105,18 +105,24 @@ export function Input({ id, label, placeholder, value, onChange, type = 'text', 
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
     return (
         <div className={className}>
-            {label && <label htmlFor={inputId} className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>}
-            <input
-                id={inputId}
-                name={inputId}
-                type={type}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={placeholder}
-                disabled={disabled}
-                maxLength={maxLength}
-                className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.09] text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            />
+            {label && (
+                <label htmlFor={inputId} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
+                    {label}
+                </label>
+            )}
+            <div className="glass-2 focus-ring rounded-xl border border-white/[0.07] transition">
+                <input
+                    id={inputId}
+                    name={inputId}
+                    type={type}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    maxLength={maxLength}
+                    className="w-full rounded-xl bg-transparent px-3.5 py-2.5 text-sm text-white placeholder:text-[#4b5060] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+                />
+            </div>
         </div>
     );
 }
@@ -137,19 +143,25 @@ export function Select({ id, label, value, onChange, options, disabled = false, 
     const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
     return (
         <div className={className}>
-            {label && <label htmlFor={selectId} className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>}
-            <select
-                id={selectId}
-                name={selectId}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                disabled={disabled}
-                className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.09] text-sm text-white focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors appearance-none cursor-pointer"
-            >
-                {options.map((o) => (
-                    <option key={o.value} value={o.value} className="bg-[#1a1a24] text-white">{o.label}</option>
-                ))}
-            </select>
+            {label && (
+                <label htmlFor={selectId} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
+                    {label}
+                </label>
+            )}
+            <div className="glass-2 focus-ring rounded-xl border border-white/[0.07] transition">
+                <select
+                    id={selectId}
+                    name={selectId}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    disabled={disabled}
+                    className="w-full cursor-pointer appearance-none rounded-xl bg-transparent px-3.5 py-2.5 text-sm text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    {options.map((o) => (
+                        <option key={o.value} value={o.value} className="bg-[#11111a] text-white">{o.label}</option>
+                    ))}
+                </select>
+            </div>
         </div>
     );
 }
@@ -167,12 +179,12 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
     return (
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
             {icon && (
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-500 mb-1">
+                <div className="glass-2 mb-1 flex h-12 w-12 items-center justify-center rounded-2xl text-slate-500">
                     {icon}
                 </div>
             )}
-            <p className="text-sm font-semibold text-slate-300">{title}</p>
-            {description && <p className="text-xs text-slate-600 max-w-xs">{description}</p>}
+            <p className="text-sm font-semibold text-slate-200">{title}</p>
+            {description && <p className="max-w-xs text-xs text-slate-500">{description}</p>}
             {action && <div className="mt-2">{action}</div>}
         </div>
     );
@@ -197,7 +209,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 
 export function SkeletonCard({ rows = 2 }: { rows?: number }) {
     return (
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4 space-y-3">
+        <div className="glass rounded-2xl p-4 space-y-3">
             <Skeleton className="h-3 w-1/3" />
             {Array.from({ length: rows }).map((_, i) => (
                 <Skeleton key={i} className={`h-3 ${i % 2 === 0 ? 'w-full' : 'w-2/3'}`} />
@@ -212,7 +224,7 @@ export function TabSkeleton({ cards = 4, tableRows = 6 }: { cards?: number; tabl
             <div className={`grid grid-cols-2 md:grid-cols-${Math.min(cards, 4)} gap-3`}>
                 {Array.from({ length: cards }).map((_, i) => <SkeletonCard key={i} rows={2} />)}
             </div>
-            <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] overflow-hidden">
+            <div className="glass rounded-2xl overflow-hidden">
                 <div className="p-4 border-b border-white/[0.06]">
                     <Skeleton className="h-4 w-40" />
                 </div>
@@ -247,8 +259,8 @@ interface StatCardProps {
 
 export function StatCard({ title, value, subtitle }: StatCardProps) {
     return (
-        <div className="relative rounded-xl border border-white/[0.09] bg-white/[0.04] px-4 py-4 flex flex-col gap-2 overflow-hidden">
-            <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">{title}</p>
+        <div className="glass relative flex flex-col gap-2 overflow-hidden rounded-2xl px-4 py-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{title}</p>
             <p className="text-2xl font-bold text-white leading-none">{value}</p>
             {subtitle && <p className="text-[11px] text-slate-500">{subtitle}</p>}
         </div>

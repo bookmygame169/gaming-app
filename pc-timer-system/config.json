@@ -1,0 +1,19 @@
+{
+  "_comment": "Web panel config (mobile browser). Edit IPs + passwords before use.",
+  "_note": "For the desktop admin panel, edit the CONFIGURATION block in admin_panel.ps1 instead.",
+
+  "psexec_path":    "C:\\Tools\\PsExec.exe",
+  "admin_user":     "Administrator",
+  "admin_pass":     "CHANGE_THIS_TO_WINDOWS_ADMIN_PASSWORD",
+
+  "panel_password": "cafe1234",
+
+  "share_name": "CafeTimer",
+
+  "pcs": [
+    { "id": "pc01", "name": "PC 1",  "hostname": "PC01", "ip": "192.168.1.101" },
+    { "id": "pc02", "name": "PC 2",  "hostname": "PC02", "ip": "192.168.1.102" },
+    { "id": "pc03", "name": "PC 3",  "hostname": "PC03", "ip": "192.168.1.103" },
+    { "id": "pc04", "name": "PC 4",  "hostname": "PC04", "ip": "192.168.1.104" }
+  ]
+}

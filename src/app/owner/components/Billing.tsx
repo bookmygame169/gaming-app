@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CONSOLE_LABELS } from '@/lib/constants';
 import { dedupeStationPricingRows, formatStationOptionLabel, normaliseStationName } from '@/lib/stationNames';
-import { Card, Button, Input, Select, StatusBadge, LoadingSpinner } from './ui';
+import { Card, Button } from './ui';
 import {
-    User, Smartphone, Calendar, Clock, Plus, Trash2, X,
-    CreditCard, Banknote, CheckCircle, AlertCircle, Search, Star,
+    User, Smartphone, Clock, Plus, Trash2, X,
+    CreditCard, Banknote, CheckCircle, Star,
     Store, CalendarDays, IndianRupee, Gamepad2
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
 
 import { getLocalDateString, normaliseConsoleType, buildWhatsAppUrl, buildBookingTicketMessage } from '../utils';
-import { calcBillingPrice } from '../utils/pricing';
+import { calcBillingPrice, type ConsolePricingMap } from '../utils/pricing';
 
 interface MembershipPlan {
     id: string;
@@ -32,8 +32,9 @@ interface BillingProps {
     isMobile?: boolean;
     onSuccess?: () => void;
     onMembershipSuccess?: () => void;
-    pricingData?: Record<string, any>;   // consolePricing[cafeId]
-    stationPricingList?: any[];           // Object.values(stationPricing)
+    onSnackOnlySale?: () => void;
+    pricingData?: ConsolePricingMap[string];
+    stationPricingList?: StationPricingRecord[];
     membershipPlans?: MembershipPlan[];
 }
 
@@ -49,6 +50,9 @@ type BillingItem = {
 type CustomerSuggestion = {
     name: string;
     phone: string;
+    visits?: number;
+    total_spent?: number;
+    last_visit?: string;
 };
 
 type StationPricingRecord = {
@@ -61,7 +65,48 @@ type StationPricingRecord = {
     updated_at?: string | null;
 };
 
-export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembershipSuccess, pricingData, stationPricingList, membershipPlans = [] }: BillingProps) {
+const DURATION_OPTIONS = [30, 60, 90, 120, 180];
+const PLAYER_OPTIONS = [1, 2, 3, 4];
+
+const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
+    ps5: { accent: '#06b6d4', short: 'PS5' },
+    ps4: { accent: '#3b82f6', short: 'PS4' },
+    xbox: { accent: '#10b981', short: 'XB' },
+    pc: { accent: '#8b5cf6', short: 'PC' },
+    pool: { accent: '#f59e0b', short: 'PL' },
+    snooker: { accent: '#22c55e', short: 'SN' },
+    arcade: { accent: '#ef4444', short: 'AR' },
+    vr: { accent: '#a855f7', short: 'VR' },
+    steering: { accent: '#f97316', short: 'SW' },
+    racing_sim: { accent: '#fb7185', short: 'RS' },
+};
+
+function getConsoleTheme(consoleType: string) {
+    return CONSOLE_THEME[consoleType] || { accent: '#06b6d4', short: consoleType.slice(0, 2).toUpperCase() };
+}
+
+function normalizePhone(phone: string | null | undefined) {
+    return (phone || '').replace(/\D/g, '').slice(-10);
+}
+
+function formatLastVisit(value?: string) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+export function Billing({
+    cafeId,
+    cafes,
+    isMobile = false,
+    onSuccess,
+    onMembershipSuccess,
+    onSnackOnlySale,
+    pricingData,
+    stationPricingList,
+    membershipPlans = [],
+}: BillingProps) {
     // Mode: 'gaming' | 'membership'
     const [mode, setMode] = useState<'gaming' | 'membership'>('gaming');
 
@@ -97,8 +142,8 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     const [recentCustomers, setRecentCustomers] = useState<CustomerSuggestion[]>([]);
 
     // Data State — seeded from props, avoids direct Supabase calls on ISP-blocked networks
-    const [pricing, setPricing] = useState<any>(pricingData || null);
-    const [stationPricingData, setStationPricingData] = useState<any[]>(stationPricingList || []);
+    const [pricing, setPricing] = useState<ConsolePricingMap[string] | null>(pricingData || null);
+    const [stationPricingData, setStationPricingData] = useState<StationPricingRecord[]>(stationPricingList || []);
     const [availableConsoles, setAvailableConsoles] = useState<string[]>([]);
 
     // Autocomplete State
@@ -113,7 +158,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     );
 
     // Station options per console type (e.g. ps5 → ['ps5-01','ps5-02'])
-    const stationOptions = (consoleType: string): string[] => {
+    const stationOptions = useCallback((consoleType: string): string[] => {
         const normalizedConsoleType = normaliseConsoleType(consoleType);
         const configuredStations = normalizedStationPricing
             .filter((station: StationPricingRecord) => {
@@ -147,12 +192,12 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             xbox: currentCafe.xbox_count || 0, pc: currentCafe.pc_count || 0,
             pool: currentCafe.pool_count || 0, snooker: currentCafe.snooker_count || 0,
             arcade: currentCafe.arcade_count || 0, vr: currentCafe.vr_count || 0,
-            steering: (currentCafe as any).steering_wheel_count || 0,
-            racing_sim: (currentCafe as any).racing_sim_count || 0,
+            steering: currentCafe.steering_wheel_count || 0,
+            racing_sim: currentCafe.racing_sim_count || 0,
         };
         const count = countMap[normalizedConsoleType] || 0;
         return Array.from({ length: count }, (_, i) => `${normalizedConsoleType}-${String(i + 1).padStart(2, '0')}`);
-    };
+    }, [cafeId, cafes, normalizedStationPricing]);
 
     // Initialize time and available consoles
     useEffect(() => {
@@ -175,7 +220,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                 { id: 'arcade', count: currentCafe.arcade_count },
                 { id: 'vr', count: currentCafe.vr_count },
                 { id: 'steering', count: currentCafe.steering_wheel_count },
-                { id: 'racing_sim', count: (currentCafe as any).racing_sim_count },
+                { id: 'racing_sim', count: currentCafe.racing_sim_count },
             ];
 
             setAvailableConsoles(
@@ -203,20 +248,20 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
         [cafeId, pricing]
     );
 
-    const getEffectiveStationName = (consoleType: string, stationName?: string) => {
+    const getEffectiveStationName = useCallback((consoleType: string, stationName?: string) => {
         if (stationName) return normaliseStationName(stationName);
         return stationOptions(consoleType)[0];
-    };
+    }, [stationOptions]);
 
     const canPickSingleStation = (consoleType: string, quantity: number) => {
         const normalizedConsoleType = normaliseConsoleType(consoleType);
         return quantity <= 1 || ['ps5', 'ps4', 'xbox'].includes(normalizedConsoleType);
     };
 
-    const calculatePrice = (type: string, qty: number, duration: number, stationName?: string) =>
+    const calculatePrice = useCallback((type: string, qty: number, duration: number, stationName?: string) =>
         calcBillingPrice(type, qty, duration, cafeId, consolePricingMap, stationPricingMap, {
             stationName: getEffectiveStationName(type, stationName),
-        });
+        }), [cafeId, consolePricingMap, getEffectiveStationName, stationPricingMap]);
 
     useEffect(() => {
         setItems(prevItems => prevItems.map(item => {
@@ -224,7 +269,19 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
             return nextPrice === item.price ? item : { ...item, price: nextPrice };
         }));
-    }, [cafeId, consolePricingMap, stationPricingMap]);
+    }, [calculatePrice]);
+
+    const createItem = (consoleType: string) => {
+        const defaultStation = stationOptions(consoleType)[0];
+        return {
+            id: Math.random().toString(36).substr(2, 9),
+            console: consoleType,
+            quantity: 1,
+            duration: 60,
+            price: calculatePrice(consoleType, 1, 60, defaultStation),
+            station: defaultStation,
+        } satisfies BillingItem;
+    };
 
     // Clear pending autocomplete timeout on unmount
     useEffect(() => {
@@ -280,21 +337,10 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
     // Item Management
     const addItem = () => {
         if (availableConsoles.length === 0) return;
-        const defaultType = availableConsoles[0];
-        const defaultQty = 1;
-        const defaultDur = 60;
-
-        const newItem: BillingItem = {
-            id: Math.random().toString(36).substr(2, 9),
-            console: defaultType,
-            quantity: defaultQty,
-            duration: defaultDur,
-            price: calculatePrice(defaultType, defaultQty, defaultDur)
-        };
-        setItems([...items, newItem]);
+        setItems([...items, createItem(availableConsoles[0])]);
     };
 
-    const updateItem = (id: string, field: keyof BillingItem, value: any) => {
+    const updateItem = (id: string, field: keyof BillingItem, value: string | number | undefined) => {
         setItems(items.map(item => {
             if (item.id === id) {
                 const nextValue = field === 'station'
@@ -306,12 +352,20 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                     updated.station = undefined;
                 }
 
+                if (field === 'console' && canPickSingleStation(String(value), updated.quantity) && !updated.station) {
+                    updated.station = stationOptions(String(value))[0];
+                }
+
                 if (
                     ['console', 'quantity'].includes(field) &&
                     updated.station &&
                     !canPickSingleStation(updated.console, updated.quantity)
                 ) {
                     updated.station = undefined;
+                }
+
+                if (field === 'quantity' && canPickSingleStation(updated.console, updated.quantity) && !updated.station) {
+                    updated.station = stationOptions(updated.console)[0];
                 }
 
                 if (['console', 'quantity', 'duration', 'station'].includes(field)) {
@@ -332,6 +386,20 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
     // Reset manual amount when items change (recalculate)
     const resetManualAmount = () => setManualAmount(null);
+
+    const currentCafe = cafes.find((c) => c.id === cafeId) || cafes[0] || null;
+    const matchedCustomer = useMemo(() => {
+        const phone = normalizePhone(customerPhone);
+        if (!phone) return null;
+        return recentCustomers.find((customer) => normalizePhone(customer.phone) === phone) || null;
+    }, [customerPhone, recentCustomers]);
+
+    const applyCustomer = (customer: CustomerSuggestion) => {
+        setCustomerName(customer.name);
+        setCustomerPhone(customer.phone);
+        setShowSuggestions(false);
+        setSuggestionField(null);
+    };
 
     const handleSubmit = async () => {
         if (!customerName || !startTime || items.length === 0) {
@@ -390,9 +458,10 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             // Don't call onSuccess here — wait for user to click "New Booking"
             // so the success card stays visible for WhatsApp sending
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Booking failed:', error);
-            setFormError('Failed to create booking: ' + (error.message || 'Please try again.'));
+            const message = error instanceof Error ? error.message : 'Please try again.';
+            setFormError(`Failed to create booking: ${message}`);
         } finally {
             setSubmitting(false);
         }
@@ -403,7 +472,7 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
         if (membershipPlans.length === 0) return;
         setMemItems(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), planId: membershipPlans[0].id, quantity: 1 }]);
     };
-    const updateMemItem = (id: string, field: 'planId' | 'quantity', value: any) => {
+    const updateMemItem = (id: string, field: 'planId' | 'quantity', value: string | number) => {
         setMemItems(prev => prev.map(mi => mi.id === id ? { ...mi, [field]: value } : mi));
     };
     const removeMemItem = (id: string) => setMemItems(prev => prev.filter(mi => mi.id !== id));
@@ -449,537 +518,761 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
             setMemPaymentMode('cash');
             if (onMembershipSuccess) onMembershipSuccess();
             else if (onSuccess) onSuccess();
-        } catch (err: any) {
-            setFormError('Failed to add membership: ' + (err.message || 'Please try again.'));
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Please try again.';
+            setFormError(`Failed to add membership: ${message}`);
         } finally {
             setMemSubmitting(false);
         }
     };
 
-    // Shared customer info card used in both modes
-    const customerInfoCard = (
-        <Card className="space-y-4 overflow-visible relative z-10">
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <User className="text-blue-500" size={20} /> Customer Info
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative z-20">
-                    <Input
-                        label="Name"
-                        value={customerName}
-                        onChange={(val) => { setCustomerName(val); searchCustomers(val, 'name'); }}
-                        placeholder="Enter customer name"
-                        maxLength={100}
-                    />
-                    {showSuggestions && suggestionField === 'name' && suggestions.length > 0 && (
-                        <>
-                            <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => { setShowSuggestions(false); setSuggestionField(null); }}
-                            />
-                            <div className="absolute top-full mt-1 left-0 w-full z-50 bg-[#13131f] border border-white/[0.12] rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                                {suggestions.map((s, idx) => (
-                                    <div
-                                        key={idx}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault(); // prevent blur before click
-                                            setCustomerName(s.name);
-                                            setCustomerPhone(s.phone);
-                                            setShowSuggestions(false);
-                                            setSuggestionField(null);
-                                        }}
-                                        className="px-4 py-3 hover:bg-white/[0.06] cursor-pointer border-b border-white/[0.08] last:border-0 flex items-center gap-3"
-                                    >
-                                        <span className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-400 shrink-0">
-                                            {s.name.charAt(0).toUpperCase()}
-                                        </span>
-                                        <div>
-                                            <div className="font-medium text-white text-sm">{s.name}</div>
-                                            <div className="text-xs text-slate-500">{s.phone}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
+    const renderSuggestions = (field: 'name' | 'phone') => {
+        if (!(showSuggestions && suggestionField === field && suggestions.length > 0)) return null;
+
+        return (
+            <>
+                <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => {
+                        setShowSuggestions(false);
+                        setSuggestionField(null);
+                    }}
+                />
+                <div className="glass absolute left-0 top-full z-50 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl">
+                    {suggestions.map((suggestion, idx) => (
+                        <button
+                            key={`${suggestion.phone}-${idx}`}
+                            type="button"
+                            onMouseDown={(event) => {
+                                event.preventDefault();
+                                applyCustomer(suggestion);
+                            }}
+                            className="flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3 text-left transition last:border-b-0 hover:bg-white/[0.04]"
+                        >
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/12 text-xs font-bold text-cyan-300">
+                                {suggestion.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium text-white">{suggestion.name}</span>
+                                <span className="mono block text-[11px] text-[var(--muted)]">{suggestion.phone}</span>
+                            </span>
+                        </button>
+                    ))}
                 </div>
+            </>
+        );
+    };
+
+    const customerInfoCard = (
+        <Card className="relative z-10 overflow-visible space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/12 text-cyan-300">
+                        <User size={18} />
+                    </div>
+                    <div>
+                        <div className="text-[10px] smallcaps text-[var(--dim)]">Customer</div>
+                        <h3 className="text-base font-semibold text-white">Walk-in details</h3>
+                    </div>
+                </div>
+
+                {matchedCustomer && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="chip border-transparent bg-cyan-500/12 text-cyan-200">Returning guest</span>
+                        {typeof matchedCustomer.visits === 'number' && (
+                            <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                {matchedCustomer.visits} visit{matchedCustomer.visits === 1 ? '' : 's'}
+                            </span>
+                        )}
+                        {matchedCustomer.last_visit && (
+                            <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                Last {formatLastVisit(matchedCustomer.last_visit)}
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+                <div className="relative z-20">
+                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
+                        Name
+                    </label>
+                    <div className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                        <div className="flex items-center gap-2">
+                            <User size={16} className="text-slate-500" />
+                            <input
+                                value={customerName}
+                                onChange={(event) => {
+                                    setCustomerName(event.target.value);
+                                    searchCustomers(event.target.value, 'name');
+                                }}
+                                placeholder="Walk-in customer"
+                                maxLength={100}
+                                className="w-full bg-transparent text-sm text-white placeholder:text-[#4b5060] focus:outline-none"
+                            />
+                        </div>
+                    </div>
+                    {renderSuggestions('name')}
+                </div>
+
                 <div className="relative z-10">
-                    <Input
-                        label={mode === 'membership' ? 'Phone (Required)' : 'Phone (Optional)'}
-                        value={customerPhone}
-                        onChange={(val) => { setCustomerPhone(val); searchCustomers(val, 'phone'); }}
-                        placeholder="e.g. 9876543210"
-                        type="tel"
-                        maxLength={15}
-                    />
-                    {showSuggestions && suggestionField === 'phone' && suggestions.length > 0 && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => { setShowSuggestions(false); setSuggestionField(null); }} />
-                            <div className="absolute top-full mt-1 left-0 w-full z-50 bg-[#13131f] border border-white/[0.12] rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                                {suggestions.map((s, idx) => (
-                                    <div
-                                        key={idx}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            setCustomerName(s.name);
-                                            setCustomerPhone(s.phone);
-                                            setShowSuggestions(false);
-                                            setSuggestionField(null);
-                                        }}
-                                        className="px-4 py-3 hover:bg-white/[0.06] cursor-pointer border-b border-white/[0.08] last:border-0 flex items-center gap-3"
-                                    >
-                                        <span className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-400 shrink-0">
-                                            {s.name.charAt(0).toUpperCase()}
-                                        </span>
-                                        <div>
-                                            <div className="font-medium text-white text-sm">{s.name}</div>
-                                            <div className="text-xs text-slate-500">{s.phone}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
+                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
+                        {mode === 'membership' ? 'Phone Required' : 'Phone'}
+                    </label>
+                    <div className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                        <div className="flex items-center gap-2">
+                            <Smartphone size={16} className="text-slate-500" />
+                            <input
+                                value={customerPhone}
+                                onChange={(event) => {
+                                    setCustomerPhone(event.target.value);
+                                    searchCustomers(event.target.value, 'phone');
+                                }}
+                                placeholder="98765 43210"
+                                maxLength={15}
+                                className="mono w-full bg-transparent text-sm text-white placeholder:text-[#4b5060] focus:outline-none"
+                            />
+                        </div>
+                    </div>
+                    {renderSuggestions('phone')}
                 </div>
             </div>
+
+            {recentCustomers.length > 0 && (
+                <div className="space-y-2">
+                    <div className="text-[10px] smallcaps text-[var(--dim)]">Recent customers</div>
+                    <div className="flex flex-wrap gap-2">
+                        {recentCustomers.slice(0, 5).map((customer) => (
+                            <button
+                                key={`${customer.phone}-${customer.name}`}
+                                type="button"
+                                onClick={() => applyCustomer(customer)}
+                                className="glass-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-left transition hover:border-white/15"
+                            >
+                                <span className="truncate text-xs font-medium text-white">{customer.name}</span>
+                                <span className="mono text-[10px] text-[var(--muted)]">{customer.phone}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
         </Card>
     );
 
     return (
-        <div className={`space-y-6 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
-            {/* Mode Toggle */}
-            <div className="flex rounded-xl overflow-hidden border border-white/[0.08] w-fit">
-                <button
-                    onClick={() => setMode('gaming')}
-                    className={`px-5 py-2.5 text-sm font-medium flex items-center gap-2 transition-all ${
-                        mode === 'gaming'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white/[0.03] text-slate-400 hover:text-white'
-                    }`}
-                >
-                    <Smartphone size={15} /> Gaming Session
-                </button>
-                <button
-                    onClick={() => setMode('membership')}
-                    className={`px-5 py-2.5 text-sm font-medium flex items-center gap-2 transition-all ${
-                        mode === 'membership'
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-white/[0.03] text-slate-400 hover:text-white'
-                    }`}
-                >
-                    <Star size={15} /> Membership
-                </button>
+        <div className={`space-y-5 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">
+                        {mode === 'gaming' ? 'Billing · Walk-in' : 'Membership · Checkout'}
+                    </div>
+                    <h1 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+                        {mode === 'gaming' ? 'New Booking' : 'New Membership'}
+                    </h1>
+                    <p className="mt-1 text-sm text-[var(--muted)]">
+                        {currentCafe?.name || 'Your cafe'} · {mode === 'gaming'
+                            ? 'Create live sessions and collect payment at the desk.'
+                            : 'Sell plans and capture payment without leaving the dashboard.'}
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {onSnackOnlySale && mode === 'gaming' && (
+                        <button
+                            type="button"
+                            onClick={onSnackOnlySale}
+                            className="glass-2 rounded-xl px-3.5 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400/30"
+                        >
+                            Snack-only sale
+                        </button>
+                    )}
+                    <div className="glass-2 inline-flex rounded-2xl p-1">
+                        <button
+                            type="button"
+                            onClick={() => setMode('gaming')}
+                            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${mode === 'gaming' ? 'bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            Gaming
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode('membership')}
+                            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${mode === 'membership' ? 'bg-violet-500/15 text-white shadow-[0_0_24px_-10px_rgba(168,85,247,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            Membership
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {mode === 'gaming' && lastBooking ? (
-                /* ── SUCCESS / WHATSAPP CARD ── */
-                <div className="max-w-lg mx-auto w-full space-y-4">
-                    {/* Header banner */}
-                    <div className="relative flex items-center gap-4 bg-emerald-500/8 border border-emerald-500/25 rounded-2xl px-5 py-4 overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-px bg-emerald-500/40" />
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
-                            <CheckCircle className="text-emerald-400" size={20} />
-                        </div>
-                        <div>
-                            <p className="font-bold text-white text-base leading-tight">Booking Confirmed</p>
-                            <p className="text-emerald-400/80 text-sm mt-0.5">{lastBooking.name}</p>
+                <div className="mx-auto max-w-xl space-y-4">
+                    <div className="glass rounded-2xl border border-emerald-500/20 px-5 py-4">
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+                                <CheckCircle size={20} />
+                            </div>
+                            <div>
+                                <p className="text-lg font-semibold text-white">Booking confirmed</p>
+                                <p className="text-sm text-emerald-300/80">{lastBooking.name}</p>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Details table */}
-                    <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-white/[0.03]">
+                    <Card className="overflow-hidden p-0">
                         {([
                             lastBooking.cafeName ? { icon: <Store size={13} className="text-slate-500" />, label: 'Cafe', value: lastBooking.cafeName, highlight: false } : null,
                             { icon: <CalendarDays size={13} className="text-slate-500" />, label: 'Date', value: lastBooking.date, highlight: false },
                             { icon: <Clock size={13} className="text-slate-500" />, label: 'Time', value: `${lastBooking.time} (${lastBooking.duration} min)`, highlight: false },
-                            { icon: <Gamepad2 size={13} className="text-slate-500" />, label: 'Console', value: lastBooking.itemsLabel, highlight: false },
-                            { icon: <IndianRupee size={13} className="text-emerald-500" />, label: 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
-                        ] as const).filter(Boolean).map((row, i, arr) => (
-                            <div key={i} className={`flex items-center justify-between px-4 py-3 ${i < arr.length - 1 ? 'border-b border-white/[0.06]' : ''}`}>
-                                <span className="flex items-center gap-2 text-slate-500 text-sm">{row!.icon}{row!.label}</span>
-                                <span className={`text-sm font-medium ${row!.highlight ? 'text-emerald-400' : 'text-white'}`}>{row!.value}</span>
+                            { icon: <Gamepad2 size={13} className="text-slate-500" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
+                            { icon: <IndianRupee size={13} className="text-emerald-400" />, label: 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
+                        ] as const).filter(Boolean).map((row, index, rows) => (
+                            <div key={index} className={`flex items-center justify-between px-4 py-3 ${index < rows.length - 1 ? 'border-b border-white/[0.06]' : ''}`}>
+                                <span className="flex items-center gap-2 text-sm text-slate-500">{row!.icon}{row!.label}</span>
+                                <span className={`text-sm font-medium ${row!.highlight ? 'text-emerald-300' : 'text-white'}`}>{row!.value}</span>
                             </div>
                         ))}
-                    </div>
+                    </Card>
 
-                    {/* Auto-reset countdown */}
                     {autoResetSecs !== null && (
-                        <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                        <div className="glass-2 flex items-center justify-between rounded-xl px-3 py-2">
                             <span className="text-xs text-slate-500">Auto-reset in</span>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-white tabular-nums">{autoResetSecs}s</span>
-                                <div className="w-24 h-1 bg-white/[0.08] rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
+                                <span className="mono text-sm font-bold text-white">{autoResetSecs}s</span>
+                                <div className="h-1 w-24 overflow-hidden rounded-full bg-white/[0.08]">
+                                    <div className="h-full rounded-full bg-cyan-400 transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Action buttons */}
                     <div className="grid grid-cols-2 gap-3">
                         {lastBooking.phone ? (
                             <a
                                 href={buildWhatsAppUrl(lastBooking.phone, buildBookingTicketMessage({ customerName: lastBooking.name, cafeName: lastBooking.cafeName, date: lastBooking.date, startTime: lastBooking.time, duration: lastBooking.duration, itemsLabel: lastBooking.itemsLabel, totalAmount: lastBooking.amount, paymentMode: lastBooking.paymentMode }))}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 px-4 py-3.5 bg-[#25D366] hover:bg-[#20b558] text-white rounded-xl font-semibold text-sm transition-colors"
+                                className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#20b558]"
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                                 Send on WhatsApp
                             </a>
                         ) : (
-                            <div className="flex items-center justify-center px-4 py-3.5 bg-white/[0.03] border border-white/[0.06] rounded-xl text-slate-600 text-sm">
+                            <div className="glass-2 flex items-center justify-center rounded-xl px-4 py-3 text-sm text-slate-500">
                                 No phone number
                             </div>
                         )}
                         <button
-                            onClick={() => { setLastBooking(null); onSuccess?.(); }}
-                            className="flex items-center justify-center gap-2 px-4 py-3.5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white rounded-xl font-semibold text-sm transition-colors"
+                            type="button"
+                            onClick={() => {
+                                setLastBooking(null);
+                                onSuccess?.();
+                            }}
+                            className="glass-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:border-white/15"
                         >
-                            <Plus size={15} /> New Booking
+                            New booking
                         </button>
                     </div>
                 </div>
             ) : mode === 'gaming' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Form */}
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+                    <div className="space-y-5">
                         {customerInfoCard}
 
-                        {/* Booking Items */}
-                        <Card className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <Smartphone className="text-purple-500" size={20} /> Stations
-                                </h3>
+                        <Card className="space-y-5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
+                                        <Gamepad2 size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] smallcaps text-[var(--dim)]">Session Builder</div>
+                                        <h3 className="text-base font-semibold text-white">Select stations</h3>
+                                    </div>
+                                </div>
                                 {items.length > 0 && (
                                     <Button size="sm" variant="secondary" onClick={addItem}>
-                                        <Plus size={16} className="mr-1" /> Add Station
+                                        <Plus size={14} /> Add Station
                                     </Button>
                                 )}
                             </div>
 
                             {items.length === 0 ? (
-                                <div className="space-y-3">
-                                    <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Tap to add</p>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                        {availableConsoles.map(c => {
-                                            const icons: Record<string, string> = { ps5: '🎮', ps4: '🎮', xbox: '🕹️', pc: '🖥️', pool: '🎱', snooker: '🎱', arcade: '👾', vr: '🥽', steering: '🏎️', racing_sim: '🏁' };
-                                            return (
-                                                <button
-                                                    key={c}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const newItem: BillingItem = {
-                                                            id: Math.random().toString(36).substr(2, 9),
-                                                            console: c, quantity: 1, duration: 60,
-                                                            price: calculatePrice(c, 1, 60),
-                                                        };
-                                                        setItems([newItem]);
-                                                    }}
-                                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-blue-500/10 hover:border-blue-500/30 transition-all group"
-                                                >
-                                                    <span className="text-2xl">{icons[c] || '🎮'}</span>
-                                                    <span className="text-[11px] font-semibold text-slate-400 group-hover:text-blue-300 transition-colors">
-                                                        {CONSOLE_LABELS[c as keyof typeof CONSOLE_LABELS] || c.toUpperCase()}
+                                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                                    {availableConsoles.map((consoleType) => {
+                                        const theme = getConsoleTheme(consoleType);
+                                        const stationCount = stationOptions(consoleType).length;
+                                        return (
+                                            <button
+                                                key={consoleType}
+                                                type="button"
+                                                onClick={() => setItems([createItem(consoleType)])}
+                                                className="glass-2 relative overflow-hidden rounded-2xl p-4 text-left transition hover:border-white/15"
+                                                style={{ background: `linear-gradient(180deg, ${theme.accent}18, rgba(0,0,0,0)) , var(--card-2)` }}
+                                            >
+                                                <span className="absolute inset-0 grid-dots opacity-30" />
+                                                <div className="relative flex items-start justify-between gap-3">
+                                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: `${theme.accent}22`, color: theme.accent }}>
+                                                        {theme.short}
                                                     </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                                    <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                        {stationCount} station{stationCount === 1 ? '' : 's'}
+                                                    </span>
+                                                </div>
+                                                <div className="relative mt-4">
+                                                    <div className="text-sm font-semibold text-white">{CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}</div>
+                                                    <div className="mono mt-1 text-[11px] text-[var(--muted)]">Tap to start</div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             ) : (
-                                <div className="space-y-3">
-                                    {items.map((item) => (
-                                        <div key={item.id} className="p-4 bg-white/[0.03]/50 border border-white/[0.08] rounded-xl relative group transition-all hover:border-white/[0.09]">
-                                            <button
-                                                onClick={() => removeItem(item.id)}
-                                                className="absolute -top-2 -right-2 w-6 h-6 bg-white/[0.06] text-slate-400 hover:text-red-400 rounded-full flex items-center justify-center border border-white/[0.09] shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
+                                <div className="space-y-4">
+                                    {items.map((item, index) => {
+                                        const theme = getConsoleTheme(item.console);
+                                        const stations = stationOptions(item.console);
+                                        const allowSingleStation = canPickSingleStation(item.console, item.quantity);
 
-                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                                <Select
-                                                    label="Console"
-                                                    value={item.console}
-                                                    options={availableConsoles.map(c => ({ value: c, label: CONSOLE_LABELS[c as keyof typeof CONSOLE_LABELS] || c }))}
-                                                    onChange={(val) => updateItem(item.id, 'console', val)}
-                                                />
-                                                <Select
-                                                    label="Station"
-                                                    value={item.station || ''}
-                                                    options={[{ value: '', label: 'Any' }, ...stationOptions(item.console).map(s => ({ value: s, label: formatStationOptionLabel(s) }))]}
-                                                    onChange={(val) => updateItem(item.id, 'station', val)}
-                                                    disabled={!canPickSingleStation(item.console, item.quantity)}
-                                                />
-                                                <Select
-                                                    label="Players"
-                                                    value={String(item.quantity || 1)}
-                                                    options={[
-                                                        { value: '1', label: '1 Player' },
-                                                        { value: '2', label: '2 Players' },
-                                                        { value: '3', label: '3 Players' },
-                                                        { value: '4', label: '4 Players' },
-                                                    ]}
-                                                    onChange={(val) => updateItem(item.id, 'quantity', parseInt(val))}
-                                                />
-                                                <div>
-                                                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Duration</label>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {[30, 60, 90, 120, 180].map(d => (
-                                                            <button
-                                                                key={d}
-                                                                type="button"
-                                                                onClick={() => updateItem(item.id, 'duration', d)}
-                                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                                                                    item.duration === d
-                                                                        ? 'bg-blue-500 border-blue-500 text-white'
-                                                                        : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:border-white/[0.15] hover:text-white'
-                                                                }`}
-                                                            >
-                                                                {d < 60 ? `${d}m` : d === 60 ? '1h' : d === 90 ? '1.5h' : d === 120 ? '2h' : '3h'}
-                                                            </button>
-                                                        ))}
+                                        return (
+                                            <div key={item.id} className="glass-2 relative overflow-hidden rounded-2xl p-4">
+                                                <span className="absolute inset-0 grid-dots opacity-25" />
+                                                <div className="relative flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="text-[10px] smallcaps text-[var(--dim)]">Booking item {index + 1}</div>
+                                                        <div className="mt-1 text-sm font-semibold text-white">
+                                                            {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="chip border-transparent" style={{ background: `${theme.accent}18`, color: theme.accent }}>
+                                                            Rs.{item.price}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeItem(item.id)}
+                                                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-400 transition hover:border-red-400/30 hover:text-red-300"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col justify-end">
-                                                    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-right">
-                                                        <div className="text-xs text-slate-500 mb-0.5">Price</div>
-                                                        <div className="text-emerald-400 font-bold font-mono">₹{item.price}</div>
+
+                                                <div className="relative mt-4 space-y-4">
+                                                    <div>
+                                                        <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Console</div>
+                                                        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                                                            {availableConsoles.map((consoleType) => {
+                                                                const optionTheme = getConsoleTheme(consoleType);
+                                                                const selected = item.console === consoleType;
+                                                                return (
+                                                                    <button
+                                                                        key={consoleType}
+                                                                        type="button"
+                                                                        onClick={() => updateItem(item.id, 'console', consoleType)}
+                                                                        className={`relative overflow-hidden rounded-xl p-3 text-left transition ${selected ? 'glow-selected' : 'glass hover:border-white/15'}`}
+                                                                        style={{ background: selected ? `linear-gradient(180deg, ${optionTheme.accent}18, rgba(0,0,0,0)) , var(--card-2)` : 'var(--card-2)' }}
+                                                                    >
+                                                                        <div className="flex items-center justify-between gap-2">
+                                                                            <span className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold" style={{ background: `${optionTheme.accent}22`, color: optionTheme.accent }}>
+                                                                                {optionTheme.short}
+                                                                            </span>
+                                                                            <span className="mono text-[10px] text-[var(--muted)]">{stationOptions(consoleType).length}</span>
+                                                                        </div>
+                                                                        <div className="mt-3 text-xs font-semibold text-white">
+                                                                            {CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px]">
+                                                        <div>
+                                                            <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Station</div>
+                                                            {allowSingleStation ? (
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {stations.length === 0 ? (
+                                                                        <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-2 text-xs text-[var(--muted)]">
+                                                                            Configure stations in Settings to pin a specific unit.
+                                                                        </div>
+                                                                    ) : (
+                                                                        stations.map((station) => {
+                                                                            const selected = item.station === station;
+                                                                            return (
+                                                                                <button
+                                                                                    key={station}
+                                                                                    type="button"
+                                                                                    onClick={() => updateItem(item.id, 'station', station)}
+                                                                                    className={`rounded-xl px-3 py-2 text-xs transition ${selected ? 'glow-selected text-white' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                                                                    style={{ background: selected ? `${theme.accent}16` : 'var(--card-2)' }}
+                                                                                >
+                                                                                    {formatStationOptionLabel(station)}
+                                                                                </button>
+                                                                            );
+                                                                        })
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-2 text-xs text-[var(--muted)]">
+                                                                    Multiple units will auto-assign to available configured stations.
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div>
+                                                            <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Players</div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {PLAYER_OPTIONS.map((players) => {
+                                                                    const selected = item.quantity === players;
+                                                                    return (
+                                                                        <button
+                                                                            key={players}
+                                                                            type="button"
+                                                                            onClick={() => updateItem(item.id, 'quantity', players)}
+                                                                            className={`rounded-xl px-3 py-2 text-xs font-medium transition ${selected ? 'border-transparent bg-white/[0.08] text-white' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                                                        >
+                                                                            {players}P
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Duration</div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {DURATION_OPTIONS.map((duration) => {
+                                                                const selected = item.duration === duration;
+                                                                return (
+                                                                    <button
+                                                                        key={duration}
+                                                                        type="button"
+                                                                        onClick={() => updateItem(item.id, 'duration', duration)}
+                                                                        className={`rounded-xl px-3 py-2 text-xs font-medium transition ${selected ? 'border-transparent bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                                                    >
+                                                                        {duration < 60 ? `${duration}m` : duration === 60 ? '1h' : duration === 90 ? '1.5h' : duration === 120 ? '2h' : '3h'}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="glass rounded-xl px-4 py-3">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <div>
+                                                                <div className="text-[10px] smallcaps text-[var(--dim)]">Configured session</div>
+                                                                <div className="mono mt-1 text-sm font-semibold text-white">
+                                                                    {item.quantity} player{item.quantity === 1 ? '' : 's'} · {item.duration} min
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="mono text-base font-semibold text-white">Rs.{item.price}</div>
+                                                                <div className="text-[11px] text-[var(--muted)]">
+                                                                    {allowSingleStation ? formatStationOptionLabel(item.station || stations[0] || 'Any station') : 'Auto assign'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            {!canPickSingleStation(item.console, item.quantity) && (
-                                                <p className="mt-2 text-xs text-slate-500">
-                                                    Multiple units will be auto-assigned to separate stations.
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </Card>
+
+                        {onSnackOnlySale && (
+                            <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-300">
+                                        <Store size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] smallcaps text-[var(--dim)]">Snack Counter</div>
+                                        <div className="text-sm font-semibold text-white">Log a snack-only sale</div>
+                                    </div>
+                                </div>
+                                <Button variant="secondary" onClick={onSnackOnlySale}>
+                                    Open snack sale
+                                </Button>
+                            </Card>
+                        )}
                     </div>
 
-                    {/* Right Column: Summary & Payment */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <Card className="sticky top-6 space-y-4">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Clock className="text-orange-500" size={20} /> Summary
-                            </h3>
+                    <div className="space-y-5">
+                        <Card className="sticky top-6 space-y-5">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-300">
+                                    <Clock size={18} />
+                                </div>
+                                <div>
+                                    <div className="text-[10px] smallcaps text-[var(--dim)]">Summary</div>
+                                    <h3 className="text-base font-semibold text-white">Collect payment</h3>
+                                </div>
+                            </div>
 
-                            <div className="bg-white/[0.03]/50 rounded-xl p-4 space-y-4">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-400">Date</span>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                                    <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">Date</div>
                                     <input
                                         type="date"
-                                        className="bg-transparent text-white text-right outline-none focus:text-blue-400"
                                         value={bookingDate}
-                                        onChange={(e) => setBookingDate(e.target.value)}
+                                        onChange={(event) => setBookingDate(event.target.value)}
+                                        className="w-full bg-transparent text-sm text-white focus:outline-none"
+                                        style={{ colorScheme: 'dark' }}
                                     />
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-400">Start Time</span>
+                                </label>
+                                <label className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                                    <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">Start Time</div>
                                     <input
                                         type="time"
-                                        className="bg-transparent text-white text-right outline-none focus:text-blue-400"
                                         value={startTime}
-                                        placeholder="HH:MM"
-                                        onChange={(e) => setStartTime(e.target.value)}
+                                        onChange={(event) => setStartTime(event.target.value)}
+                                        className="mono w-full bg-transparent text-sm text-white focus:outline-none"
+                                        style={{ colorScheme: 'dark' }}
                                     />
-                                </div>
-                                <div className="border-t border-white/[0.08] my-2"></div>
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-slate-400">Calculated</span>
-                                        <span className="text-sm text-slate-500">₹{calculatedTotal}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-slate-400">Final Amount</span>
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-white">₹</span>
-                                            <input
-                                                type="number"
-                                                className="w-24 bg-white/[0.06] border border-white/[0.09] rounded-lg px-3 py-2 text-xl font-bold text-white text-right outline-none focus:border-emerald-500 transition-colors"
-                                                value={manualAmount !== null ? manualAmount : calculatedTotal}
-                                                onChange={(e) => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    setManualAmount(val === calculatedTotal ? null : val);
-                                                }}
-                                                min={0}
-                                            />
-                                        </div>
-                                    </div>
-                                    {manualAmount !== null && manualAmount !== calculatedTotal && (
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-amber-400">Manual override applied</span>
-                                            <button
-                                                onClick={resetManualAmount}
-                                                className="text-slate-400 hover:text-white underline"
-                                            >
-                                                Reset
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                                </label>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setPaymentMode('cash')}
-                                        className={`
-                                            p-4 rounded-xl border flex flex-col items-center gap-2 transition-all
-                                            ${paymentMode === 'cash'
-                                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                                                : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-white/[0.09]'}
-                                        `}
-                                    >
-                                        <Banknote size={24} />
-                                        <span className="text-sm font-semibold">Cash</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setPaymentMode('upi')}
-                                        className={`
-                                            p-4 rounded-xl border flex flex-col items-center gap-2 transition-all
-                                            ${paymentMode === 'upi'
-                                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                                                : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-white/[0.09]'}
-                                        `}
-                                    >
-                                        <Smartphone size={24} />
-                                        <span className="text-sm font-semibold">UPI</span>
-                                    </button>
-                                </div>
-
-                                {paymentMode === 'upi' && totalAmount > 0 && (
-                                    <div className="flex flex-col items-center gap-2 py-3">
-                                        <div
-                                            className="p-3 rounded-xl bg-[#d4d4d4] cursor-pointer transition-all duration-300"
-                                            onClick={() => setQrExpanded(v => !v)}
-                                            title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
-                                        >
-                                            <QRCodeSVG
-                                                value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
-                                                size={qrExpanded ? 260 : 180}
-                                                bgColor="#d4d4d4"
-                                                fgColor="#111111"
-                                                level="Q"
-                                            />
+                            {items.length > 0 ? (
+                                <div className="space-y-2">
+                                    {items.map((item) => (
+                                        <div key={item.id} className="glass-2 flex items-center justify-between rounded-xl px-3.5 py-3">
+                                            <div>
+                                                <div className="text-sm font-medium text-white">
+                                                    {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
+                                                </div>
+                                                <div className="text-[11px] text-[var(--muted)]">
+                                                    {item.quantity} player{item.quantity === 1 ? '' : 's'} · {item.duration} min
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="mono text-sm font-semibold text-white">Rs.{item.price}</div>
+                                                <div className="text-[11px] text-[var(--muted)]">
+                                                    {item.station ? formatStationOptionLabel(item.station) : 'Auto assign'}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{totalAmount}</span> via UPI · <span className="text-slate-500">tap QR to resize</span></p>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="glass-2 rounded-xl px-4 py-6 text-center text-sm text-[var(--muted)]">
+                                    Select a console to start building the booking.
+                                </div>
+                            )}
+
+                            <div className="glass-2 rounded-2xl p-4">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-[var(--muted)]">Calculated</span>
+                                    <span className="mono text-white">Rs.{calculatedTotal}</span>
+                                </div>
+                                <div className="mt-3 flex items-center justify-between gap-3">
+                                    <span className="text-sm text-[var(--muted)]">Final Amount</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="mono text-sm text-white">Rs.</span>
+                                        <input
+                                            type="number"
+                                            value={manualAmount !== null ? manualAmount : calculatedTotal}
+                                            onChange={(event) => {
+                                                const value = parseFloat(event.target.value) || 0;
+                                                setManualAmount(value === calculatedTotal ? null : value);
+                                            }}
+                                            min={0}
+                                            className="mono w-28 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right text-lg font-semibold text-white focus:border-cyan-400/40 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                {manualAmount !== null && manualAmount !== calculatedTotal && (
+                                    <div className="mt-3 flex items-center justify-between text-xs">
+                                        <span className="text-amber-300">Manual override applied</span>
+                                        <button type="button" onClick={resetManualAmount} className="text-slate-400 underline transition hover:text-white">
+                                            Reset
+                                        </button>
                                     </div>
                                 )}
+                            </div>
 
-                                {formError && (
-                                    <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{formError}</p>
-                                )}
-                                <Button
-                                    className="w-full py-4 text-lg"
-                                    onClick={handleSubmit}
-                                    loading={submitting}
-                                    disabled={submitting || items.length === 0}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentMode('cash')}
+                                    className={`rounded-2xl border p-4 text-center transition ${paymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
-                                    {submitting ? 'Creating...' : 'Confirm Booking'}
-                                </Button>
+                                    <Banknote className="mx-auto mb-2" size={20} />
+                                    <div className="text-sm font-semibold">Cash</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentMode('upi')}
+                                    className={`rounded-2xl border p-4 text-center transition ${paymentMode === 'upi' ? 'border-cyan-400/30 bg-cyan-500/12 text-cyan-100' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                >
+                                    <Smartphone className="mx-auto mb-2" size={20} />
+                                    <div className="text-sm font-semibold">UPI</div>
+                                </button>
                             </div>
+
+                            {paymentMode === 'upi' && totalAmount > 0 && (
+                                <div className="space-y-3 rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.04] px-4 py-4 text-center">
+                                    <div
+                                        className="inline-flex cursor-pointer rounded-2xl bg-[#d4d4d4] p-3 transition"
+                                        onClick={() => setQrExpanded((value) => !value)}
+                                        title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
+                                    >
+                                        <QRCodeSVG
+                                            value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
+                                            size={qrExpanded ? 260 : 180}
+                                            bgColor="#d4d4d4"
+                                            fgColor="#111111"
+                                            level="Q"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-slate-400">
+                                        Scan to pay <span className="font-semibold text-white">Rs.{totalAmount}</span> via UPI.
+                                    </p>
+                                </div>
+                            )}
+
+                            {formError && (
+                                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">{formError}</p>
+                            )}
+
+                            <Button
+                                className="w-full justify-center py-3.5 text-base"
+                                onClick={handleSubmit}
+                                loading={submitting}
+                                disabled={submitting || items.length === 0}
+                            >
+                                {submitting ? 'Creating...' : 'Confirm Booking'}
+                            </Button>
                         </Card>
                     </div>
                 </div>
             ) : (
-                /* Membership Mode */
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+                    <div className="space-y-5">
                         {customerInfoCard}
 
-                        {/* Membership Cart */}
-                        <Card className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <Star className="text-purple-400" size={20} /> Plans
-                                </h3>
-                                {memItems.length > 0 && (
+                        <Card className="space-y-5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
+                                        <Star size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] smallcaps text-[var(--dim)]">Membership Cart</div>
+                                        <h3 className="text-base font-semibold text-white">Select plans</h3>
+                                    </div>
+                                </div>
+                                {membershipPlans.length > 0 && (
                                     <Button size="sm" variant="secondary" onClick={addMemItem}>
-                                        <Plus size={16} className="mr-1" /> Add Plan
+                                        <Plus size={14} /> Add Plan
                                     </Button>
                                 )}
                             </div>
+
                             {membershipPlans.length === 0 ? (
-                                <div className="py-8 text-center border-2 border-dashed border-white/[0.08] rounded-xl">
-                                    <p className="text-slate-500">No membership plans configured.</p>
-                                    <p className="text-slate-600 text-sm mt-1">Add plans in the Memberships tab first.</p>
+                                <div className="rounded-2xl border border-dashed border-white/[0.08] px-4 py-10 text-center">
+                                    <p className="text-sm text-slate-400">No membership plans configured.</p>
+                                    <p className="mt-1 text-xs text-slate-500">Add plans in the Memberships tab first.</p>
                                 </div>
                             ) : memItems.length === 0 ? (
-                                <div className="py-8 text-center border-2 border-dashed border-white/[0.08] rounded-xl">
-                                    <p className="text-slate-500 mb-4">No plans added yet</p>
-                                    <Button size="sm" onClick={addMemItem}>Add First Plan</Button>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {membershipPlans.slice(0, 4).map((plan) => (
+                                        <button
+                                            key={plan.id}
+                                            type="button"
+                                            onClick={() => setMemItems([{ id: Math.random().toString(36).substr(2, 9), planId: plan.id, quantity: 1 }])}
+                                            className="glass-2 rounded-2xl p-4 text-left transition hover:border-white/15"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/14 text-sm font-bold text-violet-300">
+                                                    {plan.console_type?.slice(0, 2).toUpperCase() || 'PL'}
+                                                </span>
+                                                <span className="chip border-transparent bg-violet-500/12 text-violet-200">
+                                                    Rs.{plan.price}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 text-sm font-semibold text-white">{plan.name}</div>
+                                            <div className="mt-1 text-[11px] text-[var(--muted)]">
+                                                {plan.plan_type === 'day_pass' ? 'Day pass' : `${plan.hours || 0}h`} · {plan.validity_days} days
+                                            </div>
+                                        </button>
+                                    ))}
                                 </div>
                             ) : (
-                                <div className="space-y-2">
-                                    {memItems.map((mi) => {
-                                        const plan = membershipPlans.find(p => p.id === mi.planId);
-                                        const lineTotal = plan ? plan.price * mi.quantity : 0;
+                                <div className="space-y-3">
+                                    {memItems.map((item) => {
+                                        const plan = membershipPlans.find((entry) => entry.id === item.planId);
+                                        const lineTotal = plan ? plan.price * item.quantity : 0;
                                         return (
-                                            <div key={mi.id} className="flex items-center gap-3 p-3 bg-white/[0.03]/60 border border-white/[0.08] rounded-xl group hover:border-purple-500/40 transition-all">
-                                                {/* Icon */}
-                                                <div className="w-9 h-9 rounded-lg bg-purple-600/20 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
-                                                    <Star size={15} className="text-purple-400" />
-                                                </div>
+                                            <div key={item.id} className="glass-2 rounded-2xl p-4">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0 flex-1">
+                                                        <label className="mb-1.5 block text-[10px] smallcaps text-[var(--dim)]">Plan</label>
+                                                        <select
+                                                            value={item.planId}
+                                                            onChange={(event) => updateMemItem(item.id, 'planId', event.target.value)}
+                                                            className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-violet-400/30 focus:outline-none"
+                                                            style={{ colorScheme: 'dark' }}
+                                                        >
+                                                            {membershipPlans.map((option) => (
+                                                                <option key={option.id} value={option.id} className="bg-[#11111a] text-white">
+                                                                    {option.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {plan && (
+                                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                                <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                                    {plan.console_type?.toUpperCase()}
+                                                                </span>
+                                                                <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                                    {plan.plan_type === 'day_pass' ? 'Day pass' : `${plan.hours || 0}h`}
+                                                                </span>
+                                                                <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                                    {plan.validity_days} days
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
 
-                                                {/* Plan selector + meta */}
-                                                <div className="flex-1 min-w-0">
-                                                    <select
-                                                        value={mi.planId}
-                                                        onChange={(e) => updateMemItem(mi.id, 'planId', e.target.value)}
-                                                        className="bg-transparent text-white font-semibold text-sm w-full outline-none cursor-pointer appearance-none truncate"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeMemItem(item.id)}
+                                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-400 transition hover:border-red-400/30 hover:text-red-300"
                                                     >
-                                                        {membershipPlans.map(p => (
-                                                            <option key={p.id} value={p.id} className="bg-white/[0.06] text-white">
-                                                                {p.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    {plan && (
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <span className="text-xs bg-white/[0.06] text-slate-400 px-1.5 py-0.5 rounded font-medium">
-                                                                {plan.console_type?.toUpperCase()}
-                                                            </span>
-                                                            <span className="text-xs text-slate-500">
-                                                                {plan.plan_type === 'day_pass' ? 'Day Pass' : `${plan.hours}h`} · {plan.validity_days}d
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                        <X size={14} />
+                                                    </button>
                                                 </div>
 
-                                                {/* Qty +/− */}
-                                                <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                    <button
-                                                        onClick={() => updateMemItem(mi.id, 'quantity', Math.max(1, mi.quantity - 1))}
-                                                        className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.08] flex items-center justify-center text-slate-400 hover:text-white transition-colors font-bold text-base leading-none"
-                                                    >−</button>
-                                                    <span className="text-white font-semibold w-6 text-center text-sm">{mi.quantity}</span>
-                                                    <button
-                                                        onClick={() => updateMemItem(mi.id, 'quantity', Math.min(20, mi.quantity + 1))}
-                                                        className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.08] flex items-center justify-center text-slate-400 hover:text-white transition-colors font-bold text-base leading-none"
-                                                    >+</button>
+                                                <div className="mt-4 flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateMemItem(item.id, 'quantity', Math.max(1, item.quantity - 1))}
+                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition hover:border-white/15"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <span className="mono w-10 text-center text-sm font-semibold text-white">{item.quantity}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateMemItem(item.id, 'quantity', Math.min(20, item.quantity + 1))}
+                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition hover:border-white/15"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="mono text-base font-semibold text-white">Rs.{lineTotal}</div>
+                                                        {plan && item.quantity > 1 && (
+                                                            <div className="text-[11px] text-[var(--muted)]">Rs.{plan.price} each</div>
+                                                        )}
+                                                    </div>
                                                 </div>
-
-                                                {/* Price */}
-                                                <div className="text-right flex-shrink-0 min-w-[56px]">
-                                                    <div className="text-emerald-400 font-bold font-mono">₹{lineTotal}</div>
-                                                    {mi.quantity > 1 && plan && (
-                                                        <div className="text-xs text-slate-600">₹{plan.price} ea</div>
-                                                    )}
-                                                </div>
-
-                                                {/* Remove */}
-                                                <button
-                                                    onClick={() => removeMemItem(mi.id)}
-                                                    className="text-slate-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 ml-1"
-                                                >
-                                                    <X size={15} />
-                                                </button>
                                             </div>
                                         );
                                     })}
@@ -988,83 +1281,93 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                         </Card>
                     </div>
 
-                    {/* Right: Payment summary */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <Card className="sticky top-6 space-y-4">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <CreditCard className="text-purple-400" size={20} /> Payment
-                            </h3>
+                    <div className="space-y-5">
+                        <Card className="sticky top-6 space-y-5">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
+                                    <CreditCard size={18} />
+                                </div>
+                                <div>
+                                    <div className="text-[10px] smallcaps text-[var(--dim)]">Payment</div>
+                                    <h3 className="text-base font-semibold text-white">Checkout plan</h3>
+                                </div>
+                            </div>
 
-                            <div className="bg-white/[0.03]/50 rounded-xl p-4 space-y-3">
-                                {memItems.map((mi) => {
-                                    const plan = membershipPlans.find(p => p.id === mi.planId);
+                            <div className="space-y-2">
+                                {memItems.length > 0 ? memItems.map((item) => {
+                                    const plan = membershipPlans.find((entry) => entry.id === item.planId);
                                     if (!plan) return null;
                                     return (
-                                        <div key={mi.id} className="flex items-center justify-between text-sm">
-                                            <span className="text-slate-400">{plan.name} × {mi.quantity}</span>
-                                            <span className="text-white font-mono">₹{plan.price * mi.quantity}</span>
+                                        <div key={item.id} className="glass-2 flex items-center justify-between rounded-xl px-3.5 py-3">
+                                            <div>
+                                                <div className="text-sm font-medium text-white">{plan.name}</div>
+                                                <div className="text-[11px] text-[var(--muted)]">Qty {item.quantity}</div>
+                                            </div>
+                                            <div className="mono text-sm font-semibold text-white">Rs.{plan.price * item.quantity}</div>
                                         </div>
                                     );
-                                })}
-                                {memItems.length > 0 && <div className="border-t border-white/[0.08] pt-2" />}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-400 text-sm">Calculated</span>
-                                    <span className="text-slate-500 font-mono text-sm">₹{memCalculatedTotal}</span>
+                                }) : (
+                                    <div className="glass-2 rounded-xl px-4 py-6 text-center text-sm text-[var(--muted)]">
+                                        Select a plan to start the checkout.
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="glass-2 rounded-2xl p-4">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-[var(--muted)]">Calculated</span>
+                                    <span className="mono text-white">Rs.{memCalculatedTotal}</span>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-400 text-sm">Final Amount</span>
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-white">₹</span>
+                                <div className="mt-3 flex items-center justify-between gap-3">
+                                    <span className="text-sm text-[var(--muted)]">Final Amount</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="mono text-sm text-white">Rs.</span>
                                         <input
                                             type="number"
-                                            className="w-24 bg-white/[0.06] border border-white/[0.09] rounded-lg px-3 py-2 text-xl font-bold text-white text-right outline-none focus:border-purple-500 transition-colors"
                                             value={memManualAmount !== null ? memManualAmount : memCalculatedTotal}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 0;
-                                                setMemManualAmount(val === memCalculatedTotal ? null : val);
+                                            onChange={(event) => {
+                                                const value = parseFloat(event.target.value) || 0;
+                                                setMemManualAmount(value === memCalculatedTotal ? null : value);
                                             }}
                                             min={0}
+                                            className="mono w-28 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right text-lg font-semibold text-white focus:border-violet-400/30 focus:outline-none"
                                         />
                                     </div>
                                 </div>
                                 {memManualAmount !== null && memManualAmount !== memCalculatedTotal && (
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="text-amber-400">Manual override applied</span>
-                                        <button onClick={() => setMemManualAmount(null)} className="text-slate-400 hover:text-white underline">Reset</button>
+                                    <div className="mt-3 flex items-center justify-between text-xs">
+                                        <span className="text-amber-300">Manual override applied</span>
+                                        <button type="button" onClick={() => setMemManualAmount(null)} className="text-slate-400 underline transition hover:text-white">
+                                            Reset
+                                        </button>
                                     </div>
                                 )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <button
+                                    type="button"
                                     onClick={() => setMemPaymentMode('cash')}
-                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
-                                        memPaymentMode === 'cash'
-                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                                            : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-white/[0.09]'
-                                    }`}
+                                    className={`rounded-2xl border p-4 text-center transition ${memPaymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
-                                    <Banknote size={24} />
-                                    <span className="text-sm font-semibold">Cash</span>
+                                    <Banknote className="mx-auto mb-2" size={20} />
+                                    <div className="text-sm font-semibold">Cash</div>
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => setMemPaymentMode('upi')}
-                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
-                                        memPaymentMode === 'upi'
-                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500'
-                                            : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-white/[0.09]'
-                                    }`}
+                                    className={`rounded-2xl border p-4 text-center transition ${memPaymentMode === 'upi' ? 'border-violet-400/30 bg-violet-500/12 text-violet-100' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
-                                    <Smartphone size={24} />
-                                    <span className="text-sm font-semibold">UPI</span>
+                                    <Smartphone className="mx-auto mb-2" size={20} />
+                                    <div className="text-sm font-semibold">UPI</div>
                                 </button>
                             </div>
 
                             {memPaymentMode === 'upi' && memTotalAmount > 0 && (
-                                <div className="flex flex-col items-center gap-2 py-3">
+                                <div className="space-y-3 rounded-2xl border border-violet-400/15 bg-violet-500/[0.05] px-4 py-4 text-center">
                                     <div
-                                        className="p-3 rounded-xl bg-[#d4d4d4] cursor-pointer transition-all duration-300"
-                                        onClick={() => setQrExpanded(v => !v)}
+                                        className="inline-flex cursor-pointer rounded-2xl bg-[#d4d4d4] p-3 transition"
+                                        onClick={() => setQrExpanded((value) => !value)}
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
                                         <QRCodeSVG
@@ -1075,15 +1378,18 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
                                             level="Q"
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400">Scan to pay <span className="text-white font-semibold">₹{memTotalAmount}</span> via UPI · <span className="text-slate-500">tap QR to resize</span></p>
+                                    <p className="text-xs text-slate-400">
+                                        Scan to pay <span className="font-semibold text-white">Rs.{memTotalAmount}</span> via UPI.
+                                    </p>
                                 </div>
                             )}
 
                             {formError && (
-                                <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{formError}</p>
+                                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">{formError}</p>
                             )}
+
                             <Button
-                                className="w-full py-4 text-lg"
+                                className="w-full justify-center py-3.5 text-base"
                                 onClick={handleMemSubmit}
                                 loading={memSubmitting}
                                 disabled={memSubmitting || memItems.length === 0 || !customerName.trim() || !customerPhone.trim()}
@@ -1097,17 +1403,18 @@ export function Billing({ cafeId, cafes, isMobile = false, onSuccess, onMembersh
 
             {/* Sticky mobile confirm bar */}
             {isMobile && mode === 'gaming' && !lastBooking && items.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 px-4 py-3 bg-[#0d0d14]/95 border-t border-white/[0.08] backdrop-blur-md">
+                <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 border-t border-white/[0.08] bg-[#0d0d14]/95 px-4 py-3 backdrop-blur-md">
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] text-slate-500 font-medium">Total</p>
                         <p className="text-xl font-bold text-white leading-none">₹{totalAmount}</p>
                     </div>
                     <div className="flex gap-2">
                         <button
+                            type="button"
                             onClick={() => setPaymentMode(paymentMode === 'cash' ? 'upi' : 'cash')}
-                            className={`px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${paymentMode === 'cash' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-violet-500/15 text-violet-400 border-violet-500/30'}`}
+                            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${paymentMode === 'cash' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'}`}
                         >
-                            {paymentMode === 'cash' ? '💵 Cash' : '📱 UPI'}
+                            {paymentMode === 'cash' ? 'Cash' : 'UPI'}
                         </button>
                         <Button
                             onClick={handleSubmit}

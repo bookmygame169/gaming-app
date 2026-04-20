@@ -2469,19 +2469,11 @@ export default function OwnerDashboardPage() {
           {activeTab === 'billing' && (
             <ErrorBoundary>
             <div>
-              {/* Snack-only sale shortcut */}
-              <div className="mb-4 flex justify-end">
-                <button
-                  onClick={() => setSnackSaleModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-sm font-medium transition-all"
-                >
-                  🧃 Snack-Only Sale
-                </button>
-              </div>
               <Billing
                 cafeId={currentCafeId}
                 cafes={cafes}
                 isMobile={isMobile}
+                onSnackOnlySale={() => setSnackSaleModalOpen(true)}
                 pricingData={consolePricing[currentCafeId] || {}}
                 stationPricingList={Object.values(stationPricing).filter((station: any) => !currentCafeId || station?.cafe_id === currentCafeId)}
                 membershipPlans={membershipPlans.filter((p: any) => p.cafe_id === currentCafeId)}
