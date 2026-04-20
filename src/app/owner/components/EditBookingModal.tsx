@@ -9,7 +9,9 @@ import { supabase } from '@/lib/supabaseClient';
 import { CONSOLE_DB_KEYS, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from '@/lib/constants';
 import { getEndTime } from '@/lib/timeUtils';
 import { BookingRow, CafeRow } from '../types';
+import { BookingOrder } from '@/types/inventory';
 import { getAvailableConsoleIds, normaliseConsoleType } from '../utils';
+import InlineSnackManager from './InlineSnackManager';
 
 type EditItem = { id?: string; console: string; quantity: number; duration: number; price?: number };
 
@@ -197,9 +199,18 @@ export function EditBookingModal({
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  const [localOrders, setLocalOrders] = useState<BookingOrder[]>((booking.booking_orders as unknown as BookingOrder[]) || []);
+  useEffect(() => { setLocalOrders((booking.booking_orders as unknown as BookingOrder[]) || []); }, [booking.booking_orders]);
+
+  function handleOrdersUpdated({ amountDelta, orders }: { amountDelta: number; bookingId: string; orders: BookingOrder[]; updatedAt: string | null }) {
+    setLocalOrders(orders);
+    setAmount(String(Math.max(0, (Number(amount) || 0) + amountDelta)));
+    setAmountManuallyEdited(true);
+  }
+
   const isAppBooking = !!booking.user_id;
   const endTime = calcEndTime(startTime, items, duration);
-  const snacksTotal = booking.booking_orders?.reduce((s, o) => s + (o.total_price || 0), 0) || 0;
+  const snacksTotal = localOrders.reduce((s, o) => s + (o.total_price || 0), 0);
   const bookingItemsCount = booking.booking_items?.length || 0;
 
   return (
@@ -515,81 +526,19 @@ export function EditBookingModal({
                 </div>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Snacks & F&B</span>
               </div>
-              <div className="flex items-center gap-2.5">
-                {snacksTotal > 0 && (
-                  <span className="text-sm font-bold text-amber-400">₹{snacksTotal.toLocaleString('en-IN')}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={onManageSnacks}
-                  className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: 'rgba(251,146,60,0.15)', color: '#fbbf24', border: '1px solid rgba(251,146,60,0.28)' }}
-                >
-                  <Plus size={11} />
-                  Manage Snacks
-                </button>
-              </div>
+              {snacksTotal > 0 && (
+                <span className="text-sm font-bold text-amber-400">₹{snacksTotal.toLocaleString('en-IN')}</span>
+              )}
             </div>
 
-            {/* Body */}
+            {/* Body — inline snack manager */}
             <div className="p-3">
-              {booking.booking_orders?.length ? (
-                <div className="flex flex-col gap-2">
-                  {booking.booking_orders.map((order, idx) => (
-                    <div
-                      key={order.id}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-lg"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
-                          style={{ background: 'rgba(251,146,60,0.12)', color: '#f59e0b' }}
-                        >
-                          {idx + 1}
-                        </div>
-                        <div>
-                          <p className="text-[12px] font-mono text-slate-400">
-                            Order #{order.id.slice(0, 8).toUpperCase()}
-                          </p>
-                          {order.quantity != null && order.quantity > 0 && (
-                            <p className="text-[10px] text-slate-600 mt-0.5">
-                              {order.quantity} item{order.quantity !== 1 ? 's' : ''}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-sm font-bold text-amber-400">
-                        ₹{(order.total_price ?? 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  ))}
-
-                  {/* Total row — only when multiple orders */}
-                  {booking.booking_orders.length > 1 && (
-                    <div className="flex items-center justify-between px-3 py-2 mt-0.5 rounded-lg" style={{ background: 'rgba(251,146,60,0.07)', border: '1px solid rgba(251,146,60,0.12)' }}>
-                      <span className="text-[11px] font-bold text-amber-500/70 uppercase tracking-wider">Total F&B</span>
-                      <span className="text-sm font-bold text-amber-400">₹{snacksTotal.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Empty state — clicking opens the snack modal */
-                <button
-                  type="button"
-                  onClick={onManageSnacks}
-                  className="w-full flex flex-col items-center gap-2 py-5 rounded-xl transition-colors hover:bg-white/[0.02] active:scale-[0.99]"
-                  style={{ border: '1.5px dashed rgba(251,146,60,0.18)' }}
-                >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(251,146,60,0.10)' }}>
-                    <UtensilsCrossed size={16} style={{ color: 'rgba(245,158,11,0.5)' }} />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[12px] font-semibold text-slate-500">No snacks added yet</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: 'rgba(245,158,11,0.5)' }}>Tap to add F&amp;B orders</p>
-                  </div>
-                </button>
-              )}
+              <InlineSnackManager
+                bookingId={booking.id}
+                cafeId={cafe?.id || booking.cafe_id || ''}
+                existingOrders={localOrders}
+                onOrdersUpdated={handleOrdersUpdated}
+              />
             </div>
           </section>
 
