@@ -885,14 +885,14 @@ export function Billing({
                                                 </div>
 
                                                 {/* Station + Players in one row */}
-                                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px]">
+                                                <div className="grid gap-4 lg:grid-cols-2">
                                                     <div>
                                                         <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Station</div>
                                                         {allowSingleStation ? (
                                                             <div className="flex flex-wrap gap-2">
                                                                 {stations.length === 0 ? (
-                                                                    <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-2 text-xs text-[var(--muted)]">
-                                                                        Configure stations in Settings to pin a specific unit.
+                                                                    <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-2.5 text-xs text-[var(--muted)]">
+                                                                        Configure stations in Settings.
                                                                     </div>
                                                                 ) : stations.map((station) => {
                                                                     const selected = item.station === station;
@@ -901,8 +901,8 @@ export function Billing({
                                                                             key={station}
                                                                             type="button"
                                                                             onClick={() => updateItem(item.id, 'station', station)}
-                                                                            className={`rounded-xl px-3 py-2 text-xs transition ${selected ? 'glow-selected text-white' : 'glass-2 text-slate-300 hover:border-white/15'}`}
-                                                                            style={{ background: selected ? `${theme.accent}16` : 'var(--card-2)' }}
+                                                                            className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${selected ? 'glow-selected text-white' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                                                            style={{ background: selected ? `${theme.accent}18` : 'var(--card-2)', borderColor: selected ? `${theme.accent}50` : undefined }}
                                                                         >
                                                                             {formatStationOptionLabel(station)}
                                                                         </button>
@@ -910,14 +910,14 @@ export function Billing({
                                                                 })}
                                                             </div>
                                                         ) : (
-                                                            <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-2 text-xs text-[var(--muted)]">
-                                                                Multiple units will auto-assign to available configured stations.
+                                                            <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-2.5 text-xs text-[var(--muted)]">
+                                                                Auto-assign to available stations.
                                                             </div>
                                                         )}
                                                     </div>
                                                     <div>
                                                         <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Players</div>
-                                                        <div className="flex flex-wrap gap-2">
+                                                        <div className="flex gap-2">
                                                             {PLAYER_OPTIONS.map((players) => {
                                                                 const selected = item.quantity === players;
                                                                 return (
@@ -925,7 +925,7 @@ export function Billing({
                                                                         key={players}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'quantity', players)}
-                                                                        className={`rounded-xl px-3 py-2 text-xs font-medium transition ${selected ? 'border-transparent bg-white/[0.08] text-white' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                                                        className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition ${selected ? 'border-transparent bg-white/[0.10] text-white shadow-sm' : 'glass-2 text-slate-400 hover:border-white/15 hover:text-white'}`}
                                                                     >
                                                                         {players}P
                                                                     </button>
@@ -938,7 +938,7 @@ export function Billing({
                                                 {/* Duration */}
                                                 <div>
                                                     <div className="mb-2 text-[10px] smallcaps text-[var(--dim)]">Duration</div>
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="grid grid-cols-5 gap-2">
                                                         {DURATION_OPTIONS.map((dur) => {
                                                             const selected = item.duration === dur;
                                                             return (
@@ -946,7 +946,7 @@ export function Billing({
                                                                     key={dur}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'duration', dur)}
-                                                                    className={`rounded-xl px-3 py-2 text-xs font-medium transition ${selected ? 'border-transparent bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                                                    className={`rounded-xl py-2.5 text-sm font-semibold transition ${selected ? 'border-transparent bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'glass-2 text-slate-400 hover:border-white/15 hover:text-white'}`}
                                                                 >
                                                                     {dur < 60 ? `${dur}m` : dur === 60 ? '1h' : dur === 90 ? '1.5h' : dur === 120 ? '2h' : '3h'}
                                                                 </button>
