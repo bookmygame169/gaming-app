@@ -617,7 +617,7 @@ export default function OwnerDashboardPage() {
   };
 
 
-  async function handlePaymentModeChange(bookingId: string, mode: string) {
+  async function handlePaymentModeChange(bookingId: string, mode: string): Promise<boolean> {
     const booking = bookings.find(b => b.id === bookingId) as any;
     const trueBookingId = booking?.originalBookingId || (bookingId.includes('-item-') ? bookingId.split('-item-')[0] : bookingId);
     const normalizedMode = normaliseOwnerPaymentMode(mode);
@@ -648,16 +648,19 @@ export default function OwnerDashboardPage() {
         const data = await res.json();
         toast.error('Failed to update payment mode: ' + (data.error || 'Unknown error'));
         revertPaymentMode();
-        return;
+        return false;
       }
 
-      // Optimistic update is already correct — no refresh needed, avoids race with stale data
+      setBookingsMgmtRefreshKey(k => k + 1);
+      dispatchOwnerBookingsChanged({ action: 'updated', bookingId: trueBookingId });
+      return true;
     } catch (err) {
       console.error('Error updating payment mode:', err);
       revertPaymentMode();
       if (err instanceof Error && err.name === 'TimeoutError') {
         toast.error('Request timed out — payment mode may not have saved.');
       }
+      return false;
     }
   }
 

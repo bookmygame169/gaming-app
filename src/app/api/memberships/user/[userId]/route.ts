@@ -4,13 +4,17 @@ import { supabase } from "@/lib/supabaseClient";
 
 export const dynamic = 'force-dynamic';
 
+type MembershipRouteContext = {
+  params: Promise<{ userId: string }>;
+};
+
 // GET /api/memberships/user/[userId] - Get user's membership
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: MembershipRouteContext
 ) {
   try {
-    const userId = params.userId;
+    const { userId } = await params;
 
     if (!userId) {
       return NextResponse.json(
@@ -54,10 +58,10 @@ export async function GET(
 // PATCH /api/memberships/user/[userId] - Update user's membership
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: MembershipRouteContext
 ) {
   try {
-    const userId = params.userId;
+    const { userId } = await params;
     const body = await request.json();
     const { status, auto_renew } = body;
 
@@ -68,7 +72,7 @@ export async function PATCH(
       );
     }
 
-    const updateData: any = {};
+    const updateData: { auto_renew?: boolean; status?: string } = {};
     if (status) updateData.status = status;
     if (typeof auto_renew === "boolean") updateData.auto_renew = auto_renew;
 
@@ -104,10 +108,10 @@ export async function PATCH(
 // DELETE /api/memberships/user/[userId] - Cancel user's membership
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: MembershipRouteContext
 ) {
   try {
-    const userId = params.userId;
+    const { userId } = await params;
 
     if (!userId) {
       return NextResponse.json(

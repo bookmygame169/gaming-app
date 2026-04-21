@@ -10,6 +10,13 @@ import { supabase } from '@/lib/supabaseClient';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
+const EMPTY_BOOKING_SUMMARY = {
+    cashTotal: 0,
+    completed: 0,
+    inProgress: 0,
+    pending: 0,
+    upiTotal: 0,
+};
 
 function filterVisibleBookings(bookings: any[]): any[] {
     return bookings.filter((booking) => !booking?.deleted_at);
@@ -23,7 +30,7 @@ interface BookingsManagementProps {
     onRefresh?: () => void;
     onViewOrders?: (bookingId: string, customerName: string) => void;
     onViewCustomer?: (customer: { name: string; phone?: string; email?: string }) => void;
-    onPaymentModeChange?: (bookingId: string, mode: string) => Promise<void>;
+    onPaymentModeChange?: (bookingId: string, mode: string) => Promise<boolean>;
     refreshTrigger?: number;
     // Timer props for membership sub-tab
     activeTimers?: Map<string, number>;
@@ -67,6 +74,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
 
 export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, onAddItems, onSessionEnded, onEndCollect }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
+    const [summary, setSummary] = useState(EMPTY_BOOKING_SUMMARY);
     const [total, setTotal] = useState(0);
     const [limit, setLimit] = useState(30);
     const [fetching, setFetching] = useState(false);
@@ -128,6 +136,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 );
                 const hiddenDeletedCount = (data.bookings || []).length - visibleBookings.length;
                 setBookings(visibleBookings);
+                setSummary(data.summary || EMPTY_BOOKING_SUMMARY);
                 setTotal(Math.max(0, (data.total || 0) - hiddenDeletedCount));
             } else {
                 console.error('[BookingsManagement] Failed to fetch bookings:', data.error);
@@ -183,6 +192,30 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     };
 
     const loading = fetching || externalLoading;
+
+    const handlePaymentModeUpdate = useCallback(async (bookingId: string, mode: string) => {
+        if (!onPaymentModeChange) return false;
+
+        const previousMode = bookings.find((booking) => booking.id === bookingId)?.payment_mode;
+        const nextMode = mode.toLowerCase();
+
+        setBookings((prev) => prev.map((booking) => (
+            booking.id === bookingId
+                ? { ...booking, payment_mode: nextMode }
+                : booking
+        )));
+
+        const ok = await onPaymentModeChange(bookingId, mode);
+        if (!ok) {
+            setBookings((prev) => prev.map((booking) => (
+                booking.id === bookingId
+                    ? { ...booking, payment_mode: previousMode }
+                    : booking
+            )));
+        }
+
+        return ok;
+    }, [bookings, onPaymentModeChange]);
 
     // Fetch subscriptions when Membership tab is active
     const fetchSubscriptions = useCallback(async () => {
@@ -403,33 +436,27 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 <>
                             {/* Summary bar — derived from fetched bookings */}
                     {(() => {
-                        const completed = bookings.filter(b => b.status === 'completed').length;
-                        const inProgress = bookings.filter(b => b.status === 'in-progress').length;
-                        const pending = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length;
-                        const cashTotal = bookings.filter(b => b.payment_mode?.toLowerCase() === 'cash' && b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0);
-                        const onlineModes = ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'];
-                        const upiTotal = bookings.filter(b => onlineModes.includes(b.payment_mode?.toLowerCase() || '') && b.status !== 'cancelled').reduce((s, b) => s + (b.total_amount || 0), 0);
                         return (
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                                 <div className="col-span-2 md:col-span-1 flex items-center gap-2.5 rounded-xl bg-emerald-500/[0.07] border border-emerald-500/20 px-3 py-2.5">
                                     <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
-                                    <div><p className="text-[10px] text-slate-500 font-medium">Completed</p><p className="text-lg font-bold text-emerald-400 leading-none mt-0.5">{completed}</p></div>
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Completed</p><p className="text-lg font-bold text-emerald-400 leading-none mt-0.5">{summary.completed}</p></div>
                                 </div>
                                 <div className="flex items-center gap-2.5 rounded-xl bg-blue-500/[0.07] border border-blue-500/20 px-3 py-2.5">
                                     <Timer size={15} className="text-blue-400 shrink-0" />
-                                    <div><p className="text-[10px] text-slate-500 font-medium">Active</p><p className="text-lg font-bold text-blue-400 leading-none mt-0.5">{inProgress}</p></div>
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Active</p><p className="text-lg font-bold text-blue-400 leading-none mt-0.5">{summary.inProgress}</p></div>
                                 </div>
                                 <div className="flex items-center gap-2.5 rounded-xl bg-amber-500/[0.07] border border-amber-500/20 px-3 py-2.5">
                                     <Clock size={15} className="text-amber-400 shrink-0" />
-                                    <div><p className="text-[10px] text-slate-500 font-medium">Pending</p><p className="text-lg font-bold text-amber-400 leading-none mt-0.5">{pending}</p></div>
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Pending</p><p className="text-lg font-bold text-amber-400 leading-none mt-0.5">{summary.pending}</p></div>
                                 </div>
                                 <div className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5">
                                     <IndianRupee size={15} className="text-slate-400 shrink-0" />
-                                    <div><p className="text-[10px] text-slate-500 font-medium">Cash</p><p className="text-base font-bold text-white leading-none mt-0.5">₹{cashTotal.toLocaleString('en-IN')}</p></div>
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Cash</p><p className="text-base font-bold text-white leading-none mt-0.5">₹{summary.cashTotal.toLocaleString('en-IN')}</p></div>
                                 </div>
                                 <div className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5">
                                     <IndianRupee size={15} className="text-violet-400 shrink-0" />
-                                    <div><p className="text-[10px] text-slate-500 font-medium">Online/UPI</p><p className="text-base font-bold text-white leading-none mt-0.5">₹{upiTotal.toLocaleString('en-IN')}</p></div>
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Online/UPI</p><p className="text-base font-bold text-white leading-none mt-0.5">₹{summary.upiTotal.toLocaleString('en-IN')}</p></div>
                                 </div>
                             </div>
                         );
@@ -536,7 +563,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                         showFilters={false}
                         onStatusChange={onUpdateStatus}
                         onEdit={onEdit}
-                        onPaymentModeChange={onPaymentModeChange}
+                        onPaymentModeChange={handlePaymentModeUpdate}
                         onViewOrders={onViewOrders}
                         onViewCustomer={onViewCustomer}
                         loading={loading}

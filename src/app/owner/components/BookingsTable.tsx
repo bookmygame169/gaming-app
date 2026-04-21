@@ -99,6 +99,11 @@ export function BookingsTable({
         return timeString;
     };
 
+    const getCustomerContact = (booking: any) =>
+        booking.customer_phone || booking.user_phone || booking.user_email || "-";
+
+    const hasBookingItems = (booking: any) => Array.isArray(booking.booking_items) && booking.booking_items.length > 0;
+
     const isDigitalPaymentMode = (mode: string | null | undefined) => {
         const normalized = mode?.toLowerCase() || '';
         return ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'].includes(normalized);
@@ -260,7 +265,7 @@ export function BookingsTable({
                                             {booking.customer_name || booking.user_name || "Guest"}
                                         </div>
                                         <div className="text-xs text-slate-500 mt-0.5">
-                                            {booking.customer_phone || booking.user_email || "-"}
+                                            {getCustomerContact(booking)}
                                         </div>
                                     </td>
                                     <td className="px-4 py-1.5">
@@ -269,11 +274,11 @@ export function BookingsTable({
                                                 ? <span className="inline-flex items-center gap-1 text-purple-400 font-medium">
                                                     ★ {booking.booking_items?.[0]?.console || 'Membership'}
                                                   </span>
-                                                : booking.booking_items?.map((item: any, idx: number) => (
+                                                : hasBookingItems(booking) ? booking.booking_items.map((item: any, idx: number) => (
                                                     <span key={idx} className="block">
                                                         {item.quantity}x {item.console}
                                                     </span>
-                                                )) || <span className="text-slate-500">No items</span>
+                                                )) : <span className="text-slate-500">No items</span>
                                             }
                                         </div>
                                         <div className="text-xs mt-0.5 capitalize">
@@ -428,7 +433,7 @@ export function BookingsTable({
                                             {booking.customer_name || booking.user_name || "Guest"}
                                         </div>
                                         <div className="text-xs text-slate-500">
-                                            {booking.customer_phone || booking.user_email || "-"}
+                                            {getCustomerContact(booking)}
                                         </div>
                                     </div>
                                     <StatusBadge status={booking.status || 'pending'} />
@@ -437,11 +442,11 @@ export function BookingsTable({
                                 {/* Info Row */}
                                 <div className="flex justify-between items-center py-2 text-sm text-slate-300 bg-white/5 rounded-lg px-3">
                                     <div className="text-xs">
-                                        {booking.booking_items?.map((item: any, idx: number) => (
+                                        {hasBookingItems(booking) ? booking.booking_items.map((item: any, idx: number) => (
                                             <span key={idx} className="block">
                                                 {item.quantity}x {item.console}
                                             </span>
-                                        )) || "No items"}
+                                        )) : "No items"}
                                     </div>
                                     <div className="font-semibold text-emerald-400">
                                         ₹{booking.total_amount}

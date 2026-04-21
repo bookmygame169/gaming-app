@@ -41,10 +41,161 @@ type ProfileRecord = {
   last_name: string | null;
   phone: string | null;
 };
+type ProfileIdRecord = {
+  id: string;
+};
+type ProfileLookupResult = {
+  data: unknown[] | null;
+  error: { message?: string | null } | null;
+};
+type ProfileLookupClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      or: (filters: string) => {
+        limit: (count: number) => PromiseLike<ProfileLookupResult>;
+      };
+    };
+  };
+};
+type BookingFilterQuery = {
+  eq: (column: string, value: string) => BookingFilterQuery;
+  gte: (column: string, value: string) => BookingFilterQuery;
+  lte: (column: string, value: string) => BookingFilterQuery;
+  neq: (column: string, value: string) => BookingFilterQuery;
+  or: (filters: string) => BookingFilterQuery;
+  order: (column: string, options: { ascending: boolean }) => {
+    range: (from: number, to: number) => PromiseLike<BookingQueryResult>;
+  };
+};
+type BookingSummaryQuery = BookingFilterQuery & {
+  order: (column: string, options: { ascending: boolean }) => PromiseLike<BookingQueryResult>;
+};
+type BookingSummaryRecord = {
+  deleted_at?: string | null;
+  payment_mode?: string | null;
+  status?: string | null;
+  total_amount?: number | null;
+};
+type BookingSummary = {
+  cashTotal: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  upiTotal: number;
+};
+
+const DIGITAL_PAYMENT_MODES = new Set(["online", "upi", "paytm", "gpay", "phonepe", "card"]);
 
 function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
   const message = error?.message?.toLowerCase() || "";
   return message.includes("bookings.updated_at") && message.includes("does not exist");
+}
+
+function sanitizeSearchTerm(search: string): string {
+  return search.replace(/[(),]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+async function findMatchingProfileIds(supabase: unknown, search: string): Promise<string[]> {
+  const tokens = sanitizeSearchTerm(search).split(" ").filter(Boolean).slice(0, 4);
+  if (tokens.length === 0) return [];
+
+  const clauses = tokens.flatMap((token) => [
+    `first_name.ilike.%${token}%`,
+    `last_name.ilike.%${token}%`,
+    `phone.ilike.%${token}%`,
+  ]);
+
+  const client = supabase as ProfileLookupClient;
+  const { data, error } = await client
+    .from("profiles")
+    .select("id")
+    .or(clauses.join(","))
+    .limit(100);
+
+  if (error) {
+    throw new Error(error.message || "Failed to search profiles");
+  }
+
+  return [...new Set(((data || []) as ProfileIdRecord[]).map((profile) => profile.id).filter(Boolean))];
+}
+
+function applyBookingFilters(query: unknown, {
+  status,
+  source,
+  dateFrom,
+  dateTo,
+  search,
+  matchingUserIds,
+}: {
+  dateFrom: string;
+  dateTo: string;
+  matchingUserIds: string[];
+  search: string;
+  source: string;
+  status: string;
+}): BookingFilterQuery {
+  let nextQuery = query as BookingFilterQuery;
+
+  if (status !== "all") {
+    nextQuery = nextQuery.eq("status", status);
+  }
+
+  if (source === "membership") {
+    nextQuery = nextQuery.eq("source", "membership");
+  } else if (source === "normal") {
+    nextQuery = nextQuery.neq("source", "membership");
+  }
+
+  if (dateFrom) nextQuery = nextQuery.gte("booking_date", dateFrom);
+  if (dateTo) nextQuery = nextQuery.lte("booking_date", dateTo);
+
+  const safeSearch = sanitizeSearchTerm(search);
+  if (safeSearch) {
+    const compactSearch = safeSearch.replace(/\s+/g, "");
+    const clauses = [
+      `customer_name.ilike.%${safeSearch}%`,
+      `customer_phone.ilike.%${safeSearch}%`,
+    ];
+
+    if (compactSearch) {
+      clauses.push(`id.ilike.${compactSearch}%`);
+    }
+
+    if (matchingUserIds.length > 0) {
+      clauses.push(`user_id.in.(${matchingUserIds.join(",")})`);
+    }
+
+    nextQuery = nextQuery.or(clauses.join(","));
+  }
+
+  return nextQuery;
+}
+
+function buildBookingSummary(summaryRows: BookingSummaryRecord[]): BookingSummary {
+  return summaryRows.reduce<BookingSummary>((acc, booking) => {
+    if (booking.deleted_at) return acc;
+
+    const amount = Number(booking.total_amount) || 0;
+    const paymentMode = booking.payment_mode?.toLowerCase() || "";
+    const status = booking.status?.toLowerCase() || "";
+
+    if (status === "completed") acc.completed += 1;
+    if (status === "in-progress") acc.inProgress += 1;
+    if (status === "confirmed" || status === "pending") acc.pending += 1;
+
+    if (status !== "cancelled") {
+      if (paymentMode === "cash") acc.cashTotal += amount;
+      if (DIGITAL_PAYMENT_MODES.has(paymentMode)) acc.upiTotal += amount;
+    }
+
+    return acc;
+  }, {
+    cashTotal: 0,
+    completed: 0,
+    inProgress: 0,
+    pending: 0,
+    upiTotal: 0,
+  });
 }
 
 // GET /api/owner/bookings — paginated, server-side filtered bookings for the Bookings tab
@@ -116,6 +267,8 @@ export async function GET(request: NextRequest) {
       });
     };
 
+    const matchingUserIds = search ? await findMatchingProfileIds(supabase, search) : [];
+
     const runSingleBookingQuery = async (includeUpdatedAt: boolean): Promise<SingleBookingQueryResult> => {
       return await supabase
         .from("bookings")
@@ -127,36 +280,43 @@ export async function GET(request: NextRequest) {
     };
 
     const runBookingQuery = async (includeUpdatedAt: boolean): Promise<BookingQueryResult> => {
-      let query = supabase
+      let query: unknown = supabase
         .from("bookings")
         .select(includeUpdatedAt ? BOOKING_SELECT_WITH_UPDATED_AT : BOOKING_SELECT_BASE, { count: "exact" })
         .in("cafe_id", targetCafeIds)
         .is("deleted_at", null);
 
-      if (status !== "all") {
-        query = query.eq("status", status);
-      }
+      query = applyBookingFilters(query, {
+        dateFrom,
+        dateTo,
+        matchingUserIds,
+        search,
+        source,
+        status,
+      });
 
-      if (source === "membership") {
-        query = query.eq("source", "membership");
-      } else if (source === "normal") {
-        query = query.neq("source", "membership");
-      }
-
-      if (dateFrom) query = query.gte("booking_date", dateFrom);
-      if (dateTo) query = query.lte("booking_date", dateTo);
-
-      if (search) {
-        // Strip PostgREST filter special chars to prevent query injection via .or() interpolation
-        const safeSearch = search.replace(/[(),\s]/g, '');
-        query = query.or(
-          `customer_name.ilike.%${safeSearch}%,customer_phone.ilike.%${safeSearch}%,id.ilike.${safeSearch}%`
-        );
-      }
-
-      return await query
+      return await (query as BookingFilterQuery)
         .order("created_at", { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1) as unknown as BookingQueryResult;
+    };
+
+    const runBookingSummaryQuery = async (): Promise<BookingQueryResult> => {
+      let query: unknown = supabase
+        .from("bookings")
+        .select("id, status, payment_mode, total_amount, deleted_at", { count: "exact" })
+        .in("cafe_id", targetCafeIds)
+        .is("deleted_at", null);
+
+      query = applyBookingFilters(query, {
+        dateFrom,
+        dateTo,
+        matchingUserIds,
+        search,
+        source,
+        status,
+      });
+
+      return await (query as BookingSummaryQuery).order("created_at", { ascending: false }) as unknown as BookingQueryResult;
     };
 
     if (bookingId) {
@@ -196,13 +356,19 @@ export async function GET(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    const summaryResult = await runBookingSummaryQuery();
+    if (summaryResult.error) {
+      return NextResponse.json({ error: summaryResult.error.message }, { status: 500 });
+    }
+
     const rawBookings = (data || []) as BookingListRecord[];
-    const filteredOutDeletedCount = rawBookings.length - rawBookings.filter((booking) => !booking.deleted_at).length;
     const enrichedBookings = await enrichBookings(rawBookings);
+    const summaryRows = ((summaryResult.data || []) as BookingSummaryRecord[]);
 
     return NextResponse.json({
       bookings: enrichedBookings,
-      total: count == null ? enrichedBookings.length : Math.max(0, count - filteredOutDeletedCount),
+      summary: buildBookingSummary(summaryRows),
+      total: count == null ? enrichedBookings.length : count,
       page,
       pageSize: PAGE_SIZE,
     });
