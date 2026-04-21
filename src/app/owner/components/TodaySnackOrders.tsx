@@ -82,7 +82,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.06]/40 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.09]/40">
+      <div className="flex flex-col gap-3 px-5 py-4 border-b border-white/[0.09]/40 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-orange-500/15 flex items-center justify-center">
             <ShoppingBag size={16} className="text-orange-400" />
@@ -94,7 +94,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
         </div>
 
         {/* New sale button + summary chips */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {onNewSale && (
             <button
               onClick={onNewSale}
@@ -133,7 +133,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
             return (
               <div key={booking.id} className={`px-5 py-3.5 transition-colors ${booking.payment_mode === 'owner' ? 'bg-purple-500/5 hover:bg-purple-500/8' : 'hover:bg-white/[0.08]/20'}`}>
                 {/* Row top: customer + payment + total */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-white/[0.08] flex items-center justify-center shrink-0">
                       <span className="text-xs font-semibold text-slate-300">
@@ -145,7 +145,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
                       {phone && <span className="text-[11px] text-slate-500">{phone}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 sm:ml-3">
                     <PaymentBadge mode={booking.payment_mode} />
                     {booking.payment_mode === 'owner'
                       ? <span className="text-sm font-semibold text-purple-400">Owner</span>
@@ -155,7 +155,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale }: TodaySnackOr
                 </div>
 
                 {/* Items list */}
-                <div className="flex flex-wrap gap-1.5 pl-9">
+                <div className="flex flex-wrap gap-1.5 pl-0 sm:pl-9">
                   {booking.booking_orders!.map((order, idx) => (
                     <span
                       key={order.id || idx}

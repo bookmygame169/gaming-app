@@ -150,7 +150,7 @@ export function ActiveSessions({
 
     if (sortedActiveBookings.length === 0 && activeMemberships.length === 0) {
         return (
-            <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-16 text-center flex flex-col items-center gap-3">
+            <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-8 md:p-16 text-center flex flex-col items-center gap-3">
                 <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-1">
                     <Gamepad2 size={28} className="text-slate-600" />
                 </div>
@@ -161,7 +161,7 @@ export function ActiveSessions({
     }
 
     return (
-        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3`}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             {/* Active Membership Sessions */}
             {activeMemberships.map((sub: any) => {
                 const planDetails = sub.membership_plans || {};
@@ -269,7 +269,7 @@ export function ActiveSessions({
                         </div>
 
                         {/* Middle: ring + customer info */}
-                        <div className="flex items-center gap-4 px-4 py-3">
+                        <div className="flex flex-col items-start gap-4 px-4 py-3 sm:flex-row sm:items-center">
                             {/* Circular ring */}
                             <div className="relative w-[76px] h-[76px] shrink-0 flex items-center justify-center">
                                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
@@ -290,7 +290,7 @@ export function ActiveSessions({
                             </div>
 
                             {/* Customer info */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 w-full">
                                 <p className="text-[10px] text-slate-500 mb-0.5" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Customer</p>
                                 <p className="text-sm font-bold text-white truncate">{customerName}</p>
                                 {endTime && <p className="text-[11px] text-slate-500 mt-1">ends {endTime}</p>}
@@ -324,7 +324,7 @@ export function ActiveSessions({
                                         <X size={13} />
                                     </button>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col gap-2 sm:flex-row">
                                     <button onClick={() => setEndCollectPayment('cash')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${endCollectPayment === 'cash' ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}>
                                         <Banknote size={12} /> Cash
                                     </button>
@@ -344,7 +344,7 @@ export function ActiveSessions({
 
                         {/* Action buttons */}
                         {!isShowingEndCollect && (
-                            <div className="mt-3 grid grid-cols-2 gap-1.5 px-4 pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                            <div className="mt-3 grid grid-cols-1 gap-1.5 px-4 pb-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                                 {onAddTime && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onAddTime(booking); }}
@@ -366,7 +366,7 @@ export function ActiveSessions({
                                 {onEndCollect && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setEndCollectId(booking.id); setEndCollectPayment('cash'); }}
-                                        className="col-span-2 flex items-center justify-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-colors hover:border-white/20 sm:col-span-1"
+                                        className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-colors hover:border-white/20 sm:col-span-2 xl:col-span-1"
                                         style={{ border: '1px solid rgba(255,255,255,0.07)', color: '#fca5a5' }}
                                     >
                                         <Square className="w-3 h-3" /> End

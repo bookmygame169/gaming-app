@@ -33,6 +33,10 @@ const DESKTOP_MORE_TABS = [
     { id: 'settings',      label: 'Settings',    icon: Settings },
 ];
 
+const TAB_LABELS = Object.fromEntries(
+    [...DESKTOP_PRIMARY_TABS, ...DESKTOP_MORE_TABS].map((tab) => [tab.id, tab.label])
+);
+
 export function DashboardLayout({
     children,
     activeTab,
@@ -62,6 +66,7 @@ export function DashboardLayout({
 
     const initials = cafeName.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
     const isMoreActive = DESKTOP_MORE_TABS.some(t => t.id === activeTab);
+    const activeTabLabel = TAB_LABELS[activeTab] || 'Dashboard';
 
     return (
         <div className="min-h-screen owner-bg flex flex-col">
@@ -187,19 +192,24 @@ export function DashboardLayout({
             </div>
 
             {/* ── MOBILE HEADER ── */}
-            <header className="lg:hidden sticky top-0 z-40 h-14 flex items-center justify-between px-4 border-b border-white/[0.06]"
+            <header className="lg:hidden sticky top-0 z-40 min-h-14 flex items-center justify-between gap-3 px-4 py-2 border-b border-white/[0.06]"
                 style={{ background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(24px)' }}>
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                     <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
-                    <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center"
+                    <div className="flex min-w-0 items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
                             style={{ background: 'linear-gradient(140deg, #06b6d4 0%, #0891b2 55%, #1e1b4b 100%)' }}>
                             <Gamepad2 size={14} className="text-white" />
                         </div>
-                        <p className="text-sm font-bold">BookMyGame<span style={{ color: '#06b6d4' }}>.</span></p>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-bold">BookMyGame<span style={{ color: '#06b6d4' }}>.</span></p>
+                            <p className="truncate text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                                {activeTabLabel} · {cafeName}
+                            </p>
+                        </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
                     {onRefresh && (
                         <button onClick={handleRefresh}
                             className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-white transition-colors"

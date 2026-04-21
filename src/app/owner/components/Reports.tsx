@@ -517,6 +517,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         };
     }, [billableBookings]);
 
+    const recentTransactions = billableBookings.slice(-10).reverse();
+
     // 4. Top Customers — group all-time bookings by phone, rank by spend
     const topCustomers = useMemo(() => {
         const map: Record<string, { name: string; phone: string; spent: number; sessions: number; lastVisit: string }> = {};
@@ -1561,12 +1563,12 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
             {/* Recent Transactions Table */}
             <Card padding="none" className="overflow-hidden">
-                <div className="p-6 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="flex flex-col gap-3 border-b border-white/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                     <h3 className="text-lg font-semibold text-white">Recent Transactions</h3>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-slate-400 hover:text-white"
+                        className="self-start text-slate-400 hover:text-white sm:self-auto"
                         onClick={exportToCSV}
                     >
                         <Download size={16} className="mr-2" />
@@ -1574,6 +1576,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     </Button>
                 </div>
 
+                {!isMobile ? (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -1587,7 +1590,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/[0.08]/50">
-                            {billableBookings.slice(-10).reverse().map((booking) => (
+                            {recentTransactions.map((booking) => (
                                 <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
                                     <td className="px-6 py-4 text-white">
                                         <div className="font-medium">
@@ -1631,6 +1634,43 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                         </tbody>
                     </table>
                 </div>
+                ) : (
+                    <div className="divide-y divide-white/[0.08]/50">
+                        {recentTransactions.length === 0 ? (
+                            <div className="px-4 py-12 text-center text-slate-500">
+                                No transactions found for this period.
+                            </div>
+                        ) : recentTransactions.map((booking) => (
+                            <div key={booking.id} className="space-y-3 px-4 py-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="font-medium text-white">
+                                            {parseLocalDate(booking.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </div>
+                                        <div className="mt-1 text-xs text-slate-500">
+                                            {booking.start_time || 'N/A'} · {booking.customer_name || 'Walk-in'}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-mono text-sm font-semibold text-white">â‚¹{booking.total_amount?.toLocaleString()}</div>
+                                        <div className="mt-1 text-[11px] capitalize text-slate-400">{booking.payment_mode || 'Cash'}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${booking.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                        booking.status === 'completed' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                                            'bg-white/[0.04] text-slate-400 border-white/[0.09]'
+                                        }`}>
+                                        {booking.status}
+                                    </span>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                        <ArrowUpRight size={16} className="text-slate-500" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </Card>
         </div >
     );

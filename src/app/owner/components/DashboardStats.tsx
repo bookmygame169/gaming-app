@@ -257,13 +257,13 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
             style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
 
           {/* Top row */}
-          <div className="flex items-center justify-between relative">
+          <div className="relative flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-[10px] text-slate-500 font-semibold" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
               {period === 'today' ? 'Today · Revenue' : '7 Days · Revenue'}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
               {revenueVisible && (
-                <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
                   <TrendingUp size={12} />
                   <Trend today={displayRevenue} yesterday={displayPrevRevenue} />
                   <span>vs yest</span>
@@ -276,8 +276,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           </div>
 
           {/* Revenue amount + sessions */}
-          <div className="mt-2 flex items-baseline gap-3 relative">
-            <p className="mono font-bold text-white leading-none tracking-tight" style={{ fontSize: 44 }}>
+          <div className="relative mt-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:gap-3">
+            <p className="mono text-[34px] font-bold leading-none tracking-tight text-white sm:text-[44px]">
               {revenueVisible ? `₹${displayRevenue.toLocaleString('en-IN')}` : '₹ ••••••'}
             </p>
             <span className="text-[11px] text-slate-500">{displaySessions} sessions</span>
@@ -294,7 +294,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                 {snacksPct > 0 && <div style={{ width: `${snacksPct}%`, background: 'linear-gradient(90deg,#f59e0b,#fbbf24)' }} />}
                 {memberPct > 0 && <div style={{ width: `${memberPct}%`, background: 'linear-gradient(90deg,#8b5cf6,#a78bfa)' }} />}
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                 {gamingRevenue > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-8 rounded shrink-0" style={{ background: '#06b6d4' }} />
@@ -329,8 +329,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                     <span className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>
                       Payments
                     </span>
-                    <div className="flex flex-1 flex-wrap gap-2">
-                      <div className="inline-flex min-w-[150px] items-center gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-2">
+                    <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <div className="inline-flex w-full items-center gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-2 sm:min-w-[150px] sm:w-auto">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
                           <Banknote size={13} />
                         </span>
@@ -341,7 +341,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                           <p className="mono mt-1 text-sm font-bold text-white">₹{cashTotal.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
-                      <div className="inline-flex min-w-[150px] items-center gap-2 rounded-xl border border-cyan-500/15 bg-cyan-500/8 px-2.5 py-2">
+                      <div className="inline-flex w-full items-center gap-2 rounded-xl border border-cyan-500/15 bg-cyan-500/8 px-2.5 py-2 sm:min-w-[150px] sm:w-auto">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300">
                           <Smartphone size={13} />
                         </span>

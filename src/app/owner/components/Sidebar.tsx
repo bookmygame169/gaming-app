@@ -119,7 +119,7 @@ export function Sidebar({
         if (isMobile) onClose();
     };
 
-    const sidebarWidth = collapsed && !isMobile ? 'w-16' : 'w-64';
+    const sidebarWidth = isMobile ? 'w-[88vw] max-w-xs' : collapsed ? 'w-16' : 'w-64';
 
     return (
         <>

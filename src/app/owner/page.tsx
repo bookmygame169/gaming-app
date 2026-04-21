@@ -1995,7 +1995,7 @@ export default function OwnerDashboardPage() {
                 });
                 if (endingSoon.length === 0) return null;
                 return (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 flex items-center gap-3">
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                     <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
                       <AlarmClock size={16} className="text-amber-400" />
                     </div>
@@ -2042,7 +2042,7 @@ export default function OwnerDashboardPage() {
                       ) : null;
                     })()}
                   </div>
-                  <button onClick={() => handleTabChange('bookings')} className="text-[12px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
+                  <button onClick={() => handleTabChange('bookings')} className="text-[12px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors self-start sm:self-auto">
                     View all <ChevronRight size={12} />
                   </button>
                 </div>
@@ -2111,8 +2111,8 @@ export default function OwnerDashboardPage() {
 
                 return (
                   <section>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2.5">
+                    <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
                           <BarChart3 size={14} className="text-violet-400" />
                         </div>
@@ -2159,7 +2159,7 @@ export default function OwnerDashboardPage() {
                 return (
                   <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Cash Drawer Summary</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 p-3 text-center">
                         <p className="text-[10px] text-emerald-400/70 uppercase tracking-widest mb-1">Cash</p>
                         <p className="text-lg font-bold text-emerald-400">₹{cashTotal.toLocaleString('en-IN')}</p>
