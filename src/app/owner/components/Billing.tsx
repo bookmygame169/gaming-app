@@ -652,20 +652,6 @@ export function Billing({
     return (
         <div className={`space-y-6 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">
-                        {mode === 'gaming' ? 'Billing · Walk-in' : 'Membership · Checkout'}
-                    </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
-                        {mode === 'gaming' ? 'New Booking' : 'New Membership'}
-                    </h1>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                        {currentCafe?.name || 'Your cafe'} · {mode === 'gaming'
-                            ? 'Create live sessions and collect payment at the desk.'
-                            : 'Sell plans and capture payment without leaving the dashboard.'}
-                    </p>
-                </div>
-
                 <div className="flex flex-wrap items-center gap-2">
                     {onSnackOnlySale && mode === 'gaming' && (
                         <button
