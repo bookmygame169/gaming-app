@@ -646,24 +646,6 @@ export function Billing({
                 </div>
             </div>
 
-            {recentCustomers.length > 0 && (
-                <div className="space-y-2">
-                    <div className="text-[10px] smallcaps text-[var(--dim)]">Top customers</div>
-                    <div className="flex flex-wrap gap-2">
-                        {recentCustomers.slice(0, 5).map((customer) => (
-                            <button
-                                key={`${customer.phone}-${customer.name}`}
-                                type="button"
-                                onClick={() => applyCustomer(customer)}
-                                className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
-                            >
-                                <span className="truncate text-xs font-medium text-white">{customer.name}</span>
-                                <span className="mono text-[10px] text-[var(--muted)]">{customer.phone}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
         </Card>
     );
 
