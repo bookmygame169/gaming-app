@@ -81,6 +81,10 @@ const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
     racing_sim: { accent: '#fb7185', short: 'RS' },
 };
 
+const SECTION_CARD_CLASS = 'border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] shadow-[0_24px_64px_-36px_rgba(0,0,0,0.9)]';
+const SUBPANEL_CLASS = 'rounded-2xl border border-white/[0.08] bg-white/[0.03] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+const HOVER_CARD_CLASS = 'transition-all duration-200 hover:-translate-y-0.5 hover:border-white/[0.16]';
+
 function getConsoleTheme(consoleType: string) {
     return CONSOLE_THEME[consoleType] || { accent: '#06b6d4', short: consoleType.slice(0, 2).toUpperCase() };
 }
@@ -567,7 +571,7 @@ export function Billing({
     };
 
     const customerInfoCard = (
-        <Card className="relative z-10 overflow-visible space-y-5">
+        <Card className={`relative z-10 overflow-visible space-y-5 ${SECTION_CARD_CLASS}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/12 text-cyan-300">
@@ -651,7 +655,7 @@ export function Billing({
                                 key={`${customer.phone}-${customer.name}`}
                                 type="button"
                                 onClick={() => applyCustomer(customer)}
-                                className="glass-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-left transition hover:border-white/15"
+                                className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
                             >
                                 <span className="truncate text-xs font-medium text-white">{customer.name}</span>
                                 <span className="mono text-[10px] text-[var(--muted)]">{customer.phone}</span>
@@ -664,7 +668,7 @@ export function Billing({
     );
 
     return (
-        <div className={`space-y-5 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
+        <div className={`space-y-6 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">
@@ -685,23 +689,23 @@ export function Billing({
                         <button
                             type="button"
                             onClick={onSnackOnlySale}
-                            className="glass-2 rounded-xl px-3.5 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400/30"
+                            className="glass-2 rounded-xl border border-orange-400/15 px-3.5 py-2.5 text-sm font-medium text-orange-300 transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-400/30 hover:bg-orange-500/10"
                         >
                             Snack-only sale
                         </button>
                     )}
-                    <div className="glass-2 inline-flex rounded-2xl p-1">
+                    <div className="glass-2 inline-flex rounded-2xl border border-white/[0.08] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                         <button
                             type="button"
                             onClick={() => setMode('gaming')}
-                            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${mode === 'gaming' ? 'bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                            className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'gaming' ? 'bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'text-slate-400 hover:text-white'}`}
                         >
                             Gaming
                         </button>
                         <button
                             type="button"
                             onClick={() => setMode('membership')}
-                            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${mode === 'membership' ? 'bg-violet-500/15 text-white shadow-[0_0_24px_-10px_rgba(168,85,247,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                            className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'membership' ? 'bg-violet-500/15 text-white shadow-[0_0_24px_-10px_rgba(168,85,247,0.75)]' : 'text-slate-400 hover:text-white'}`}
                         >
                             Membership
                         </button>
@@ -778,11 +782,11 @@ export function Billing({
                     </div>
                 </div>
             ) : mode === 'gaming' ? (
-                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_410px]">
                     <div className="space-y-5">
                         {customerInfoCard}
 
-                        <Card className="space-y-5">
+                        <Card className={`space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
@@ -794,7 +798,7 @@ export function Billing({
                                     </div>
                                 </div>
                                 {items.length > 0 && (
-                                    <Button size="sm" variant="secondary" onClick={addItem}>
+                                    <Button size="sm" variant="secondary" onClick={addItem} className="shadow-[0_10px_30px_-18px_rgba(255,255,255,0.25)]">
                                         <Plus size={14} /> Add Station
                                     </Button>
                                 )}
@@ -810,7 +814,7 @@ export function Billing({
                                                 key={consoleType}
                                                 type="button"
                                                 onClick={() => setItems([createItem(consoleType)])}
-                                                className="glass-2 relative overflow-hidden rounded-2xl p-4 text-left transition hover:border-white/15"
+                                                className={`relative overflow-hidden rounded-2xl p-4 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
                                                 style={{ background: `linear-gradient(180deg, ${theme.accent}18, rgba(0,0,0,0)) , var(--card-2)` }}
                                             >
                                                 <span className="absolute inset-0 grid-dots opacity-30" />
@@ -838,16 +842,16 @@ export function Billing({
                                         const allowSingleStation = canPickSingleStation(item.console, item.quantity);
 
                                         return (
-                                            <div key={item.id} className="glass-2 rounded-2xl p-4 space-y-3">
+                                            <div key={item.id} className={`${SUBPANEL_CLASS} space-y-4 rounded-2xl p-4 md:p-5`}>
                                                 {/* Header row */}
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="text-[10px] smallcaps text-[var(--dim)]">Item {index + 1}</span>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="mono text-sm font-bold" style={{ color: theme.accent }}>Rs.{item.price}</span>
+                                                        <span className="mono rounded-full px-2.5 py-1 text-sm font-bold" style={{ color: theme.accent, background: `${theme.accent}12` }}>Rs.{item.price}</span>
                                                         <button
                                                             type="button"
                                                             onClick={() => removeItem(item.id)}
-                                                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] text-slate-500 transition hover:border-red-400/30 hover:text-red-300"
+                                                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-500 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-400/30 hover:text-red-300"
                                                         >
                                                             <Trash2 size={13} />
                                                         </button>
@@ -866,7 +870,7 @@ export function Billing({
                                                                     key={consoleType}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'console', consoleType)}
-                                                                    className={`relative overflow-hidden rounded-xl p-3 text-left transition ${selected ? 'glow-selected' : 'glass hover:border-white/15'}`}
+                                                                    className={`relative overflow-hidden rounded-2xl p-3.5 text-left transition-all duration-200 ${selected ? 'glow-selected' : `glass border border-white/[0.08] ${HOVER_CARD_CLASS}`}`}
                                                                     style={{ background: selected ? `linear-gradient(180deg, ${t.accent}18, rgba(0,0,0,0)), var(--card-2)` : 'var(--card-2)' }}
                                                                 >
                                                                     <div className="flex items-center justify-between gap-2">
@@ -900,7 +904,7 @@ export function Billing({
                                                                             key={station}
                                                                             type="button"
                                                                             onClick={() => updateItem(item.id, 'station', station)}
-                                                                            className="relative rounded-xl px-3.5 py-2 text-sm font-semibold transition-all"
+                                                                            className="relative rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
                                                                             style={{
                                                                                 background: selected ? `${theme.accent}18` : 'rgba(255,255,255,0.04)',
                                                                                 border: selected ? `1.5px solid ${theme.accent}60` : '1.5px solid rgba(255,255,255,0.07)',
@@ -929,7 +933,7 @@ export function Billing({
                                                                         key={players}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'quantity', players)}
-                                                                        className="flex-1 rounded-xl py-2.5 text-sm font-bold transition-all"
+                                                                        className="flex-1 rounded-xl py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
                                                                         style={{
                                                                             background: selected ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
                                                                             border: selected ? '1.5px solid rgba(255,255,255,0.20)' : '1.5px solid rgba(255,255,255,0.07)',
@@ -955,7 +959,7 @@ export function Billing({
                                                                     key={dur}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'duration', dur)}
-                                                                    className="rounded-xl py-2.5 text-sm font-bold transition-all"
+                                                                    className="rounded-xl py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
                                                                     style={{
                                                                         background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)',
                                                                         border: selected ? '1.5px solid rgba(6,182,212,0.40)' : '1.5px solid rgba(255,255,255,0.07)',
@@ -971,7 +975,7 @@ export function Billing({
                                                 </div>
 
                                                 {/* Summary */}
-                                                <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                <div className={`flex items-center justify-between rounded-2xl px-4 py-3.5 ${SUBPANEL_CLASS}`}>
                                                     <div className="flex items-center gap-3">
                                                         <div className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold shrink-0" style={{ background: `${theme.accent}18`, color: theme.accent }}>
                                                             {theme.short}
@@ -999,7 +1003,7 @@ export function Billing({
                     </div>
 
                     <div className="space-y-5">
-                        <Card className="sticky top-6 space-y-5">
+                        <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-300">
                                     <Clock size={18} />
@@ -1011,7 +1015,7 @@ export function Billing({
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <label className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                                <label className={`${SUBPANEL_CLASS} focus-ring rounded-2xl px-3.5 py-3 transition`}>
                                     <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">Date</div>
                                     <input
                                         type="date"
@@ -1021,7 +1025,7 @@ export function Billing({
                                         style={{ colorScheme: 'dark' }}
                                     />
                                 </label>
-                                <label className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                                <label className={`${SUBPANEL_CLASS} focus-ring rounded-2xl px-3.5 py-3 transition`}>
                                     <div className="mb-1 text-[10px] smallcaps text-[var(--dim)]">Start Time</div>
                                     <input
                                         type="time"
@@ -1036,7 +1040,7 @@ export function Billing({
                             {items.length > 0 ? (
                                 <div className="space-y-2">
                                     {items.map((item) => (
-                                        <div key={item.id} className="glass-2 flex items-center justify-between rounded-xl px-3.5 py-3">
+                                        <div key={item.id} className={`${SUBPANEL_CLASS} flex items-center justify-between rounded-2xl px-3.5 py-3`}>
                                             <div>
                                                 <div className="text-sm font-medium text-white">
                                                     {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
@@ -1055,12 +1059,12 @@ export function Billing({
                                     ))}
                                 </div>
                             ) : (
-                                <div className="glass-2 rounded-xl px-4 py-6 text-center text-sm text-[var(--muted)]">
+                                <div className={`${SUBPANEL_CLASS} rounded-2xl px-4 py-6 text-center text-sm text-[var(--muted)]`}>
                                     Select a console to start building the booking.
                                 </div>
                             )}
 
-                            <div className="glass-2 rounded-2xl p-4">
+                            <div className={`${SUBPANEL_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-[var(--muted)]">Calculated</span>
                                     <span className="mono text-white">Rs.{calculatedTotal}</span>
@@ -1095,7 +1099,7 @@ export function Billing({
                                 <button
                                     type="button"
                                     onClick={() => setPaymentMode('cash')}
-                                    className={`rounded-2xl border p-4 text-center transition ${paymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    className={`rounded-2xl border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200 shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
                                     <Banknote className="mx-auto mb-2" size={20} />
                                     <div className="text-sm font-semibold">Cash</div>
@@ -1103,7 +1107,7 @@ export function Billing({
                                 <button
                                     type="button"
                                     onClick={() => setPaymentMode('upi')}
-                                    className={`rounded-2xl border p-4 text-center transition ${paymentMode === 'upi' ? 'border-cyan-400/30 bg-cyan-500/12 text-cyan-100' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    className={`rounded-2xl border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'upi' ? 'border-cyan-400/30 bg-cyan-500/12 text-cyan-100 shadow-[0_18px_36px_-22px_rgba(34,211,238,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
                                     <Smartphone className="mx-auto mb-2" size={20} />
                                     <div className="text-sm font-semibold">UPI</div>
@@ -1111,7 +1115,7 @@ export function Billing({
                             </div>
 
                             {paymentMode === 'upi' && totalAmount > 0 && (
-                                <div className="space-y-3 rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.04] px-4 py-4 text-center">
+                                <div className="space-y-3 rounded-[24px] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(34,211,238,0.7)]">
                                     <div
                                         className="inline-flex cursor-pointer rounded-2xl bg-[#d4d4d4] p-3 transition"
                                         onClick={() => setQrExpanded((value) => !value)}
@@ -1147,11 +1151,11 @@ export function Billing({
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_410px]">
                     <div className="space-y-5">
                         {customerInfoCard}
 
-                        <Card className="space-y-5">
+                        <Card className={`space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
@@ -1163,7 +1167,7 @@ export function Billing({
                                     </div>
                                 </div>
                                 {membershipPlans.length > 0 && (
-                                    <Button size="sm" variant="secondary" onClick={addMemItem}>
+                                    <Button size="sm" variant="secondary" onClick={addMemItem} className="shadow-[0_10px_30px_-18px_rgba(255,255,255,0.25)]">
                                         <Plus size={14} /> Add Plan
                                     </Button>
                                 )}
@@ -1181,7 +1185,7 @@ export function Billing({
                                             key={plan.id}
                                             type="button"
                                             onClick={() => setMemItems([{ id: Math.random().toString(36).substr(2, 9), planId: plan.id, quantity: 1 }])}
-                                            className="glass-2 rounded-2xl p-4 text-left transition hover:border-white/15"
+                                            className={`${SUBPANEL_CLASS} rounded-2xl p-4 text-left ${HOVER_CARD_CLASS}`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/14 text-sm font-bold text-violet-300">
@@ -1204,14 +1208,14 @@ export function Billing({
                                         const plan = membershipPlans.find((entry) => entry.id === item.planId);
                                         const lineTotal = plan ? plan.price * item.quantity : 0;
                                         return (
-                                            <div key={item.id} className="glass-2 rounded-2xl p-4">
+                                            <div key={item.id} className={`${SUBPANEL_CLASS} rounded-2xl p-4`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0 flex-1">
                                                         <label className="mb-1.5 block text-[10px] smallcaps text-[var(--dim)]">Plan</label>
                                                         <select
                                                             value={item.planId}
                                                             onChange={(event) => updateMemItem(item.id, 'planId', event.target.value)}
-                                                            className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-violet-400/30 focus:outline-none"
+                                                            className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-sm text-white focus:border-violet-400/30 focus:outline-none"
                                                             style={{ colorScheme: 'dark' }}
                                                         >
                                                             {membershipPlans.map((option) => (
@@ -1238,7 +1242,7 @@ export function Billing({
                                                     <button
                                                         type="button"
                                                         onClick={() => removeMemItem(item.id)}
-                                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-400 transition hover:border-red-400/30 hover:text-red-300"
+                                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-400/30 hover:text-red-300"
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -1249,7 +1253,7 @@ export function Billing({
                                                         <button
                                                             type="button"
                                                             onClick={() => updateMemItem(item.id, 'quantity', Math.max(1, item.quantity - 1))}
-                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition hover:border-white/15"
+                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white/15"
                                                         >
                                                             -
                                                         </button>
@@ -1257,7 +1261,7 @@ export function Billing({
                                                         <button
                                                             type="button"
                                                             onClick={() => updateMemItem(item.id, 'quantity', Math.min(20, item.quantity + 1))}
-                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition hover:border-white/15"
+                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white/15"
                                                         >
                                                             +
                                                         </button>
@@ -1278,7 +1282,7 @@ export function Billing({
                     </div>
 
                     <div className="space-y-5">
-                        <Card className="sticky top-6 space-y-5">
+                        <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
                                     <CreditCard size={18} />
@@ -1294,7 +1298,7 @@ export function Billing({
                                     const plan = membershipPlans.find((entry) => entry.id === item.planId);
                                     if (!plan) return null;
                                     return (
-                                        <div key={item.id} className="glass-2 flex items-center justify-between rounded-xl px-3.5 py-3">
+                                        <div key={item.id} className={`${SUBPANEL_CLASS} flex items-center justify-between rounded-2xl px-3.5 py-3`}>
                                             <div>
                                                 <div className="text-sm font-medium text-white">{plan.name}</div>
                                                 <div className="text-[11px] text-[var(--muted)]">Qty {item.quantity}</div>
@@ -1303,13 +1307,13 @@ export function Billing({
                                         </div>
                                     );
                                 }) : (
-                                    <div className="glass-2 rounded-xl px-4 py-6 text-center text-sm text-[var(--muted)]">
+                                    <div className={`${SUBPANEL_CLASS} rounded-2xl px-4 py-6 text-center text-sm text-[var(--muted)]`}>
                                         Select a plan to start the checkout.
                                     </div>
                                 )}
                             </div>
 
-                            <div className="glass-2 rounded-2xl p-4">
+                            <div className={`${SUBPANEL_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-[var(--muted)]">Calculated</span>
                                     <span className="mono text-white">Rs.{memCalculatedTotal}</span>
@@ -1344,7 +1348,7 @@ export function Billing({
                                 <button
                                     type="button"
                                     onClick={() => setMemPaymentMode('cash')}
-                                    className={`rounded-2xl border p-4 text-center transition ${memPaymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    className={`rounded-2xl border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 ${memPaymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200 shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
                                     <Banknote className="mx-auto mb-2" size={20} />
                                     <div className="text-sm font-semibold">Cash</div>
@@ -1352,7 +1356,7 @@ export function Billing({
                                 <button
                                     type="button"
                                     onClick={() => setMemPaymentMode('upi')}
-                                    className={`rounded-2xl border p-4 text-center transition ${memPaymentMode === 'upi' ? 'border-violet-400/30 bg-violet-500/12 text-violet-100' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    className={`rounded-2xl border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 ${memPaymentMode === 'upi' ? 'border-violet-400/30 bg-violet-500/12 text-violet-100 shadow-[0_18px_36px_-22px_rgba(168,85,247,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
                                 >
                                     <Smartphone className="mx-auto mb-2" size={20} />
                                     <div className="text-sm font-semibold">UPI</div>
@@ -1360,7 +1364,7 @@ export function Billing({
                             </div>
 
                             {memPaymentMode === 'upi' && memTotalAmount > 0 && (
-                                <div className="space-y-3 rounded-2xl border border-violet-400/15 bg-violet-500/[0.05] px-4 py-4 text-center">
+                                <div className="space-y-3 rounded-[24px] border border-violet-400/15 bg-[linear-gradient(180deg,rgba(168,85,247,0.09),rgba(168,85,247,0.04))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(168,85,247,0.7)]">
                                     <div
                                         className="inline-flex cursor-pointer rounded-2xl bg-[#d4d4d4] p-3 transition"
                                         onClick={() => setQrExpanded((value) => !value)}
