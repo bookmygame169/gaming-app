@@ -2075,7 +2075,10 @@ export default function OwnerDashboardPage() {
 
               {/* Today's Bookings — clean design-matching table */}
               <DashboardBookingsTable
-                bookings={bookings.filter((b: any) => b.booking_date === getLocalDateString())}
+                bookings={bookings.filter((b: any) =>
+                  b.booking_date === getLocalDateString() &&
+                  (!currentCafeId || b.cafe_id === currentCafeId)
+                )}
                 onViewAll={() => handleTabChange('bookings')}
                 onEdit={handleEditBooking}
               />

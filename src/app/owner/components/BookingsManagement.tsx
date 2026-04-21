@@ -8,6 +8,7 @@ import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2, Z
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { supabase } from '@/lib/supabaseClient';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
+import { getLocalDateString } from '../utils';
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
 const EMPTY_BOOKING_SUMMARY = {
@@ -46,12 +47,7 @@ interface BookingsManagementProps {
 
 function getDateRange(range: string, customStart: string, customEnd: string): { dateFrom: string; dateTo: string } {
     const today = new Date();
-    const fmt = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    };
+    const fmt = (d: Date) => getLocalDateString(d);
 
     if (range === 'today') return { dateFrom: fmt(today), dateTo: fmt(today) };
     if (range === 'yesterday') {
@@ -284,8 +280,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
         }
     }
 
-    const _now = new Date();
-    const todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+    const todayStr = getLocalDateString();
     const activeSessionCount = bookings.filter(b => b.status === 'in-progress' && b.booking_date === todayStr).length;
 
     return (
