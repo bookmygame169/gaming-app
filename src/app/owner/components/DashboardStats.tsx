@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, IndianRupee, Timer, Banknote, Smartphone } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, Timer, Banknote, Smartphone } from 'lucide-react';
 import { getLocalDateString } from '../utils';
 
 function Sparkline({ data }: { data: number[] }) {
@@ -155,6 +155,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const yesterdayBookings = billableSessionBookings.filter((booking) => booking.booking_date === yesterdayStr);
   const yesterdaySubscriptions = subscriptions.filter(sub => sub.purchase_date && getLocalDateString(new Date(sub.purchase_date)) === yesterdayStr);
   const yesterdayRevenue = calcRevenue(yesterdayBookings, yesterdaySubscriptions);
+  const yesterdaySessions = yesterdayBookings.filter(b => b.booking_items && b.booking_items.length > 0).length;
 
   const weekRevenue = calcRevenue(weekBookings, weekSubscriptions);
   const prevWeekRevenue = calcRevenue(prevWeekBookings, prevWeekSubscriptions);
@@ -230,6 +231,10 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const paymentSplitTotal = cashTotal + upiTotal;
   const upiPct = paymentSplitTotal > 0 ? Math.round((upiTotal / paymentSplitTotal) * 100) : 0;
   const cashPct = paymentSplitTotal > 0 ? 100 - upiPct : 0;
+  const totalCheckouts = todayBookings.length + todaySubscriptions.length;
+  const averageCheckout = totalCheckouts > 0 ? Math.round(totalRevenue / totalCheckouts) : 0;
+  const liveIndicatorColor = activeNow > 0 ? '#10b981' : '#475569';
+  const sessionChange = todaySessions - yesterdaySessions;
 
   if (loadingData) {
     return (
@@ -363,48 +368,89 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
         {/* ── 3 KPI TILES side-by-side ── */}
         <div className="col-span-12 lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-          {/* Collections — PayBreakdown tile */}
+          {/* Payment split */}
           <div className="glass rounded-2xl p-4 relative overflow-hidden">
             <div className="absolute inset-0 rounded-2xl pointer-events-none"
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
-            <div className="flex items-center justify-between relative">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.18)', color: '#c4b5fd' }}>
-                <IndianRupee size={14} />
+            <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.12), transparent)' }} />
+            <div className="relative flex h-full min-h-[190px] flex-col">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee' }}>
+                  <Smartphone size={14} />
+                </div>
+                <span className="text-[10px] text-slate-600" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Today</span>
               </div>
-              <span className="text-[10px] text-slate-600" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Today</span>
+              <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Payment split</div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{upiPct}%</span>
+                <span className="text-[11px] text-slate-500">digital</span>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                {paymentSplitTotal > 0
+                  ? `${cashPct}% cash across ${totalCheckouts} checkout${totalCheckouts === 1 ? '' : 's'}`
+                  : 'No payments recorded today'}
+              </div>
+              {paymentSplitTotal > 0 && (
+                <>
+                  <div className="mt-4 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: '#06b6d4' }} />}
+                    {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: '#10b981' }} />}
+                  </div>
+                  <div className="mt-auto pt-4 space-y-2 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-slate-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                        UPI
+                      </span>
+                      <span className="mono text-white">₹{upiTotal.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-slate-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        Cash
+                      </span>
+                      <span className="mono text-white">₹{cashTotal.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="mt-4 text-[10px] text-slate-500 relative" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Collections</div>
-            <div className="mt-0.5 flex items-baseline gap-1.5 relative">
-              <span className="mono font-bold text-white" style={{ fontSize: 26 }}>₹{(cashTotal + upiTotal).toLocaleString('en-IN')}</span>
-            </div>
-            {paymentSplitTotal > 0 && (
-              <>
-                <div className="mt-3 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: '#06b6d4' }} />}
-                  {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: '#10b981' }} />}
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" /><span className="text-slate-500">UPI</span> <span className="mono text-white ml-1">₹{upiTotal.toLocaleString('en-IN')}</span></span>
-                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /><span className="text-slate-500">Cash</span> <span className="mono text-white ml-1">₹{cashTotal.toLocaleString('en-IN')}</span></span>
-                </div>
-              </>
-            )}
           </div>
 
           {/* Active Now */}
           <div className="glass rounded-2xl p-4 relative overflow-hidden">
             <div className="absolute inset-0 rounded-2xl pointer-events-none"
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
-            <div className="flex items-center justify-between relative">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
-                <Zap size={14} />
+            <div className="absolute -left-10 -bottom-10 h-28 w-28 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(closest-side, rgba(16,185,129,0.12), transparent)' }} />
+            <div className="relative flex h-full min-h-[190px] flex-col">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
+                  <Zap size={14} />
+                </div>
+                <span className="relative inline-block w-1.5 h-1.5 rounded-full" style={{ background: liveIndicatorColor, color: liveIndicatorColor }} />
               </div>
-              <span className="relative inline-block w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: '#10b981', color: '#10b981' }} />
-            </div>
-            <div className="mt-4 text-[10px] text-slate-500 relative" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
-            <div className="mt-0.5 flex items-baseline gap-1.5 relative">
-              <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{activeNow}</span>
-              <span className="text-[10px] text-slate-500">of stations</span>
+              <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{activeNow}</span>
+                <span className="text-[10px] text-slate-500">live sessions</span>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                {activeNow > 0
+                  ? `${activeBookingsCount} gaming · ${activeSubscriptionsCount} memberships`
+                  : 'No active sessions right now'}
+              </div>
+              <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Gaming</div>
+                  <div className="mono mt-1 text-sm font-bold text-white">{activeBookingsCount}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Members</div>
+                  <div className="mono mt-1 text-sm font-bold text-white">{activeSubscriptionsCount}</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -412,17 +458,39 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           <div className="glass rounded-2xl p-4 relative overflow-hidden">
             <div className="absolute inset-0 rounded-2xl pointer-events-none"
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
-            <div className="flex items-center justify-between relative">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#06b6d4' }}>
-                <Timer size={14} />
+            <div className="absolute -right-10 -bottom-10 h-28 w-28 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.12), transparent)' }} />
+            <div className="relative flex h-full min-h-[190px] flex-col">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#06b6d4' }}>
+                  <Timer size={14} />
+                </div>
+                <span className={`text-[10px] font-semibold ${sessionChange > 0 ? 'text-emerald-400' : sessionChange < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                  {sessionChange > 0 ? `+${sessionChange}` : sessionChange} vs yest
+                </span>
               </div>
-            </div>
-            <div className="mt-4 text-[10px] text-slate-500 relative" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
-              {period === 'today' ? 'Sessions' : 'Week Sessions'}
-            </div>
-            <div className="mt-0.5 flex items-baseline gap-1.5 relative">
-              <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{displaySessions}</span>
-              <span className="text-[10px] text-slate-500">today</span>
+              <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
+                Sessions
+              </div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{displaySessions}</span>
+                <span className="text-[10px] text-slate-500">today</span>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                {totalCheckouts > 0
+                  ? `Avg checkout ₹${averageCheckout.toLocaleString('en-IN')}`
+                  : 'No completed checkouts today'}
+              </div>
+              <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Yesterday</div>
+                  <div className="mono mt-1 text-sm font-bold text-white">{yesterdaySessions}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Checkouts</div>
+                  <div className="mono mt-1 text-sm font-bold text-white">{totalCheckouts}</div>
+                </div>
+              </div>
             </div>
           </div>
 
