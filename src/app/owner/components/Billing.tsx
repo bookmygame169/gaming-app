@@ -597,11 +597,11 @@ export function Billing({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-                <div className="relative">
+                <div>
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
                         Name
                     </label>
-                    <div className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                    <div className="relative glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
                         <div className="flex items-center gap-2">
                             <User size={16} className="text-slate-500" />
                             <input
@@ -616,15 +616,15 @@ export function Billing({
                                 className="w-full bg-transparent text-sm text-white placeholder:text-[#4b5060] focus:outline-none"
                             />
                         </div>
+                        {renderSuggestions('name')}
                     </div>
-                    {renderSuggestions('name')}
                 </div>
 
-                <div className="relative">
+                <div>
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
                         {mode === 'membership' ? 'Phone Required' : 'Phone'}
                     </label>
-                    <div className="glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                    <div className="relative glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
                         <div className="flex items-center gap-2">
                             <Smartphone size={16} className="text-slate-500" />
                             <input
@@ -639,8 +639,8 @@ export function Billing({
                                 className="mono w-full bg-transparent text-sm text-white placeholder:text-[#4b5060] focus:outline-none"
                             />
                         </div>
+                        {renderSuggestions('phone')}
                     </div>
-                    {renderSuggestions('phone')}
                 </div>
             </div>
 
