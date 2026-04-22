@@ -675,10 +675,9 @@ export function Billing({
         <div className={`space-y-6 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
             <div className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] px-4 py-4 shadow-[0_28px_56px_-40px_rgba(0,0,0,0.95)] sm:px-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                         <div className="text-[10px] smallcaps text-[var(--dim)]">{modeIntro.eyebrow}</div>
-                        <h2 className="text-xl font-semibold tracking-tight text-white sm:text-[1.6rem]">{modeIntro.title}</h2>
-                        <p className="max-w-2xl text-sm text-[var(--muted)]">{modeIntro.description}</p>
+                        <h2 className="text-xl font-semibold tracking-tight text-white sm:text-[1.4rem]">{modeIntro.title}</h2>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -793,7 +792,6 @@ export function Billing({
                                     <div>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Session Builder</div>
                                         <h3 className="text-base font-semibold text-white">Select stations</h3>
-                                        <p className="mt-1 text-sm text-[var(--muted)]">Choose the setup first, then fine-tune station, players, and duration below.</p>
                                     </div>
                                 </div>
                                 {items.length > 0 && (
@@ -854,7 +852,7 @@ export function Billing({
                                         return (
                                             <div
                                                 key={item.id}
-                                                className="space-y-4 rounded-[26px] border border-white/[0.09] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_26px_48px_-34px_rgba(0,0,0,0.95)] md:p-5"
+                                                className="space-y-3 rounded-[26px] border border-white/[0.09] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_26px_48px_-34px_rgba(0,0,0,0.95)]"
                                             >
                                                 {/* Header row */}
                                                 <div className="flex items-center justify-between gap-2">
@@ -897,7 +895,7 @@ export function Billing({
                                                                     key={consoleType}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'console', consoleType)}
-                                                                    className={`relative min-h-[148px] overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200 ${selected ? '' : HOVER_CARD_CLASS}`}
+                                                                    className={`relative overflow-hidden rounded-2xl border p-3 text-left transition-all duration-200 ${selected ? '' : HOVER_CARD_CLASS}`}
                                                                     style={{
                                                                         background: selected
                                                                             ? `linear-gradient(180deg, ${t.accent}20, rgba(255,255,255,0.025) 55%, rgba(0,0,0,0) 100%), var(--card-2)`
@@ -909,37 +907,31 @@ export function Billing({
                                                                     }}
                                                                 >
                                                                     <span className="absolute inset-0 grid-dots opacity-20" />
-                                                                    <div className="relative flex h-full flex-col justify-between">
-                                                                        <div className="flex items-start justify-between gap-3">
-                                                                            <span className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-bold" style={{ background: `${t.accent}22`, color: t.accent }}>
+                                                                    <div className="relative flex flex-col gap-2">
+                                                                        <div className="flex items-center justify-between gap-2">
+                                                                            <span className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold" style={{ background: `${t.accent}22`, color: t.accent }}>
                                                                                 {t.short}
                                                                             </span>
                                                                             <span
-                                                                                className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                                                                                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                                                                                 style={{
                                                                                     background: selected ? `${t.accent}18` : 'rgba(255,255,255,0.05)',
                                                                                     color: selected ? '#e8f7ff' : '#94a3b8',
                                                                                     border: selected ? `1px solid ${t.accent}28` : '1px solid rgba(255,255,255,0.05)',
                                                                                 }}
                                                                             >
-                                                                                {stationCount} station{stationCount === 1 ? '' : 's'}
+                                                                                {stationCount}
                                                                             </span>
                                                                         </div>
-                                                                        <div className="mt-6">
-                                                                            <div className="text-lg font-semibold text-white xl:text-xl">
+                                                                        <div>
+                                                                            <div className="text-sm font-semibold text-white">
                                                                                 {CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}
                                                                             </div>
-                                                                            <div className="mt-1 text-[12px]" style={{ color: selected ? '#dbeafe' : 'var(--muted)' }}>
-                                                                                {selected ? 'Selected for this item' : 'Tap to switch'}
+                                                                            <div className="text-[11px]" style={{ color: selected ? t.accent : 'var(--muted)' }}>
+                                                                                {selected ? '✓ Selected' : 'Tap to switch'}
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                    {selected && (
-                                                                        <span
-                                                                            className="absolute bottom-3 left-4 h-1.5 w-16 rounded-full"
-                                                                            style={{ background: `linear-gradient(90deg, ${t.accent}, transparent)` }}
-                                                                        />
-                                                                    )}
                                                                 </button>
                                                             );
                                                         })}
@@ -1033,29 +1025,6 @@ export function Billing({
                                                     </div>
                                                 </div>
 
-                                                {/* Summary */}
-                                                <div className={`${CONTROL_SURFACE_CLASS} flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between`}>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold shrink-0" style={{ background: `${theme.accent}18`, color: theme.accent }}>
-                                                            {theme.short}
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-[10px] smallcaps text-[var(--dim)]">Booking line summary</div>
-                                                            <p className="mt-1 text-sm font-semibold text-white">
-                                                                {item.quantity} player{item.quantity === 1 ? '' : 's'} · {formatDurationLabel(item.duration)}
-                                                            </p>
-                                                            <p className="text-[11px] text-[var(--muted)] mt-0.5">
-                                                                {allowSingleStation ? formatStationOptionLabel(item.station || stations[0] || '—') : 'Auto assign'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center justify-between gap-3 lg:min-w-[180px] lg:flex-col lg:items-end">
-                                                        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300">
-                                                            {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
-                                                        </span>
-                                                        <p className="mono text-lg font-bold" style={{ color: theme.accent }}>Rs.{item.price}</p>
-                                                    </div>
-                                                </div>
                                             </div>
                                         );
                                     })}
@@ -1174,10 +1143,7 @@ export function Billing({
 
                             <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                        <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
-                                        <p className="mt-1 text-sm text-[var(--muted)]">Override only if you want to charge a different value at the counter.</p>
-                                    </div>
+                                    <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
                                     <span className="mono rounded-full bg-white/[0.04] px-3 py-1 text-xs text-slate-300">Calc Rs.{calculatedTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
@@ -1286,7 +1252,6 @@ export function Billing({
                                     <div>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Membership Cart</div>
                                         <h3 className="text-base font-semibold text-white">Select plans</h3>
-                                        <p className="mt-1 text-sm text-[var(--muted)]">Pick the plan, adjust quantity, and keep checkout moving from one clean cart.</p>
                                     </div>
                                 </div>
                                 {membershipPlans.length > 0 && (
@@ -1485,10 +1450,7 @@ export function Billing({
 
                             <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                        <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
-                                        <p className="mt-1 text-sm text-[var(--muted)]">Override only if you want to charge a different membership amount.</p>
-                                    </div>
+                                    <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
                                     <span className="mono rounded-full bg-white/[0.04] px-3 py-1 text-xs text-slate-300">Calc Rs.{memCalculatedTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
