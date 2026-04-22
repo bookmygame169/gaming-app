@@ -3,12 +3,14 @@
 import { CalendarX, ArrowRight, Pencil } from 'lucide-react';
 import { CONSOLE_COLORS, type ConsoleId } from '@/lib/constants';
 import { isSessionBooking } from '@/lib/bookingFilters';
+import { buildBookingTicketMessage, buildWhatsAppUrl } from '../utils';
 import type { BookingRow } from '../types';
 
 interface DashboardBookingsTableProps {
     bookings: BookingRow[];
     onViewAll?: () => void;
     onEdit?: (booking: BookingRow) => void;
+    onPaymentModeChange?: (bookingId: string, mode: string) => void | Promise<boolean>;
 }
 
 const STATUS_MAP: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
@@ -28,7 +30,39 @@ function isConsoleId(value: string): value is ConsoleId {
     return value in CONSOLE_COLORS;
 }
 
-export function DashboardBookingsTable({ bookings, onViewAll, onEdit }: DashboardBookingsTableProps) {
+function isDigitalPaymentMode(mode: string | null | undefined): boolean {
+    const normalized = mode?.toLowerCase() || '';
+    return ['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card'].includes(normalized);
+}
+
+const WhatsAppIcon = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+);
+
+function getWhatsAppUrl(booking: BookingRow): string | null {
+    const phone = booking.customer_phone || booking.user_phone;
+    if (!phone) return null;
+
+    const itemsLabel = booking.booking_items?.map((item) => `${item.quantity}x ${item.console?.toUpperCase()}`).join(', ') || 'Gaming Session';
+    const message = buildBookingTicketMessage({
+        customerName: booking.customer_name || booking.user_name || 'Customer',
+        cafeName: booking.cafe_name || null,
+        date: booking.booking_date
+            ? new Date(booking.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '',
+        startTime: booking.start_time || '',
+        duration: booking.duration || 60,
+        itemsLabel,
+        totalAmount: booking.total_amount || 0,
+        paymentMode: booking.payment_mode || 'cash',
+    });
+
+    return buildWhatsAppUrl(phone, message);
+}
+
+export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentModeChange }: DashboardBookingsTableProps) {
     const displayed = bookings
         .filter(b => !b.deleted_at && b.status !== 'cancelled' && isSessionBooking(b))
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
@@ -61,15 +95,18 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit }: Dashboar
                             <th className="px-3 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Station</th>
                             <th className="px-3 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Start</th>
                             <th className="px-3 py-2.5 font-normal text-[10px] text-right" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Amount</th>
-                            <th className="px-3 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Pay</th>
                             <th className="px-3 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Status</th>
-                            {onEdit && <th className="px-5 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}></th>}
+                            {(onEdit || onPaymentModeChange) && (
+                                <th className="px-5 py-2.5 font-normal text-[10px] text-right" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
+                                    Actions
+                                </th>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
                         {displayed.length === 0 ? (
                             <tr>
-                                <td colSpan={onEdit ? 7 : 6} className="px-5 py-14 text-center">
+                                <td colSpan={(onEdit || onPaymentModeChange) ? 6 : 5} className="px-5 py-14 text-center">
                                     <p className="text-sm text-slate-500">No bookings today</p>
                                 </td>
                             </tr>
@@ -87,9 +124,10 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit }: Dashboar
                                 return station;
                             }).join(', ') || '—';
                             const duration = items[0]?.title ? parseInt(items[0].title) || b.duration : b.duration;
-                            const isDigital = ['online','upi','paytm','gpay','phonepe','card'].includes((b.payment_mode || '').toLowerCase());
+                            const isDigital = isDigitalPaymentMode(b.payment_mode);
                             const statusKey = b.status || 'confirmed';
                             const status = STATUS_MAP[statusKey] || STATUS_MAP.confirmed;
+                            const whatsappUrl = getWhatsAppUrl(b);
 
                             return (
                                 <tr key={b.id} className={`border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors ${i === displayed.length - 1 ? '' : ''}`}>
@@ -121,17 +159,6 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit }: Dashboar
                                         <span className="mono text-[13px] font-semibold text-white">₹{(b.total_amount || 0).toLocaleString('en-IN')}</span>
                                     </td>
 
-                                    {/* Pay mode */}
-                                    <td className="px-3 py-3">
-                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase"
-                                            style={isDigital
-                                                ? { background: 'rgba(6,182,212,0.12)', color: '#67e8f9' }
-                                                : { background: 'rgba(16,185,129,0.12)', color: '#6ee7b7' }
-                                            }>
-                                            {isDigital ? 'UPI' : 'Cash'}
-                                        </span>
-                                    </td>
-
                                     {/* Status */}
                                     <td className="px-3 py-3">
                                         <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md"
@@ -141,18 +168,54 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit }: Dashboar
                                         </span>
                                     </td>
 
-                                    {/* Edit */}
-                                    {onEdit && (
+                                    {/* Actions */}
+                                    {(onEdit || onPaymentModeChange) && (
                                         <td className="px-5 py-3">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onEdit(b); }}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors hover:bg-white/[0.06]"
-                                                style={{ color: '#94a3b8' }}
-                                                title="Edit booking"
-                                            >
-                                                <Pencil size={11} />
-                                                Edit
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {onPaymentModeChange && (
+                                                    <div className="flex items-center rounded-xl border border-white/[0.07] bg-white/[0.04] p-1">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}
+                                                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase transition-all ${!isDigital ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                                            title="Set cash payment"
+                                                        >
+                                                            Cash
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'upi'); }}
+                                                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase transition-all ${isDigital ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                                            title="Set UPI payment"
+                                                        >
+                                                            UPI
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {onEdit && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onEdit(b); }}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors hover:bg-white/[0.06]"
+                                                        style={{ color: '#94a3b8' }}
+                                                        title="Edit booking"
+                                                    >
+                                                        <Pencil size={11} />
+                                                        Edit
+                                                    </button>
+                                                )}
+
+                                                {whatsappUrl && (
+                                                    <a
+                                                        href={whatsappUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
+                                                        title="Send ticket on WhatsApp"
+                                                    >
+                                                        <WhatsAppIcon />
+                                                    </a>
+                                                )}
+                                            </div>
                                         </td>
                                     )}
                                 </tr>

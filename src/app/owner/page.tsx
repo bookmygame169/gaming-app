@@ -2128,6 +2128,7 @@ export default function OwnerDashboardPage() {
                 )}
                 onViewAll={() => handleTabChange('bookings')}
                 onEdit={handleEditBooking}
+                onPaymentModeChange={handlePaymentModeChange}
               />
 
               {/* Today's Snack Orders */}
