@@ -522,7 +522,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                 </div>
                                 <div className="flex items-center gap-2.5 rounded-xl bg-blue-500/[0.07] border border-blue-500/20 px-3 py-2.5">
                                     <Timer size={15} className="text-blue-400 shrink-0" />
-                                    <div><p className="text-[10px] text-slate-500 font-medium">Active</p><p className="text-lg font-bold text-blue-400 leading-none mt-0.5">{summary.inProgress}</p></div>
+                                    <div><p className="text-[10px] text-slate-500 font-medium">Active</p><p className="text-lg font-bold text-blue-400 leading-none mt-0.5">{activeSessionCount}</p></div>
                                 </div>
                                 <div className="flex items-center gap-2.5 rounded-xl bg-amber-500/[0.07] border border-amber-500/20 px-3 py-2.5">
                                     <Clock size={15} className="text-amber-400 shrink-0" />

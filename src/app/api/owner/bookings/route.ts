@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
-import { isSessionBooking } from "@/lib/bookingFilters";
+import { isSessionBooking, normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -72,10 +72,14 @@ type BookingSummaryQuery = BookingFilterQuery & {
   order: (column: string, options: { ascending: boolean }) => PromiseLike<BookingQueryResult>;
 };
 type BookingSummaryRecord = {
-  booking_items?: unknown[] | null;
+  booking_date?: string | null;
+  booking_items?: { id?: string | null; title?: string | null }[] | null;
   booking_orders?: unknown[] | null;
   deleted_at?: string | null;
   payment_mode?: string | null;
+  id?: string | null;
+  duration?: number | null;
+  start_time?: string | null;
   status?: string | null;
   total_amount?: number | null;
 };
@@ -201,6 +205,22 @@ function buildBookingSummary(summaryRows: BookingSummaryRecord[]): BookingSummar
   });
 }
 
+function normalizeRealtimeBookings(bookings: BookingSummaryRecord[]): { endedIds: string[]; normalized: BookingSummaryRecord[] } {
+  const endedIds = new Set<string>();
+  const normalized = bookings.map((booking) => {
+    const nextBooking = normalizeRealtimeBookingStatus(booking);
+    if (booking.status !== nextBooking.status && nextBooking.status === "completed" && nextBooking.id) {
+      endedIds.add(nextBooking.id);
+    }
+    return nextBooking;
+  });
+
+  return {
+    endedIds: Array.from(endedIds),
+    normalized,
+  };
+}
+
 // GET /api/owner/bookings — paginated, server-side filtered bookings for the Bookings tab
 export async function GET(request: NextRequest) {
   try {
@@ -306,7 +326,7 @@ export async function GET(request: NextRequest) {
     const runBookingSummaryQuery = async (): Promise<BookingQueryResult> => {
       let query: unknown = supabase
         .from("bookings")
-        .select("id, status, payment_mode, total_amount, deleted_at, booking_items(id), booking_orders(id)", { count: "exact" })
+        .select("id, booking_date, start_time, duration, status, payment_mode, total_amount, deleted_at, booking_items(id, title), booking_orders(id)", { count: "exact" })
         .in("cafe_id", targetCafeIds)
         .is("deleted_at", null);
 
@@ -335,7 +355,8 @@ export async function GET(request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
-      const enrichedBookings = await enrichBookings([data as BookingListRecord]);
+      const normalizedBooking = normalizeRealtimeBookingStatus(data as BookingSummaryRecord) as BookingListRecord;
+      const enrichedBookings = await enrichBookings([normalizedBooking]);
       const booking = enrichedBookings[0];
 
       if (!booking || !isSessionBooking(booking as BookingSummaryRecord)) {
@@ -364,10 +385,27 @@ export async function GET(request: NextRequest) {
     }
 
     const rawBookings = (data || []) as BookingListRecord[];
-    const visibleRawBookings = rawBookings.filter((booking) => isSessionBooking(booking as BookingSummaryRecord));
-    const enrichedBookings = await enrichBookings(visibleRawBookings);
+    const normalizedPageBookings = normalizeRealtimeBookings(rawBookings as BookingSummaryRecord[]);
     const summaryRows = ((summaryResult.data || []) as BookingSummaryRecord[]);
-    const visibleSummaryRows = summaryRows.filter((booking) => !booking.deleted_at && isSessionBooking(booking));
+    const normalizedSummaryBookings = normalizeRealtimeBookings(summaryRows);
+    const endedIds = [...new Set([...normalizedPageBookings.endedIds, ...normalizedSummaryBookings.endedIds])];
+
+    if (endedIds.length > 0) {
+      void (async () => {
+        try {
+          const { error: updateError } = await supabase.from("bookings").update({ status: "completed" }).in("id", endedIds);
+          if (updateError) {
+            console.error("Auto-complete bookings failed:", updateError.message, "ids:", endedIds);
+          }
+        } catch (updateErr: unknown) {
+          console.error("Auto-complete bookings unexpected error:", updateErr);
+        }
+      })();
+    }
+
+    const visibleRawBookings = normalizedPageBookings.normalized.filter((booking) => isSessionBooking(booking));
+    const enrichedBookings = await enrichBookings(visibleRawBookings as BookingListRecord[]);
+    const visibleSummaryRows = normalizedSummaryBookings.normalized.filter((booking) => !booking.deleted_at && isSessionBooking(booking));
 
     return NextResponse.json({
       bookings: enrichedBookings,
