@@ -416,8 +416,8 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 <div className="space-y-4">
                     {/* Search + refresh */}
                     <Card padding="md">
-                        <div className="flex gap-3 items-center">
-                            <div className="relative flex-1 max-w-sm">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <div className="relative w-full flex-1 sm:max-w-sm">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                 <input
                                     type="text"
@@ -427,15 +427,95 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                     className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30"
                                 />
                             </div>
-                            <Button variant="secondary" onClick={fetchSubscriptions} title="Refresh">
-                                <RefreshCw size={16} />
-                            </Button>
-                            <span className="text-xs text-slate-500">{filteredSubs.length} subscription{filteredSubs.length !== 1 ? 's' : ''}</span>
+                            <div className="flex items-center justify-between gap-3 sm:justify-start">
+                                <Button variant="secondary" onClick={fetchSubscriptions} title="Refresh">
+                                    <RefreshCw size={16} />
+                                </Button>
+                                <span className="text-xs text-slate-500">{filteredSubs.length} subscription{filteredSubs.length !== 1 ? 's' : ''}</span>
+                            </div>
                         </div>
                     </Card>
 
                     <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] overflow-hidden">
-                        <div className="overflow-x-auto">
+                        <div className="md:hidden divide-y divide-white/[0.05]">
+                            {subsLoading ? (
+                                <div className="px-4 py-12 text-center text-slate-500">Loading…</div>
+                            ) : filteredSubs.length === 0 ? (
+                                <div className="px-4 py-12 text-center text-slate-500">No membership subscriptions found</div>
+                            ) : filteredSubs.map((s) => {
+                                const isRunning = activeTimers?.has(s.id) ?? false;
+                                const elapsed = timerElapsed?.get(s.id) ?? 0;
+                                const displayHours = Math.floor(elapsed / 3600);
+                                const displayMins = Math.floor((elapsed % 3600) / 60);
+                                const displaySecs = elapsed % 60;
+
+                                return (
+                                    <div key={s.id} className="space-y-3 px-4 py-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <div className="text-sm font-semibold text-white">{s.customer_name || '—'}</div>
+                                                {s.customer_phone && <div className="mt-1 text-xs text-slate-500">{s.customer_phone}</div>}
+                                            </div>
+                                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusColor[s.status] || statusColor.cancelled}`}>
+                                                {s.status}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                                                <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Plan</div>
+                                                <div className="mt-1 text-sm font-medium text-white">{s.membership_plans?.name || '—'}</div>
+                                                <div className="mt-1 text-[11px] uppercase text-slate-500">{s.membership_plans?.console_type || '—'}</div>
+                                            </div>
+                                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                                                <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Amount</div>
+                                                <div className="mt-1 text-sm font-semibold text-emerald-400">₹{(s.amount_paid ?? 0).toLocaleString()}</div>
+                                                <div className="mt-1 text-[11px] text-slate-500">{s.purchase_date ? fmt(s.purchase_date) : '—'}</div>
+                                            </div>
+                                        </div>
+                                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Hours</div>
+                                                    <div className="mt-1 text-sm text-slate-300">
+                                                        {s.hours_remaining != null ? Number(s.hours_remaining).toFixed(2) : '—'} / {s.hours_purchased ?? '—'} hrs
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Expiry</div>
+                                                    <div className="mt-1 text-xs text-slate-400">{s.expiry_date ? fmt(s.expiry_date) : '—'}</div>
+                                                </div>
+                                            </div>
+                                            {isRunning && (
+                                                <div className="mt-2 text-xs font-mono text-emerald-400">
+                                                    ● {String(displayHours).padStart(2, '0')}:{String(displayMins).padStart(2, '0')}:{String(displaySecs).padStart(2, '0')}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-end">
+                                            {isRunning ? (
+                                                <button
+                                                    onClick={async () => { await onStopTimer?.(s.id); fetchSubscriptions(); }}
+                                                    className="px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-semibold hover:bg-red-500/25 transition-colors"
+                                                >
+                                                    Stop
+                                                </button>
+                                            ) : s.status === 'active' ? (
+                                                <button
+                                                    onClick={async () => { await onStartTimer?.(s.id); fetchSubscriptions(); }}
+                                                    className="px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold hover:bg-emerald-500/25 transition-colors"
+                                                >
+                                                    Start
+                                                </button>
+                                            ) : (
+                                                <span className="text-slate-600 text-xs">—</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="bg-white/[0.03] border-b border-white/[0.06]">
                                     <tr>

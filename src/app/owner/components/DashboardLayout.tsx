@@ -1,7 +1,7 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
-import { RefreshCw, Bell, LayoutDashboard, CreditCard, CalendarCheck, Users, BarChart3, Package, Ticket, Settings, Gamepad2, Trophy, ChevronDown, Crown, TicketPercent, LineChart } from 'lucide-react';
+import { ReactNode, useEffect, useState } from 'react';
+import { RefreshCw, Bell, LayoutDashboard, CreditCard, CalendarCheck, Users, Package, Settings, Gamepad2, Trophy, ChevronDown, Crown, TicketPercent, LineChart, Menu as MenuIcon } from 'lucide-react';
 import { MobileMenuButton, Sidebar } from './Sidebar';
 
 interface DashboardLayoutProps {
@@ -33,6 +33,15 @@ const DESKTOP_MORE_TABS = [
     { id: 'settings',      label: 'Settings',    icon: Settings },
 ];
 
+const MOBILE_PRIMARY_TABS = [
+    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'bookings', label: 'Bookings', icon: CalendarCheck },
+    { id: 'customers', label: 'Customers', icon: Users },
+] as const;
+
+const ALL_TABS = [...DESKTOP_PRIMARY_TABS, ...DESKTOP_MORE_TABS];
+
 export function DashboardLayout({
     children,
     activeTab,
@@ -45,6 +54,9 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
     const [spinning, setSpinning] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
+    const activeMeta = ALL_TABS.find((tab) => tab.id === activeTab);
+    const isMoreActive = DESKTOP_MORE_TABS.some(t => t.id === activeTab);
+    const isMobileMoreActive = !MOBILE_PRIMARY_TABS.some((tab) => tab.id === activeTab);
 
     const handleRefresh = () => {
         if (!onRefresh || spinning) return;
@@ -60,8 +72,22 @@ export function DashboardLayout({
         }
     };
 
+    useEffect(() => {
+        if (!isMobile) return;
+
+        const previousOverflow = document.body.style.overflow;
+        if (mobileMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = previousOverflow || '';
+        }
+
+        return () => {
+            document.body.style.overflow = previousOverflow || '';
+        };
+    }, [isMobile, mobileMenuOpen]);
+
     const initials = cafeName.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
-    const isMoreActive = DESKTOP_MORE_TABS.some(t => t.id === activeTab);
 
     return (
         <div className="min-h-screen owner-bg flex flex-col">
@@ -187,34 +213,41 @@ export function DashboardLayout({
             </div>
 
             {/* ── MOBILE HEADER ── */}
-            <header className="lg:hidden sticky top-0 z-40 h-14 flex items-center justify-between px-4 border-b border-white/[0.06]"
+            <header className="lg:hidden sticky top-0 z-40 border-b border-white/[0.06]"
                 style={{ background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(24px)' }}>
-                <div className="flex items-center gap-3">
-                    <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
-                    <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center"
-                            style={{ background: 'linear-gradient(140deg, #06b6d4 0%, #0891b2 55%, #1e1b4b 100%)' }}>
-                            <Gamepad2 size={14} className="text-white" />
+                <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
+                                style={{ background: 'linear-gradient(140deg, #06b6d4 0%, #0891b2 55%, #1e1b4b 100%)' }}>
+                                <Gamepad2 size={15} className="text-white" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold truncate">BookMyGame<span style={{ color: '#06b6d4' }}>.</span></p>
+                                <p className="text-[10px] text-slate-500 truncate">
+                                    {activeMeta?.label || 'Owner Console'} · {cafeName}
+                                </p>
+                            </div>
                         </div>
-                        <p className="text-sm font-bold">BookMyGame<span style={{ color: '#06b6d4' }}>.</span></p>
                     </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    {onRefresh && (
-                        <button onClick={handleRefresh}
-                            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-white transition-colors"
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {onRefresh && (
+                            <button onClick={handleRefresh}
+                                className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-white transition-colors"
+                                style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+                                <RefreshCw size={14} className={spinning ? 'animate-spin' : ''} />
+                            </button>
+                        )}
+                        <button className="relative w-9 h-9 rounded-lg flex items-center justify-center text-slate-400"
                             style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-                            <RefreshCw size={14} className={spinning ? 'animate-spin' : ''} />
+                            <Bell size={15} />
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: '#06b6d4' }} />
                         </button>
-                    )}
-                    <button className="relative w-9 h-9 rounded-lg flex items-center justify-center text-slate-400"
-                        style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <Bell size={15} />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: '#06b6d4' }} />
-                    </button>
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold text-white"
-                        style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)' }}>
-                        {initials || 'O'}
+                        <div className="w-8 h-8 rounded-md flex items-center justify-center text-[11px] font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)' }}>
+                            {initials || 'O'}
+                        </div>
                     </div>
                 </div>
             </header>
@@ -225,9 +258,41 @@ export function DashboardLayout({
                 onLogout={handleLogout} collapsed={false} onToggleCollapsed={() => {}} />
 
             {/* Page Content */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
                 {children}
             </main>
+
+            {/* Mobile bottom navigation */}
+            {activeTab !== 'billing' && (
+                <nav
+                    className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[rgba(10,10,15,0.96)] backdrop-blur-xl"
+                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.4rem)' }}
+                >
+                    <div className="grid grid-cols-5 gap-1 px-2 pt-2">
+                        {MOBILE_PRIMARY_TABS.map((tab) => {
+                            const Icon = tab.icon;
+                            const active = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => onTabChange(tab.id)}
+                                    className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2.5 transition-all ${active ? 'bg-cyan-500/12 text-cyan-300' : 'text-slate-500 hover:text-white hover:bg-white/[0.04]'}`}
+                                >
+                                    <Icon size={18} />
+                                    <span className="text-[10px] font-semibold leading-none">{tab.label}</span>
+                                </button>
+                            );
+                        })}
+                        <button
+                            onClick={() => setMobileMenuOpen(true)}
+                            className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2.5 transition-all ${isMobileMoreActive ? 'bg-cyan-500/12 text-cyan-300' : 'text-slate-500 hover:text-white hover:bg-white/[0.04]'}`}
+                        >
+                            <MenuIcon size={18} />
+                            <span className="text-[10px] font-semibold leading-none">More</span>
+                        </button>
+                    </div>
+                </nav>
+            )}
         </div>
     );
 }

@@ -86,8 +86,111 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                 )}
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-white/[0.05]">
+                {displayed.length === 0 ? (
+                    <div className="px-5 py-12 text-center">
+                        <p className="text-sm text-slate-500">No bookings today</p>
+                    </div>
+                ) : displayed.map((b) => {
+                    const isWalkIn = b.source === 'walk-in';
+                    const name = isWalkIn ? b.customer_name : (b.user_name || 'Guest');
+                    const phone = isWalkIn ? b.customer_phone : b.user_phone;
+                    const items = b.booking_items || [];
+                    const consoleKey = items[0]?.console?.toLowerCase() || '';
+                    const consoleColor = isConsoleId(consoleKey) ? CONSOLE_COLORS[consoleKey] : '#6b7280';
+                    const consoleIcon = CONSOLE_ICON[consoleKey] || '🎮';
+                    const stationLabel = items.map((it) => {
+                        const titleParts = it.title?.split('|');
+                        return titleParts && titleParts.length > 1 ? titleParts[1].trim().toUpperCase() : `${it.console?.toUpperCase()}-?`;
+                    }).join(', ') || '—';
+                    const duration = items[0]?.title ? parseInt(items[0].title) || b.duration : b.duration;
+                    const isDigital = isDigitalPaymentMode(b.payment_mode);
+                    const statusKey = b.status || 'confirmed';
+                    const status = STATUS_MAP[statusKey] || STATUS_MAP.confirmed;
+                    const whatsappUrl = getWhatsAppUrl(b);
+
+                    return (
+                        <div key={b.id} className="px-4 py-4 space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-white truncate">{name || '—'}</p>
+                                    {phone && <p className="mono mt-1 text-[11px] text-slate-500">+91 {phone.replace(/^\+?91/, '')}</p>}
+                                </div>
+                                <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px]"
+                                    style={{ background: status.bg, color: status.fg }}>
+                                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: status.dot }} />
+                                    {status.label}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                                    <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Station</div>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-md text-[11px]"
+                                            style={{ background: `${consoleColor}22`, color: consoleColor }}>
+                                            {consoleIcon}
+                                        </span>
+                                        <span className="mono text-[12px] font-semibold text-white truncate">{stationLabel}</span>
+                                    </div>
+                                    {duration && <p className="mono mt-1 text-[10px] text-slate-500">{duration}m</p>}
+                                </div>
+                                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                                    <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Amount</div>
+                                    <div className="mono mt-1 text-[15px] font-semibold text-white">₹{(b.total_amount || 0).toLocaleString('en-IN')}</div>
+                                    <p className="mt-1 text-[10px] text-slate-500">{b.start_time || '—'}</p>
+                                </div>
+                            </div>
+
+                            {(onEdit || onPaymentModeChange || whatsappUrl) && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {onPaymentModeChange && (
+                                        <div className="flex items-center rounded-xl border border-white/[0.07] bg-white/[0.04] p-1">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}
+                                                className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase transition-all ${!isDigital ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                            >
+                                                Cash
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'upi'); }}
+                                                className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase transition-all ${isDigital ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                            >
+                                                UPI
+                                            </button>
+                                        </div>
+                                    )}
+                                    {onEdit && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onEdit(b); }}
+                                            className="inline-flex items-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-[11px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                                        >
+                                            <Pencil size={11} />
+                                            Edit
+                                        </button>
+                                    )}
+                                    {whatsappUrl && (
+                                        <a
+                                            href={whatsappUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
+                                            title="Send ticket on WhatsApp"
+                                        >
+                                            <WhatsAppIcon />
+                                        </a>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="text-left" style={{ color: '#5b6170' }}>

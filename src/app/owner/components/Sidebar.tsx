@@ -112,14 +112,14 @@ export function Sidebar({
 }: SidebarProps) {
     const isManageActive = MANAGE_NAV.some(item => item.id === activeTab);
     // Default collapsed — expands only when a manage tab is active
-    const [manageOpen, setManageOpen] = useState<boolean>(isManageActive);
+    const [manageOpen, setManageOpen] = useState<boolean>(isMobile || isManageActive);
 
     const handleNav = (id: NavTabId) => {
         onTabChange(id);
         if (isMobile) onClose();
     };
 
-    const sidebarWidth = collapsed && !isMobile ? 'w-16' : 'w-64';
+    const sidebarWidth = isMobile ? 'w-[86vw] max-w-[320px]' : collapsed ? 'w-16' : 'w-64';
 
     return (
         <>
@@ -161,6 +161,17 @@ export function Sidebar({
 
                 {/* Navigation */}
                 <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 ${collapsed && !isMobile ? 'px-2' : 'px-3'}`}>
+                    {isMobile && (
+                        <div className="mb-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-3">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Quick access</div>
+                            <p className="mt-1 text-sm text-slate-300">Navigate the owner app faster on mobile.</p>
+                        </div>
+                    )}
+
+                    {(!collapsed || isMobile) && (
+                        <div className="px-3 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">Main</div>
+                    )}
+
                     {PRIMARY_NAV.map((item) => (
                         <NavItem
                             key={item.id}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BookingRow } from '../../types';
 import { getLocalDateString } from '../../utils';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
@@ -263,12 +263,12 @@ export default function CustomersTab({
     return filtered;
   }, [allCustomers, customerSearch, hasSubscription, hasMembership, segment, customerSortBy, customerSortOrder]);
 
-  useEffect(() => { setCurrentPage(1); }, [customerSearch, hasSubscription, hasMembership, segment, customerSortBy, customerSortOrder]);
-
   const totalPages = Math.max(1, Math.ceil(customers.length / PAGE_SIZE));
-  const pagedCustomers = customers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedCustomers = customers.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
 
   const handleSort = (col: CustomerSortBy) => {
+    setCurrentPage(1);
     if (customerSortBy === col) setCustomerSortOrder(customerSortOrder === 'asc' ? 'desc' : 'asc');
     else { setCustomerSortBy(col); setCustomerSortOrder('desc'); }
   };
@@ -282,7 +282,7 @@ export default function CustomersTab({
   const getLastVisitDisplay = (date: string) => {
     if (!date) return '-';
     if (date === today) return 'Today';
-    const diffDays = Math.ceil((Date.now() - new Date(date).getTime()) / 86400000);
+    const diffDays = Math.ceil((new Date(today).getTime() - new Date(date).getTime()) / 86400000);
     if (diffDays === 1) return 'Yesterday';
     if (diffDays <= 7) return `${diffDays}d ago`;
     return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -293,7 +293,7 @@ export default function CustomersTab({
       {/* Segment chips */}
       <div className="flex flex-wrap gap-1.5">
         <button
-          onClick={() => setSegment('all')}
+          onClick={() => { setCurrentPage(1); setSegment('all'); }}
           className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${segment === 'all' ? 'bg-white/[0.1] text-white border-white/20' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
         >
           All <span className="ml-1 text-slate-500">{segmentCounts.all}</span>
@@ -301,7 +301,7 @@ export default function CustomersTab({
         {(['new', 'regular', 'vip', 'lapsed'] as const).map(seg => (
           <button
             key={seg}
-            onClick={() => setSegment(seg)}
+            onClick={() => { setCurrentPage(1); setSegment(seg); }}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${segment === seg ? SEGMENT_META[seg].activeChip : SEGMENT_META[seg].chip}`}
           >
             {SEGMENT_META[seg].badge} {SEGMENT_META[seg].label}
@@ -313,29 +313,31 @@ export default function CustomersTab({
       </div>
 
       {/* Search + filters */}
-      <div className="flex gap-2 items-center">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full flex-1 sm:max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             placeholder="Name, phone, or email..."
             value={customerSearch}
-            onChange={(e) => setCustomerSearch(e.target.value)}
+            onChange={(e) => { setCurrentPage(1); setCustomerSearch(e.target.value); }}
             className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30"
           />
         </div>
-        <button
-          onClick={() => setHasSubscription(!hasSubscription)}
-          className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${hasSubscription ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
-        >
-          Active Plan
-        </button>
-        <button
-          onClick={() => setHasMembership(!hasMembership)}
-          className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${hasMembership ? 'bg-violet-600/20 text-violet-300 border-violet-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
-        >
-          Members
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => { setCurrentPage(1); setHasSubscription(!hasSubscription); }}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${hasSubscription ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
+          >
+            Active Plan
+          </button>
+          <button
+            onClick={() => { setCurrentPage(1); setHasMembership(!hasMembership); }}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${hasMembership ? 'bg-violet-600/20 text-violet-300 border-violet-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
+          >
+            Members
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -383,13 +385,31 @@ export default function CustomersTab({
                   className="group flex md:grid md:grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] gap-3 items-center px-4 py-3 hover:bg-white/[0.04] cursor-pointer transition-colors"
                 >
                   {/* Customer name + avatar */}
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center text-sm font-bold text-white shrink-0">
                       {customer.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white truncate group-hover:text-blue-300 transition-colors">{customer.name}</p>
                       <p className="text-[11px] text-slate-500 truncate md:hidden">{customer.phone || customer.email || '-'}</p>
+                    </div>
+                  </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 md:hidden">
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Sessions</div>
+                        <div className="mt-1 text-sm font-semibold text-white">{customer.sessions}</div>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Spent</div>
+                        <div className="mt-1 text-sm font-semibold text-emerald-400">₹{customer.totalSpent.toLocaleString('en-IN')}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 md:hidden">
+                      <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${seg === 'new' ? 'bg-sky-500/10 border-sky-500/20 text-sky-400' : seg === 'regular' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : seg === 'vip' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                        {meta.badge} {meta.label}
+                      </span>
+                      <span className="text-[11px] text-slate-500">{getLastVisitDisplay(customer.lastVisit)}</span>
                     </div>
                   </div>
                   {/* Phone — desktop only */}
@@ -428,18 +448,18 @@ export default function CustomersTab({
       {customers.length > PAGE_SIZE && (
         <div className="flex items-center justify-between px-1">
           <span className="text-xs text-slate-500">
-            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, customers.length)} of {customers.length}
+            {(safeCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(safeCurrentPage * PAGE_SIZE, customers.length)} of {customers.length}
           </span>
           <div className="flex gap-1">
             <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, Math.min(p, totalPages) - 1))}
+              disabled={safeCurrentPage === 1}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >← Prev</button>
-            <span className="px-3 py-1.5 text-xs text-slate-400">{currentPage}/{totalPages}</span>
+            <span className="px-3 py-1.5 text-xs text-slate-400">{safeCurrentPage}/{totalPages}</span>
             <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, Math.min(p, totalPages) + 1))}
+              disabled={safeCurrentPage === totalPages}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >Next →</button>
           </div>

@@ -88,7 +88,7 @@ const SkeletonCard = () => (
   </div>
 );
 
-export function DashboardStats({ bookings, subscriptions, activeTimers, loadingData }: DashboardStatsProps) {
+export function DashboardStats({ bookings, subscriptions, activeTimers, loadingData, isMobile }: DashboardStatsProps) {
   const [showRevenue, setShowRevenue] = useState(false);
   const [loadedPreference, setLoadedPreference] = useState(false);
   const [period] = useState<'today' | 'week'>('today');
@@ -282,7 +282,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
 
           {/* Revenue amount + sessions */}
           <div className="mt-2 flex items-baseline gap-3 relative">
-            <p className="mono font-bold text-white leading-none tracking-tight" style={{ fontSize: 44 }}>
+            <p className="mono font-bold text-white leading-none tracking-tight" style={{ fontSize: isMobile ? 36 : 44 }}>
               {revenueVisible ? `₹${displayRevenue.toLocaleString('en-IN')}` : '₹ ••••••'}
             </p>
             <span className="text-[11px] text-slate-500">{displaySessions} sessions</span>

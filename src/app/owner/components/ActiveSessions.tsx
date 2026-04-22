@@ -184,11 +184,11 @@ export function ActiveSessions({
                 onSessionEnded({ customerName, stationName: consoleType, duration: booking.duration });
             }
         });
-    }, [currentTime, sortedActiveBookings, onSessionEnded]);
+    }, [currentMinutes, currentTime, sortedActiveBookings, onSessionEnded]);
 
     if (sortedActiveBookings.length === 0 && activeMemberships.length === 0) {
         return (
-            <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-16 text-center flex flex-col items-center gap-3">
+            <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl px-5 py-12 text-center flex flex-col items-center gap-3 md:p-16">
                 <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-1">
                     <Gamepad2 size={28} className="text-slate-600" />
                 </div>
@@ -199,7 +199,7 @@ export function ActiveSessions({
     }
 
     return (
-        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3">
             {/* Active Membership Sessions */}
             {activeMemberships.map((sub: any) => {
                 const planDetails = sub.membership_plans || {};

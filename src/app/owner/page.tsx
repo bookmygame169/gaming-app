@@ -6,7 +6,7 @@
 // are used for flexibility. These can be refactored incrementally with proper typing.
 
 import { useEffect, useState } from "react";
-import { AlarmClock, Zap, CalendarDays, ShoppingBag, BarChart3, ChevronRight, Gamepad2 } from 'lucide-react';
+import { AlarmClock, ShoppingBag, BarChart3, ChevronRight } from 'lucide-react';
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -55,8 +55,6 @@ const SubscriptionDetailsModal = dynamic(() => import('./components/Subscription
 const CustomerDetailsModal = dynamic(() => import('./components/CustomerDetailsModal'), { ssr: false });
 const SessionEndedPopup = dynamic(() => import('./components/SessionEndedPopup').then((mod) => mod.SessionEndedPopup), { ssr: false });
 
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const debugLog: (...args: any[]) => void = process.env.NODE_ENV !== "production" ? console.log.bind(console) : () => {};
 
 const DIGITAL_PAYMENT_MODES = new Set(['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card']);
@@ -126,7 +124,6 @@ export default function OwnerDashboardPage() {
     error,
     membershipPlans,
     subscriptions,
-    cafeConsoles,
     consolePricing,
     stationPricing,
     hasLoadedData,
@@ -155,7 +152,7 @@ export default function OwnerDashboardPage() {
   const [loadingUsageHistory, setLoadingUsageHistory] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState<any>(null);
   const [customerBookings, setCustomerBookings] = useState<any[]>([]);
-  const [loadingCustomerData, setLoadingCustomerData] = useState(false);
+  const [, setLoadingCustomerData] = useState(false);
 
 
 
@@ -1995,7 +1992,7 @@ export default function OwnerDashboardPage() {
         title="Dashboard"
         onRefresh={refreshData}
       >
-        <div className="px-4 md:px-8 pt-5 pb-10">
+        <div className="px-4 pt-5 pb-28 md:px-8 md:pb-10">
           {error && (
             <div
               style={{
@@ -2439,6 +2436,7 @@ export default function OwnerDashboardPage() {
               stationPricing={stationPricing}
               poweredOffStations={poweredOffStations}
               maintenanceStations={maintenanceStations}
+              isMobile={isMobile}
               onTogglePower={handleTogglePower}
               onToggleMaintenance={handleToggleMaintenance}
               onEditPricing={(station) => setEditingStation(station)}

@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState } from 'react';
 import { CafeRow, BookingRow } from '../types';
@@ -10,6 +11,7 @@ interface StationsTabProps {
     stationPricing: Record<string, any>;
     poweredOffStations: Set<string>;
     maintenanceStations?: Set<string>;
+    isMobile?: boolean;
     onTogglePower: (stationName: string) => void;
     onToggleMaintenance?: (stationName: string) => void;
     onEditPricing: (station: any) => void;
@@ -63,6 +65,7 @@ export function StationsTab({
     stationPricing,
     poweredOffStations,
     maintenanceStations = new Set(),
+    isMobile = false,
     onTogglePower,
     onToggleMaintenance,
     onEditPricing,
@@ -192,9 +195,9 @@ export function StationsTab({
     return (
         <div>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 16 : 0, marginBottom: 16 }}>
                 <div>
-                    <h2 style={{ fontSize: 28, fontWeight: 700, color: theme.textPrimary, margin: 0, marginBottom: 8 }}>
+                    <h2 style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700, color: theme.textPrimary, margin: 0, marginBottom: 8 }}>
                         Gaming Stations
                     </h2>
                     <p style={{ fontSize: 14, color: theme.textMuted, margin: 0 }}>
@@ -206,7 +209,8 @@ export function StationsTab({
                     style={{
                         padding: '12px 24px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                         border: 'none', borderRadius: 12, color: '#ffffff', fontSize: 14, fontWeight: 700,
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        width: isMobile ? '100%' : 'auto',
                     }}
                 >
                     <span style={{ fontSize: 18 }}>+</span> Add New Station
@@ -235,8 +239,8 @@ export function StationsTab({
 
             {/* Search and Filters */}
             <div style={{ background: theme.cardBackground, borderRadius: 16, border: `1px solid ${theme.border}`, padding: '20px', marginBottom: 24 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
+                    <div style={{ flex: 1, minWidth: 180, position: 'relative', width: isMobile ? '100%' : 'auto' }}>
                         <input
                             type="text"
                             placeholder="Search stations..."
@@ -247,12 +251,12 @@ export function StationsTab({
                         <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 18, opacity: 0.5 }}>🔍</span>
                     </div>
                     <select value={stationTypeFilter} onChange={(e) => setStationTypeFilter(e.target.value)}
-                        style={{ padding: '12px 16px', background: 'rgba(15,23,42,0.6)', border: `1px solid ${theme.border}`, borderRadius: 10, color: theme.textPrimary, fontSize: 14, cursor: 'pointer', minWidth: 140 }}>
+                        style={{ padding: '12px 16px', background: 'rgba(15,23,42,0.6)', border: `1px solid ${theme.border}`, borderRadius: 10, color: theme.textPrimary, fontSize: 14, cursor: 'pointer', minWidth: 140, width: isMobile ? '100%' : 'auto' }}>
                         <option value="all">All Types</option>
                         {consoleTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                     </select>
                     <select value={stationStatusFilter} onChange={(e) => setStationStatusFilter(e.target.value)}
-                        style={{ padding: '12px 16px', background: 'rgba(15,23,42,0.6)', border: `1px solid ${theme.border}`, borderRadius: 10, color: theme.textPrimary, fontSize: 14, cursor: 'pointer', minWidth: 160 }}>
+                        style={{ padding: '12px 16px', background: 'rgba(15,23,42,0.6)', border: `1px solid ${theme.border}`, borderRadius: 10, color: theme.textPrimary, fontSize: 14, cursor: 'pointer', minWidth: 160, width: isMobile ? '100%' : 'auto' }}>
                         <option value="all">All Status</option>
                         <option value="free">Free Now</option>
                         <option value="occupied">Occupied Now</option>
@@ -262,7 +266,113 @@ export function StationsTab({
                 </div>
             </div>
 
-            {/* Stations Table */}
+            {/* Stations mobile cards */}
+            {isMobile ? (
+                <div style={{ display: 'grid', gap: 12 }}>
+                    {filteredStations.length === 0 ? (
+                        <div style={{ background: theme.cardBackground, borderRadius: 16, border: `1px solid ${theme.border}`, padding: '48px 20px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>🎮</div>
+                            <p style={{ fontSize: 16, color: theme.textSecondary, marginBottom: 6, fontWeight: 500 }}>No stations found</p>
+                        </div>
+                    ) : (
+                        filteredStations.map((station) => {
+                            const isPoweredOff = poweredOffStations.has(station.name);
+                            const isMaintenance = maintenanceStations.has(station.name);
+                            const occupancy = stationOccupancy.get(station.name);
+                            const isOccupied = !!occupancy && !isPoweredOff && !isMaintenance;
+                            const savedPricing = stationPricing[station.name];
+                            const dimmed = isPoweredOff || isMaintenance;
+
+                            let statusBadge: { label: string; bg: string; color: string };
+                            if (isPoweredOff) {
+                                statusBadge = { label: 'OFF', bg: 'rgba(100,116,139,0.15)', color: '#64748b' };
+                            } else if (isMaintenance) {
+                                statusBadge = { label: 'MAINTENANCE', bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' };
+                            } else if (isOccupied) {
+                                statusBadge = { label: 'OCCUPIED', bg: 'rgba(239,68,68,0.15)', color: '#ef4444' };
+                            } else {
+                                statusBadge = { label: 'FREE', bg: 'rgba(16,185,129,0.15)', color: '#10b981' };
+                            }
+
+                            const pricingContent = (() => {
+                                if (!savedPricing) return <span style={{ color: theme.textMuted, fontStyle: 'italic' }}>Not configured</span>;
+                                if (['PS5', 'Xbox'].includes(station.type)) {
+                                    const c1Half = savedPricing.controller_1_half_hour;
+                                    const c1Full = savedPricing.controller_1_full_hour;
+                                    if (!c1Half && !c1Full) return <span style={{ color: theme.textMuted, fontStyle: 'italic' }}>Not configured</span>;
+                                    return <span style={{ fontWeight: 600 }}>₹{c1Half}/30m · ₹{c1Full}/hr</span>;
+                                }
+                                if (station.type === 'PS4') {
+                                    const sh = savedPricing.single_player_half_hour_rate;
+                                    const sf = savedPricing.single_player_rate;
+                                    if (!sh && !sf) return <span style={{ color: theme.textMuted, fontStyle: 'italic' }}>Not configured</span>;
+                                    return <span style={{ fontWeight: 600 }}>₹{sh}/30m · ₹{sf}/hr</span>;
+                                }
+                                const half = savedPricing.half_hour_rate;
+                                const full = savedPricing.hourly_rate;
+                                if (!half && !full) return <span style={{ color: theme.textMuted, fontStyle: 'italic' }}>Not configured</span>;
+                                return <span style={{ fontWeight: 600 }}>₹{half}/30m · ₹{full}/hr</span>;
+                            })();
+
+                            return (
+                                <div key={station.id} style={{ background: theme.cardBackground, borderRadius: 16, border: `1px solid ${theme.border}`, padding: 16 }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                                            <div style={{ width: 42, height: 42, borderRadius: 12, background: station.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, opacity: dimmed ? 0.4 : 1, flexShrink: 0 }}>
+                                                {station.icon}
+                                            </div>
+                                            <div style={{ minWidth: 0 }}>
+                                                <div style={{ fontSize: 15, fontWeight: 700, color: theme.textPrimary, opacity: dimmed ? 0.5 : 1 }}>{station.displayName}</div>
+                                                <div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                    <span style={{ display: 'inline-block', padding: '5px 10px', borderRadius: 999, background: station.bgColor, color: station.color, fontSize: 11, fontWeight: 700, opacity: dimmed ? 0.5 : 1 }}>
+                                                        {station.type}
+                                                    </span>
+                                                    <span style={{ display: 'inline-block', padding: '5px 10px', borderRadius: 999, background: statusBadge.bg, color: statusBadge.color, fontSize: 11, fontWeight: 700 }}>
+                                                        {statusBadge.label}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                        <div style={{ padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: `1px solid ${theme.border}` }}>
+                                            <div style={{ fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Rate</div>
+                                            <div style={{ marginTop: 6, fontSize: 13, color: theme.textSecondary }}>{pricingContent}</div>
+                                        </div>
+                                        <div style={{ padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: `1px solid ${theme.border}` }}>
+                                            <div style={{ fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Now</div>
+                                            {isOccupied && occupancy ? (
+                                                <div style={{ marginTop: 6 }}>
+                                                    <div style={{ fontSize: 13, color: theme.textPrimary, fontWeight: 600 }}>{occupancy.customerName}</div>
+                                                    {occupancy.endTime && <div style={{ fontSize: 11, color: theme.textMuted, marginTop: 2 }}>until {occupancy.endTime}</div>}
+                                                </div>
+                                            ) : (
+                                                <div style={{ marginTop: 6, fontSize: 13, color: theme.textSecondary }}>{statusBadge.label === 'FREE' ? 'Ready to use' : statusBadge.label.toLowerCase()}</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                                        <button style={{ padding: '10px 12px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 10, cursor: 'pointer', color: theme.textPrimary, fontSize: 13, fontWeight: 600 }} onClick={() => onEditPricing(station)}>✏️ Edit</button>
+                                        {onToggleMaintenance ? (
+                                            <button
+                                                style={{ padding: '10px 12px', background: isMaintenance ? 'rgba(245,158,11,0.15)' : 'transparent', border: `1px solid ${isMaintenance ? '#f59e0b' : theme.border}`, borderRadius: 10, cursor: 'pointer', color: isMaintenance ? '#f59e0b' : theme.textPrimary, fontSize: 13, fontWeight: 600 }}
+                                                onClick={() => onToggleMaintenance(station.name)}
+                                            >🔧 {isMaintenance ? 'Clear' : 'Maintain'}</button>
+                                        ) : <div />}
+                                        <button
+                                            style={{ padding: '10px 12px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 10, cursor: 'pointer', color: isPoweredOff ? '#ef4444' : '#10b981', fontSize: 13, fontWeight: 600 }}
+                                            onClick={() => onTogglePower(station.name)}
+                                        >🔌 {isPoweredOff ? 'Power On' : 'Power Off'}</button>
+                                        <button style={{ padding: '10px 12px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 10, cursor: 'pointer', color: '#ef4444', fontSize: 13, fontWeight: 600 }} onClick={() => onDeleteStation({ name: station.name, displayName: station.displayName, type: station.type })}>🗑️ Delete</button>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            ) : (
             <div style={{ background: theme.cardBackground, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -383,6 +493,7 @@ export function StationsTab({
                     </tbody>
                 </table>
             </div>
+            )}
         </div>
     );
 }
