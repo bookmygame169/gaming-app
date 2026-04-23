@@ -393,43 +393,69 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
             <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.12), transparent)' }} />
-            <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
-              <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee' }}>
-                  <Smartphone size={14} />
+            {isMobile ? (
+              <div className="relative flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee' }}>
+                      <Smartphone size={13} />
+                    </div>
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Payment split</div>
+                  </div>
+                  <span className="text-[10px] text-slate-600" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Today</span>
                 </div>
-                <span className="text-[10px] text-slate-600" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Today</span>
-              </div>
-              <div className={`${isMobile ? 'mt-2.5' : 'mt-4'} text-[10px] text-slate-500`} style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Payment split</div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="mono font-bold text-white" style={{ fontSize: isMobile ? 20 : 26 }}>{upiPct}%</span>
-                <span className="text-[10px] text-slate-500">digital</span>
-              </div>
-              <div className="mt-1.5 text-[10px] text-slate-500">{paymentSummaryText}</div>
-              {paymentSplitTotal > 0 && (
-                <>
-                  <div className={`${isMobile ? 'mt-2.5' : 'mt-4'} h-1.5 rounded-full overflow-hidden flex`} style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="mono text-[22px] font-bold text-white">{upiPct}%</span>
+                      <span className="text-[10px] text-slate-500">digital</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">{paymentSummaryText}</div>
+                  </div>
+                  <div className="grid min-w-[132px] grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" />
+                        UPI
+                      </div>
+                      <div className="mono mt-0.5 text-[12px] font-semibold text-white">₹{upiTotal.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        Cash
+                      </div>
+                      <div className="mono mt-0.5 text-[12px] font-semibold text-white">₹{cashTotal.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                </div>
+                {paymentSplitTotal > 0 && (
+                  <div className="h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
                     {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: '#06b6d4' }} />}
                     {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: '#10b981' }} />}
                   </div>
-                  {isMobile ? (
-                    <div className="mt-auto grid grid-cols-2 gap-1.5 pt-2.5 text-[10px]">
-                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" />
-                          UPI
-                        </div>
-                        <div className="mono mt-0.5 text-[13px] font-semibold text-white">₹{upiTotal.toLocaleString('en-IN')}</div>
-                      </div>
-                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
-                          Cash
-                        </div>
-                        <div className="mono mt-0.5 text-[13px] font-semibold text-white">₹{cashTotal.toLocaleString('en-IN')}</div>
-                      </div>
+                )}
+              </div>
+            ) : (
+              <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee' }}>
+                    <Smartphone size={14} />
+                  </div>
+                  <span className="text-[10px] text-slate-600" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Today</span>
+                </div>
+                <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Payment split</div>
+                <div className="mt-1 flex items-baseline gap-1.5">
+                  <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{upiPct}%</span>
+                  <span className="text-[10px] text-slate-500">digital</span>
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-500">{paymentSummaryText}</div>
+                {paymentSplitTotal > 0 && (
+                  <>
+                    <div className="mt-4 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                      {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: '#06b6d4' }} />}
+                      {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: '#10b981' }} />}
                     </div>
-                  ) : (
                     <div className="mt-auto pt-4 space-y-2 text-[11px]">
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5 text-slate-500">
@@ -446,10 +472,10 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                         <span className="mono text-white">₹{cashTotal.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Active Now */}
@@ -458,30 +484,63 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
             <div className="absolute -left-10 -bottom-10 h-28 w-28 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(closest-side, rgba(16,185,129,0.12), transparent)' }} />
-            <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
-              <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
-                  <Zap size={14} />
+            {isMobile ? (
+              <div className="relative flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
+                      <Zap size={13} />
+                    </div>
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
+                  </div>
+                  <span className="relative inline-block w-1.5 h-1.5 rounded-full" style={{ background: liveIndicatorColor, color: liveIndicatorColor }} />
                 </div>
-                <span className="relative inline-block w-1.5 h-1.5 rounded-full" style={{ background: liveIndicatorColor, color: liveIndicatorColor }} />
-              </div>
-              <div className={`${isMobile ? 'mt-2.5' : 'mt-4'} text-[10px] text-slate-500`} style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="mono font-bold text-white" style={{ fontSize: isMobile ? 20 : 26 }}>{activeNow}</span>
-                <span className="text-[10px] text-slate-500">{isMobile ? 'live' : 'live sessions'}</span>
-              </div>
-              <div className="mt-1.5 text-[10px] text-slate-500">{activeSummaryText}</div>
-              <div className={`mt-auto grid grid-cols-2 gap-1.5 ${isMobile ? 'pt-2.5' : 'pt-4'}`}>
-                <div className={`rounded-lg border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
-                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Gaming</div>
-                  <div className="mono mt-0.5 text-[13px] font-bold text-white">{activeBookingsCount}</div>
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="mono text-[22px] font-bold text-white">{activeNow}</span>
+                      <span className="text-[10px] text-slate-500">live</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">{activeSummaryText}</div>
+                  </div>
+                  <div className="grid min-w-[132px] grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+                      <div className="text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Gaming</div>
+                      <div className="mono mt-0.5 text-[12px] font-bold text-white">{activeBookingsCount}</div>
+                    </div>
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+                      <div className="text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Members</div>
+                      <div className="mono mt-0.5 text-[12px] font-bold text-white">{activeSubscriptionsCount}</div>
+                    </div>
+                  </div>
                 </div>
-                <div className={`rounded-lg border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
-                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Members</div>
-                  <div className="mono mt-0.5 text-[13px] font-bold text-white">{activeSubscriptionsCount}</div>
+              </div>
+            ) : (
+              <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
+                    <Zap size={14} />
+                  </div>
+                  <span className="relative inline-block w-1.5 h-1.5 rounded-full" style={{ background: liveIndicatorColor, color: liveIndicatorColor }} />
+                </div>
+                <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
+                <div className="mt-1 flex items-baseline gap-1.5">
+                  <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{activeNow}</span>
+                  <span className="text-[10px] text-slate-500">live sessions</span>
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-500">{activeSummaryText}</div>
+                <div className="mt-auto grid grid-cols-2 gap-1.5 pt-4">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Gaming</div>
+                    <div className="mono mt-0.5 text-[13px] font-bold text-white">{activeBookingsCount}</div>
+                  </div>
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Members</div>
+                    <div className="mono mt-0.5 text-[13px] font-bold text-white">{activeSubscriptionsCount}</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Sessions */}
@@ -490,34 +549,69 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
             <div className="absolute -right-10 -bottom-10 h-28 w-28 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.12), transparent)' }} />
-            <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
-              <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#06b6d4' }}>
-                  <Timer size={14} />
+            {isMobile ? (
+              <div className="relative flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#06b6d4' }}>
+                      <Timer size={13} />
+                    </div>
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Sessions</div>
+                  </div>
+                  <span className={`text-[10px] font-semibold ${sessionChange > 0 ? 'text-emerald-400' : sessionChange < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                    {sessionChange > 0 ? `+${sessionChange}` : sessionChange} vs yest
+                  </span>
                 </div>
-                <span className={`text-[10px] font-semibold ${sessionChange > 0 ? 'text-emerald-400' : sessionChange < 0 ? 'text-red-400' : 'text-slate-500'}`}>
-                  {sessionChange > 0 ? `+${sessionChange}` : sessionChange} vs yest
-                </span>
-              </div>
-              <div className={`${isMobile ? 'mt-2.5' : 'mt-4'} text-[10px] text-slate-500`} style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
-                Sessions
-              </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="mono font-bold text-white" style={{ fontSize: isMobile ? 20 : 26 }}>{displaySessions}</span>
-                <span className="text-[10px] text-slate-500">today</span>
-              </div>
-              <div className="mt-1.5 text-[10px] text-slate-500">{sessionsSummaryText}</div>
-              <div className={`mt-auto grid grid-cols-2 gap-1.5 ${isMobile ? 'pt-2.5' : 'pt-4'}`}>
-                <div className={`rounded-lg border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
-                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Yesterday</div>
-                  <div className="mono mt-0.5 text-[13px] font-bold text-white">{yesterdaySessions}</div>
-                </div>
-                <div className={`rounded-lg border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
-                  <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Checkouts</div>
-                  <div className="mono mt-0.5 text-[13px] font-bold text-white">{totalCheckouts}</div>
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="mono text-[22px] font-bold text-white">{displaySessions}</span>
+                      <span className="text-[10px] text-slate-500">today</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">{sessionsSummaryText}</div>
+                  </div>
+                  <div className="grid min-w-[132px] grid-cols-2 gap-1.5 text-[10px]">
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+                      <div className="text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Yesterday</div>
+                      <div className="mono mt-0.5 text-[12px] font-bold text-white">{yesterdaySessions}</div>
+                    </div>
+                    <div className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1.5">
+                      <div className="text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Checkouts</div>
+                      <div className="mono mt-0.5 text-[12px] font-bold text-white">{totalCheckouts}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#06b6d4' }}>
+                    <Timer size={14} />
+                  </div>
+                  <span className={`text-[10px] font-semibold ${sessionChange > 0 ? 'text-emerald-400' : sessionChange < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                    {sessionChange > 0 ? `+${sessionChange}` : sessionChange} vs yest
+                  </span>
+                </div>
+                <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
+                  Sessions
+                </div>
+                <div className="mt-1 flex items-baseline gap-1.5">
+                  <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{displaySessions}</span>
+                  <span className="text-[10px] text-slate-500">today</span>
+                </div>
+                <div className="mt-1.5 text-[10px] text-slate-500">{sessionsSummaryText}</div>
+                <div className="mt-auto grid grid-cols-2 gap-1.5 pt-4">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Yesterday</div>
+                    <div className="mono mt-0.5 text-[13px] font-bold text-white">{yesterdaySessions}</div>
+                  </div>
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                    <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Checkouts</div>
+                    <div className="mono mt-0.5 text-[13px] font-bold text-white">{totalCheckouts}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
