@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, Timer, Smartphone } from 'lucide-react';
 import { getLocalDateString } from '../utils';
 
-function Sparkline({ data }: { data: number[] }) {
+function Sparkline({ data, compact = false }: { data: number[]; compact?: boolean }) {
   if (data.length < 2) return null;
-  const W = 320, H = 52, P = 4;
+  const W = 320;
+  const H = compact ? 42 : 52;
+  const P = 4;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
@@ -16,7 +18,7 @@ function Sparkline({ data }: { data: number[] }) {
   const area = `${P},${H - P} ${polyline} ${P + (data.length - 1) * xStep},${H - P}`;
   const [lx, ly] = pts[pts.length - 1];
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 52 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: compact ? 42 : 52 }} preserveAspectRatio="none">
       <defs>
         <linearGradient id="spkGrad" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.3" />
@@ -235,6 +237,9 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const averageCheckout = totalCheckouts > 0 ? Math.round(totalRevenue / totalCheckouts) : 0;
   const liveIndicatorColor = activeNow > 0 ? '#10b981' : '#475569';
   const sessionChange = todaySessions - yesterdaySessions;
+  const compactTileClass = isMobile ? 'p-3.5' : 'p-4';
+  const compactTileHeightClass = isMobile ? 'min-h-[156px]' : 'min-h-[190px]';
+  const compactRevenuePadding = isMobile ? 'p-4' : 'p-5';
 
   if (loadingData) {
     return (
@@ -250,10 +255,10 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   return (
     <div>
       {/* Main grid: revenue card (5/12) + 3 KPI tiles side-by-side (7/12) */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className={`grid grid-cols-12 ${isMobile ? 'gap-3' : 'gap-4'}`}>
 
         {/* ── BIG REVENUE CARD ── */}
-        <div className="col-span-12 lg:col-span-5 glass rounded-2xl p-5 relative overflow-hidden" style={{ position: 'relative' }}>
+        <div className={`col-span-12 lg:col-span-5 glass rounded-2xl ${compactRevenuePadding} relative overflow-hidden`} style={{ position: 'relative' }}>
           {/* Glow orb */}
           <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none"
             style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.18), transparent)' }} />
@@ -262,16 +267,16 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
             style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
 
           {/* Top row */}
-          <div className="flex items-center justify-between relative">
+          <div className="relative flex items-start justify-between gap-3">
             <div className="text-[10px] text-slate-500 font-semibold" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
               {period === 'today' ? 'Today · Revenue' : '7 Days · Revenue'}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {revenueVisible && (
-                <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                  <TrendingUp size={12} />
+                <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                  <TrendingUp size={isMobile ? 11 : 12} />
                   <Trend today={displayRevenue} yesterday={displayPrevRevenue} />
-                  <span>vs yest</span>
+                  {!isMobile && <span>vs yest</span>}
                 </div>
               )}
               <button type="button" onClick={toggleRevenueVisibility} className="p-1 rounded text-slate-500 hover:text-slate-300 transition-colors">
@@ -281,49 +286,49 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           </div>
 
           {/* Revenue amount + sessions */}
-          <div className="mt-2 flex items-baseline gap-3 relative">
-            <p className="mono font-bold text-white leading-none tracking-tight" style={{ fontSize: isMobile ? 36 : 44 }}>
+          <div className={`relative flex items-baseline gap-2.5 ${isMobile ? 'mt-1.5' : 'mt-2'}`}>
+            <p className="mono font-bold text-white leading-none tracking-tight" style={{ fontSize: isMobile ? 32 : 44 }}>
               {revenueVisible ? `₹${displayRevenue.toLocaleString('en-IN')}` : '₹ ••••••'}
             </p>
             <span className="text-[11px] text-slate-500">{displaySessions} sessions</span>
           </div>
 
           {/* Sparkline */}
-          {revenueVisible && <div className="mt-4 relative"><Sparkline data={sparklineData} /></div>}
+          {revenueVisible && <div className={`${isMobile ? 'mt-3' : 'mt-4'} relative`}><Sparkline data={sparklineData} compact={isMobile} /></div>}
 
           {/* Split bar */}
           {revenueVisible && totalForSplit > 0 && (
-            <div className="mt-4">
+            <div className={isMobile ? 'mt-3' : 'mt-4'}>
               <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
                 {gamingPct > 0 && <div style={{ width: `${gamingPct}%`, background: 'linear-gradient(90deg,#06b6d4,#22d3ee)' }} />}
                 {snacksPct > 0 && <div style={{ width: `${snacksPct}%`, background: 'linear-gradient(90deg,#f59e0b,#fbbf24)' }} />}
                 {memberPct > 0 && <div style={{ width: `${memberPct}%`, background: 'linear-gradient(90deg,#8b5cf6,#a78bfa)' }} />}
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div className={`grid grid-cols-2 text-sm ${isMobile ? 'mt-2.5 gap-2' : 'mt-3 gap-3'}`}>
                 {gamingRevenue > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-8 rounded shrink-0" style={{ background: '#06b6d4' }} />
+                    <span className={`w-2 ${isMobile ? 'h-7' : 'h-8'} rounded shrink-0`} style={{ background: '#06b6d4' }} />
                     <div>
                       <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Gaming · {gamingPct}%</div>
-                      <p className="mono font-bold text-white text-base">₹{gamingRevenue.toLocaleString('en-IN')}</p>
+                      <p className={`mono font-bold text-white ${isMobile ? 'text-[15px]' : 'text-base'}`}>₹{gamingRevenue.toLocaleString('en-IN')}</p>
                     </div>
                   </div>
                 )}
                 {snacksRevenue > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-8 rounded shrink-0" style={{ background: '#f59e0b' }} />
+                    <span className={`w-2 ${isMobile ? 'h-7' : 'h-8'} rounded shrink-0`} style={{ background: '#f59e0b' }} />
                     <div>
                       <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Snacks · {snacksPct}%</div>
-                      <p className="mono font-bold text-white text-base">₹{snacksRevenue.toLocaleString('en-IN')}</p>
+                      <p className={`mono font-bold text-white ${isMobile ? 'text-[15px]' : 'text-base'}`}>₹{snacksRevenue.toLocaleString('en-IN')}</p>
                     </div>
                   </div>
                 )}
                 {membershipRevenue > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-8 rounded shrink-0" style={{ background: '#8b5cf6' }} />
+                    <span className={`w-2 ${isMobile ? 'h-7' : 'h-8'} rounded shrink-0`} style={{ background: '#8b5cf6' }} />
                     <div>
                       <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Members · {memberPct}%</div>
-                      <p className="mono font-bold text-white text-base">₹{membershipRevenue.toLocaleString('en-IN')}</p>
+                      <p className={`mono font-bold text-white ${isMobile ? 'text-[15px]' : 'text-base'}`}>₹{membershipRevenue.toLocaleString('en-IN')}</p>
                     </div>
                   </div>
                 )}
@@ -333,24 +338,24 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
         </div>
 
         {/* ── 3 KPI TILES side-by-side ── */}
-        <div className="col-span-12 lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={`col-span-12 lg:col-span-7 grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-1 sm:grid-cols-3 gap-4'}`}>
 
           {/* Payment split */}
-          <div className="glass rounded-2xl p-4 relative overflow-hidden">
+          <div className={`glass rounded-2xl ${compactTileClass} relative overflow-hidden`}>
             <div className="absolute inset-0 rounded-2xl pointer-events-none"
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
             <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.12), transparent)' }} />
-            <div className="relative flex h-full min-h-[190px] flex-col">
+            <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
               <div className="flex items-center justify-between">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#22d3ee' }}>
                   <Smartphone size={14} />
                 </div>
                 <span className="text-[10px] text-slate-600" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Today</span>
               </div>
-              <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Payment split</div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{upiPct}%</span>
+              <div className={`${isMobile ? 'mt-3' : 'mt-4'} text-[10px] text-slate-500`} style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Payment split</div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="mono font-bold text-white" style={{ fontSize: isMobile ? 22 : 26 }}>{upiPct}%</span>
                 <span className="text-[11px] text-slate-500">digital</span>
               </div>
               <div className="mt-2 text-[11px] text-slate-500">
@@ -360,47 +365,66 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
               </div>
               {paymentSplitTotal > 0 && (
                 <>
-                  <div className="mt-4 h-1.5 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div className={`${isMobile ? 'mt-3' : 'mt-4'} h-1.5 rounded-full overflow-hidden flex`} style={{ background: 'rgba(255,255,255,0.04)' }}>
                     {upiTotal > 0 && <div style={{ width: `${upiPct}%`, background: '#06b6d4' }} />}
                     {cashTotal > 0 && <div style={{ width: `${cashPct}%`, background: '#10b981' }} />}
                   </div>
-                  <div className="mt-auto pt-4 space-y-2 text-[11px]">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-slate-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
-                        UPI
-                      </span>
-                      <span className="mono text-white">₹{upiTotal.toLocaleString('en-IN')}</span>
+                  {isMobile ? (
+                    <div className="mt-auto grid grid-cols-2 gap-2 pt-3 text-[10px]">
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" />
+                          UPI
+                        </div>
+                        <div className="mono mt-1 text-sm font-semibold text-white">₹{upiTotal.toLocaleString('en-IN')}</div>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-2">
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                          Cash
+                        </div>
+                        <div className="mono mt-1 text-sm font-semibold text-white">₹{cashTotal.toLocaleString('en-IN')}</div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-slate-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                        Cash
-                      </span>
-                      <span className="mono text-white">₹{cashTotal.toLocaleString('en-IN')}</span>
+                  ) : (
+                    <div className="mt-auto pt-4 space-y-2 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                          UPI
+                        </span>
+                        <span className="mono text-white">₹{upiTotal.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                          Cash
+                        </span>
+                        <span className="mono text-white">₹{cashTotal.toLocaleString('en-IN')}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
             </div>
           </div>
 
           {/* Active Now */}
-          <div className="glass rounded-2xl p-4 relative overflow-hidden">
+          <div className={`glass rounded-2xl ${compactTileClass} relative overflow-hidden`}>
             <div className="absolute inset-0 rounded-2xl pointer-events-none"
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
             <div className="absolute -left-10 -bottom-10 h-28 w-28 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(closest-side, rgba(16,185,129,0.12), transparent)' }} />
-            <div className="relative flex h-full min-h-[190px] flex-col">
+            <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
               <div className="flex items-center justify-between">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
                   <Zap size={14} />
                 </div>
                 <span className="relative inline-block w-1.5 h-1.5 rounded-full" style={{ background: liveIndicatorColor, color: liveIndicatorColor }} />
               </div>
-              <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
+              <div className={`${isMobile ? 'mt-3' : 'mt-4'} text-[10px] text-slate-500`} style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Active now</div>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{activeNow}</span>
+                <span className="mono font-bold text-white" style={{ fontSize: isMobile ? 22 : 26 }}>{activeNow}</span>
                 <span className="text-[10px] text-slate-500">live sessions</span>
               </div>
               <div className="mt-2 text-[11px] text-slate-500">
@@ -408,12 +432,12 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                   ? `${activeBookingsCount} gaming · ${activeSubscriptionsCount} memberships`
                   : 'No active sessions right now'}
               </div>
-              <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+              <div className={`mt-auto grid grid-cols-2 gap-2 ${isMobile ? 'pt-3' : 'pt-4'}`}>
+                <div className={`rounded-xl border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
                   <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Gaming</div>
                   <div className="mono mt-1 text-sm font-bold text-white">{activeBookingsCount}</div>
                 </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className={`rounded-xl border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
                   <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Members</div>
                   <div className="mono mt-1 text-sm font-bold text-white">{activeSubscriptionsCount}</div>
                 </div>
@@ -422,12 +446,12 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
           </div>
 
           {/* Sessions */}
-          <div className="glass rounded-2xl p-4 relative overflow-hidden">
+          <div className={`glass rounded-2xl ${compactTileClass} relative overflow-hidden ${isMobile ? 'col-span-2' : ''}`}>
             <div className="absolute inset-0 rounded-2xl pointer-events-none"
               style={{ backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.03), transparent 30%)', mixBlendMode: 'overlay' }} />
             <div className="absolute -right-10 -bottom-10 h-28 w-28 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(closest-side, rgba(6,182,212,0.12), transparent)' }} />
-            <div className="relative flex h-full min-h-[190px] flex-col">
+            <div className={`relative flex h-full flex-col ${compactTileHeightClass}`}>
               <div className="flex items-center justify-between">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.18)', color: '#06b6d4' }}>
                   <Timer size={14} />
@@ -436,11 +460,11 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                   {sessionChange > 0 ? `+${sessionChange}` : sessionChange} vs yest
                 </span>
               </div>
-              <div className="mt-4 text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
+              <div className={`${isMobile ? 'mt-3' : 'mt-4'} text-[10px] text-slate-500`} style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
                 Sessions
               </div>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="mono font-bold text-white" style={{ fontSize: 26 }}>{displaySessions}</span>
+                <span className="mono font-bold text-white" style={{ fontSize: isMobile ? 22 : 26 }}>{displaySessions}</span>
                 <span className="text-[10px] text-slate-500">today</span>
               </div>
               <div className="mt-2 text-[11px] text-slate-500">
@@ -448,12 +472,12 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
                   ? `Avg checkout ₹${averageCheckout.toLocaleString('en-IN')}`
                   : 'No completed checkouts today'}
               </div>
-              <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+              <div className={`mt-auto grid grid-cols-2 gap-2 ${isMobile ? 'pt-3' : 'pt-4'}`}>
+                <div className={`rounded-xl border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
                   <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Yesterday</div>
                   <div className="mono mt-1 text-sm font-bold text-white">{yesterdaySessions}</div>
                 </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className={`rounded-xl border border-white/[0.06] bg-white/[0.03] ${isMobile ? 'px-2.5 py-2' : 'px-3 py-2'}`}>
                   <div className="text-[10px] text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.1em' }}>Checkouts</div>
                   <div className="mono mt-1 text-sm font-bold text-white">{totalCheckouts}</div>
                 </div>
