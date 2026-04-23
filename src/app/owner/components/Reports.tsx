@@ -798,8 +798,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 bg-white/[0.03] p-1 rounded-xl border border-white/[0.08]">
+                <div className="flex w-full items-center gap-2 md:w-auto">
+                    <div className="flex w-full items-center gap-2 bg-white/[0.03] p-1 rounded-xl border border-white/[0.08] md:w-auto">
                         <Select
                             value={dateRange}
                             onChange={(val) => {
@@ -818,7 +818,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 { label: 'All Bookings', value: 'all' },
                                 { label: 'Custom Range', value: 'custom' },
                             ]}
-                            className="w-40 border-none bg-transparent"
+                            className="w-full border-none bg-transparent md:w-40"
                         />
                         <Button
                             variant="ghost"
@@ -1122,7 +1122,42 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             </p>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
+                    {isMobile && (
+                        <div className="space-y-3 p-3">
+                            {(() => {
+                                const maxTotal = Math.max(...monthlyData.map(m => m.total), 1);
+                                return monthlyData.slice().reverse().map((m) => (
+                                    <div key={m.key} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-semibold text-white">{m.label}</p>
+                                                <p className="mt-1 text-xs text-slate-500">{m.bookings} bookings</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[11px] text-slate-500">Total</p>
+                                                <p className="text-base font-semibold text-white">â‚¹{Math.round(m.total).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-2 gap-3">
+                                            <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-emerald-300/70">Gaming</p>
+                                                <p className="mt-1 text-sm font-semibold text-emerald-400">â‚¹{Math.round(m.gaming).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-orange-500/15 bg-orange-500/8 px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-orange-300/70">F&amp;B</p>
+                                                <p className="mt-1 text-sm font-semibold text-orange-400">â‚¹{Math.round(m.snacks).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
+                                            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
+                                            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+                                        </div>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    )}
+                    <div className={`${isMobile ? 'hidden' : 'block'} overflow-x-auto`}>
                         <table className="w-full text-left">
                             <thead>
                                 <tr className="bg-white/[0.03] text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.08]">
@@ -1561,7 +1596,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
             {/* Recent Transactions Table */}
             <Card padding="none" className="overflow-hidden">
-                <div className="p-6 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="p-6 border-b border-white/[0.06] flex items-center justify-between gap-3">
                     <h3 className="text-lg font-semibold text-white">Recent Transactions</h3>
                     <Button
                         variant="ghost"
@@ -1570,11 +1605,57 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                         onClick={exportToCSV}
                     >
                         <Download size={16} className="mr-2" />
-                        Export All
+                        {isMobile ? 'Export' : 'Export All'}
                     </Button>
                 </div>
 
-                <div className="overflow-x-auto">
+                {isMobile && (
+                    <div className="space-y-3 p-4">
+                        {billableBookings.slice(-10).reverse().map((booking) => (
+                            <div key={booking.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-white truncate">{booking.customer_name || 'Walk-in'}</p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {parseLocalDate(booking.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            {' · '}
+                                            {booking.start_time || 'N/A'}
+                                        </p>
+                                    </div>
+                                    <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium border ${booking.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                        booking.status === 'completed' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                                            'bg-white/[0.04] text-slate-400 border-white/[0.09]'
+                                        }`}>
+                                        {booking.status}
+                                    </span>
+                                </div>
+                                <div className="mt-3 grid grid-cols-2 gap-3">
+                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Amount</p>
+                                        <p className="mt-1 font-mono text-sm font-semibold text-white">â‚¹{booking.total_amount?.toLocaleString()}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Payment</p>
+                                        <p className="mt-1 text-sm capitalize text-slate-300">{booking.payment_mode || 'Cash'}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex justify-end">
+                                    <Button variant="ghost" size="sm" className="h-9 rounded-xl px-3 text-slate-400 hover:text-white">
+                                        <ArrowUpRight size={16} className="mr-1" />
+                                        View
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                        {bookings.length === 0 && (
+                            <div className="px-6 py-12 text-center text-slate-500">
+                                No transactions found for this period.
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className={`${isMobile ? 'hidden' : 'block'} overflow-x-auto`}>
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-white/[0.03] text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.08]">

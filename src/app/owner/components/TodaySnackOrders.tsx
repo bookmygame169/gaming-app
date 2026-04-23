@@ -83,23 +83,23 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.06]/40 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.09]/40">
-        <div className="flex items-center gap-2.5">
+      <div className="flex flex-col gap-3 px-5 py-4 border-b border-white/[0.09]/40 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-orange-500/15 flex items-center justify-center">
             <ShoppingBag size={16} className="text-orange-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-100">Today&apos;s Snack Orders</h3>
             <p className="text-[11px] text-slate-500 mt-0.5">Inventory items sold today</p>
           </div>
         </div>
 
         {/* New sale button + summary chips */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {onNewSale && (
             <button
               onClick={onNewSale}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-xs font-medium transition-all"
+              className="flex w-full items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-xs font-medium transition-all sm:w-auto"
             >
               <Plus size={11} /> New Sale
             </button>
@@ -134,7 +134,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
             return (
               <div key={booking.id} className={`px-5 py-3.5 transition-colors ${booking.payment_mode === 'owner' ? 'bg-purple-500/5 hover:bg-purple-500/8' : 'hover:bg-white/[0.08]/20'}`}>
                 {/* Row top: customer + payment + total */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-white/[0.08] flex items-center justify-center shrink-0">
                       <span className="text-xs font-semibold text-slate-300">
@@ -146,7 +146,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
                       {phone && <span className="text-[11px] text-slate-500">{phone}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:ml-3">
                     {onEditSale && (
                       <button
                         onClick={() => onEditSale(booking.id, customer)}
@@ -166,7 +166,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
                 </div>
 
                 {/* Items list */}
-                <div className="flex flex-wrap gap-1.5 pl-9">
+                <div className="flex flex-wrap gap-1.5 pl-0 sm:pl-9">
                   {booking.booking_orders!.map((order, idx) => (
                     <span
                       key={order.id || idx}

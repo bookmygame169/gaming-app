@@ -277,7 +277,8 @@ export default function Inventory({ cafeId }: InventoryProps) {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 border-b border-white/[0.09] pb-2">
+      <div className="overflow-x-auto no-scrollbar">
+        <div className="flex w-max min-w-full gap-2 border-b border-white/[0.09] pb-2">
         {(["items", "analytics"] as const).map(tab => (
           <button
             key={tab}
@@ -292,6 +293,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
             {tab === "items" ? "Items" : "Analytics"}
           </button>
         ))}
+        </div>
       </div>
 
       {activeTab === "analytics" && <InventoryAnalytics cafeId={cafeId} />}
@@ -342,27 +344,27 @@ export default function Inventory({ cafeId }: InventoryProps) {
           )}
 
           {/* ── Quick add bar ── */}
-          <div className="flex flex-wrap gap-2 items-center p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+          <div className="grid grid-cols-1 gap-2 p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl sm:grid-cols-[minmax(0,1fr)_96px_88px_auto] sm:items-center">
             <input
               type="text" placeholder="Item name" value={quickName}
               onChange={e => setQuickName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleQuickAdd()}
-              className="flex-1 min-w-[130px] px-3 py-2 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
+              className="w-full min-w-0 px-3 py-2.5 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
             />
             <input
               type="number" placeholder="₹ Price" value={quickPrice}
               onChange={e => setQuickPrice(e.target.value)}
-              className="w-24 px-3 py-2 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
+              className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
             />
             <input
               type="number" placeholder="Qty" value={quickQty}
               onChange={e => setQuickQty(e.target.value)}
-              className="w-20 px-3 py-2 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
+              className="w-full px-3 py-2.5 bg-white/[0.05] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/60"
             />
             <button
               onClick={handleQuickAdd}
               disabled={!quickName || !quickPrice || quickSaving}
-              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5"
+              className="flex w-full items-center justify-center gap-1.5 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors sm:w-auto"
             >
               {quickSaving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               Add
@@ -462,37 +464,37 @@ export default function Inventory({ cafeId }: InventoryProps) {
                                 </div>
                               </div>
                               {/* Item action buttons */}
-                              <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <button
                                   onClick={() => toggleAvailability(item)}
                                   title={item.is_available ? "Mark unavailable" : "Mark available"}
-                                  className={`p-1.5 rounded-lg transition ${item.is_available ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" : "bg-white/[0.08] text-slate-400 hover:bg-white/[0.10]"}`}
+                                  className={`h-9 w-9 flex items-center justify-center rounded-lg transition ${item.is_available ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" : "bg-white/[0.08] text-slate-400 hover:bg-white/[0.10]"}`}
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => openEditModal(item)} className="p-1.5 bg-white/[0.08] hover:bg-white/[0.12] text-slate-300 rounded-lg transition">
+                                <button onClick={() => openEditModal(item)} className="h-9 w-9 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.12] text-slate-300 rounded-lg transition">
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => handleDelete(item)} className="p-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 rounded-lg transition">
+                                <button onClick={() => handleDelete(item)} className="h-9 w-9 flex items-center justify-center bg-red-500/15 hover:bg-red-500/25 text-red-400 rounded-lg transition">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
 
                             {/* Stock row */}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-center justify-between gap-2 sm:justify-start">
                                 <StockBadge qty={item.stock_quantity} />
                                 {/* Fine +/- controls */}
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => updateStock(item, -1)}
                                     disabled={item.stock_quantity === 0}
-                                    className="w-6 h-6 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.12] text-white rounded-md disabled:opacity-30 text-xs font-bold transition"
+                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.12] text-white rounded-lg disabled:opacity-30 text-sm font-bold transition"
                                   >−</button>
                                   <button
                                     onClick={() => updateStock(item, 1)}
-                                    className="w-6 h-6 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.12] text-white rounded-md text-xs font-bold transition"
+                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.12] text-white rounded-lg text-sm font-bold transition"
                                   >+</button>
                                 </div>
                               </div>
@@ -503,7 +505,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
                                   setRestockingId(isRestocking ? null : item.id);
                                   setRestockQty("10");
                                 }}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border transition ${
+                                className={`flex w-full items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold border transition sm:w-auto ${
                                   isRestocking
                                     ? "bg-cyan-500/25 text-cyan-300 border-cyan-500/40"
                                     : "bg-white/[0.05] text-slate-400 border-white/[0.09] hover:text-cyan-400 hover:border-cyan-500/30"
@@ -516,7 +518,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
 
                             {/* Inline restock panel */}
                             {isRestocking && (
-                              <div className="flex items-center gap-2 pt-1 border-t border-white/[0.08]">
+                              <div className="flex flex-col gap-2 pt-3 border-t border-white/[0.08] sm:flex-row sm:items-center">
                                 <span className="text-xs text-slate-400 shrink-0">Add qty:</span>
                                 <input
                                   ref={restockInputRef}
@@ -525,17 +527,17 @@ export default function Inventory({ cafeId }: InventoryProps) {
                                   value={restockQty}
                                   onChange={e => setRestockQty(e.target.value)}
                                   onKeyDown={e => { if (e.key === "Enter") handleRestock(item); if (e.key === "Escape") setRestockingId(null); }}
-                                  className="w-20 px-2 py-1 bg-white/[0.07] border border-white/[0.10] rounded-lg text-white text-sm text-center focus:outline-none focus:border-cyan-500"
+                                  className="w-full px-2 py-2 bg-white/[0.07] border border-white/[0.10] rounded-lg text-white text-sm text-center focus:outline-none focus:border-cyan-500 sm:w-20"
                                 />
                                 <button
                                   onClick={() => handleRestock(item)}
                                   disabled={restockSaving || !restockQty || parseInt(restockQty) <= 0}
-                                  className="flex items-center gap-1 px-3 py-1 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition"
+                                  className="flex w-full items-center justify-center gap-1 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition sm:w-auto"
                                 >
                                   {restockSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                                   Confirm
                                 </button>
-                                <button onClick={() => setRestockingId(null)} className="p-1 text-slate-500 hover:text-white transition">
+                                <button onClick={() => setRestockingId(null)} className="flex w-full items-center justify-center rounded-lg border border-white/[0.08] px-3 py-2 text-slate-500 hover:text-white transition sm:w-auto sm:border-0 sm:p-1">
                                   <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>

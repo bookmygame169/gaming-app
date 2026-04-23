@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BookingsTable } from './BookingsTable';
 import { ActiveSessions } from './ActiveSessions';
 import { Card, Button } from './ui';
-import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2, Zap, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 import { getLocalDateString } from '../utils';
@@ -128,6 +128,8 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const [customEnd, setCustomEnd] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+    const [mobileSessionsOpen, setMobileSessionsOpen] = useState(true);
 
     // Membership sub-tab state
     const [subscriptions, setSubscriptions] = useState<any[]>([]);
@@ -365,31 +367,64 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const activeSessionCount = activeSessionBookings.filter((booking) => (
         isActiveSessionBooking(booking, todayStr, yesterdayStr, currentMinutes)
     )).length;
+    const activeFilterCount = [
+        searchTerm.trim() ? 1 : 0,
+        statusFilter !== 'all' ? 1 : 0,
+        dateRange !== 'today' ? 1 : 0,
+    ].reduce((sum, value) => sum + value, 0);
+    const dateRangeLabelMap: Record<string, string> = {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        week: 'This week',
+        all: 'All time',
+        custom: 'Custom range',
+    };
+    const mobileFilterSummary = activeFilterCount > 0
+        ? `${activeFilterCount} active`
+        : `${dateRangeLabelMap[dateRange] || 'Today'} · all statuses`;
+
+    useEffect(() => {
+        if (activeSessionCount > 0) {
+            setMobileSessionsOpen(true);
+        }
+    }, [activeSessionCount]);
 
     return (
         <div className="space-y-4">
             {/* Active Sessions */}
-            <section className="mb-2">
-                <div className="flex items-center gap-2.5 mb-4">
-                    <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center">
-                        <Zap size={14} className="text-red-400" />
+            <section className="mb-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 md:border-0 md:bg-transparent md:p-0">
+                <div className="flex items-center justify-between gap-3 md:mb-4">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center">
+                            <Zap size={14} className="text-red-400" />
+                        </div>
+                        <h2 className="text-base font-semibold text-white">Active Sessions</h2>
+                        {activeSessionCount > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[11px] font-bold">{activeSessionCount}</span>
+                        )}
                     </div>
-                    <h2 className="text-base font-semibold text-white">Active Sessions</h2>
-                    {activeSessionCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[11px] font-bold">{activeSessionCount}</span>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => setMobileSessionsOpen((open) => !open)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white md:hidden"
+                    >
+                        {mobileSessionsOpen ? 'Hide' : 'Show'}
+                        {mobileSessionsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
                 </div>
-                <ActiveSessions
-                    bookings={activeSessionBookings}
-                    subscriptions={pageSubscriptions || []}
-                    activeTimers={activeTimers || new Map()}
-                    timerElapsed={timerElapsed || new Map()}
-                    currentTime={currentTime}
-                    onAddTime={onEdit}
-                    onAddItems={onAddItems}
-                    onSessionEnded={onSessionEnded}
-                    onEndCollect={onEndCollect}
-                />
+                <div className={`${mobileSessionsOpen ? 'mt-4 md:mt-0' : 'hidden md:block'}`}>
+                    <ActiveSessions
+                        bookings={activeSessionBookings}
+                        subscriptions={pageSubscriptions || []}
+                        activeTimers={activeTimers || new Map()}
+                        timerElapsed={timerElapsed || new Map()}
+                        currentTime={currentTime}
+                        onAddTime={onEdit}
+                        onAddItems={onAddItems}
+                        onSessionEnded={onSessionEnded}
+                        onEndCollect={onEndCollect}
+                    />
+                </div>
             </section>
 
             {/* Sub-tabs */}
@@ -624,94 +659,113 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
 
                     {/* Filters */}
                     <Card padding="md" className="space-y-3">
-                        {/* Search */}
-                        <div className="flex gap-2 items-center">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                                <input
-                                    type="text"
-                                    placeholder="Search by name, phone, or ID..."
-                                    value={searchTerm}
-                                    onChange={(e) => handleSearchChange(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 text-white placeholder-slate-600 text-sm"
-                                />
+                        <div className="flex items-center justify-between gap-3 md:hidden">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                                    <SlidersHorizontal size={15} className="text-slate-400" />
+                                    Filters
+                                </div>
+                                <p className="mt-1 text-xs text-slate-500">{mobileFilterSummary}</p>
                             </div>
                             <button
-                                onClick={() => { fetchBookings(debouncedSearch, currentPage); onRefresh?.(); }}
-                                title="Refresh"
-                                className="w-9 h-9 flex items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.04] text-slate-400 hover:text-white hover:border-white/20 transition-colors shrink-0"
+                                type="button"
+                                onClick={() => setMobileFiltersOpen((open) => !open)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white"
                             >
-                                <RefreshCw size={15} />
+                                {mobileFiltersOpen ? 'Hide' : 'Show'}
+                                {mobileFiltersOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </button>
                         </div>
-                        {/* Date chips */}
-                        <div className="flex flex-wrap gap-1.5">
-                            {([
-                                { v: 'today', l: 'Today' },
-                                { v: 'yesterday', l: 'Yesterday' },
-                                { v: 'week', l: 'This Week' },
-                                { v: 'all', l: 'All Time' },
-                                { v: 'custom', l: 'Custom' },
-                            ] as const).map(({ v, l }) => (
-                                <button key={v} onClick={() => setDateRange(v)}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${dateRange === v ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white hover:bg-white/[0.07]'}`}>
-                                    {l}
+                        <div className={`${mobileFiltersOpen ? 'space-y-3' : 'hidden'} md:block md:space-y-3`}>
+                            {/* Search */}
+                            <div className="flex gap-2 items-center">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name, phone, or ID..."
+                                        value={searchTerm}
+                                        onChange={(e) => handleSearchChange(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 text-white placeholder-slate-600 text-sm"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => { fetchBookings(debouncedSearch, currentPage); onRefresh?.(); }}
+                                    title="Refresh"
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.04] text-slate-400 hover:text-white hover:border-white/20 transition-colors shrink-0"
+                                >
+                                    <RefreshCw size={15} />
                                 </button>
-                            ))}
-                        </div>
-                        {/* Status chips */}
-                        <div className="flex flex-wrap gap-1.5">
-                            {([
-                                { v: 'all', l: 'All', color: '' },
-                                { v: 'in-progress', l: 'Active', color: 'blue' },
-                                { v: 'confirmed', l: 'Confirmed', color: 'amber' },
-                                { v: 'completed', l: 'Done', color: 'emerald' },
-                                { v: 'cancelled', l: 'Cancelled', color: 'red' },
-                            ] as { v: string; l: string; color: string }[]).map(({ v, l, color }) => {
-                                const isActive = statusFilter === v;
-                                const colorMap: Record<string, string> = {
-                                    blue: isActive ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'text-blue-400/60 border-blue-500/20 hover:bg-blue-500/10',
-                                    amber: isActive ? 'bg-amber-600/20 text-amber-300 border-amber-500/40' : 'text-amber-400/60 border-amber-500/20 hover:bg-amber-500/10',
-                                    emerald: isActive ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40' : 'text-emerald-400/60 border-emerald-500/20 hover:bg-emerald-500/10',
-                                    red: isActive ? 'bg-red-600/20 text-red-300 border-red-500/40' : 'text-red-400/60 border-red-500/20 hover:bg-red-500/10',
-                                };
-                                const base = !color ? (isActive ? 'bg-white/[0.1] text-white border-white/20' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white') : '';
-                                return (
-                                    <button key={v} onClick={() => setStatusFilter(v)}
-                                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${color ? colorMap[color] : base}`}>
+                            </div>
+                            {/* Date chips */}
+                            <div className="flex flex-wrap gap-1.5">
+                                {([
+                                    { v: 'today', l: 'Today' },
+                                    { v: 'yesterday', l: 'Yesterday' },
+                                    { v: 'week', l: 'This Week' },
+                                    { v: 'all', l: 'All Time' },
+                                    { v: 'custom', l: 'Custom' },
+                                ] as const).map(({ v, l }) => (
+                                    <button key={v} onClick={() => setDateRange(v)}
+                                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${dateRange === v ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white hover:bg-white/[0.07]'}`}>
                                         {l}
                                     </button>
-                                );
-                            })}
-                        </div>
-                        {dateRange === 'custom' && (
-                            <div className="flex flex-wrap gap-4 pt-2 border-t border-white/[0.06]">
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Start Date</label>
-                                    <input type="date" value={customStart} onChange={(e) => { setCustomStart(e.target.value); }}
-                                        className="block px-3 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/60" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">End Date</label>
-                                    <input type="date" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); }}
-                                        className="block px-3 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/60" />
-                                </div>
+                                ))}
                             </div>
-                        )}
+                            {/* Status chips */}
+                            <div className="flex flex-wrap gap-1.5">
+                                {([
+                                    { v: 'all', l: 'All', color: '' },
+                                    { v: 'in-progress', l: 'Active', color: 'blue' },
+                                    { v: 'confirmed', l: 'Confirmed', color: 'amber' },
+                                    { v: 'completed', l: 'Done', color: 'emerald' },
+                                    { v: 'cancelled', l: 'Cancelled', color: 'red' },
+                                ] as { v: string; l: string; color: string }[]).map(({ v, l, color }) => {
+                                    const isActive = statusFilter === v;
+                                    const colorMap: Record<string, string> = {
+                                        blue: isActive ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'text-blue-400/60 border-blue-500/20 hover:bg-blue-500/10',
+                                        amber: isActive ? 'bg-amber-600/20 text-amber-300 border-amber-500/40' : 'text-amber-400/60 border-amber-500/20 hover:bg-amber-500/10',
+                                        emerald: isActive ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40' : 'text-emerald-400/60 border-emerald-500/20 hover:bg-emerald-500/10',
+                                        red: isActive ? 'bg-red-600/20 text-red-300 border-red-500/40' : 'text-red-400/60 border-red-500/20 hover:bg-red-500/10',
+                                    };
+                                    const base = !color ? (isActive ? 'bg-white/[0.1] text-white border-white/20' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white') : '';
+                                    return (
+                                        <button key={v} onClick={() => setStatusFilter(v)}
+                                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${color ? colorMap[color] : base}`}>
+                                            {l}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {dateRange === 'custom' && (
+                                <div className="flex flex-wrap gap-4 pt-2 border-t border-white/[0.06]">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-slate-400">Start Date</label>
+                                        <input type="date" value={customStart} onChange={(e) => { setCustomStart(e.target.value); }}
+                                            className="block px-3 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/60" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-slate-400">End Date</label>
+                                        <input type="date" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); }}
+                                            className="block px-3 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/60" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </Card>
 
                     {/* Bulk action bar */}
                     {selectedIds.size > 0 && (
-                        <div className="flex items-center gap-3 px-4 py-3 bg-indigo-600/10 border border-indigo-500/30 rounded-xl">
+                        <div className="flex flex-col gap-3 px-4 py-3 bg-indigo-600/10 border border-indigo-500/30 rounded-xl sm:flex-row sm:items-center">
                             <span className="text-sm font-medium text-indigo-300">{selectedIds.size} selected</span>
-                            <div className="flex gap-2 ml-auto">
-                                <Button variant="secondary" size="sm" onClick={() => handleBulkStatus('completed')} disabled={bulkLoading} className="text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10">
+                            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row">
+                                <Button variant="secondary" size="sm" onClick={() => handleBulkStatus('completed')} disabled={bulkLoading} className="w-full text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 sm:w-auto">
                                     <Check size={14} className="mr-1" /> Mark Completed
                                 </Button>
-                                <Button variant="secondary" size="sm" onClick={() => handleBulkStatus('cancelled')} disabled={bulkLoading} className="text-red-400 border-red-500/30 hover:bg-red-500/10">
+                                <Button variant="secondary" size="sm" onClick={() => handleBulkStatus('cancelled')} disabled={bulkLoading} className="w-full text-red-400 border-red-500/30 hover:bg-red-500/10 sm:w-auto">
                                     <X size={14} className="mr-1" /> Mark Cancelled
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="text-slate-400">Clear</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="w-full text-slate-400 sm:w-auto">Clear</Button>
                             </div>
                         </div>
                     )}
