@@ -1135,17 +1135,17 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[11px] text-slate-500">Total</p>
-                                                <p className="text-base font-semibold text-white">â‚¹{Math.round(m.total).toLocaleString('en-IN')}</p>
+                                                <p className="text-base font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</p>
                                             </div>
                                         </div>
                                         <div className="mt-3 grid grid-cols-2 gap-3">
                                             <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-3 py-2">
                                                 <p className="text-[10px] uppercase tracking-[0.12em] text-emerald-300/70">Gaming</p>
-                                                <p className="mt-1 text-sm font-semibold text-emerald-400">â‚¹{Math.round(m.gaming).toLocaleString('en-IN')}</p>
+                                                <p className="mt-1 text-sm font-semibold text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</p>
                                             </div>
                                             <div className="rounded-xl border border-orange-500/15 bg-orange-500/8 px-3 py-2">
                                                 <p className="text-[10px] uppercase tracking-[0.12em] text-orange-300/70">F&amp;B</p>
-                                                <p className="mt-1 text-sm font-semibold text-orange-400">â‚¹{Math.round(m.snacks).toLocaleString('en-IN')}</p>
+                                                <p className="mt-1 text-sm font-semibold text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</p>
                                             </div>
                                         </div>
                                         <div className="mt-3 h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
@@ -1632,7 +1632,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 <div className="mt-3 grid grid-cols-2 gap-3">
                                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                                         <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Amount</p>
-                                        <p className="mt-1 font-mono text-sm font-semibold text-white">â‚¹{booking.total_amount?.toLocaleString()}</p>
+                                        <p className="mt-1 font-mono text-sm font-semibold text-white">₹{booking.total_amount?.toLocaleString()}</p>
                                     </div>
                                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                                         <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Payment</p>
