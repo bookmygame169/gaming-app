@@ -182,7 +182,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   for (const b of todayBookings) {
     const isSnackOnly = !b.booking_items || b.booking_items.length === 0;
     const fbTotal = isSnackOnly ? (b.total_amount || 0) : getFbTotal(b);
-    const gamingAmount = (b.total_amount || 0) - fbTotal;
+    const gamingAmount = Math.max(0, (b.total_amount || 0) - fbTotal);
     const paymentBucket = getPaymentBucket(b.payment_mode);
     snacksRevenue += fbTotal;
     if (paymentBucket === 'cash') gamingCash += gamingAmount;
