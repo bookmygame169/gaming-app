@@ -74,10 +74,15 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
     [ordersToday]
   );
 
-  const totalItems = useMemo(() =>
-    ordersToday.reduce((sum, b) =>
-      sum + (b.booking_orders?.reduce((s, o) => s + (o.quantity || 0), 0) || 0), 0),
+  const billableOrdersToday = useMemo(
+    () => ordersToday.filter(b => b.payment_mode !== 'owner'),
     [ordersToday]
+  );
+
+  const totalItems = useMemo(() =>
+    billableOrdersToday.reduce((sum, b) =>
+      sum + (b.booking_orders?.reduce((s, o) => s + (o.quantity || 0), 0) || 0), 0),
+    [billableOrdersToday]
   );
 
   return (
@@ -105,7 +110,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
             </button>
           )}
           <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08]/60 text-slate-400 border border-slate-600/40">
-            {ordersToday.length} {ordersToday.length === 1 ? 'booking' : 'bookings'}
+            {billableOrdersToday.length} {billableOrdersToday.length === 1 ? 'sale' : 'sales'}
           </span>
           <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08]/60 text-slate-400 border border-slate-600/40">
             {totalItems} items

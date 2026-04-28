@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from "react";
 import { ConsoleId } from "@/lib/constants";
+import { getInitialOwnerBookingStatus } from "@/lib/bookingFilters";
 import { BillingItem, PricingTier } from "../types";
 import { getLocalDateString } from "../utils";
 import { calcBillingPrice } from "../utils/pricing";
@@ -126,7 +127,7 @@ export function useBilling({
             start_time: startTime12h,
             duration: Math.max(...items.map(i => i.duration)),
             total_amount: totalAmount,
-            status: 'in-progress',
+            status: getInitialOwnerBookingStatus(bookingDate, startTime12h),
             source: 'walk-in',
             payment_mode: paymentMode,
           },

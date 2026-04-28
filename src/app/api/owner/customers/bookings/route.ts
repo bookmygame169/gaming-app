@@ -31,10 +31,12 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, booking_date, start_time, duration, total_amount, status, source, created_at, customer_name"
+      "id, booking_date, start_time, duration, total_amount, status, source, payment_mode, created_at, customer_name, booking_items(id, console, quantity, price, title), booking_orders(id, quantity, total_price)"
     )
     .eq("cafe_id", cafeId)
     .eq("customer_phone", phone)
+    .neq("status", "cancelled")
+    .neq("payment_mode", "owner")
     .order("created_at", { ascending: false })
     .limit(10);
 

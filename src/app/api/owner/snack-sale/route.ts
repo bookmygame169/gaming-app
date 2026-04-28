@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
+import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,13 @@ export async function POST(request: NextRequest) {
       ? 0
       : items.reduce((s: number, i: { total_price: number }) => s + i.total_price, 0);
 
+    const stockAdjustments = items.map((item: { inventory_item_id: string; quantity: number }) => ({
+      inventoryItemId: item.inventory_item_id,
+      quantity: item.quantity,
+    }));
+
+    await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
+
     // 1. Create booking record
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
@@ -50,6 +58,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (bookingError) {
+      await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
       console.error("Booking insert error:", bookingError);
       throw new Error(bookingError.message || JSON.stringify(bookingError));
     }
@@ -72,37 +81,11 @@ export async function POST(request: NextRequest) {
 
     const { error: ordersError } = await supabase.from("booking_orders").insert(orders);
     if (ordersError) {
+      await supabase.from("bookings").delete().eq("id", booking.id);
+      await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
       console.error("Orders insert error:", ordersError);
       throw new Error(ordersError.message || JSON.stringify(ordersError));
     }
-
-    // 3. Decrement stock — run in parallel; log but do not abort on individual failures
-    // (booking + orders are already committed; inventory is best-effort without DB transactions)
-    await Promise.all(
-      items.map(async (item: { inventory_item_id: string; quantity: number }) => {
-        const { data: inv, error: fetchErr } = await supabase
-          .from("inventory_items")
-          .select("stock_quantity")
-          .eq("id", item.inventory_item_id)
-          .single();
-
-        if (fetchErr) {
-          console.error(`[snack-sale] Failed to fetch inventory for item ${item.inventory_item_id}:`, fetchErr.message);
-          return;
-        }
-
-        if (inv) {
-          const { error: updateErr } = await supabase
-            .from("inventory_items")
-            .update({ stock_quantity: Math.max(0, inv.stock_quantity - item.quantity) })
-            .eq("id", item.inventory_item_id);
-
-          if (updateErr) {
-            console.error(`[snack-sale] Failed to decrement stock for item ${item.inventory_item_id}:`, updateErr.message);
-          }
-        }
-      })
-    );
 
     return NextResponse.json({ success: true, bookingId: booking.id });
   } catch (err: unknown) {

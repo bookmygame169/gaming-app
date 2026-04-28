@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { CONSOLE_LABELS, CONSOLE_ICONS } from '@/lib/constants';
+import { isBookingActiveNow } from '@/lib/bookingFilters';
 import { Button, LoadingSpinner, EmptyState } from './ui';
-import { MonitorPlay, Clock, User, AlertCircle, Gamepad2 } from 'lucide-react';
+import { MonitorPlay, User, AlertCircle, Gamepad2 } from 'lucide-react';
 
 type ConsoleId = "ps5" | "ps4" | "xbox" | "pc" | "pool" | "arcade" | "snooker" | "vr" | "steering" | "racing_sim";
 
@@ -15,9 +16,30 @@ type CafeConsoleCounts = {
 
 type BookingData = {
     id: string; start_time: string; duration: number; customer_name: string | null;
+    booking_date?: string | null;
+    status?: string | null;
     user_id: string | null;
     booking_items: Array<{ console: ConsoleId; quantity: number; title?: string | null }>;
     profile?: { name: string } | null;
+};
+
+type MembershipData = {
+    customer_name?: string | null;
+    assigned_console_station?: string | null;
+    timer_start_time: string;
+    membership_plans?: { console_type?: string | null } | null;
+};
+
+type StationPricingData = {
+    station_name?: string | null;
+    is_active?: boolean | null;
+};
+
+type LiveStatusResponse = {
+    cafe?: CafeConsoleCounts | null;
+    bookings?: BookingData[] | null;
+    activeSubscriptions?: MembershipData[] | null;
+    stationPricing?: StationPricingData[] | null;
 };
 
 type ConsoleStatus = {
@@ -73,10 +95,13 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         try {
             const res = await fetch(`/api/owner/live-status?cafeId=${cafeId}`);
             if (!res.ok) throw new Error('Failed to fetch live status');
-            const { cafe, bookings, activeSubscriptions, stationPricing } = await res.json();
-            console.log('[LiveStatus] API response — cafeId:', cafeId, 'bookings:', bookings?.length, 'inProgress:', (bookings||[]).filter((b:any)=>b.status==='in-progress').length, 'subscriptions (timer_active):', activeSubscriptions?.length, 'raw bookings:', bookings, 'raw subs:', activeSubscriptions);
+            const { cafe, bookings = [], activeSubscriptions = [], stationPricing = [] } = await res.json() as LiveStatusResponse;
+            const bookingRows = bookings || [];
+            const membershipRows = activeSubscriptions || [];
+            const pricingRows = stationPricing || [];
+            console.log('[LiveStatus] API response — cafeId:', cafeId, 'bookings:', bookingRows.length, 'inProgress:', bookingRows.filter((b) => b.status === 'in-progress').length, 'subscriptions (timer_active):', membershipRows.length, 'raw bookings:', bookingRows, 'raw subs:', membershipRows);
             if (!cafe) { setLoading(false); return; }
-            const summaries = buildConsoleSummaries(cafe, bookings || [], activeSubscriptions || [], stationPricing || []);
+            const summaries = buildConsoleSummaries(cafe, bookingRows, membershipRows, pricingRows);
             const busy = summaries.flatMap(g => g.statuses).filter(s => s.status === 'busy' || s.status === 'ending_soon');
             console.log('[LiveStatus] buildConsoleSummaries result — activeSessions:', busy.length, busy);
             setConsoleData(summaries);
@@ -88,7 +113,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         }
     };
 
-    const buildConsoleSummaries = (cafe: CafeConsoleCounts, bookings: BookingData[], memberships: any[], stationPricing: any[]): ConsoleSummary[] => {
+    const buildConsoleSummaries = (cafe: CafeConsoleCounts, bookings: BookingData[], memberships: MembershipData[], stationPricing: StationPricingData[]): ConsoleSummary[] => {
         const consoleTypes: Array<{ id: ConsoleId; key: string }> = [
             { id: "ps5", key: "ps5_count" }, { id: "ps4", key: "ps4_count" },
             { id: "xbox", key: "xbox_count" }, { id: "pc", key: "pc_count" },
@@ -99,7 +124,15 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
 
         const summaries: ConsoleSummary[] = [];
         const now = new Date();
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const timeParts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).formatToParts(now);
+        const currentHours = Number(timeParts.find((part) => part.type === 'hour')?.value || '0');
+        const currentMins = Number(timeParts.find((part) => part.type === 'minute')?.value || '0');
+        const currentMinutes = currentHours * 60 + currentMins;
 
         const parseTimeToMinutes = (timeStr: string): number => {
             const [time, period] = timeStr.toLowerCase().split(" ");
@@ -120,7 +153,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         };
 
         // Use all in-progress bookings from API (already filtered by status=in-progress)
-        const activeBookings = bookings.filter(b => b.start_time && b.duration);
+        const activeBookings = bookings.filter(b => b.start_time && b.duration && isBookingActiveNow(b));
 
         const consoleTypeMap: Record<string, ConsoleId> = {
             'PC': 'pc', 'PS5': 'ps5', 'PS4': 'ps4', 'Xbox': 'xbox',
@@ -196,7 +229,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
 
             for (let unit = 1; unit <= total; unit++) {
                 const stationId = `${id}-${unit.toString().padStart(2, '0')}`;
-                const pricingInfo = stationPricing.find((p: any) => p.station_name === stationId);
+                const pricingInfo = stationPricing.find((p) => p.station_name === stationId);
                 const isInactive = pricingInfo && pricingInfo.is_active === false;
 
                 if (isInactive) {
@@ -274,7 +307,6 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
     const totalBusy = consoleData.reduce((sum, c) => sum + c.busy, 0);
     const totalEndingSoon = consoleData.reduce((sum, c) => c.statuses.filter(s => s.status === 'ending_soon').length + sum, 0);
     const totalOff = consoleData.reduce((sum, c) => c.statuses.filter(s => s.status === 'inactive').length + sum, 0);
-    const totalStations = consoleData.reduce((sum, c) => sum + c.total, 0);
 
     const activeSessions = consoleData.flatMap(group =>
         group.statuses

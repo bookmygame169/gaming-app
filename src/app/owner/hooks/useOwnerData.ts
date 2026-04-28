@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
 import { OwnerStats, CafeRow, BookingRow, NavTab } from '../types';
 import { getLocalDateString } from '../utils';
 
@@ -63,9 +64,9 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
 
     const bookingsToday = activeBookings.filter(b => b.booking_date === todayStr).length;
     const pendingBookings = bookings.filter(b => b.status?.toLowerCase() === "pending").length;
-    const todayRevenue = activeBookings.filter(b => b.booking_date === todayStr).reduce((sum, b) => sum + (b.total_amount || 0), 0);
-    const weekRevenue = activeBookings.filter(b => new Date(b.booking_date || "") >= startOfWeek).reduce((sum, b) => sum + (b.total_amount || 0), 0);
-    const totalRevenue = activeBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+    const todayRevenue = activeBookings.filter(b => b.booking_date === todayStr).reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
+    const weekRevenue = activeBookings.filter(b => new Date(b.booking_date || "") >= startOfWeek).reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
+    const totalRevenue = activeBookings.reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
 
     // Month/quarter revenue is only meaningful if the loaded data covers the full period.
     // Dashboard scope loads only ~7 days; show null so UI can render "See Reports" instead.
@@ -77,10 +78,10 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
     const dataCoversQuarter = !oldestLoaded || new Date(oldestLoaded) <= startOfQuarter;
 
     const monthRevenue = dataCoversMonth
-      ? activeBookings.filter(b => new Date(b.booking_date || "") >= startOfMonth).reduce((sum, b) => sum + (b.total_amount || 0), 0)
+      ? activeBookings.filter(b => new Date(b.booking_date || "") >= startOfMonth).reduce((sum, b) => sum + getBookingRevenueTotal(b), 0)
       : null;
     const quarterRevenue = dataCoversQuarter
-      ? activeBookings.filter(b => new Date(b.booking_date || "") >= startOfQuarter).reduce((sum, b) => sum + (b.total_amount || 0), 0)
+      ? activeBookings.filter(b => new Date(b.booking_date || "") >= startOfQuarter).reduce((sum, b) => sum + getBookingRevenueTotal(b), 0)
       : null;
 
     return {

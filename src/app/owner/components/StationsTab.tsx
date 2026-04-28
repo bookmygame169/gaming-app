@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState } from 'react';
+import { isBookingActiveNow } from '@/lib/bookingFilters';
 import { CafeRow, BookingRow } from '../types';
-import { getLocalDateString } from '../utils';
 
 interface StationsTabProps {
     currentCafe: CafeRow | null;
@@ -95,12 +95,11 @@ export function StationsTab({
     // --- Real-time occupancy ---
     // Build stationOccupancy: stationId → { customerName, endTime }
     // based on today's in-progress bookings only
-    const todayStr = getLocalDateString();
     const activeByConsole = new Map<string, { customerName: string; endTime: string }[]>();
     const stationOccupancy = new Map<string, { customerName: string; endTime: string }>();
 
     bookings
-        .filter(b => b.status === 'in-progress' && b.booking_date === todayStr)
+        .filter(b => isBookingActiveNow(b))
         .forEach(b => {
             const customerName = b.customer_name || b.user_name || 'Customer';
             let endTimeStr = '';
@@ -144,14 +143,6 @@ export function StationsTab({
         }
     });
 
-    // Summary counts for header
-    const totalStations = Object.values(consoleTypes).reduce(
-        (sum, ct) => sum + ((currentCafe as any)[ct.key] || 0), 0
-    );
-    const occupiedCount = stationOccupancy.size;
-    const maintenanceCount = maintenanceStations.size;
-    const freeCount = totalStations - occupiedCount - maintenanceCount - poweredOffStations.size;
-
     // Generate stations list
     const allStations: any[] = [];
     consoleTypes.forEach((consoleType) => {
@@ -169,6 +160,23 @@ export function StationsTab({
             });
         }
     });
+
+    // Summary counts for header. Use a union so a powered-off occupied station
+    // is not subtracted twice.
+    const stationIds = new Set(allStations.map((station) => station.name));
+    const occupiedStationIds = new Set([...stationOccupancy.keys()].filter((name) => stationIds.has(name)));
+    const maintenanceStationIds = new Set([...maintenanceStations].filter((name) => stationIds.has(name)));
+    const poweredOffStationIds = new Set([...poweredOffStations].filter((name) => stationIds.has(name)));
+    const unavailableStationIds = new Set([
+        ...occupiedStationIds,
+        ...maintenanceStationIds,
+        ...poweredOffStationIds,
+    ]);
+    const totalStations = allStations.length;
+    const occupiedCount = occupiedStationIds.size;
+    const maintenanceCount = maintenanceStationIds.size;
+    const offCount = poweredOffStationIds.size;
+    const freeCount = Math.max(0, totalStations - unavailableStationIds.size);
 
     const filteredStations = allStations.filter(station => {
         const matchesSearch =
@@ -224,7 +232,7 @@ export function StationsTab({
                     { label: 'Free', count: freeCount, bg: 'rgba(16,185,129,0.1)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
                     { label: 'Occupied', count: occupiedCount, bg: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
                     { label: 'Maintenance', count: maintenanceCount, bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
-                    { label: 'Off', count: poweredOffStations.size, bg: 'rgba(100,116,139,0.1)', color: '#64748b', border: 'rgba(100,116,139,0.3)' },
+                    { label: 'Off', count: offCount, bg: 'rgba(100,116,139,0.1)', color: '#64748b', border: 'rgba(100,116,139,0.3)' },
                 ].map(pill => (
                     <div key={pill.label} style={{
                         padding: '6px 14px', borderRadius: 20, background: pill.bg,

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
 import { BookingRow } from '../../types';
 import { getLocalDateString } from '../../utils';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
@@ -144,6 +145,7 @@ export default function CustomersTab({
 
     bookings.forEach((booking) => {
       if (booking.source === 'membership') return;
+      if (booking.status === 'cancelled' || booking.payment_mode === 'owner') return;
       const customerId = getCustomerKey({
         userId: booking.user_id,
         phone: booking.customer_phone || booking.user_phone,
@@ -158,7 +160,7 @@ export default function CustomersTab({
       if (customerMap.has(customerId)) {
         const existing = customerMap.get(customerId)!;
         existing.sessions += 1;
-        existing.totalSpent += booking.total_amount || 0;
+        existing.totalSpent += getBookingRevenueTotal(booking);
         if (bookingDate && new Date(bookingDate) > new Date(existing.lastVisit || 0)) {
           existing.lastVisit = bookingDate;
         }
@@ -179,7 +181,7 @@ export default function CustomersTab({
           phone: customerPhone,
           sessions: 1,
           source: booking.source === 'walk_in' ? 'walk-in' : 'online',
-          totalSpent: booking.total_amount || 0,
+          totalSpent: getBookingRevenueTotal(booking),
         });
       }
     });

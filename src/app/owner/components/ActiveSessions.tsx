@@ -4,9 +4,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConsoleId, CONSOLE_ICONS, CONSOLE_COLORS, CONSOLE_LABELS } from '@/lib/constants';
+import { isBookingActiveNow } from '@/lib/bookingFilters';
+import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
 import { Clock3, MessageCircle, Banknote, Smartphone, Gamepad2, X, Square, UtensilsCrossed } from 'lucide-react';
-
-import { getLocalDateString } from '../utils';
 
 interface SessionEndedInfo {
     customerName: string;
@@ -46,34 +46,6 @@ function getBookingItemDuration(item: any, fallbackDuration: number): number {
     return fallbackDuration;
 }
 
-function isActiveBookingForDisplay(
-    booking: any,
-    todayStr: string,
-    yesterdayStr: string,
-    currentMinutes: number
-): boolean {
-    if (booking.status !== 'in-progress') return false;
-
-    const firstItem = booking.booking_items?.[0];
-    const duration = getBookingItemDuration(firstItem, booking.duration || 60);
-    const startMinutes = booking.start_time ? parseStartMinutes(booking.start_time) : null;
-
-    if (startMinutes === null || duration <= 0) {
-        return booking.booking_date === todayStr;
-    }
-
-    const endMinutes = startMinutes + duration;
-    if (booking.booking_date === todayStr) {
-        return true;
-    }
-
-    if (booking.booking_date === yesterdayStr && endMinutes > 1440) {
-        return currentMinutes < (endMinutes - 1440);
-    }
-
-    return false;
-}
-
 interface ActiveSessionsProps {
     bookings: any[];
     subscriptions: any[];
@@ -109,15 +81,11 @@ export function ActiveSessions({
     // Track which card has the End & Collect panel open
     const [endCollectId, setEndCollectId] = useState<string | null>(null);
     const [endCollectPayment, setEndCollectPayment] = useState<'cash' | 'upi'>('cash');
-    const todayStr = getLocalDateString(currentTime);
-    const yesterday = new Date(currentTime);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = getLocalDateString(yesterday);
     const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
 
     // 1. Filter and Flatten Bookings
     const activeBookings = bookings.filter(
-        (booking) => isActiveBookingForDisplay(booking, todayStr, yesterdayStr, currentMinutes)
+        (booking) => isBookingActiveNow(booking, currentTime)
     );
 
     const activeMemberships = subscriptions.filter((sub) => activeTimers.has(sub.id));
@@ -371,7 +339,7 @@ export function ActiveSessions({
                                 </div>
                                 <div className="flex justify-between text-xs mb-1">
                                     <span className="text-slate-400">Amount</span>
-                                    <span className="font-bold text-emerald-400">₹{booking.total_amount || 0}</span>
+                                    <span className="font-bold text-emerald-400">₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}</span>
                                 </div>
                                 <button onClick={() => { onEndCollect!(bookingId, endCollectPayment); setEndCollectId(null); }} className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-colors">
                                     ✓ Confirm & End Session

@@ -18,6 +18,7 @@ type BookingRow = {
   customer_phone?: string;
   source?: string;
   booking_items?: Array<{ console: string; quantity: number; price?: number }>;
+  booking_orders?: BookingOrderSummary[];
 };
 
 type BookingOrderRow = {
@@ -103,9 +104,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: currentError.message }, { status: 500 });
     }
 
-    // Fetch booking_orders for ALL bookings in the period — not just snack-only ones.
-    // A gaming session can also have F&B orders; we need those to correctly split
-    // gaming vs snack revenue (total_amount includes both on such bookings).
+    // Fetch booking_orders for ALL bookings in the period. Gaming and snack revenue
+    // are stored separately as booking_items.price and booking_orders.total_price.
     const allBookingIds = ((currentData || []) as BookingRow[]).map((b) => b.id);
 
     const snackOrdersMap: Record<string, BookingOrderSummary[]> = {};
@@ -135,13 +135,40 @@ export async function POST(request: NextRequest) {
     // Fetch previous period bookings (exclude soft-deleted)
     const { data: prevData } = await supabase
       .from('bookings')
-      .select('id, total_amount, booking_date, status, payment_mode')
+      .select(`
+        id, total_amount, booking_date, status, payment_mode, source,
+        booking_items (console, quantity, price)
+      `)
       .eq('cafe_id', cafeId)
       .neq('status', 'cancelled')
       .neq('payment_mode', 'owner')
       .is('deleted_at', null)
       .gte('booking_date', prevStartDate)
       .lte('booking_date', prevEndDate);
+
+    const prevBookingIds = ((prevData || []) as BookingRow[]).map((b) => b.id);
+    const prevSnackOrdersMap: Record<string, BookingOrderSummary[]> = {};
+    if (prevBookingIds.length > 0) {
+      const { data: prevOrdersData } = await supabase
+        .from('booking_orders')
+        .select('booking_id, item_name, quantity, unit_price, total_price')
+        .in('booking_id', prevBookingIds);
+
+      ((prevOrdersData || []) as BookingOrderRow[]).forEach((o) => {
+        if (!prevSnackOrdersMap[o.booking_id]) prevSnackOrdersMap[o.booking_id] = [];
+        prevSnackOrdersMap[o.booking_id].push({
+          item_name: o.item_name,
+          quantity: o.quantity,
+          unit_price: o.unit_price,
+          total_price: o.total_price,
+        });
+      });
+    }
+
+    const enrichedPrevData = ((prevData || []) as BookingRow[]).map((b) => ({
+      ...b,
+      booking_orders: prevSnackOrdersMap[b.id] || [],
+    }));
 
     // Fetch current period subscriptions
     const { data: currentSubscriptions, error: currentSubError } = await supabase
@@ -185,7 +212,8 @@ export async function POST(request: NextRequest) {
         quantity: 1,
         price: parseAmount(sub.amount_paid),
         name: sub.membership_plans?.name || 'Membership'
-      }]
+      }],
+      booking_orders: [],
     }));
 
     const formattedPrevSubscriptions = ((prevSubscriptions || []) as SubscriptionRow[]).map((sub) => ({
@@ -193,14 +221,21 @@ export async function POST(request: NextRequest) {
       total_amount: parseAmount(sub.amount_paid),
       booking_date: sub.purchase_date.split('T')[0],
       status: 'completed',
-      payment_mode: sub.payment_mode || 'cash'
+      payment_mode: sub.payment_mode || 'cash',
+      source: 'membership',
+      booking_items: [{
+        console: 'Membership',
+        quantity: 1,
+        price: parseAmount(sub.amount_paid),
+      }],
+      booking_orders: [],
     }));
 
     // Combine bookings and subscriptions
     const combinedCurrentData = [...enrichedCurrentData, ...formattedCurrentSubscriptions]
       .sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
       
-    const combinedPrevData = [...(prevData || []), ...formattedPrevSubscriptions];
+    const combinedPrevData = [...enrichedPrevData, ...formattedPrevSubscriptions];
 
     return NextResponse.json({
       currentBookings: combinedCurrentData,

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
+import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
 import { theme } from '../utils/theme';
 import { convertTo12Hour } from '../utils';
 import { X, Phone, Mail, Clock, CreditCard, ChevronRight, Play, Star, History, Award } from 'lucide-react';
@@ -17,6 +18,8 @@ export default function CustomerDetailsModal({
     isMobile,
     onClose,
 }: CustomerDetailsModalProps) {
+    const [nowMs] = React.useState(() => Date.now());
+
     if (!customer) return null;
 
     // Get initials for avatar
@@ -27,7 +30,7 @@ export default function CustomerDetailsModal({
 
     const totalSpent = typeof customer.totalSpent === 'number'
         ? customer.totalSpent
-        : customerBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        : customerBookings.reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
     const totalHours = customerBookings.reduce((sum, b) => sum + (b.duration ? b.duration / 60 : 0), 0);
 
     // Visit frequency analytics
@@ -36,7 +39,7 @@ export default function CustomerDetailsModal({
         .filter(Boolean)
         .sort();
     const daysSinceLastVisit = sortedDates.length > 0
-        ? Math.floor((Date.now() - new Date(sortedDates[sortedDates.length - 1]).getTime()) / 86400000)
+        ? Math.floor((nowMs - new Date(sortedDates[sortedDates.length - 1]).getTime()) / 86400000)
         : null;
     const avgDaysBetweenVisits = sortedDates.length >= 2
         ? Math.round(
@@ -438,7 +441,7 @@ export default function CustomerDetailsModal({
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: '16px', textAlign: 'right', color: 'white', fontWeight: 600, fontSize: 14 }}>
-                                                    ₹{booking.total_amount}
+                                                    ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
                                                 </td>
                                             </tr>
                                         );

@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 import { X, Trash2, Loader2, ShoppingBag, Package, Plus, Minus } from "lucide-react";
 import { BookingOrder, InventoryItem } from "@/types/inventory";
 
@@ -119,55 +120,24 @@ export default function ViewOrdersModal({
     try {
       setDeleting(order.id);
 
-      // Delete the order
+      await adjustInventoryStockBatch(
+        supabase,
+        [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
+        "restore"
+      );
+
       const { error: deleteError } = await supabase
         .from("booking_orders")
         .delete()
         .eq("id", order.id);
 
-      if (deleteError) throw deleteError;
-
-      // Restore inventory stock
-      if (order.inventory_item_id) {
-        const { data: inventoryItem } = await supabase
-          .from("inventory_items")
-          .select("stock_quantity")
-          .eq("id", order.inventory_item_id)
-          .single();
-
-        if (inventoryItem) {
-          await supabase
-            .from("inventory_items")
-            .update({ stock_quantity: inventoryItem.stock_quantity + order.quantity })
-            .eq("id", order.inventory_item_id);
-        }
-      }
-
-      // Update booking total
-      const { data: booking } = await supabase
-        .from("bookings")
-        .select("total_amount")
-        .eq("id", bookingId)
-        .single();
-
-      if (booking) {
-        const currentAmount = Number(booking.total_amount) || 0;
-        const amountDelta = Number(order.total_price) || 0;
-        await supabase
-          .from("bookings")
-          .update({ total_amount: Math.max(0, currentAmount - amountDelta) })
-          .eq("id", bookingId);
-
-        const latestOrders = await loadOrders();
-        await loadInventory();
-        const updatedAt = await loadBookingUpdatedAt();
-        onOrdersUpdated({
-          amountDelta: -amountDelta,
-          bookingId,
-          orders: latestOrders,
-          updatedAt,
-        });
-        return;
+      if (deleteError) {
+        await adjustInventoryStockBatch(
+          supabase,
+          [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
+          "deduct"
+        );
+        throw deleteError;
       }
 
       // Refresh orders list and inventory
@@ -247,68 +217,21 @@ export default function ViewOrdersModal({
       });
 
 
+      const stockAdjustments = cartSnapshot.map((cartItem) => ({
+        inventoryItemId: cartItem.item.id,
+        quantity: cartItem.quantity,
+      }));
+
+      await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
+
       const { error: orderError } = await supabase
         .from("booking_orders")
         .insert(orderRecords);
 
       if (orderError) {
         console.error("Error inserting orders:", orderError);
+        await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
         throw orderError;
-      }
-
-      // Update inventory stock
-      for (const cartItem of cartSnapshot) {
-        // Fetch current stock to avoid stale data
-        const { data: currentItem } = await supabase
-          .from("inventory_items")
-          .select("stock_quantity")
-          .eq("id", cartItem.item.id)
-          .single();
-
-        if (currentItem) {
-          const newStock = currentItem.stock_quantity - cartItem.quantity;
-
-          const { error: stockError } = await supabase
-            .from("inventory_items")
-            .update({
-              stock_quantity: newStock,
-            })
-            .eq("id", cartItem.item.id);
-
-          if (stockError) {
-            console.error("Error updating stock:", stockError);
-            throw stockError;
-          }
-        }
-      }
-
-      // Update booking total
-      const { data: booking, error: fetchError } = await supabase
-        .from("bookings")
-        .select("total_amount")
-        .eq("id", bookingId)
-        .single();
-
-      if (fetchError) {
-        console.error("Error fetching booking:", fetchError);
-        throw fetchError;
-      }
-
-      if (booking) {
-        const currentAmount = Number(booking.total_amount) || 0;
-        const newTotal = currentAmount + totalToAdd;
-
-        const { error: updateError } = await supabase
-          .from("bookings")
-          .update({
-            total_amount: newTotal,
-          })
-          .eq("id", bookingId);
-
-        if (updateError) {
-          console.error("Error updating booking total:", updateError);
-          throw updateError;
-        }
       }
 
       // Clear cart, refresh orders and inventory

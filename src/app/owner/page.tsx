@@ -13,13 +13,14 @@ import { supabase } from "@/lib/supabaseClient";
 import { fonts, type ConsoleId } from "@/lib/constants";
 import { buildStationPricingMap } from "@/lib/stationNames";
 import { dispatchOwnerBookingsChanged } from "@/lib/ownerBookingsSync";
+import { getBookingGamingTotal, getBookingRevenueTotal } from "@/lib/ownerRevenue";
 import {
   CafeRow,
   BookingRow,
   NavTab,
 } from "./types";
 import { getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "./utils";
-import { isSessionBooking } from "@/lib/bookingFilters";
+import { getInitialOwnerBookingStatus, isBookingActiveNow, isSessionBooking } from "@/lib/bookingFilters";
 import { theme } from "./utils/theme";
 import {
   DashboardLayout,
@@ -566,21 +567,18 @@ export default function OwnerDashboardPage() {
   // Auto-calculate editAmount when inputs change
   useEffect(() => {
     if (editingBooking && !editAmountManuallyEdited) {
-      const snacksPrice = editingBooking.booking_orders?.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0) || 0;
-
       if (editItems.length > 0) {
         // Calculate sum of all items in editItems array using their specific durations
         let totalConsolesPrice = 0;
         editItems.forEach((item) => {
           totalConsolesPrice += getBillingPrice(item.console as ConsoleId, item.quantity || 1, item.duration || editDuration || 60);
         });
-        setEditAmount((totalConsolesPrice + snacksPrice).toString());
+        setEditAmount(totalConsolesPrice.toString());
       }
     }
   }, [editItems, editDuration, editingBooking, editAmountManuallyEdited, getBillingPrice]);
 
   const handleOrdersUpdated = ({
-    amountDelta,
     bookingId,
     orders,
     updatedAt,
@@ -590,8 +588,6 @@ export default function OwnerDashboardPage() {
     orders: any[];
     updatedAt: string | null;
   }) => {
-    const safeDelta = Number.isFinite(amountDelta) ? amountDelta : 0;
-
     refreshData();
     setBookingsMgmtRefreshKey(k => k + 1);
 
@@ -603,7 +599,6 @@ export default function OwnerDashboardPage() {
       return {
         ...booking,
         booking_orders: orders,
-        total_amount: Math.max(0, (Number(booking.total_amount) || 0) + safeDelta),
         ...(updatedAt ? { updated_at: updatedAt } : {}),
       };
     }));
@@ -614,16 +609,10 @@ export default function OwnerDashboardPage() {
           ? {
               ...prev,
               booking_orders: orders,
-              total_amount: Math.max(0, (Number(prev.total_amount) || 0) + safeDelta),
               ...(updatedAt ? { updated_at: updatedAt } : {}),
             }
           : prev
       ));
-      setEditAmount(prev => {
-        const current = Number(prev);
-        if (Number.isNaN(current)) return prev;
-        return Math.max(0, current + safeDelta).toString();
-      });
       if (updatedAt) setEditConflictBase(updatedAt);
     }
   };
@@ -774,7 +763,7 @@ export default function OwnerDashboardPage() {
     setEditingBooking(actualBooking);
     setEditingBookingItemId(specificItemId);
     setEditConflictBase(actualBooking.updated_at ?? null);
-    setEditAmount(actualBooking.total_amount?.toString() || "");
+    setEditAmount(getBookingGamingTotal(actualBooking).toString());
     setEditAmountManuallyEdited(true); // Preserve DB amount on open; set to false when user changes items
     setEditStatus(actualBooking.status || "confirmed");
     setEditPaymentMethod(normaliseOwnerPaymentMode(actualBooking.payment_mode));
@@ -940,9 +929,15 @@ export default function OwnerDashboardPage() {
         Math.max(max, getBookingItemDuration(item, editingBooking.duration || 60))
       ), 0);
       let resolvedStatus = editStatus;
-      if (editStatus === 'completed') {
+      if (editStatus === 'in-progress') {
+        resolvedStatus = getInitialOwnerBookingStatus(editDate, startTime12h);
+      } else if (editStatus === 'completed') {
+        const initialStatus = getInitialOwnerBookingStatus(editDate, startTime12h);
+        if (initialStatus === 'confirmed') {
+          resolvedStatus = 'confirmed';
+        }
         const timeParts = startTime12h.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-        if (timeParts) {
+        if (resolvedStatus === 'completed' && timeParts) {
           let h = parseInt(timeParts[1]);
           const m = parseInt(timeParts[2]);
           const period = timeParts[3];
@@ -1066,12 +1061,11 @@ export default function OwnerDashboardPage() {
       if (isPartOfBulkBooking) {
         // Delete only the specific booking_item, not the whole booking
         const remainingItems = allItems.filter(item => item.id !== editingBookingItemId);
-        // Use editingBooking.total_amount as base and subtract the deleted item's price
-        // to avoid wiping total to ₹0 when item.price is null (older bookings)
+        // Use gaming-only amount as base; snacks stay in booking_orders.
         const deletedItem = allItems.find(item => item.id === editingBookingItemId);
         const deletedPrice = (deletedItem as any)?.price || 0;
         const newTotalAmount = deletedPrice > 0
-          ? Math.max(0, (editingBooking.total_amount || 0) - deletedPrice)
+          ? Math.max(0, getBookingGamingTotal(editingBooking) - deletedPrice)
           : remainingItems.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
 
         const res = await fetch('/api/owner/billing', {
@@ -1179,6 +1173,17 @@ export default function OwnerDashboardPage() {
       s.assigned_console_station &&
       normaliseConsoleType(s.membership_plans?.console_type || '') === normConsoleType
     ).map(s => s.assigned_console_station);
+    const occupiedStations = new Set(activeConsolesForType.map((station) => String(station).toLowerCase()));
+
+    bookings
+      .filter((booking: any) => booking.cafe_id === subscription.cafe_id && isBookingActiveNow(booking))
+      .forEach((booking: any) => {
+        (booking.booking_items || []).forEach((item: any) => {
+          const itemConsoleType = normaliseConsoleType(item.console || '');
+          if (itemConsoleType !== normConsoleType) return;
+          getAssignedStationsFromItemTitle(item.title).forEach((stationName) => occupiedStations.add(stationName));
+        });
+      });
 
     // Get total console count from cafe
     const cafe = cafes.find(c => c.id === subscription.cafe_id);
@@ -1215,7 +1220,10 @@ export default function OwnerDashboardPage() {
 
     for (let i = 1; i <= totalConsoles; i++) {
       const stationId = `${consolePrefix}-${i.toString().padStart(2, '0')}`;
-      if (!activeConsolesForType.includes(stationId)) {
+      const pricing = stationPricing[stationId];
+      const isPoweredOff = poweredOffStations.has(stationId);
+      const isInactive = pricing?.is_active === false;
+      if (!occupiedStations.has(stationId) && !isPoweredOff && !isInactive) {
         assignedStation = stationId;
         break;
       }
@@ -2022,9 +2030,8 @@ export default function OwnerDashboardPage() {
               {/* Ending Soon Alert Banner */}
               {(() => {
                 const now = new Date();
-                const currentMinutes = now.getHours() * 60 + now.getMinutes();
                 const endingSoon = bookings.filter((b: any) => {
-                  if (b.status !== 'in-progress' || b.booking_date !== getLocalDateString()) return false;
+                  if (!isBookingActiveNow(b, now)) return false;
                   if (!b.start_time || !b.duration) return false;
                   const timeParts = b.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
                   if (!timeParts) return false;
@@ -2035,6 +2042,7 @@ export default function OwnerDashboardPage() {
                     if (period.toLowerCase() === 'pm' && hours !== 12) hours += 12;
                     else if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
                   }
+                  const currentMinutes = now.getHours() * 60 + now.getMinutes();
                   const endMinutes = hours * 60 + mins + b.duration;
                   const remaining = endMinutes - currentMinutes;
                   return remaining > 0 && remaining <= 15;
@@ -2079,7 +2087,7 @@ export default function OwnerDashboardPage() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em', fontWeight: 600 }}>Active Sessions</h2>
                     {(() => {
-                      const count = bookings.filter((b: any) => b.status === 'in-progress' && b.booking_date === getLocalDateString()).length;
+                      const count = bookings.filter((b: any) => isBookingActiveNow(b)).length;
                       return count > 0 ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]" style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid transparent' }}>
                           <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-red-400 pulse-dot" style={{ color: '#ef4444' }} />
@@ -2158,12 +2166,12 @@ export default function OwnerDashboardPage() {
 
                 const weeklyBookings = bookings.filter((b: any) => {
                   const bDate = b.booking_date;
-                  return bDate >= lastWeekStr && bDate <= todayStr && isSessionBooking(b);
+                  return bDate >= lastWeekStr && bDate <= todayStr;
                 });
 
                 const weeklyRevenue = weeklyBookings
-                  .filter((b: any) => b.status !== 'cancelled' && b.status !== 'in-progress' && b.payment_mode !== 'owner')
-                  .reduce((sum: number, b: any) => sum + (b.total_amount || 0), 0);
+                  .filter((b: any) => b.status !== 'cancelled' && b.payment_mode !== 'owner')
+                  .reduce((sum: number, b: any) => sum + getBookingRevenueTotal(b), 0);
 
                 return (
                   <section>
@@ -2207,10 +2215,10 @@ export default function OwnerDashboardPage() {
                 );
                 const cashTotal = todayDone
                   .filter((b: any) => b.payment_mode?.toLowerCase() === 'cash')
-                  .reduce((s: number, b: any) => s + (b.total_amount || 0), 0);
+                  .reduce((s: number, b: any) => s + getBookingRevenueTotal(b), 0);
                 const upiTotal = todayDone
                   .filter((b: any) => b.payment_mode?.toLowerCase() !== 'cash')
-                  .reduce((s: number, b: any) => s + (b.total_amount || 0), 0);
+                  .reduce((s: number, b: any) => s + getBookingRevenueTotal(b), 0);
                 if (cashTotal === 0 && upiTotal === 0) return null;
                 return (
                   <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4">
@@ -2695,7 +2703,7 @@ export default function OwnerDashboardPage() {
                       { label: "Date", value: editingBooking.booking_date },
                       { label: "Start Time", value: editingBooking.start_time || "—" },
                       { label: "Duration", value: editingBooking.duration ? `${editingBooking.duration} min` : "—" },
-                      { label: "Amount", value: `₹${editingBooking.total_amount?.toLocaleString() || 0}` },
+                      { label: "Amount", value: `₹${getBookingRevenueTotal(editingBooking).toLocaleString('en-IN')}` },
                       { label: "Status", value: editingBooking.status || "—" },
                       { label: "Booking ID", value: `#${editingBooking.id.slice(0, 8).toUpperCase()}` },
                     ].map(({ label, value }) => (

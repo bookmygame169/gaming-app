@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 import {
   X,
   Plus,
@@ -172,42 +173,20 @@ export default function AddItemsModal({
         total_price: item.total_price,
       }));
 
+      const stockAdjustments = cart.map((item) => ({
+        inventoryItemId: item.inventory_item_id,
+        quantity: item.quantity,
+      }));
+
+      await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
+
       const { error: orderError } = await supabase
         .from("booking_orders")
         .insert(orders);
 
-      if (orderError) throw orderError;
-
-      // Update stock quantities
-      for (const item of cart) {
-        const inventoryItem = items.find((i) => i.id === item.inventory_item_id);
-        if (inventoryItem) {
-          await supabase
-            .from("inventory_items")
-            .update({ stock_quantity: inventoryItem.stock_quantity - item.quantity })
-            .eq("id", item.inventory_item_id);
-        }
-      }
-
-      // Update booking total - add the cart total to existing amount
-      const { data: booking } = await supabase
-        .from("bookings")
-        .select("total_amount")
-        .eq("id", bookingId)
-        .single();
-
-      if (booking) {
-        const currentAmount = booking.total_amount || 0;
-        const { error: updateError } = await supabase
-          .from("bookings")
-          .update({
-            total_amount: currentAmount + cartTotal,
-          })
-          .eq("id", bookingId);
-
-        if (updateError) {
-          console.error("Error updating booking total:", updateError);
-        }
+      if (orderError) {
+        await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
+        throw orderError;
       }
 
       onItemsAdded();

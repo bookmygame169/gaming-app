@@ -200,10 +200,8 @@ export function EditBookingModal({
   const [localOrders, setLocalOrders] = useState<BookingOrder[]>((booking.booking_orders as unknown as BookingOrder[]) || []);
   useEffect(() => { setLocalOrders((booking.booking_orders as unknown as BookingOrder[]) || []); }, [booking.booking_orders]);
 
-  function handleOrdersUpdated({ amountDelta, orders }: { amountDelta: number; bookingId: string; orders: BookingOrder[]; updatedAt: string | null }) {
+  function handleOrdersUpdated({ orders }: { amountDelta: number; bookingId: string; orders: BookingOrder[]; updatedAt: string | null }) {
     setLocalOrders(orders);
-    setAmount(String(Math.max(0, (Number(amount) || 0) + amountDelta)));
-    setAmountManuallyEdited(true);
   }
 
   const isAppBooking = !!booking.user_id;
@@ -556,7 +554,7 @@ export function EditBookingModal({
                 {/* Amount */}
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Total Amount *
+                    Session Amount *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-base">₹</span>

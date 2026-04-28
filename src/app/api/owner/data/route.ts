@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
+import { normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
 import { buildStationPricingMap, dedupeStationPricingRows } from "@/lib/stationNames";
 
 export const dynamic = 'force-dynamic';
@@ -269,49 +270,32 @@ export async function POST(request: NextRequest) {
     // deleted_at now filtered in DB query — no need to filter in-process
     let ownerBookings = bookingsResult.data || [];
     
-    // Auto-complete logic for bookings — use India timezone to match booking_date/start_time
-    const now = new Date();
-    const indiaTimeStr = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Kolkata',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false,
-    }).format(now);
-    const [indiaHour, indiaMinute] = indiaTimeStr.split(':').map(Number);
-    const currentMinutes = indiaHour * 60 + indiaMinute;
     const endedIds: string[] = [];
+    const confirmedIds: string[] = [];
 
     ownerBookings = ownerBookings.map((b: any) => {
-        if (b.status === 'in-progress' || b.status === 'confirmed') {
-            if (b.booking_date < todayStr) {
-                endedIds.push(b.id);
-                return { ...b, status: 'completed' };
-            } else if (b.booking_date === todayStr && b.start_time && b.duration) {
-                const timeParts = b.start_time.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-                if (timeParts) {
-                    let hours = parseInt(timeParts[1]);
-                    const minutes = parseInt(timeParts[2]);
-                    const period = timeParts[3]?.toLowerCase();
-                    if (period === 'pm' && hours !== 12) hours += 12;
-                    else if (period === 'am' && hours === 12) hours = 0;
-                    if (currentMinutes > hours * 60 + minutes + b.duration) {
-                        endedIds.push(b.id);
-                        return { ...b, status: 'completed' };
-                    }
-                }
-            }
-        }
-        return b;
+      const normalized = normalizeRealtimeBookingStatus(b);
+      if (normalized.status !== b.status) {
+        if (normalized.status === "completed") endedIds.push(b.id);
+        if (normalized.status === "confirmed") confirmedIds.push(b.id);
+      }
+      return normalized;
     });
 
-    // Fire & forget DB update for completed bookings (don't block the request)
-    if (endedIds.length > 0) {
+    // Fire & forget DB updates for realtime status normalization.
+    if (endedIds.length > 0 || confirmedIds.length > 0) {
         void (async () => {
           try {
-            const { error } = await supabase.from("bookings").update({ status: "completed" }).in("id", endedIds);
-            if (error) console.error('Auto-complete bookings failed:', error.message, 'ids:', endedIds);
+            if (endedIds.length > 0) {
+              const { error } = await supabase.from("bookings").update({ status: "completed" }).in("id", endedIds);
+              if (error) console.error('Auto-complete bookings failed:', error.message, 'ids:', endedIds);
+            }
+            if (confirmedIds.length > 0) {
+              const { error } = await supabase.from("bookings").update({ status: "confirmed" }).in("id", confirmedIds);
+              if (error) console.error('Auto-confirm future bookings failed:', error.message, 'ids:', confirmedIds);
+            }
           } catch (err: unknown) {
-            console.error('Auto-complete bookings unexpected error:', err);
+            console.error('Realtime booking status update unexpected error:', err);
           }
         })();
     }

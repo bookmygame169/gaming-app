@@ -165,8 +165,9 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
         .select('*')
         .eq('cafe_id', cafeId);
 
-      setInventoryItems(items || []);
-      const itemIds = (items || []).map((i: any) => i.id);
+      const inventoryRows = (items || []) as InventoryItem[];
+      setInventoryItems(inventoryRows);
+      const itemIds = inventoryRows.map((item) => item.id);
 
       if (itemIds.length === 0) {
         setOrders([]);
@@ -180,6 +181,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
         .select('*, bookings!inner(id, cafe_id, customer_name, customer_phone, booking_date, start_time, payment_mode, status)')
         .in('inventory_item_id', itemIds)
         .neq('bookings.status', 'cancelled')
+        .neq('bookings.payment_mode', 'owner')
         .gte('ordered_at', `${startDate}T00:00:00.000${getTimezoneOffset(now)}`)
         .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`)
         .order('ordered_at', { ascending: false });
@@ -190,9 +192,10 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
       // Step 3: Fetch previous period orders
       const { data: prevOrders, error: prevError } = await supabase
         .from('booking_orders')
-        .select('*, bookings!inner(id, cafe_id)')
+        .select('*, bookings!inner(id, cafe_id, payment_mode, status)')
         .in('inventory_item_id', itemIds)
         .neq('bookings.status', 'cancelled')
+        .neq('bookings.payment_mode', 'owner')
         .gte('ordered_at', `${prevStartDate}T00:00:00.000${getTimezoneOffset(now)}`)
         .lte('ordered_at', `${prevEndDate}T23:59:59.999${getTimezoneOffset(now)}`);
 

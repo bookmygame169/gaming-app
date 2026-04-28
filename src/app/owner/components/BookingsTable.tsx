@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Card, StatusBadge, Button } from './ui';
 import { Search, ChevronLeft, ChevronRight, X, CheckCircle, ShoppingBag, CalendarX } from 'lucide-react';
+import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
 import { buildWhatsAppUrl, buildBookingTicketMessage } from '../utils';
 
 interface BookingsTableProps {
@@ -128,7 +129,7 @@ export function BookingsTable({
             startTime: booking.start_time || '',
             duration: booking.duration || 60,
             itemsLabel,
-            totalAmount: booking.total_amount || 0,
+            totalAmount: getBookingRevenueTotal(booking),
             paymentMode: booking.payment_mode || 'cash',
         });
         return buildWhatsAppUrl(phone, message);
@@ -296,7 +297,7 @@ export function BookingsTable({
                                     </td>
                                     <td className="px-4 py-1.5">
                                         <div className="font-semibold text-emerald-400">
-                                            ₹{booking.total_amount}
+                                            ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
                                         </div>
                                         <div className="text-xs text-slate-500 mt-0.5 capitalize">
                                             {booking.payment_mode || 'Unpaid'}
@@ -449,7 +450,7 @@ export function BookingsTable({
                                         )) : "No items"}
                                     </div>
                                     <div className="shrink-0 text-[13px] font-semibold text-emerald-400">
-                                        ₹{booking.total_amount}
+                                        ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
                                     </div>
                                 </div>
 

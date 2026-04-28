@@ -2,6 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, TrendingUp, TrendingDown, Minus, Zap, Timer, Smartphone } from 'lucide-react';
+import {
+  getBookingGamingTotal,
+  getBookingRevenueTotal,
+  getBookingSnackTotal,
+  getOwnerPaymentBucket,
+  hasBookingSessionItems,
+  toOwnerAmount,
+} from '@/lib/ownerRevenue';
+import { isBookingActiveNow } from '@/lib/bookingFilters';
 import { getLocalDateString } from '../utils';
 
 function Sparkline({ data, compact = false }: { data: number[]; compact?: boolean }) {
@@ -60,51 +69,6 @@ interface DashboardSubscription {
   purchase_date?: string | null;
 }
 
-const DIGITAL_PAYMENT_MODES = new Set(['online', 'upi', 'paytm', 'gpay', 'phonepe', 'card']);
-
-function getPaymentBucket(mode?: string | null): 'cash' | 'upi' {
-  const normalized = mode?.toLowerCase().trim() || 'cash';
-  return DIGITAL_PAYMENT_MODES.has(normalized) ? 'upi' : 'cash';
-}
-
-function toAmount(value?: number | string | null): number {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const parsed = parseFloat(value ?? '0');
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function hasSessionItems(booking: DashboardBooking): boolean {
-  return Boolean(booking.booking_items?.length);
-}
-
-function getSnackTotal(booking: DashboardBooking): number {
-  return (booking.booking_orders || []).reduce((sum, order) => sum + toAmount(order.total_price), 0);
-}
-
-function getBookingItemsTotal(booking: DashboardBooking): number {
-  return (booking.booking_items || []).reduce((sum, item) => sum + toAmount(item.price), 0);
-}
-
-function getGamingTotal(booking: DashboardBooking): number {
-  if (!hasSessionItems(booking)) return 0;
-
-  const itemTotal = getBookingItemsTotal(booking);
-  if (itemTotal > 0) return itemTotal;
-
-  const totalAmount = toAmount(booking.total_amount);
-  const snackTotal = getSnackTotal(booking);
-  return snackTotal > 0 && totalAmount > snackTotal
-    ? totalAmount - snackTotal
-    : totalAmount;
-}
-
-function getBookingRevenueTotal(booking: DashboardBooking): number {
-  const snackTotal = getSnackTotal(booking);
-  return hasSessionItems(booking)
-    ? getGamingTotal(booking) + snackTotal
-    : snackTotal || toAmount(booking.total_amount);
-}
-
 function Trend({ today, yesterday }: { today: number; yesterday: number }) {
   if (yesterday === 0 && today === 0) return null;
   if (yesterday === 0) return <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">New</span>;
@@ -159,9 +123,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
     (booking) => booking.payment_mode !== 'owner' && booking.status !== 'cancelled' && booking.source !== 'membership'
   );
 
-  const activeBookingsCount = billableSessionBookings.filter(
-    (booking) => booking.status === 'in-progress' && booking.booking_date === todayStr
-  ).length;
+  const activeBookingsCount = billableSessionBookings.filter((booking) => isBookingActiveNow(booking)).length;
   const activeSubscriptionsCount = subscriptions.filter(sub => activeTimers.has(sub.id)).length;
   const activeNow = activeBookingsCount + activeSubscriptionsCount;
 
@@ -185,7 +147,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const calcRevenue = (bkgs: DashboardBooking[], subs: DashboardSubscription[]) => {
     const bkgTotal = bkgs.reduce((s, b) => s + getBookingRevenueTotal(b), 0);
     const subTotal = subs.reduce((s, sub) => {
-      return s + toAmount(sub.amount_paid);
+      return s + toOwnerAmount(sub.amount_paid);
     }, 0);
     return bkgTotal + subTotal;
   };
@@ -205,7 +167,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const displayPrevRevenue = period === 'today' ? yesterdayRevenue : prevWeekRevenue;
 
   const membershipRevenue = todaySubscriptions.reduce((s, sub) => {
-    return s + toAmount(sub.amount_paid);
+    return s + toOwnerAmount(sub.amount_paid);
   }, 0);
 
   let snacksRevenue = 0;
@@ -213,10 +175,10 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   let gamingUpi = 0;
 
   for (const b of todayBookings) {
-    const isSnackOnly = !hasSessionItems(b);
-    const fbTotal = isSnackOnly ? (getSnackTotal(b) || toAmount(b.total_amount)) : getSnackTotal(b);
-    const gamingAmount = getGamingTotal(b);
-    const paymentBucket = getPaymentBucket(b.payment_mode);
+    const isSnackOnly = !hasBookingSessionItems(b);
+    const fbTotal = isSnackOnly ? (getBookingSnackTotal(b) || toOwnerAmount(b.total_amount)) : getBookingSnackTotal(b);
+    const gamingAmount = getBookingGamingTotal(b);
+    const paymentBucket = getOwnerPaymentBucket(b.payment_mode);
     snacksRevenue += fbTotal;
     if (paymentBucket === 'cash') gamingCash += gamingAmount;
     else gamingUpi += gamingAmount;
@@ -244,7 +206,7 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const memberPct = totalForSplit > 0 ? 100 - gamingPct - snacksPct : 0;
   const bookingPaymentSplit = todayBookings.reduce(
     (totals, booking) => {
-      const bucket = getPaymentBucket(booking.payment_mode);
+      const bucket = getOwnerPaymentBucket(booking.payment_mode);
       totals[bucket] += getBookingRevenueTotal(booking);
       return totals;
     },
@@ -252,8 +214,8 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   );
   const subscriptionPaymentSplit = todaySubscriptions.reduce(
     (totals, subscription) => {
-      const bucket = getPaymentBucket(subscription.payment_mode);
-      totals[bucket] += toAmount(subscription.amount_paid);
+      const bucket = getOwnerPaymentBucket(subscription.payment_mode);
+      totals[bucket] += toOwnerAmount(subscription.amount_paid);
       return totals;
     },
     { cash: 0, upi: 0 }

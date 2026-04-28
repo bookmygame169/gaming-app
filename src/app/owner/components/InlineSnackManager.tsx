@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { adjustInventoryStockBatch } from '@/lib/inventoryStock';
 import { Plus, Minus, Trash2, Loader2, ShoppingCart, Check, Package } from 'lucide-react';
 import { InventoryItem, BookingOrder } from '@/types/inventory';
 
@@ -108,21 +109,13 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
         };
       });
 
+      const stockAdjustments = snap.map((c) => ({ inventoryItemId: c.item.id, quantity: c.quantity }));
+      await adjustInventoryStockBatch(supabase, stockAdjustments, 'deduct');
+
       const { error: insertErr } = await supabase.from('booking_orders').insert(records);
-      if (insertErr) throw insertErr;
-
-      // Deduct inventory stock
-      for (const c of snap) {
-        const { data: cur } = await supabase.from('inventory_items').select('stock_quantity').eq('id', c.item.id).single();
-        if (cur) {
-          await supabase.from('inventory_items').update({ stock_quantity: cur.stock_quantity - c.quantity }).eq('id', c.item.id);
-        }
-      }
-
-      // Update booking total
-      const { data: bk } = await supabase.from('bookings').select('total_amount').eq('id', bookingId).single();
-      if (bk) {
-        await supabase.from('bookings').update({ total_amount: (Number(bk.total_amount) || 0) + totalToAdd }).eq('id', bookingId);
+      if (insertErr) {
+        await adjustInventoryStockBatch(supabase, stockAdjustments, 'restore');
+        throw insertErr;
       }
 
       // Reload orders
@@ -149,18 +142,21 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
   async function handleRemove(order: BookingOrder) {
     setDeletingId(order.id);
     try {
-      await supabase.from('booking_orders').delete().eq('id', order.id);
-
-      // Restore inventory
-      if (order.inventory_item_id) {
-        const { data: cur } = await supabase.from('inventory_items').select('stock_quantity').eq('id', order.inventory_item_id).single();
-        if (cur) await supabase.from('inventory_items').update({ stock_quantity: cur.stock_quantity + order.quantity }).eq('id', order.inventory_item_id);
-      }
-
-      // Update booking total
-      const { data: bk } = await supabase.from('bookings').select('total_amount').eq('id', bookingId).single();
       const delta = Number(order.total_price) || 0;
-      if (bk) await supabase.from('bookings').update({ total_amount: Math.max(0, (Number(bk.total_amount) || 0) - delta) }).eq('id', bookingId);
+      await adjustInventoryStockBatch(
+        supabase,
+        [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
+        'restore'
+      );
+      const { error: deleteErr } = await supabase.from('booking_orders').delete().eq('id', order.id);
+      if (deleteErr) {
+        await adjustInventoryStockBatch(
+          supabase,
+          [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
+          'deduct'
+        );
+        throw deleteErr;
+      }
 
       const next = orders.filter(o => o.id !== order.id);
       setOrders(next);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
 import { isSessionBooking, normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
+import { getBookingRevenueTotal, getOwnerPaymentBucket } from "@/lib/ownerRevenue";
 
 export const dynamic = "force-dynamic";
 
@@ -73,8 +74,8 @@ type BookingSummaryQuery = BookingFilterQuery & {
 };
 type BookingSummaryRecord = {
   booking_date?: string | null;
-  booking_items?: { id?: string | null; title?: string | null }[] | null;
-  booking_orders?: unknown[] | null;
+  booking_items?: { id?: string | null; price?: number | string | null; title?: string | null }[] | null;
+  booking_orders?: { id?: string | null; total_price?: number | string | null }[] | null;
   deleted_at?: string | null;
   payment_mode?: string | null;
   id?: string | null;
@@ -90,8 +91,6 @@ type BookingSummary = {
   pending: number;
   upiTotal: number;
 };
-
-const DIGITAL_PAYMENT_MODES = new Set(["online", "upi", "paytm", "gpay", "phonepe", "card"]);
 
 function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
   const message = error?.message?.toLowerCase() || "";
@@ -182,8 +181,8 @@ function buildBookingSummary(summaryRows: BookingSummaryRecord[]): BookingSummar
   return summaryRows.reduce<BookingSummary>((acc, booking) => {
     if (booking.deleted_at || !isSessionBooking(booking)) return acc;
 
-    const amount = Number(booking.total_amount) || 0;
-    const paymentMode = booking.payment_mode?.toLowerCase() || "";
+    const amount = getBookingRevenueTotal(booking);
+    const paymentBucket = getOwnerPaymentBucket(booking.payment_mode);
     const status = booking.status?.toLowerCase() || "";
 
     if (status === "completed") acc.completed += 1;
@@ -191,8 +190,8 @@ function buildBookingSummary(summaryRows: BookingSummaryRecord[]): BookingSummar
     if (status === "confirmed" || status === "pending") acc.pending += 1;
 
     if (status !== "cancelled") {
-      if (paymentMode === "cash") acc.cashTotal += amount;
-      if (DIGITAL_PAYMENT_MODES.has(paymentMode)) acc.upiTotal += amount;
+      if (paymentBucket === "cash") acc.cashTotal += amount;
+      if (paymentBucket === "upi") acc.upiTotal += amount;
     }
 
     return acc;
@@ -326,7 +325,7 @@ export async function GET(request: NextRequest) {
     const runBookingSummaryQuery = async (): Promise<BookingQueryResult> => {
       let query: unknown = supabase
         .from("bookings")
-        .select("id, booking_date, start_time, duration, status, payment_mode, total_amount, deleted_at, booking_items(id, title), booking_orders(id)", { count: "exact" })
+        .select("id, booking_date, start_time, duration, status, payment_mode, total_amount, deleted_at, booking_items(id, price, title), booking_orders(id, total_price)", { count: "exact" })
         .in("cafe_id", targetCafeIds)
         .is("deleted_at", null);
 

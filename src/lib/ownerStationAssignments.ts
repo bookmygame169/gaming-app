@@ -28,6 +28,9 @@ type ExistingBookingItem = {
 
 type ExistingBookingRow = {
   booking_items?: ExistingBookingItem[] | null;
+  duration?: number | null;
+  start_time?: string | null;
+  status?: string | null;
 };
 
 type ExistingSubscriptionRow = {
@@ -83,6 +86,47 @@ function getIndiaDateString(date: Date = new Date()): string {
   }
 
   return `${year}-${month}-${day}`;
+}
+
+function parseStartMinutes(startTime?: string | null): number | null {
+  const match = startTime?.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (!match) return null;
+
+  let hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  const period = match[3]?.toLowerCase();
+
+  if (period === "pm" && hours !== 12) hours += 12;
+  else if (period === "am" && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+}
+
+function getExistingBookingDuration(booking: ExistingBookingRow): number {
+  const itemDuration = (booking.booking_items || []).reduce((max, item) => {
+    const duration = getItemDurationFromPayload(item);
+    return Math.max(max, duration);
+  }, 0);
+
+  return itemDuration || booking.duration || 60;
+}
+
+function overlapsRequestedWindow(
+  booking: ExistingBookingRow,
+  requestedStartTime?: string | null,
+  requestedDuration?: number | null
+): boolean {
+  const requestedStart = parseStartMinutes(requestedStartTime);
+  const requestedLength = Number(requestedDuration || 0);
+  if (requestedStart === null || requestedLength <= 0) return true;
+
+  const existingStart = parseStartMinutes(booking.start_time);
+  const existingDuration = getExistingBookingDuration(booking);
+  if (existingStart === null || existingDuration <= 0) return true;
+
+  const requestedEnd = requestedStart + requestedLength;
+  const existingEnd = existingStart + existingDuration;
+  return requestedStart < existingEnd && existingStart < requestedEnd;
 }
 
 function getGeneratedStationNames(cafe: CafeConsoleCounts, consoleType: string): string[] {
@@ -170,7 +214,9 @@ export type StationReservationState = {
 export async function loadStationReservationState(
   supabase: SupabaseClient,
   cafeId: string,
-  bookingDate: string = getIndiaDateString()
+  bookingDate: string = getIndiaDateString(),
+  requestedStartTime?: string | null,
+  requestedDuration?: number | null
 ): Promise<StationReservationState> {
   const [{ data: cafe, error: cafeError }, { data: stationPricing, error: stationPricingError }, { data: bookings, error: bookingsError }, { data: subscriptions, error: subscriptionsError }] =
     await Promise.all([
@@ -185,10 +231,10 @@ export async function loadStationReservationState(
         .eq("cafe_id", cafeId),
       supabase
         .from("bookings")
-        .select("booking_items(console, quantity, title)")
+        .select("start_time, duration, status, booking_items(console, quantity, title)")
         .eq("cafe_id", cafeId)
         .eq("booking_date", bookingDate)
-        .eq("status", "in-progress"),
+        .in("status", ["in-progress", "confirmed"]),
       supabase
         .from("subscriptions")
         .select("assigned_console_station")
@@ -222,23 +268,25 @@ export async function loadStationReservationState(
     }
   });
 
-  ((bookings || []) as ExistingBookingRow[]).forEach((booking) => {
-    (booking.booking_items || []).forEach((item) => {
-      const consoleType = normaliseConsoleType(item.console);
-      if (!consoleType) return;
+  ((bookings || []) as ExistingBookingRow[])
+    .filter((booking) => overlapsRequestedWindow(booking, requestedStartTime, requestedDuration))
+    .forEach((booking) => {
+      (booking.booking_items || []).forEach((item) => {
+        const consoleType = normaliseConsoleType(item.console);
+        if (!consoleType) return;
 
-      const assignedStations = parseAssignedStationsFromTitle(item.title);
-      if (assignedStations.length > 0) {
-        assignedStations.forEach((stationName) => occupiedStations.add(stationName));
-        return;
-      }
+        const assignedStations = parseAssignedStationsFromTitle(item.title);
+        if (assignedStations.length > 0) {
+          assignedStations.forEach((stationName) => occupiedStations.add(stationName));
+          return;
+        }
 
-      unassignedNeeds.push({
-        consoleType,
-        unitCount: getOccupiedUnitCountForConsole(consoleType, item.quantity),
+        unassignedNeeds.push({
+          consoleType,
+          unitCount: getOccupiedUnitCountForConsole(consoleType, item.quantity),
+        });
       });
     });
-  });
 
   unassignedNeeds.forEach(({ consoleType, unitCount }) => {
     const freeStations = (availableStationsByConsole[consoleType] || []).filter((stationName) => !occupiedStations.has(stationName));
@@ -291,9 +339,7 @@ export function reserveStations(
 
   const freeStations = availableStations.filter((stationName) => !state.occupiedStations.has(stationName));
   if (freeStations.length < requiredUnits) {
-    // All stations appear occupied — don't block the booking.
-    // The owner knows their cafe; skip auto-assignment and proceed without a station.
-    return [];
+    throw new Error(`All ${normalizedConsoleType.toUpperCase()} stations are occupied for this time`);
   }
 
   const assignedStations = freeStations.slice(0, requiredUnits);

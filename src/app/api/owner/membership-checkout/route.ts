@@ -182,13 +182,19 @@ export async function POST(request: NextRequest) {
   const perUnitAmounts = distributeAmounts(finalAmount, baseAmounts);
   const now = new Date();
   const todayStr = getIndiaDateString(now);
+  const currentIndiaTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(now);
   const requiresAutoAssignedStations = purchasedUnits.some((plan) => plan.plan_type === "day_pass");
   const createdBookingIds: string[] = [];
   const createdSubscriptionIds: string[] = [];
 
   try {
     const reservationState = requiresAutoAssignedStations
-      ? await loadStationReservationState(supabase, cafeId, todayStr)
+      ? await loadStationReservationState(supabase, cafeId, todayStr, currentIndiaTime, 24 * 60)
       : null;
 
     for (const [index, plan] of purchasedUnits.entries()) {

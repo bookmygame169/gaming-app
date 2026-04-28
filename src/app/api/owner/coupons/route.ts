@@ -56,8 +56,12 @@ export async function POST(request: NextRequest) {
     if (!payload.cafe_id) {
       return NextResponse.json({ error: "cafe_id required" }, { status: 400 });
     }
-    if (payload.discount_value !== undefined && (typeof payload.discount_value !== 'number' || payload.discount_value <= 0)) {
-      return NextResponse.json({ error: "discount_value must be a positive number" }, { status: 400 });
+    const hasBonusMinutes = Number(payload.bonus_minutes || 0) > 0;
+    if (
+      payload.discount_value !== undefined &&
+      (typeof payload.discount_value !== 'number' || payload.discount_value < 0 || (payload.discount_value === 0 && !hasBonusMinutes))
+    ) {
+      return NextResponse.json({ error: "discount_value must be positive unless bonus_minutes is set" }, { status: 400 });
     }
 
     const accessResponse = await requireOwnerCafeAccess(

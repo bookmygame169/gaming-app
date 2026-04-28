@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Card, Button, Select, StatCard } from './ui';
+import { Card, Button, Select } from './ui';
 import { supabase } from '@/lib/supabaseClient';
+import {
+    getBookingGamingTotal,
+    getBookingRevenueTotal,
+    getBookingSnackTotal,
+    getOwnerPaymentBucket,
+    isBillableRevenueBooking,
+} from '@/lib/ownerRevenue';
 import { getTimezoneOffset } from '../utils';
 import {
     InventoryItem,
     BookingOrder as InventoryBookingOrder,
     InventoryCategory,
-    CATEGORY_LABELS,
     ItemSalesData,
 } from '@/types/inventory';
 import {
@@ -22,13 +28,10 @@ import {
     Gamepad2,
     Calendar,
     X,
-    Users,
     Globe,
     Store,
     Package,
     Receipt,
-    User,
-    Phone,
     Trophy,
 } from 'lucide-react';
 
@@ -73,6 +76,9 @@ interface PreviousBookingData {
     booking_date: string;
     status: string;
     payment_mode: string;
+    source?: string;
+    booking_items?: BookingItem[];
+    booking_orders?: BookingOrder[];
 }
 
 interface EnrichedSnackOrder extends InventoryBookingOrder {
@@ -117,6 +123,7 @@ const parseLocalDate = (value: string): Date => {
 
 export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsProps) {
     const [dateRange, setDateRange] = useState('7d');
+    const [nowMs] = useState(() => Date.now());
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [showCustomPicker, setShowCustomPicker] = useState(false);
@@ -258,8 +265,9 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 .select('*')
                 .eq('cafe_id', cafeId);
 
-            setSnackInventoryItems(items || []);
-            const itemIds = (items || []).map((i: any) => i.id);
+            const inventoryRows = (items || []) as InventoryItem[];
+            setSnackInventoryItems(inventoryRows);
+            const itemIds = inventoryRows.map((item) => item.id);
 
             if (itemIds.length === 0) {
                 setSnackOrders([]);
@@ -272,6 +280,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 .select('*, bookings!inner(id, customer_name, customer_phone, booking_date, start_time, payment_mode, status)')
                 .in('inventory_item_id', itemIds)
                 .neq('bookings.status', 'cancelled')
+                .neq('bookings.payment_mode', 'owner')
                 .gte('ordered_at', `${startDate}T00:00:00.000${getTimezoneOffset(now)}`)
                 .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`)
                 .order('ordered_at', { ascending: false });
@@ -286,29 +295,24 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     };
 
     // --- Analytics Calculations ---
-    // Exclude owner-use internal records (payment_mode='owner', total_amount=0) from all stats
+    // Exclude owner-use internal records (payment_mode='owner') from revenue stats
     const billableBookings = useMemo(
-        () => bookings.filter(b => b.payment_mode !== 'owner'),
+        () => bookings.filter(isBillableRevenueBooking),
         [bookings]
     );
 
     const stats = useMemo(() => {
-        const totalRevenue = billableBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const totalRevenue = billableBookings.reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
 
-        // For bookings with console items, the total_amount may include F&B orders added
-        // during the session. Deduct those to get the true gaming-only revenue.
         let gamingRevenue = 0;
         let snackRevenue = 0;
+        let membershipRevenue = 0;
         billableBookings.forEach(b => {
-            const hasGaming = b.booking_items && b.booking_items.length > 0;
-            const fbTotal = (b.booking_orders || []).reduce(
-                (s: number, o: BookingOrder) => s + (o.total_price || 0), 0
-            );
-            if (hasGaming) {
-                snackRevenue += fbTotal;
-                gamingRevenue += Math.max(0, (b.total_amount || 0) - fbTotal);
+            if (b.source === 'membership') {
+                membershipRevenue += getBookingRevenueTotal(b);
             } else {
-                snackRevenue += b.total_amount || 0;
+                gamingRevenue += getBookingGamingTotal(b);
+                snackRevenue += getBookingSnackTotal(b) || (!b.booking_items?.length ? getBookingRevenueTotal(b) : 0);
             }
         });
 
@@ -316,8 +320,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         const avgOrderValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
         // Previous period stats (also exclude owner-use)
-        const prevBillable = previousBookings.filter(b => b.payment_mode !== 'owner');
-        const prevRevenue = prevBillable.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const prevBillable = previousBookings.filter(isBillableRevenueBooking);
+        const prevRevenue = prevBillable.reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
         const prevBookings = prevBillable.length;
         const prevAov = prevBookings > 0 ? prevRevenue / prevBookings : 0;
 
@@ -330,6 +334,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             revenue: totalRevenue,
             gamingRevenue,
             snackRevenue,
+            membershipRevenue,
             count: totalBookings,
             aov: avgOrderValue,
             revenueChange,
@@ -353,7 +358,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 day: 'numeric',
                 month: 'short'
             });
-            daily[date] = (daily[date] || 0) + (b.total_amount || 0);
+            daily[date] = (daily[date] || 0) + getBookingRevenueTotal(b);
         });
         return Object.entries(daily).map(([date, amount]) => ({ date, amount }));
     }, [billableBookings]);
@@ -364,23 +369,18 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const monthlyData = useMemo(() => {
         if (dateRange !== 'all' && dateRange !== 'custom') return [];
 
-        const months: Record<string, { gaming: number; snacks: number; bookings: number }> = {};
+        const months: Record<string, { gaming: number; snacks: number; memberships: number; bookings: number }> = {};
 
-        // Split by whether booking has console items. For gaming bookings that also
-        // have F&B orders, deduct the F&B total from gaming and add to snacks.
         billableBookings.forEach(b => {
             const [y, m] = b.booking_date.split('-');
             const key = `${y}-${m}`;
-            if (!months[key]) months[key] = { gaming: 0, snacks: 0, bookings: 0 };
+            if (!months[key]) months[key] = { gaming: 0, snacks: 0, memberships: 0, bookings: 0 };
             months[key].bookings += 1;
-            const fbTotal = (b.booking_orders || []).reduce(
-                (s: number, o: any) => s + (o.total_price || 0), 0
-            );
-            if (b.booking_items && b.booking_items.length > 0) {
-                months[key].snacks += fbTotal;
-                months[key].gaming += Math.max(0, (b.total_amount || 0) - fbTotal);
+            if (b.source === 'membership') {
+                months[key].memberships += getBookingRevenueTotal(b);
             } else {
-                months[key].snacks += b.total_amount || 0;
+                months[key].gaming += getBookingGamingTotal(b);
+                months[key].snacks += getBookingSnackTotal(b) || (!b.booking_items?.length ? getBookingRevenueTotal(b) : 0);
             }
         });
 
@@ -389,7 +389,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             .map(([key, data]) => {
                 const [y, m] = key.split('-');
                 const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-                return { key, label, ...data, total: data.gaming + data.snacks };
+                return { key, label, ...data, total: data.gaming + data.snacks + data.memberships };
             });
     }, [billableBookings, dateRange]);
 
@@ -497,14 +497,15 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         };
 
         billableBookings.forEach(b => {
-            const mode = (b.payment_mode || 'cash').toLowerCase();
-            if (mode === 'cash') {
+            const bucket = getOwnerPaymentBucket(b.payment_mode);
+            const amount = getBookingRevenueTotal(b);
+            if (bucket === 'cash') {
                 methods.cash.count++;
-                methods.cash.amount += b.total_amount || 0;
+                methods.cash.amount += amount;
             } else {
                 // upi, online, card, gpay, paytm, phonepe → all digital
                 methods.online.count++;
-                methods.online.amount += b.total_amount || 0;
+                methods.online.amount += amount;
             }
         });
 
@@ -524,7 +525,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             const key = b.customer_phone || b.customer_name || 'anonymous';
             if (key === 'anonymous') return;
             if (!map[key]) map[key] = { name: b.customer_name || 'Unknown', phone: b.customer_phone || '', spent: 0, sessions: 0, lastVisit: b.booking_date };
-            map[key].spent += b.total_amount || 0;
+            map[key].spent += getBookingRevenueTotal(b);
             map[key].sessions += 1;
             if (b.booking_date > map[key].lastVisit) map[key].lastVisit = b.booking_date;
         });
@@ -540,14 +541,16 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         let snackRevenue = 0;
 
         billableBookings.forEach(b => {
+            if (b.source === 'membership') return;
             const items = b.booking_items;
-            const bookingTotal = b.total_amount || 0;
+            const bookingTotal = getBookingGamingTotal(b);
 
             if (!items || !Array.isArray(items) || items.length === 0) {
                 // Snack-only booking — no console items, all revenue goes to Snacks & F&B
-                if (bookingTotal > 0) {
+                const snackOnlyTotal = getBookingRevenueTotal(b);
+                if (snackOnlyTotal > 0) {
                     snackCount += 1;
-                    snackRevenue += bookingTotal;
+                    snackRevenue += snackOnlyTotal;
                 }
                 return;
             }
@@ -555,9 +558,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             const seenInThisBooking = new Set<string>();
 
             // Sum stored item prices to use as proportional weights.
-            // If sum > 0, each item gets (item.price / priceSum) * total_amount.
-            // This guarantees the per-booking attribution always equals total_amount exactly,
-            // even if the owner manually adjusted total_amount after setting item prices.
+            // If sum > 0, each item gets (item.price / priceSum) * gaming revenue.
             const priceSum = items.reduce(
                 (s: number, it: BookingItem) =>
                     s + (typeof it.price === 'number' && it.price > 0 ? it.price : 0),
@@ -575,7 +576,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     seenInThisBooking.add(consoleName);
                     consoles[consoleName].count += 1;
                 }
-                // Proportional share: (this item's price / sum of all prices) × total_amount
+                // Proportional share: (this item's price / sum of all prices) x gaming revenue
                 // Falls back to equal split when no prices are stored
                 const itemPrice = typeof item.price === 'number' && item.price > 0 ? item.price : 0;
                 const itemRevenue = priceSum > 0
@@ -600,13 +601,11 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
     const maxConsoleCount = Math.max(...consoleData.map(c => c.count), 1);
 
-    // 5. F&B / Snack item breakdown — aggregate booking_orders from snack-only bookings
+    // 5. F&B / Snack item breakdown — aggregate booking_orders from all billable bookings
     const snackData = useMemo(() => {
         const items: Record<string, { qty: number; revenue: number; transactions: number }> = {};
 
         billableBookings.forEach(b => {
-            const hasConsoleItems = b.booking_items && b.booking_items.length > 0;
-            if (hasConsoleItems) return; // gaming booking, skip
             const orders = b.booking_orders;
             if (!orders || orders.length === 0) return;
 
@@ -628,12 +627,6 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             .map(([name, data]) => ({ name, ...data }))
             .sort((a, b) => b.revenue - a.revenue);
     }, [billableBookings]);
-
-    // Count of standalone snack bookings (no console items) for diagnostics
-    const snackBookingCount = useMemo(() =>
-        billableBookings.filter(b => !b.booking_items || b.booking_items.length === 0).length,
-        [billableBookings]
-    );
 
     // --- F&B Analytics (from direct Supabase query, same as InventoryAnalytics) ---
     const snackStats = useMemo(() => {
@@ -703,15 +696,17 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         };
 
         // Gaming bookings sheet
-        const gamingHeaders = ['Date', 'Time', 'Customer', 'Phone', 'Source', 'Consoles', 'Amount', 'Payment Mode', 'Status'];
+        const gamingHeaders = ['Date', 'Time', 'Customer', 'Phone', 'Source', 'Consoles', 'Gaming Amount', 'Snack Amount', 'Total Amount', 'Payment Mode', 'Status'];
         const gamingRows = billableBookings.map(b => [
             esc(b.booking_date),
             esc(b.start_time || ''),
             esc(b.customer_name || 'Walk-in'),
-            esc((b as any).customer_phone || ''),
+            esc(b.customer_phone || ''),
             esc(b.source || 'walk-in'),
             esc(b.booking_items?.map((i: BookingItem) => `${i.quantity}x ${i.console}`).join('; ') || (b.source === 'membership' ? 'Membership' : '')),
-            esc(b.total_amount),
+            esc(b.source === 'membership' ? 0 : getBookingGamingTotal(b)),
+            esc(b.source === 'membership' ? 0 : getBookingSnackTotal(b)),
+            esc(getBookingRevenueTotal(b)),
             esc(b.payment_mode || 'cash'),
             esc(b.status),
         ]);
@@ -724,8 +719,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             esc(o.quantity),
             esc(o.unit_price),
             esc(o.total_price),
-            esc((o as any).bookings?.customer_name || 'Walk-in'),
-            esc((o as any).bookings?.payment_mode || 'cash'),
+            esc(o.bookings?.customer_name || 'Walk-in'),
+            esc(o.bookings?.payment_mode || 'cash'),
         ]);
 
         const dateLabel = dateRange === 'custom' ? `${customStart}_to_${customEnd}` : dateRange;
@@ -893,6 +888,13 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                         <div className="w-2 h-2 rounded-full bg-orange-500" />
                                         <span className="text-xs text-slate-400">Snacks</span>
                                         <span className="text-xs font-semibold text-orange-400">₹{stats.snackRevenue.toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {stats.membershipRevenue > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-purple-500" />
+                                        <span className="text-xs text-slate-400">Memberships</span>
+                                        <span className="text-xs font-semibold text-purple-400">₹{stats.membershipRevenue.toLocaleString()}</span>
                                     </div>
                                 )}
                             </div>
@@ -1138,7 +1140,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                 <p className="text-base font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</p>
                                             </div>
                                         </div>
-                                        <div className="mt-3 grid grid-cols-2 gap-3">
+                                        <div className="mt-3 grid grid-cols-3 gap-3">
                                             <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-3 py-2">
                                                 <p className="text-[10px] uppercase tracking-[0.12em] text-emerald-300/70">Gaming</p>
                                                 <p className="mt-1 text-sm font-semibold text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</p>
@@ -1147,10 +1149,15 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                 <p className="text-[10px] uppercase tracking-[0.12em] text-orange-300/70">F&amp;B</p>
                                                 <p className="mt-1 text-sm font-semibold text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</p>
                                             </div>
+                                            <div className="rounded-xl border border-purple-500/15 bg-purple-500/8 px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-purple-300/70">Members</p>
+                                                <p className="mt-1 text-sm font-semibold text-purple-400">₹{Math.round(m.memberships).toLocaleString('en-IN')}</p>
+                                            </div>
                                         </div>
                                         <div className="mt-3 h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
                                             <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
                                             <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+                                            <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
                                         </div>
                                     </div>
                                 ));
@@ -1162,9 +1169,10 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             <thead>
                                 <tr className="bg-white/[0.03] text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.08]">
                                     <th className="px-5 py-3 font-medium">Month</th>
-                                    <th className="px-5 py-3 font-medium text-right">Gaming</th>
-                                    <th className="px-5 py-3 font-medium text-right">F&B</th>
-                                    <th className="px-5 py-3 font-medium text-right">Total</th>
+	                                    <th className="px-5 py-3 font-medium text-right">Gaming</th>
+	                                    <th className="px-5 py-3 font-medium text-right">F&B</th>
+	                                    <th className="px-5 py-3 font-medium text-right">Memberships</th>
+	                                    <th className="px-5 py-3 font-medium text-right">Total</th>
                                     <th className="px-5 py-3 font-medium text-right">Bookings</th>
                                     <th className="px-5 py-3 font-medium min-w-[160px]"></th>
                                 </tr>
@@ -1174,15 +1182,17 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                     const maxTotal = Math.max(...monthlyData.map(m => m.total), 1);
                                     return monthlyData.slice().reverse().map(m => (
                                         <tr key={m.key} className="hover:bg-white/[0.02] transition-colors">
-                                            <td className="px-5 py-3 text-sm font-medium text-white">{m.label}</td>
-                                            <td className="px-5 py-3 text-sm text-right text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</td>
-                                            <td className="px-5 py-3 text-sm text-right text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</td>
-                                            <td className="px-5 py-3 text-sm text-right font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</td>
+	                                            <td className="px-5 py-3 text-sm font-medium text-white">{m.label}</td>
+	                                            <td className="px-5 py-3 text-sm text-right text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</td>
+	                                            <td className="px-5 py-3 text-sm text-right text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</td>
+	                                            <td className="px-5 py-3 text-sm text-right text-purple-400">₹{Math.round(m.memberships).toLocaleString('en-IN')}</td>
+	                                            <td className="px-5 py-3 text-sm text-right font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</td>
                                             <td className="px-5 py-3 text-sm text-right text-slate-400">{m.bookings}</td>
                                             <td className="px-5 py-3">
                                                 <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
-                                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
-                                                    <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+	                                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
+	                                                    <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+	                                                    <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
                                                 </div>
                                             </td>
                                         </tr>
@@ -1553,7 +1563,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     </div>
                     <div className="space-y-2">
                         {topCustomers.map((c, i) => {
-                            const daysSince = Math.floor((Date.now() - new Date(c.lastVisit).getTime()) / 86400000);
+                            const daysSince = Math.floor((nowMs - new Date(c.lastVisit).getTime()) / 86400000);
                             const churnColor = daysSince > 30 ? 'text-red-400' : daysSince > 14 ? 'text-amber-400' : 'text-emerald-400';
                             const rankColors = ['text-amber-400', 'text-slate-300', 'text-orange-500'];
                             const rankBg = ['bg-amber-500/15 border-amber-500/25', 'bg-slate-500/15 border-slate-500/25', 'bg-orange-500/15 border-orange-500/25'];
@@ -1632,7 +1642,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 <div className="mt-3 grid grid-cols-2 gap-3">
                                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                                         <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Amount</p>
-                                        <p className="mt-1 font-mono text-sm font-semibold text-white">₹{booking.total_amount?.toLocaleString()}</p>
+                                        <p className="mt-1 font-mono text-sm font-semibold text-white">₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}</p>
                                     </div>
                                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                                         <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Payment</p>
@@ -1682,7 +1692,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                         {booking.customer_name || 'Walk-in'}
                                     </td>
                                     <td className="px-6 py-4 text-white font-mono">
-                                        ₹{booking.total_amount?.toLocaleString()}
+                                        ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
                                     </td>
                                     <td className="px-6 py-4 text-slate-300 capitalize">
                                         {booking.payment_mode || 'Cash'}

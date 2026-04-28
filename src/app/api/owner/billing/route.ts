@@ -12,6 +12,7 @@ import {
   parseAssignedStationsFromTitle,
   reserveStations,
 } from "@/lib/ownerStationAssignments";
+import { getInitialOwnerBookingStatus } from "@/lib/bookingFilters";
 
 export const dynamic = 'force-dynamic';
 
@@ -338,13 +339,16 @@ export async function POST(request: NextRequest) {
   }
 
   let resolvedItems: BookingItemPayload[] = Array.isArray(items) ? items : [];
+  const requestedDuration = deriveBookingDuration(resolvedItems, booking.duration);
 
   if (resolvedItems.length > 0) {
     try {
       const reservationState = await loadStationReservationState(
         supabase,
         booking.cafe_id,
-        booking.booking_date
+        booking.booking_date,
+        booking.start_time,
+        requestedDuration
       );
 
       resolvedItems = resolvedItems.map((item) => {
@@ -368,11 +372,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const resolvedDuration = deriveBookingDuration(resolvedItems, booking.duration);
+  const resolvedDuration = requestedDuration;
+
+  const resolvedBooking = {
+    ...booking,
+    duration: resolvedDuration,
+    status: booking.status === "in-progress" || booking.status === "confirmed"
+      ? getInitialOwnerBookingStatus(booking.booking_date, booking.start_time)
+      : booking.status,
+  };
 
   const { data: newBooking, error: bookingError } = await supabase
     .from('bookings')
-    .insert({ ...booking, duration: resolvedDuration })
+    .insert(resolvedBooking)
     .select()
     .single();
 

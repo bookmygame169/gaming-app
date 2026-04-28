@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CONSOLE_LABELS } from '@/lib/constants';
+import { getInitialOwnerBookingStatus } from '@/lib/bookingFilters';
 import { dedupeStationPricingRows, formatStationOptionLabel, normaliseStationName } from '@/lib/stationNames';
 import { Card, Button } from './ui';
 import {
@@ -462,7 +463,7 @@ export function Billing({
                         start_time: startTime12h,
                         duration: bookingDuration,
                         total_amount: totalAmount,
-                        status: 'in-progress',
+                        status: getInitialOwnerBookingStatus(bookingDate, startTime12h),
                         source: 'walk-in',
                         payment_mode: paymentMode,
                     },
