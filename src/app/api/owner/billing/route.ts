@@ -7,6 +7,7 @@ import {
 } from "@/lib/ownerAuth";
 import {
   encodeAssignedStationsTitle,
+  getOccupiedUnitCountForConsole,
   getItemDurationFromPayload,
   loadStationReservationState,
   parseAssignedStationsFromTitle,
@@ -73,6 +74,45 @@ type BookingItemPayload = {
   duration?: number;
 };
 
+type BookingItemRecord = {
+  id: string;
+  console?: string | null;
+  quantity?: number | null;
+  price?: number | null;
+  title?: string | null;
+};
+
+function normaliseConsoleForStations(raw: string | null | undefined): string {
+  const normalized = (raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+  return normalized === "steering_wheel" ? "steering" : normalized;
+}
+
+function normalizeBookingItemPayload(raw: Partial<BookingItemPayload>, fallback?: BookingItemRecord): BookingItemPayload {
+  return {
+    id: raw.id ?? fallback?.id,
+    console: String(raw.console ?? fallback?.console ?? ""),
+    quantity: Number(raw.quantity ?? fallback?.quantity ?? 1) || 1,
+    price: Number(raw.price ?? fallback?.price ?? 0) || 0,
+    title: raw.title ?? fallback?.title ?? null,
+    duration: raw.duration,
+  };
+}
+
+function getRequestedStationsForItem(item: BookingItemPayload): string[] {
+  const consoleType = normaliseConsoleForStations(item.console);
+  const requestedStations = parseAssignedStationsFromTitle(item.title).filter((stationName) =>
+    stationName.startsWith(`${consoleType}-`)
+  );
+  const requiredUnits = getOccupiedUnitCountForConsole(consoleType, item.quantity);
+
+  return requestedStations.length === requiredUnits ? requestedStations : [];
+}
+
 // PUT /api/owner/billing — update booking + optional booking_item or items array
 export async function PUT(request: NextRequest) {
   try {
@@ -99,7 +139,7 @@ export async function PUT(request: NextRequest) {
 
     const { data: existingBooking, error: existingBookingError } = await supabase
       .from("bookings")
-      .select("deleted_at")
+      .select("id, cafe_id, deleted_at, booking_date, start_time, duration, status")
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -107,8 +147,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: existingBookingError.message }, { status: 500 });
     }
 
+    if (!existingBooking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
     if (existingBooking?.deleted_at) {
       return NextResponse.json({ error: "Deleted bookings cannot be edited" }, { status: 409 });
+    }
+
+    const ALLOWED_BOOKING_FIELDS = ['status', 'total_amount', 'payment_mode', 'customer_name', 'customer_phone', 'booking_date', 'duration', 'start_time'] as const;
+    const safeBooking: Record<string, unknown> = {};
+    if (booking) {
+      for (const key of ALLOWED_BOOKING_FIELDS) {
+        if (booking[key] !== undefined) safeBooking[key] = booking[key];
+      }
     }
 
     // Conflict detection: if caller provided a base updated_at, verify it hasn't changed
@@ -129,22 +181,84 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Support single item update (backward compatibility)
-    if (bookingItemId && item) {
-      const { error: itemError } = await supabase
+    let resolvedItemsForWrite: BookingItemPayload[] | null = null;
+    let shouldDeleteMissingItems = false;
+
+    if ((bookingItemId && item) || (items && Array.isArray(items))) {
+      const { data: currentDbItems, error: getError } = await supabase
         .from("booking_items")
-        .update(item)
-        .eq("id", bookingItemId)
+        .select("id, console, quantity, price, title")
         .eq("booking_id", bookingId);
 
-      if (itemError) {
-        return NextResponse.json({ error: itemError.message }, { status: 500 });
+      if (getError) {
+        return NextResponse.json({ error: getError.message }, { status: 500 });
       }
+
+      const currentItems = (currentDbItems || []) as BookingItemRecord[];
+      const currentById = new Map(currentItems.map((currentItem) => [currentItem.id, currentItem]));
+      let proposedItems: BookingItemPayload[];
+
+      if (items && Array.isArray(items)) {
+        shouldDeleteMissingItems = true;
+        proposedItems = items.map((rawItem: Partial<BookingItemPayload>) =>
+          normalizeBookingItemPayload(rawItem, rawItem.id ? currentById.get(rawItem.id) : undefined)
+        );
+      } else {
+        const targetItem = currentById.get(bookingItemId);
+        if (!targetItem) {
+          return NextResponse.json({ error: "Booking item not found" }, { status: 404 });
+        }
+
+        proposedItems = currentItems.map((currentItem) =>
+          currentItem.id === bookingItemId
+            ? normalizeBookingItemPayload({ ...item, id: bookingItemId }, currentItem)
+            : normalizeBookingItemPayload({}, currentItem)
+        );
+      }
+
+      if (proposedItems.some((proposedItem) => !proposedItem.console)) {
+        return NextResponse.json({ error: "Each booking item must include a console" }, { status: 400 });
+      }
+
+      const nextBookingDate = String(safeBooking.booking_date ?? existingBooking.booking_date ?? "");
+      const nextStartTime = String(safeBooking.start_time ?? existingBooking.start_time ?? "");
+      const requestedDuration = deriveBookingDuration(proposedItems, Number(safeBooking.duration ?? existingBooking.duration ?? 60));
+
+      try {
+        const reservationState = await loadStationReservationState(
+          supabase,
+          ownedCafeId,
+          nextBookingDate,
+          nextStartTime,
+          requestedDuration,
+          bookingId
+        );
+
+        resolvedItemsForWrite = proposedItems.map((proposedItem) => {
+          const duration = getItemDurationFromPayload(proposedItem);
+          const assignedStations = reserveStations(
+            reservationState,
+            proposedItem.console,
+            proposedItem.quantity,
+            getRequestedStationsForItem(proposedItem)
+          );
+
+          return {
+            ...proposedItem,
+            title: encodeAssignedStationsTitle(duration, assignedStations),
+          };
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to assign stations";
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
+
+      safeBooking.duration = requestedDuration;
     }
 
-    // Support multiple items sync — upsert FIRST, delete AFTER to avoid data loss on failure
-    if (items && Array.isArray(items)) {
-      // 1. Get current items in DB
+    // Support item sync — upsert FIRST, delete AFTER to avoid data loss on failure
+    if (resolvedItemsForWrite) {
+      const itemIdsToKeep = resolvedItemsForWrite.filter(it => it.id).map(it => it.id);
       const { data: currentDbItems, error: getError } = await supabase
         .from("booking_items")
         .select("id")
@@ -154,12 +268,11 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: getError.message }, { status: 500 });
       }
 
-      const itemIdsToKeep = items.filter(it => it.id).map(it => it.id);
       const dbItemIds = (currentDbItems || []).map(it => it.id);
       const itemIdsToDelete = dbItemIds.filter(id => !itemIdsToKeep.includes(id));
 
       // 2. Upsert (update existing + insert new) BEFORE deleting — if this fails, nothing is lost
-      const itemResults = await Promise.all(items.map((it: BookingItemPayload) => {
+      const itemResults = await Promise.all(resolvedItemsForWrite.map((it: BookingItemPayload) => {
         if (it.id) {
           return supabase
             .from("booking_items")
@@ -179,7 +292,7 @@ export async function PUT(request: NextRequest) {
       }
 
       // 3. Only delete removed items AFTER successful upserts
-      if (itemIdsToDelete.length > 0) {
+      if (shouldDeleteMissingItems && itemIdsToDelete.length > 0) {
         const { error: delError } = await supabase
           .from("booking_items")
           .delete()
@@ -190,13 +303,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update booking
-    if (booking) {
-      const ALLOWED_BOOKING_FIELDS = ['status', 'total_amount', 'payment_mode', 'customer_name', 'customer_phone', 'booking_date', 'duration', 'start_time'] as const;
-      const safeBooking: Record<string, unknown> = {};
-      for (const key of ALLOWED_BOOKING_FIELDS) {
-        if (booking[key] !== undefined) safeBooking[key] = booking[key];
-      }
-      if (Object.keys(safeBooking).length === 0) {
+    if (booking || Object.keys(safeBooking).length > 0) {
+      if (Object.keys(safeBooking).length === 0 && !resolvedItemsForWrite) {
         return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
       }
       const { error: bookingError } = await supabase

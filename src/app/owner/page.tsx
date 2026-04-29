@@ -567,16 +567,33 @@ export default function OwnerDashboardPage() {
   // Auto-calculate editAmount when inputs change
   useEffect(() => {
     if (editingBooking && !editAmountManuallyEdited) {
-      if (editItems.length > 0) {
-        // Calculate sum of all items in editItems array using their specific durations
-        let totalConsolesPrice = 0;
-        editItems.forEach((item) => {
-          totalConsolesPrice += getBillingPrice(item.console as ConsoleId, item.quantity || 1, item.duration || editDuration || 60);
-        });
+      const totalConsolesPrice = editingBookingItemId
+        ? (editingBooking.booking_items || []).reduce((sum: number, existingItem: any) => {
+            if (existingItem.id !== editingBookingItemId) {
+              return sum + (Number(existingItem.price) || 0);
+            }
+
+            const editedItem = editItems.find((item) => item.id === editingBookingItemId) || editItems[0];
+            const itemForPrice = editedItem || existingItem;
+            const consoleType = normaliseConsoleType(itemForPrice.console || existingItem.console || '') as ConsoleId;
+            const quantity = itemForPrice.quantity || 1;
+            const duration = itemForPrice.duration || getBookingItemDuration(existingItem, editDuration || editingBooking.duration || 60);
+            const price = getBillingPrice(consoleType, quantity, duration) || Number(itemForPrice.price) || 0;
+            return sum + price;
+          }, 0)
+        : editItems.reduce((sum, item) => {
+            const consoleType = normaliseConsoleType(item.console || '') as ConsoleId;
+            const quantity = item.quantity || 1;
+            const duration = item.duration || editDuration || editingBooking.duration || 60;
+            const price = getBillingPrice(consoleType, quantity, duration) || Number(item.price) || 0;
+            return sum + price;
+          }, 0);
+
+      if (totalConsolesPrice > 0 || editItems.length > 0) {
         setEditAmount(totalConsolesPrice.toString());
       }
     }
-  }, [editItems, editDuration, editingBooking, editAmountManuallyEdited, getBillingPrice]);
+  }, [editItems, editDuration, editingBooking, editingBookingItemId, editAmountManuallyEdited, getBillingPrice]);
 
   const handleOrdersUpdated = ({
     bookingId,
@@ -924,6 +941,9 @@ export default function OwnerDashboardPage() {
             };
           });
 
+      const calculatedGamingAmount = nextBookingItems.reduce((sum: number, item: any) => sum + (Number(item.price) || 0), 0);
+      const amountToSave = editAmountManuallyEdited ? updatedAmount : calculatedGamingAmount;
+
       // Auto-restore in-progress if a completed booking is extended into the future
       const newDuration = nextBookingItems.reduce((max, item) => (
         Math.max(max, getBookingItemDuration(item, editingBooking.duration || 60))
@@ -971,7 +991,7 @@ export default function OwnerDashboardPage() {
                 }),
               }),
           booking: {
-            total_amount: updatedAmount,
+            total_amount: amountToSave,
             status: resolvedStatus,
             payment_mode: normalizedPaymentMode,
             customer_name: sanitizedCustomerName,
@@ -1000,7 +1020,7 @@ export default function OwnerDashboardPage() {
           b.id === editingBooking.id
             ? {
               ...b,
-              total_amount: parseFloat(editAmount),
+              total_amount: amountToSave,
               status: resolvedStatus,
               payment_mode: normalizedPaymentMode,
               customer_name: sanitizedCustomerName,

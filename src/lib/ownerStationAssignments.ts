@@ -27,6 +27,7 @@ type ExistingBookingItem = {
 };
 
 type ExistingBookingRow = {
+  id?: string | null;
   booking_items?: ExistingBookingItem[] | null;
   duration?: number | null;
   start_time?: string | null;
@@ -216,8 +217,20 @@ export async function loadStationReservationState(
   cafeId: string,
   bookingDate: string = getIndiaDateString(),
   requestedStartTime?: string | null,
-  requestedDuration?: number | null
+  requestedDuration?: number | null,
+  excludeBookingId?: string | null
 ): Promise<StationReservationState> {
+  let bookingsQuery = supabase
+    .from("bookings")
+    .select("id, start_time, duration, status, booking_items(console, quantity, title)")
+    .eq("cafe_id", cafeId)
+    .eq("booking_date", bookingDate)
+    .in("status", ["in-progress", "confirmed"]);
+
+  if (excludeBookingId) {
+    bookingsQuery = bookingsQuery.neq("id", excludeBookingId);
+  }
+
   const [{ data: cafe, error: cafeError }, { data: stationPricing, error: stationPricingError }, { data: bookings, error: bookingsError }, { data: subscriptions, error: subscriptionsError }] =
     await Promise.all([
       supabase
@@ -229,12 +242,7 @@ export async function loadStationReservationState(
         .from("station_pricing")
         .select("station_name, station_type, station_number, is_active")
         .eq("cafe_id", cafeId),
-      supabase
-        .from("bookings")
-        .select("start_time, duration, status, booking_items(console, quantity, title)")
-        .eq("cafe_id", cafeId)
-        .eq("booking_date", bookingDate)
-        .in("status", ["in-progress", "confirmed"]),
+      bookingsQuery,
       supabase
         .from("subscriptions")
         .select("assigned_console_station")

@@ -197,6 +197,15 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             const dayBeforeCurrent30 = new Date(now);
             dayBeforeCurrent30.setDate(now.getDate() - 30);
             prevEndDate = formatLocalDate(dayBeforeCurrent30);
+        } else if (range === '12m') {
+            const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+            startDate = formatLocalDate(twelveMonthsAgo);
+            endDate = todayStr;
+            const prevStart = new Date(twelveMonthsAgo.getFullYear(), twelveMonthsAgo.getMonth() - 12, 1);
+            const prevEnd = new Date(firstDayThisMonth.getTime() - 1);
+            prevStartDate = formatLocalDate(prevStart);
+            prevEndDate = formatLocalDate(prevEnd);
         } else if (range === 'month') {
             const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
             startDate = formatLocalDate(firstDay);
@@ -365,10 +374,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
     const maxRevenue = Math.max(...revenueTrendData.map(d => d.amount), 100);
 
-    // Monthly breakdown — only meaningful for 'all' or 'custom' ranges
+    // Month-wise revenue analysis for the selected range
     const monthlyData = useMemo(() => {
-        if (dateRange !== 'all' && dateRange !== 'custom') return [];
-
         const months: Record<string, { gaming: number; snacks: number; memberships: number; bookings: number }> = {};
 
         billableBookings.forEach(b => {
@@ -391,7 +398,23 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
                 return { key, label, ...data, total: data.gaming + data.snacks + data.memberships };
             });
-    }, [billableBookings, dateRange]);
+    }, [billableBookings]);
+
+    const monthlyAnalysis = useMemo(() => {
+        const total = monthlyData.reduce((sum, month) => sum + month.total, 0);
+        const average = monthlyData.length > 0 ? total / monthlyData.length : 0;
+        const bestMonth = monthlyData.reduce<typeof monthlyData[number] | null>(
+            (best, month) => (!best || month.total > best.total ? month : best),
+            null
+        );
+        const latestMonth = monthlyData.length > 0 ? monthlyData[monthlyData.length - 1] : null;
+        const previousMonth = monthlyData.length > 1 ? monthlyData[monthlyData.length - 2] : null;
+        const latestChange = latestMonth && previousMonth && previousMonth.total > 0
+            ? ((latestMonth.total - previousMonth.total) / previousMonth.total) * 100
+            : null;
+
+        return { total, average, bestMonth, latestMonth, latestChange };
+    }, [monthlyData]);
 
     // 2. Peak Hours - filtered to cafe operating hours
     const peakHoursData = useMemo(() => {
@@ -810,6 +833,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 { label: 'Last 7 Days', value: '7d' },
                                 { label: 'Last 30 Days', value: '30d' },
                                 { label: 'This Month', value: 'month' },
+                                { label: 'Last 12 Months', value: '12m' },
                                 { label: 'All Bookings', value: 'all' },
                                 { label: 'Custom Range', value: 'custom' },
                             ]}
@@ -1106,22 +1130,42 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 </Card>
             </div>
 
-            {/* Monthly Breakdown — only for All Time / Custom ranges */}
+            {/* Month-wise Revenue Analysis */}
             {monthlyData.length > 0 && (
                 <Card padding="none" className="overflow-hidden">
                     <div className="p-5 border-b border-white/[0.08] flex items-center justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                                 <Calendar size={20} className="text-blue-400" />
-                                Monthly Breakdown
+                                Month-Wise Revenue Analysis
                             </h3>
-                            <p className="text-sm text-slate-400">Revenue per month — Gaming + F&B</p>
+                            <p className="text-sm text-slate-400">Gaming, F&amp;B, and membership revenue by booking month</p>
                         </div>
                         <div className="text-right">
                             <p className="text-xs text-slate-500">Total</p>
                             <p className="text-base font-bold text-white">
-                                ₹{monthlyData.reduce((s, m) => s + m.total, 0).toLocaleString('en-IN')}
+                                ₹{monthlyAnalysis.total.toLocaleString('en-IN')}
                             </p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 border-b border-white/[0.08] bg-white/[0.02]">
+                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Months</p>
+                            <p className="mt-1 text-lg font-semibold text-white">{monthlyData.length}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Average / Month</p>
+                            <p className="mt-1 text-lg font-semibold text-white">₹{Math.round(monthlyAnalysis.average).toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Best Month</p>
+                            <p className="mt-1 text-sm font-semibold text-white">{monthlyAnalysis.bestMonth?.label || '—'}</p>
+                            <p className="text-xs text-emerald-400">₹{Math.round(monthlyAnalysis.bestMonth?.total || 0).toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Latest Month</p>
+                            <p className="mt-1 text-sm font-semibold text-white">{monthlyAnalysis.latestMonth?.label || '—'}</p>
+                            <GrowthIndicator value={monthlyAnalysis.latestChange} />
                         </div>
                     </div>
                     {isMobile && (
@@ -1169,10 +1213,10 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             <thead>
                                 <tr className="bg-white/[0.03] text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.08]">
                                     <th className="px-5 py-3 font-medium">Month</th>
-	                                    <th className="px-5 py-3 font-medium text-right">Gaming</th>
-	                                    <th className="px-5 py-3 font-medium text-right">F&B</th>
-	                                    <th className="px-5 py-3 font-medium text-right">Memberships</th>
-	                                    <th className="px-5 py-3 font-medium text-right">Total</th>
+                                    <th className="px-5 py-3 font-medium text-right">Gaming</th>
+                                    <th className="px-5 py-3 font-medium text-right">F&amp;B</th>
+                                    <th className="px-5 py-3 font-medium text-right">Memberships</th>
+                                    <th className="px-5 py-3 font-medium text-right">Total</th>
                                     <th className="px-5 py-3 font-medium text-right">Bookings</th>
                                     <th className="px-5 py-3 font-medium min-w-[160px]"></th>
                                 </tr>
@@ -1182,17 +1226,17 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                     const maxTotal = Math.max(...monthlyData.map(m => m.total), 1);
                                     return monthlyData.slice().reverse().map(m => (
                                         <tr key={m.key} className="hover:bg-white/[0.02] transition-colors">
-	                                            <td className="px-5 py-3 text-sm font-medium text-white">{m.label}</td>
-	                                            <td className="px-5 py-3 text-sm text-right text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</td>
-	                                            <td className="px-5 py-3 text-sm text-right text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</td>
-	                                            <td className="px-5 py-3 text-sm text-right text-purple-400">₹{Math.round(m.memberships).toLocaleString('en-IN')}</td>
-	                                            <td className="px-5 py-3 text-sm text-right font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm font-medium text-white">{m.label}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-purple-400">₹{Math.round(m.memberships).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</td>
                                             <td className="px-5 py-3 text-sm text-right text-slate-400">{m.bookings}</td>
                                             <td className="px-5 py-3">
                                                 <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
-	                                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
-	                                                    <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
-	                                                    <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
+                                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
+                                                    <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+                                                    <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
                                                 </div>
                                             </td>
                                         </tr>
