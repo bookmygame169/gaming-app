@@ -4,6 +4,8 @@ import { isSessionBooking, normalizeRealtimeBookingStatus } from "@/lib/bookingF
 import { getBookingRevenueTotal, getOwnerPaymentBucket } from "@/lib/ownerRevenue";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const ALLOWED_PAGE_SIZES = [10, 30, 50, 100];
 const BOOKING_SELECT_BASE = `
@@ -101,6 +103,10 @@ function sanitizeSearchTerm(search: string): string {
   return search.replace(/[(),]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 async function findMatchingProfileIds(supabase: unknown, search: string): Promise<string[]> {
   const tokens = sanitizeSearchTerm(search).split(" ").filter(Boolean).slice(0, 4);
   if (tokens.length === 0) return [];
@@ -163,8 +169,8 @@ function applyBookingFilters(query: unknown, {
       `customer_phone.ilike.%${safeSearch}%`,
     ];
 
-    if (compactSearch) {
-      clauses.push(`id.ilike.${compactSearch}%`);
+    if (isUuid(compactSearch)) {
+      clauses.push(`id.eq.${compactSearch}`);
     }
 
     if (matchingUserIds.length > 0) {
@@ -231,6 +237,7 @@ export async function GET(request: NextRequest) {
 
     const cafeId = searchParams.get("cafeId");
     const bookingId = searchParams.get("bookingId");
+    const bookingDate = searchParams.get("bookingDate") || "";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const requestedSize = parseInt(searchParams.get("pageSize") || "30", 10);
     const PAGE_SIZE = ALLOWED_PAGE_SIZES.includes(requestedSize) ? requestedSize : 30;
@@ -301,6 +308,27 @@ export async function GET(request: NextRequest) {
         .maybeSingle() as unknown as SingleBookingQueryResult;
     };
 
+    const runSingleBookingScan = async (includeUpdatedAt: boolean): Promise<SingleBookingQueryResult> => {
+      let query = supabase
+        .from("bookings")
+        .select(includeUpdatedAt ? BOOKING_SELECT_WITH_UPDATED_AT : BOOKING_SELECT_BASE)
+        .in("cafe_id", targetCafeIds)
+        .is("deleted_at", null);
+
+      if (bookingDate) {
+        query = query.eq("booking_date", bookingDate);
+      }
+
+      const { data, error } = await query
+        .order("created_at", { ascending: false })
+        .limit(500) as unknown as BookingQueryResult;
+
+      return {
+        data: ((data || []) as BookingListRecord[]).find((booking) => booking.id === bookingId) || null,
+        error,
+      };
+    };
+
     const runBookingQuery = async (includeUpdatedAt: boolean): Promise<BookingQueryResult> => {
       let query: unknown = supabase
         .from("bookings")
@@ -349,6 +377,20 @@ export async function GET(request: NextRequest) {
           ? { ...(fallbackResult.data as Record<string, unknown>), updated_at: null }
           : null;
         error = fallbackResult.error;
+      }
+
+      if (!error && !data) {
+        const scanResult = await runSingleBookingScan(true);
+        if (isMissingBookingsUpdatedAtError(scanResult.error)) {
+          const fallbackScanResult = await runSingleBookingScan(false);
+          data = fallbackScanResult.data
+            ? { ...(fallbackScanResult.data as Record<string, unknown>), updated_at: null }
+            : null;
+          error = fallbackScanResult.error;
+        } else {
+          data = scanResult.data;
+          error = scanResult.error;
+        }
       }
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -743,6 +743,8 @@ export default function OwnerDashboardPage() {
 
     try {
       const params = new URLSearchParams({ bookingId: targetBookingId });
+      if (booking.booking_date) params.set('bookingDate', booking.booking_date);
+      if (booking.cafe_id || currentCafeId) params.set('cafeId', booking.cafe_id || currentCafeId);
       const res = await fetch(`/api/owner/bookings?${params.toString()}`, {
         credentials: 'include',
         cache: 'no-store',
