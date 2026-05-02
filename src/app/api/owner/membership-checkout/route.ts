@@ -8,6 +8,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const DAY_PASS_SUBSCRIPTION_HOURS = 24;
+// The bookings table caps session duration at 300 minutes; day-pass entitlement
+// still lives on the subscription as 24 hours.
+const DAY_PASS_BOOKING_DURATION_MINUTES = 300;
+
 type CheckoutItem = {
   planId?: string;
   quantity?: number;
@@ -199,8 +204,8 @@ export async function POST(request: NextRequest) {
 
     for (const [index, plan] of purchasedUnits.entries()) {
       const isDayPass = plan.plan_type === "day_pass";
-      const purchasedHours = isDayPass ? 24 : Number(plan.hours || 0);
-      const bookingDuration = isDayPass ? 24 * 60 : purchasedHours * 60;
+      const purchasedHours = isDayPass ? DAY_PASS_SUBSCRIPTION_HOURS : Number(plan.hours || 0);
+      const bookingDuration = isDayPass ? DAY_PASS_BOOKING_DURATION_MINUTES : purchasedHours * 60;
       const amountPaid = perUnitAmounts[index] ?? 0;
       const expiryDate = new Date(now);
       expiryDate.setDate(expiryDate.getDate() + Number(plan.validity_days || 30));

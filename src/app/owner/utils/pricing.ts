@@ -100,17 +100,20 @@ function calculatePriceFromStationPricing(
   quantity: number,
   duration: number
 ): number {
+  const calculateFromRates = (halfHourRate: number | null | undefined, hourlyRate: number | null | undefined) => {
+    const safeDuration = Math.max(0, Number(duration) || 0);
+    if (safeDuration <= 0 || safeDuration % 30 !== 0) return 0;
+
+    const fullHourBlocks = Math.floor(safeDuration / 60);
+    const hasHalfHourRemainder = safeDuration % 60 === 30;
+    return ((Number(hourlyRate || 0) * fullHourBlocks) + (hasHalfHourRemainder ? Number(halfHourRate || 0) : 0));
+  };
+
   if (normType === "ps5" || normType === "xbox") {
-    if (duration === 30) return station[`controller_${quantity}_half_hour` as keyof StationPricingRecord] as number || 0;
-    if (duration === 60) return station[`controller_${quantity}_full_hour` as keyof StationPricingRecord] as number || 0;
-    if (duration === 90) {
-      const p30 = station[`controller_${quantity}_half_hour` as keyof StationPricingRecord] as number || 0;
-      const p60 = station[`controller_${quantity}_full_hour` as keyof StationPricingRecord] as number || 0;
-      return p30 + p60;
-    }
-    if (duration === 120) return ((station[`controller_${quantity}_full_hour` as keyof StationPricingRecord] as number) || 0) * 2;
-    if (duration === 180) return ((station[`controller_${quantity}_full_hour` as keyof StationPricingRecord] as number) || 0) * 3;
-    return 0;
+    return calculateFromRates(
+      station[`controller_${quantity}_half_hour` as keyof StationPricingRecord] as number | null | undefined,
+      station[`controller_${quantity}_full_hour` as keyof StationPricingRecord] as number | null | undefined
+    );
   }
 
   if (normType === "ps4") {
@@ -122,23 +125,13 @@ function calculatePriceFromStationPricing(
       ? station.single_player_rate || 0
       : station.multi_player_rate || 0;
 
-    if (duration === 30) return halfHour;
-    if (duration === 60) return fullHour;
-    if (duration === 90) return halfHour + fullHour;
-    if (duration === 120) return fullHour * 2;
-    if (duration === 180) return fullHour * 3;
-    return 0;
+    return calculateFromRates(halfHour, fullHour);
   }
 
   const halfHour = station.half_hour_rate || 0;
   const fullHour = station.hourly_rate || 0;
 
-  if (duration === 30) return halfHour * quantity;
-  if (duration === 60) return fullHour * quantity;
-  if (duration === 90) return (halfHour + fullHour) * quantity;
-  if (duration === 120) return fullHour * 2 * quantity;
-  if (duration === 180) return fullHour * 3 * quantity;
-  return 0;
+  return calculateFromRates(halfHour, fullHour) * quantity;
 }
 
 /**
@@ -169,37 +162,25 @@ export function calcBillingPrice(
   if (pricingTier) {
     const isPerStationType = ["pc", "pool", "snooker", "arcade", "vr", "steering", "steering_wheel", "racing_sim"].includes(normType);
 
-    if (duration === 90) {
-      const p60 = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? (isPerStationType ? pricingTier.qty1_60min : null) ?? 100;
-      const p30 = pricingTier[`qty${quantity}_30min` as keyof PricingTier] ?? (isPerStationType ? pricingTier.qty1_30min : null) ?? 50;
-      if (isPerStationType && quantity > 1) {
-        return ((pricingTier.qty1_60min || 0) + (pricingTier.qty1_30min || 0)) * quantity;
-      }
-      return (p60 || 0) + (p30 || 0);
-    }
-    if (duration === 120) {
-      const p60 = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? (isPerStationType ? pricingTier.qty1_60min : null) ?? 100;
-      if (isPerStationType && quantity > 1) {
-        return (pricingTier.qty1_60min || 0) * quantity * 2;
-      }
-      return (p60 || 0) * 2;
-    }
-    if (duration === 180) {
-      const p60 = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? (isPerStationType ? pricingTier.qty1_60min : null) ?? 100;
-      if (isPerStationType && quantity > 1) {
-        return (pricingTier.qty1_60min || 0) * quantity * 3;
-      }
-      return (p60 || 0) * 3;
-    }
     const key = `qty${quantity}_${duration}min` as keyof PricingTier;
     const val = pricingTier[key];
     if (val !== null && val !== undefined) return val as number;
 
-    if (isPerStationType && quantity > 1) {
-      const base30 = pricingTier.qty1_30min;
-      const base60 = pricingTier.qty1_60min;
-      if (duration === 30 && base30 !== null && base30 !== undefined) return base30 * quantity;
-      if (duration === 60 && base60 !== null && base60 !== undefined) return base60 * quantity;
+    const safeDuration = Math.max(0, Number(duration) || 0);
+    if (safeDuration > 0 && safeDuration % 30 === 0) {
+      const halfHourRate = pricingTier[`qty${quantity}_30min` as keyof PricingTier] ?? (isPerStationType ? pricingTier.qty1_30min : null) ?? 50;
+      const hourlyRate = pricingTier[`qty${quantity}_60min` as keyof PricingTier] ?? (isPerStationType ? pricingTier.qty1_60min : null) ?? 100;
+      const fullHourBlocks = Math.floor(safeDuration / 60);
+      const hasHalfHourRemainder = safeDuration % 60 === 30;
+      const calculated = ((Number(hourlyRate || 0) * fullHourBlocks) + (hasHalfHourRemainder ? Number(halfHourRate || 0) : 0));
+
+      if (isPerStationType && quantity > 1) {
+        const baseHalfHourRate = pricingTier.qty1_30min ?? 50;
+        const baseHourlyRate = pricingTier.qty1_60min ?? 100;
+        return ((Number(baseHourlyRate || 0) * fullHourBlocks) + (hasHalfHourRemainder ? Number(baseHalfHourRate || 0) : 0)) * quantity;
+      }
+
+      return calculated;
     }
   }
 

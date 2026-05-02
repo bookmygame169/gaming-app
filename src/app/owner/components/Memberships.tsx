@@ -114,8 +114,8 @@ export function Memberships({
             onRefresh();
             setAdjustHoursSub(null);
             setAdjustHoursDelta('');
-        } catch (err: any) {
-            alert('Failed to adjust hours: ' + err.message);
+        } catch (error: unknown) {
+            alert('Failed to adjust hours: ' + getErrorMessage(error));
         } finally {
             setAdjustHoursSaving(false);
         }
@@ -269,31 +269,24 @@ export function Memberships({
 
             if (!cafeId) throw new Error('No cafe selected');
 
-            const now = new Date();
-            const expiryDate = new Date(now);
-            expiryDate.setDate(expiryDate.getDate() + (selectedPlan.validity_days || 30));
-
-            const res = await fetch('/api/owner/subscriptions', {
+            const amountPaid = parseFloat(subAmountPaid) || selectedPlan.price;
+            const res = await fetch('/api/owner/membership-checkout', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     cafe_id: cafeId,
                     customer_name: subCustomerName,
                     customer_phone: subCustomerPhone,
-                    membership_plan_id: subSelectedPlanId,
-                    hours_purchased: selectedPlan.plan_type === 'day_pass' ? (selectedPlan.hours ?? 0) : (selectedPlan.hours || 24),
-                    hours_remaining: selectedPlan.plan_type === 'day_pass' ? (selectedPlan.hours ?? 0) : (selectedPlan.hours || 24),
-                    amount_paid: parseFloat(subAmountPaid) || selectedPlan.price,
+                    items: [{ planId: subSelectedPlanId, quantity: 1 }],
+                    final_amount: amountPaid,
                     payment_mode: subPaymentMode,
-                    purchase_date: now.toISOString(),
-                    expiry_date: expiryDate.toISOString(),
-                    status: 'active',
                 }),
             });
             const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to create subscription');
+            if (!res.ok) throw new Error(result.error || 'Failed to create membership booking');
 
-            alert('Subscription created successfully!');
+            alert('Membership booking created successfully!');
             setShowAddSubModal(false);
             setSubCustomerName('');
             setSubCustomerPhone('');
@@ -302,7 +295,7 @@ export function Memberships({
             setSubPaymentMode('cash');
             onRefresh();
         } catch (error: unknown) {
-            alert('Error creating subscription: ' + getErrorMessage(error));
+            alert('Error creating membership booking: ' + getErrorMessage(error));
         } finally {
             setSavingSub(false);
         }

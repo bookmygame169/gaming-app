@@ -4,7 +4,7 @@ import { CalendarX, ArrowRight, Pencil } from 'lucide-react';
 import { CONSOLE_COLORS, type ConsoleId } from '@/lib/constants';
 import { isSessionBooking } from '@/lib/bookingFilters';
 import { getBookingGamingTotal, getBookingRevenueTotal, getBookingSnackTotal } from '@/lib/ownerRevenue';
-import { buildBookingTicketMessage, buildWhatsAppUrl } from '../utils';
+import { buildBookingTicketMessage, buildWhatsAppUrl, formatDurationLabel } from '../utils';
 import type { BookingRow } from '../types';
 
 interface DashboardBookingsTableProps {
@@ -137,7 +137,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                         </span>
                                         <span className="mono truncate text-[11px] font-semibold text-white">{stationLabel}</span>
                                     </div>
-                                    {duration && <p className="mono mt-0.5 text-[10px] text-slate-500">{duration}m</p>}
+                                    {duration && <p className="mono mt-0.5 text-[10px] text-slate-500">{formatDurationLabel(duration)}</p>}
                                 </div>
                                 <div className="shrink-0 text-right">
                                     <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Session</div>
@@ -257,7 +257,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                             </span>
                                             <span className="mono text-[12px] font-semibold text-white">{stationLabel}</span>
                                         </div>
-                                        {duration && <p className="mono text-[10px] text-slate-500 mt-0.5 ml-6.5">{duration}m</p>}
+                                        {duration && <p className="mono text-[10px] text-slate-500 mt-0.5 ml-6.5">{formatDurationLabel(duration)}</p>}
                                     </td>
 
                                     {/* Start time */}

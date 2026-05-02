@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Trash2, RotateCcw, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Card } from './ui';
 import { dispatchOwnerBookingsChanged, subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
+import { formatDurationLabel } from '../utils';
 
 type DeletedBooking = {
   id: string;
@@ -220,7 +221,7 @@ export function DeletedBookingsPanel() {
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mb-1.5">
-                            <span>{formatDate(b.booking_date)} · {b.start_time} · {b.duration} min</span>
+                            <span>{formatDate(b.booking_date)} · {b.start_time} · {formatDurationLabel(b.duration, { long: true })}</span>
                             <span className="text-emerald-400 font-semibold">{formatCurrency(b.total_amount)}</span>
                             <span className="text-slate-600">ID: #{b.id.slice(0, 8).toUpperCase()}</span>
                           </div>

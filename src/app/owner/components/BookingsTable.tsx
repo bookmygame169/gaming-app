@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Card, StatusBadge, Button } from './ui';
 import { Search, ChevronLeft, ChevronRight, X, CheckCircle, ShoppingBag, CalendarX } from 'lucide-react';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
-import { buildWhatsAppUrl, buildBookingTicketMessage } from '../utils';
+import { buildWhatsAppUrl, buildBookingTicketMessage, formatDurationLabel } from '../utils';
 
 interface BookingsTableProps {
     bookings: any[];
@@ -292,7 +292,7 @@ export function BookingsTable({
                                     <td className="px-4 py-1.5">
                                         <div className="text-white">{formatDate(booking.booking_date)}</div>
                                         <div className="text-xs text-slate-500 mt-0.5">
-                                            {formatTime(booking.start_time)} ({booking.duration}m)
+                                            {formatTime(booking.start_time)} ({formatDurationLabel(booking.duration)})
                                         </div>
                                     </td>
                                     <td className="px-4 py-1.5">

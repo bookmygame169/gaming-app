@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
 
-import { getLocalDateString, normaliseConsoleType, buildWhatsAppUrl, buildBookingTicketMessage } from '../utils';
+import { getLocalDateString, normaliseConsoleType, buildWhatsAppUrl, buildBookingTicketMessage, formatDurationLabel } from '../utils';
 import { calcBillingPrice, type ConsolePricingMap } from '../utils/pricing';
 
 interface MembershipPlan {
@@ -66,7 +66,7 @@ type StationPricingRecord = {
     updated_at?: string | null;
 };
 
-const DURATION_OPTIONS = [30, 60, 90, 120, 180];
+const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 const PLAYER_OPTIONS = [1, 2, 3, 4];
 
 const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
@@ -103,15 +103,6 @@ function formatLastVisit(value?: string) {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-}
-
-function formatDurationLabel(duration: number) {
-    if (duration < 60) return `${duration}m`;
-    if (duration === 60) return '1h';
-    if (duration === 90) return '1.5h';
-    if (duration === 120) return '2h';
-    if (duration === 180) return '3h';
-    return `${duration}m`;
 }
 
 export function Billing({
@@ -729,7 +720,7 @@ export function Billing({
                         {([
                             lastBooking.cafeName ? { icon: <Store size={13} className="text-slate-500" />, label: 'Cafe', value: lastBooking.cafeName, highlight: false } : null,
                             { icon: <CalendarDays size={13} className="text-slate-500" />, label: 'Date', value: lastBooking.date, highlight: false },
-                            { icon: <Clock size={13} className="text-slate-500" />, label: 'Time', value: `${lastBooking.time} (${lastBooking.duration} min)`, highlight: false },
+                            { icon: <Clock size={13} className="text-slate-500" />, label: 'Time', value: `${lastBooking.time} (${formatDurationLabel(lastBooking.duration, { long: true })})`, highlight: false },
                             { icon: <Gamepad2 size={13} className="text-slate-500" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
                             { icon: <IndianRupee size={13} className="text-emerald-400" />, label: 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
                         ] as const).filter(Boolean).map((row, index, rows) => (

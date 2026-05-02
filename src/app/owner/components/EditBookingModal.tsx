@@ -9,7 +9,7 @@ import { CONSOLE_DB_KEYS, CONSOLE_LABELS, CONSOLE_ICONS, type ConsoleId } from '
 import { getEndTime } from '@/lib/timeUtils';
 import { BookingRow, CafeRow } from '../types';
 import { BookingOrder } from '@/types/inventory';
-import { getAvailableConsoleIds, normaliseConsoleType } from '../utils';
+import { formatDurationLabel, getAvailableConsoleIds, normaliseConsoleType } from '../utils';
 import InlineSnackManager from './InlineSnackManager';
 
 type EditItem = { id?: string; console: string; quantity: number; duration: number; price?: number };
@@ -375,7 +375,7 @@ export function EditBookingModal({
                       onClick={() => {
                         const newDur = onEndNow();
                         if (newDur) {
-                          setEndNowMsg(`Rounded to ${newDur} min`);
+                          setEndNowMsg(`Rounded to ${formatDurationLabel(newDur, { long: true })}`);
                           setTimeout(() => setEndNowMsg(null), 3000);
                         }
                       }}
@@ -452,7 +452,7 @@ export function EditBookingModal({
                           className="w-full appearance-none px-2.5 py-2 pr-7 rounded-lg bg-white/[0.06] border border-white/[0.06] text-slate-200 text-xs font-medium focus:outline-none focus:border-purple-500/60 transition-colors cursor-pointer"
                         >
                           {DURATIONS.map(d => (
-                            <option key={d} value={d}>{d} min</option>
+                            <option key={d} value={d}>{formatDurationLabel(d, { long: true })}</option>
                           ))}
                         </select>
                         <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
@@ -487,7 +487,7 @@ export function EditBookingModal({
                     const price = getBillingPrice(item.console as ConsoleId, item.quantity, item.duration);
                     return price > 0 ? (
                       <div className="mt-2 text-right text-[11px] text-slate-500">
-                        {CONSOLE_ICONS[item.console as ConsoleId] || '🎮'} {CONSOLE_LABELS[item.console as ConsoleId] || item.console} × {item.quantity} · {item.duration}min =
+                        {CONSOLE_ICONS[item.console as ConsoleId] || '🎮'} {CONSOLE_LABELS[item.console as ConsoleId] || item.console} × {item.quantity} · {formatDurationLabel(item.duration, { long: true })} =
                         <span className="text-emerald-400 font-semibold ml-1">₹{price}</span>
                       </div>
                     ) : (

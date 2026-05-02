@@ -19,7 +19,7 @@ import {
   BookingRow,
   NavTab,
 } from "./types";
-import { getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "./utils";
+import { formatDurationLabel, getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "./utils";
 import { getInitialOwnerBookingStatus, isBookingActiveNow, isSessionBooking } from "@/lib/bookingFilters";
 import { theme } from "./utils/theme";
 import {
@@ -2746,7 +2746,7 @@ export default function OwnerDashboardPage() {
                       { label: "Phone", value: editingBooking.customer_phone || editingBooking.user_phone || "—" },
                       { label: "Date", value: editingBooking.booking_date },
                       { label: "Start Time", value: editingBooking.start_time || "—" },
-                      { label: "Duration", value: editingBooking.duration ? `${editingBooking.duration} min` : "—" },
+                      { label: "Duration", value: editingBooking.duration ? formatDurationLabel(editingBooking.duration, { long: true }) : "—" },
                       { label: "Amount", value: `₹${getBookingRevenueTotal(editingBooking).toLocaleString('en-IN')}` },
                       { label: "Status", value: editingBooking.status || "—" },
                       { label: "Booking ID", value: `#${editingBooking.id.slice(0, 8).toUpperCase()}` },

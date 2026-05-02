@@ -99,6 +99,32 @@ export function convertTo12Hour(timeStr?: string | null): string {
   return timeStr; // Return original if can't parse
 }
 
+export function formatDurationLabel(duration: number | null | undefined, options?: { long?: boolean }): string {
+  const minutesTotal = Math.max(0, Math.round(Number(duration || 0)));
+  if (minutesTotal <= 0) return "0 min";
+
+  const hours = Math.floor(minutesTotal / 60);
+  const minutes = minutesTotal % 60;
+  const long = options?.long === true;
+
+  if (hours === 0) {
+    return long
+      ? `${minutes} minute${minutes === 1 ? "" : "s"}`
+      : `${minutes} min`;
+  }
+
+  const hourLabel = long
+    ? `${hours} hour${hours === 1 ? "" : "s"}`
+    : `${hours}h`;
+
+  if (minutes === 0) return hourLabel;
+
+  const minuteLabel = long
+    ? `${minutes} minute${minutes === 1 ? "" : "s"}`
+    : `${minutes}m`;
+  return `${hourLabel} ${minuteLabel}`;
+}
+
 /**
  * Normalise any console type string variant to canonical lowercase key.
  * e.g. 'PS5', 'Ps5', 'PS 5' → 'ps5'  |  'Racing Sim', 'racing sim' → 'racing_sim'
@@ -209,7 +235,7 @@ export function buildBookingTicketMessage({
     ``,
     `━━━━━━━━━━━━━━━━`,
     `*Date*     ${date}`,
-    `*Time*     ${startTime} _(${duration} min)_`,
+    `*Time*     ${startTime} _(${formatDurationLabel(duration, { long: true })})_`,
     `*Console*  ${itemsLabel}`,
     `*Amount*   Rs.${totalAmount} · ${payLabel}`,
     `━━━━━━━━━━━━━━━━`,
