@@ -225,7 +225,7 @@ export async function loadStationReservationState(
     .select("id, start_time, duration, status, booking_items(console, quantity, title)")
     .eq("cafe_id", cafeId)
     .eq("booking_date", bookingDate)
-    .in("status", ["in-progress", "confirmed"]);
+    .in("status", ["in-progress", "confirmed", "pending"]);
 
   if (excludeBookingId) {
     bookingsQuery = bookingsQuery.neq("id", excludeBookingId);

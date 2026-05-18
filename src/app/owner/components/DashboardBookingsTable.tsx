@@ -1,10 +1,10 @@
 'use client';
 
-import { CalendarX, ArrowRight, Pencil } from 'lucide-react';
+import { CalendarX, ArrowRight, Pencil, CheckCircle } from 'lucide-react';
 import { CONSOLE_COLORS, type ConsoleId } from '@/lib/constants';
 import { isSessionBooking } from '@/lib/bookingFilters';
 import { getBookingGamingTotal, getBookingRevenueTotal, getBookingSnackTotal } from '@/lib/ownerRevenue';
-import { buildBookingTicketMessage, buildWhatsAppUrl, formatDurationLabel } from '../utils';
+import { buildBookingTicketMessage, buildWhatsAppUrl, buildAdvanceBookingPaymentMessage, formatDurationLabel } from '../utils';
 import type { BookingRow } from '../types';
 
 interface DashboardBookingsTableProps {
@@ -12,12 +12,14 @@ interface DashboardBookingsTableProps {
     onViewAll?: () => void;
     onEdit?: (booking: BookingRow) => void;
     onPaymentModeChange?: (bookingId: string, mode: string) => void | Promise<boolean>;
+    onStatusChange?: (bookingId: string, status: string) => void | Promise<void>;
 }
 
 const STATUS_MAP: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
     'in-progress': { bg: 'rgba(6,182,212,0.12)',  fg: '#67e8f9', dot: '#06b6d4',  label: 'In progress' },
     'completed':   { bg: 'rgba(16,185,129,0.10)', fg: '#6ee7b7', dot: '#10b981',  label: 'Completed' },
     'confirmed':   { bg: 'rgba(245,158,11,0.12)', fg: '#fbbf24', dot: '#f59e0b',  label: 'Confirmed' },
+    'pending':     { bg: 'rgba(245,158,11,0.12)', fg: '#fbbf24', dot: '#f59e0b',  label: 'Payment pending' },
     'cancelled':   { bg: 'rgba(239,68,68,0.10)',  fg: '#fca5a5', dot: '#ef4444',  label: 'Cancelled' },
 };
 
@@ -47,7 +49,22 @@ function getWhatsAppUrl(booking: BookingRow): string | null {
     if (!phone) return null;
 
     const itemsLabel = booking.booking_items?.map((item) => `${item.quantity}x ${item.console?.toUpperCase()}`).join(', ') || 'Gaming Session';
-    const message = buildBookingTicketMessage({
+    const isAdvancePending = booking.source === 'advance' && (booking.status || '').toLowerCase() === 'pending';
+    const paymentLink = typeof window === 'undefined'
+        ? `/bookings/${booking.id}`
+        : `${window.location.origin}/bookings/${booking.id}`;
+    const message = isAdvancePending ? buildAdvanceBookingPaymentMessage({
+        customerName: booking.customer_name || booking.user_name || 'Customer',
+        cafeName: booking.cafe_name || null,
+        date: booking.booking_date
+            ? new Date(booking.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '',
+        startTime: booking.start_time || '',
+        duration: booking.duration || 60,
+        itemsLabel,
+        totalAmount: getBookingRevenueTotal(booking),
+        paymentLink,
+    }) : buildBookingTicketMessage({
         customerName: booking.customer_name || booking.user_name || 'Customer',
         cafeName: booking.cafe_name || null,
         date: booking.booking_date
@@ -63,7 +80,7 @@ function getWhatsAppUrl(booking: BookingRow): string | null {
     return buildWhatsAppUrl(phone, message);
 }
 
-export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentModeChange }: DashboardBookingsTableProps) {
+export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentModeChange, onStatusChange }: DashboardBookingsTableProps) {
     const displayed = bookings
         .filter(b => !b.deleted_at && b.status !== 'cancelled' && isSessionBooking(b))
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
@@ -107,7 +124,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                     }).join(', ') || '—';
                     const duration = items[0]?.title ? parseInt(items[0].title) || b.duration : b.duration;
                     const isDigital = isDigitalPaymentMode(b.payment_mode);
-                    const statusKey = b.status || 'confirmed';
+                    const statusKey = (b.status || 'confirmed').toLowerCase();
                     const status = STATUS_MAP[statusKey] || STATUS_MAP.confirmed;
                     const whatsappUrl = getWhatsAppUrl(b);
                     const snackTotal = getBookingSnackTotal(b);
@@ -149,9 +166,18 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                 </div>
                             </div>
 
-                            {(onEdit || onPaymentModeChange || whatsappUrl) && (
+                            {(onEdit || onPaymentModeChange || onStatusChange || whatsappUrl) && (
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                    {onPaymentModeChange && (
+                                    {onStatusChange && statusKey === 'pending' && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onStatusChange(b.id, 'confirmed'); }}
+                                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                                        >
+                                            <CheckCircle size={11} />
+                                            Confirm
+                                        </button>
+                                    )}
+                                    {onPaymentModeChange && !(b.source === 'advance' && statusKey === 'pending') && (
                                         <div className="flex items-center rounded-lg border border-white/[0.07] bg-white/[0.04] p-1">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}
@@ -205,7 +231,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                             <th className="px-3 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Start</th>
                             <th className="px-3 py-2.5 font-normal text-[10px] text-right" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Session</th>
                             <th className="px-3 py-2.5 font-normal text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Status</th>
-                            {(onEdit || onPaymentModeChange) && (
+                            {(onEdit || onPaymentModeChange || onStatusChange) && (
                                 <th className="px-5 py-2.5 font-normal text-[10px] text-right" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>
                                     Actions
                                 </th>
@@ -215,7 +241,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                     <tbody>
                         {displayed.length === 0 ? (
                             <tr>
-                                <td colSpan={(onEdit || onPaymentModeChange) ? 6 : 5} className="px-5 py-14 text-center">
+                                <td colSpan={(onEdit || onPaymentModeChange || onStatusChange) ? 6 : 5} className="px-5 py-14 text-center">
                                     <p className="text-sm text-slate-500">No bookings today</p>
                                 </td>
                             </tr>
@@ -234,7 +260,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                             }).join(', ') || '—';
                             const duration = items[0]?.title ? parseInt(items[0].title) || b.duration : b.duration;
                             const isDigital = isDigitalPaymentMode(b.payment_mode);
-                            const statusKey = b.status || 'confirmed';
+                            const statusKey = (b.status || 'confirmed').toLowerCase();
                             const status = STATUS_MAP[statusKey] || STATUS_MAP.confirmed;
                             const whatsappUrl = getWhatsAppUrl(b);
                             const snackTotal = getBookingSnackTotal(b);
@@ -283,10 +309,20 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                     </td>
 
                                     {/* Actions */}
-                                    {(onEdit || onPaymentModeChange) && (
+                                    {(onEdit || onPaymentModeChange || onStatusChange) && (
                                         <td className="px-5 py-3">
                                             <div className="flex items-center justify-end gap-2">
-                                                {onPaymentModeChange && (
+                                                {onStatusChange && statusKey === 'pending' && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onStatusChange(b.id, 'confirmed'); }}
+                                                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                                                        title="Confirm payment"
+                                                    >
+                                                        <CheckCircle size={11} />
+                                                        Confirm
+                                                    </button>
+                                                )}
+                                                {onPaymentModeChange && !(b.source === 'advance' && statusKey === 'pending') && (
                                                     <div className="flex items-center rounded-xl border border-white/[0.07] bg-white/[0.04] p-1">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}

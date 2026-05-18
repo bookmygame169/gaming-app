@@ -9,7 +9,7 @@ import { Card, Button } from './ui';
 import {
     User, Smartphone, Clock, Plus, Trash2, X,
     CreditCard, Banknote, CheckCircle, Star,
-    Store, CalendarDays, IndianRupee, Gamepad2
+    Store, CalendarDays, IndianRupee, Gamepad2, ExternalLink
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
 
@@ -67,6 +67,8 @@ type StationPricingRecord = {
 
 const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 const PLAYER_OPTIONS = [1, 2, 3, 4];
+const PAYTM_UPI_ID = 'paytmqr6k4kf1@ptys';
+const PAYTM_UPI_NAME = 'BookMyGame';
 
 const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
     ps5: { accent: '#06b6d4', short: 'PS5' },
@@ -121,6 +123,51 @@ function getCurrentIndiaTimeInput(date: Date = new Date()): string {
     return `${hour}:${minute}`;
 }
 
+function getBookingPaymentLink(bookingId: string): string {
+    if (typeof window === 'undefined') return `/bookings/${bookingId}`;
+    return `${window.location.origin}/bookings/${bookingId}`;
+}
+
+function buildAdvancePaymentMessage({
+    customerName,
+    cafeName,
+    date,
+    startTime,
+    duration,
+    itemsLabel,
+    totalAmount,
+    paymentLink,
+}: {
+    customerName: string;
+    cafeName?: string | null;
+    date: string;
+    startTime: string;
+    duration: number;
+    itemsLabel: string;
+    totalAmount: number;
+    paymentLink: string;
+}): string {
+    const firstName = customerName.split(' ')[0] || 'there';
+    return [
+        ...(cafeName ? [`*${cafeName}*`, ``] : []),
+        `*Advance Booking Payment*`,
+        ``,
+        `Hey *${firstName}*,`,
+        cafeName ? `Your slot is held at *${cafeName}* until payment is verified.` : `Your gaming slot is held until payment is verified.`,
+        ``,
+        `━━━━━━━━━━━━━━━━`,
+        `*Date*     ${date}`,
+        `*Time*     ${startTime} _(${formatDurationLabel(duration, { long: true })})_`,
+        `*Console*  ${itemsLabel}`,
+        `*Amount*   Rs.${totalAmount} · UPI`,
+        `━━━━━━━━━━━━━━━━`,
+        ``,
+        `Pay here: ${paymentLink}`,
+        ``,
+        `After payment, we will verify it in Paytm Business and confirm your booking.`,
+    ].join('\n');
+}
+
 export function Billing({
     cafeId,
     cafes,
@@ -132,8 +179,8 @@ export function Billing({
     stationPricingList,
     membershipPlans = [],
 }: BillingProps) {
-    // Mode: 'gaming' | 'membership'
-    const [mode, setMode] = useState<'gaming' | 'membership'>('gaming');
+    // Mode: walk-in gaming, advance payment-link booking, or membership checkout.
+    const [mode, setMode] = useState<'gaming' | 'advance' | 'membership'>('gaming');
 
     // Membership cart state
     type MemItem = { id: string; planId: string; quantity: number };
@@ -158,7 +205,8 @@ export function Billing({
     type LastBooking = {
         name: string; phone: string; date: string; time: string;
         duration: number; itemsLabel: string; amount: number;
-        paymentMode: string; cafeName: string;
+        paymentMode: string; cafeName: string; kind: 'walk-in' | 'advance';
+        bookingId?: string; paymentLink?: string;
     };
     const [lastBooking, setLastBooking] = useState<LastBooking | null>(null);
     const [autoResetSecs, setAutoResetSecs] = useState<number | null>(null);
@@ -303,7 +351,7 @@ export function Billing({
 
     // Auto-reset countdown after successful booking
     useEffect(() => {
-        if (!lastBooking) { setAutoResetSecs(null); return; }
+        if (!lastBooking || lastBooking.kind === 'advance') { setAutoResetSecs(null); return; }
         setAutoResetSecs(8);
         const interval = setInterval(() => {
             setAutoResetSecs(s => {
@@ -319,6 +367,10 @@ export function Billing({
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lastBooking]);
+
+    useEffect(() => {
+        if (mode === 'advance') setPaymentMode('upi');
+    }, [mode]);
 
     // Fetch recent customers for quick-pick
     useEffect(() => {
@@ -404,6 +456,12 @@ export function Billing({
             title: 'Quick walk-in booking',
             description: 'Build the session, collect payment, and confirm the booking from one counter screen.',
         }
+        : mode === 'advance'
+        ? {
+            eyebrow: 'Advance Booking',
+            title: 'Create payment link',
+            description: 'Hold a slot, send the payment link on WhatsApp, then confirm after Paytm Business verification.',
+        }
         : {
             eyebrow: 'Membership Checkout',
             title: 'Fast plan billing',
@@ -411,8 +469,17 @@ export function Billing({
         };
 
     const handleSubmit = async () => {
+        const isAdvanceBooking = mode === 'advance';
         if (!customerName || !startTime || items.length === 0) {
             setFormError('Please fill all required fields and add at least one console.');
+            return;
+        }
+        if (isAdvanceBooking && !customerPhone.trim()) {
+            setFormError('Customer phone is required to send the advance booking link.');
+            return;
+        }
+        if (isAdvanceBooking && bookingDate < getLocalDateString()) {
+            setFormError('Advance booking date cannot be in the past.');
             return;
         }
         setFormError(null);
@@ -426,6 +493,7 @@ export function Billing({
             const displayHours = hours % 12 || 12;
             const startTime12h = `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
             const bookingDuration = items.reduce((max, item) => Math.max(max, item.duration || 60), 0) || 60;
+            const effectivePaymentMode = isAdvanceBooking ? 'upi' : paymentMode;
 
             const res = await fetch('/api/owner/billing', {
                 method: 'POST',
@@ -440,9 +508,9 @@ export function Billing({
                         start_time: startTime12h,
                         duration: bookingDuration,
                         total_amount: totalAmount,
-                        status: getInitialOwnerBookingStatus(bookingDate, startTime12h),
-                        source: 'walk-in',
-                        payment_mode: paymentMode,
+                        status: isAdvanceBooking ? 'pending' : getInitialOwnerBookingStatus(bookingDate, startTime12h),
+                        source: isAdvanceBooking ? 'advance' : 'walk-in',
+                        payment_mode: effectivePaymentMode,
                     },
                     items: items.map(it => ({
                         console: it.console,
@@ -457,12 +525,26 @@ export function Billing({
 
             const cafeName = cafes.find(c => c.id === cafeId)?.name || '';
             const itemsLabel = items.map(it => `${it.quantity}x ${it.console.toUpperCase()}`).join(', ');
-            setLastBooking({ name: customerName, phone: customerPhone, date: bookingDate, time: startTime12h, duration: bookingDuration, itemsLabel, amount: totalAmount, paymentMode, cafeName });
+            const paymentLink = result.bookingId ? getBookingPaymentLink(result.bookingId) : undefined;
+            setLastBooking({
+                name: customerName,
+                phone: customerPhone,
+                date: bookingDate,
+                time: startTime12h,
+                duration: bookingDuration,
+                itemsLabel,
+                amount: totalAmount,
+                paymentMode: effectivePaymentMode,
+                cafeName,
+                kind: isAdvanceBooking ? 'advance' : 'walk-in',
+                bookingId: result.bookingId,
+                paymentLink,
+            });
             setCustomerName('');
             setCustomerPhone('');
             setItems([]);
             setManualAmount(null);
-            setPaymentMode('cash');
+            setPaymentMode(isAdvanceBooking ? 'upi' : 'cash');
             setBookingDate(getLocalDateString());
             setStartTime(getCurrentIndiaTimeInput());
             // Don't call onSuccess here — wait for user to click "New Booking"
@@ -581,6 +663,14 @@ export function Billing({
         );
     };
 
+    const isGamingFlow = mode === 'gaming' || mode === 'advance';
+    const isAdvanceMode = mode === 'advance';
+    const customerCardTitle = isAdvanceMode
+        ? 'Advance customer'
+        : mode === 'membership'
+        ? 'Member details'
+        : 'Walk-in details';
+
     const customerInfoCard = (
         <Card className={`overflow-visible space-y-5 ${SECTION_CARD_CLASS}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -590,7 +680,7 @@ export function Billing({
                     </div>
                     <div>
                         <div className="text-[10px] smallcaps text-[var(--dim)]">Customer</div>
-                        <h3 className="text-base font-semibold text-white">Walk-in details</h3>
+                        <h3 className="text-base font-semibold text-white">{customerCardTitle}</h3>
                     </div>
                 </div>
 
@@ -637,7 +727,7 @@ export function Billing({
 
                 <div>
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
-                        {mode === 'membership' ? 'Phone Required' : 'Phone'}
+                        {mode === 'membership' || mode === 'advance' ? 'Phone Required' : 'Phone'}
                     </label>
                     <div className="relative glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
                         <div className="flex items-center gap-2">
@@ -663,7 +753,7 @@ export function Billing({
     );
 
     return (
-        <div className={`space-y-6 ${isMobile && mode === 'gaming' && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
+        <div className={`space-y-6 ${isMobile && isGamingFlow && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
             <div className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] px-4 py-4 shadow-[0_28px_56px_-40px_rgba(0,0,0,0.95)] sm:px-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1">
@@ -687,7 +777,14 @@ export function Billing({
                                 onClick={() => setMode('gaming')}
                                 className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'gaming' ? 'bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'text-slate-400 hover:text-white'}`}
                             >
-                                Gaming
+                                Walk-in
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode('advance')}
+                                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'advance' ? 'bg-amber-500/15 text-white shadow-[0_0_24px_-10px_rgba(245,158,11,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Advance
                             </button>
                             <button
                                 type="button"
@@ -701,16 +798,18 @@ export function Billing({
                 </div>
             </div>
 
-            {mode === 'gaming' && lastBooking ? (
+            {isGamingFlow && lastBooking ? (
                 <div className="mx-auto max-w-xl space-y-4">
-                    <div className="glass rounded-2xl border border-emerald-500/20 px-5 py-4">
+                    <div className={`glass rounded-2xl px-5 py-4 ${lastBooking.kind === 'advance' ? 'border border-amber-500/20' : 'border border-emerald-500/20'}`}>
                         <div className="flex items-center gap-4">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+                            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${lastBooking.kind === 'advance' ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
                                 <CheckCircle size={20} />
                             </div>
                             <div>
-                                <p className="text-lg font-semibold text-white">Booking confirmed</p>
-                                <p className="text-sm text-emerald-300/80">{lastBooking.name}</p>
+                                <p className="text-lg font-semibold text-white">
+                                    {lastBooking.kind === 'advance' ? 'Payment link ready' : 'Booking confirmed'}
+                                </p>
+                                <p className={`text-sm ${lastBooking.kind === 'advance' ? 'text-amber-300/80' : 'text-emerald-300/80'}`}>{lastBooking.name}</p>
                             </div>
                         </div>
                     </div>
@@ -721,14 +820,26 @@ export function Billing({
                             { icon: <CalendarDays size={13} className="text-slate-500" />, label: 'Date', value: lastBooking.date, highlight: false },
                             { icon: <Clock size={13} className="text-slate-500" />, label: 'Time', value: `${lastBooking.time} (${formatDurationLabel(lastBooking.duration, { long: true })})`, highlight: false },
                             { icon: <Gamepad2 size={13} className="text-slate-500" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
-                            { icon: <IndianRupee size={13} className="text-emerald-400" />, label: 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
+                            { icon: <IndianRupee size={13} className={lastBooking.kind === 'advance' ? 'text-amber-400' : 'text-emerald-400'} />, label: lastBooking.kind === 'advance' ? 'Amount due' : 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
                         ] as const).filter(Boolean).map((row, index, rows) => (
                             <div key={index} className={`flex items-center justify-between px-4 py-3 ${index < rows.length - 1 ? 'border-b border-white/[0.06]' : ''}`}>
                                 <span className="flex items-center gap-2 text-sm text-slate-500">{row!.icon}{row!.label}</span>
-                                <span className={`text-sm font-medium ${row!.highlight ? 'text-emerald-300' : 'text-white'}`}>{row!.value}</span>
+                                <span className={`text-sm font-medium ${row!.highlight ? (lastBooking.kind === 'advance' ? 'text-amber-300' : 'text-emerald-300') : 'text-white'}`}>{row!.value}</span>
                             </div>
                         ))}
                     </Card>
+
+                    {lastBooking.kind === 'advance' && lastBooking.paymentLink && (
+                        <a
+                            href={lastBooking.paymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="glass-2 flex items-center justify-between rounded-xl px-4 py-3 text-sm text-cyan-200 transition hover:border-cyan-400/30"
+                        >
+                            <span className="min-w-0 truncate">{lastBooking.paymentLink}</span>
+                            <ExternalLink size={14} className="shrink-0" />
+                        </a>
+                    )}
 
                     {autoResetSecs !== null && (
                         <div className="glass-2 flex items-center justify-between rounded-xl px-3 py-2">
@@ -744,14 +855,40 @@ export function Billing({
 
                     <div className="grid grid-cols-2 gap-3">
                         {lastBooking.phone ? (
-                            <a
-                                href={buildWhatsAppUrl(lastBooking.phone, buildBookingTicketMessage({ customerName: lastBooking.name, cafeName: lastBooking.cafeName, date: lastBooking.date, startTime: lastBooking.time, duration: lastBooking.duration, itemsLabel: lastBooking.itemsLabel, totalAmount: lastBooking.amount, paymentMode: lastBooking.paymentMode }))}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#20b558]"
-                            >
-                                Send on WhatsApp
-                            </a>
+                            (() => {
+                                const message = lastBooking.kind === 'advance' && lastBooking.paymentLink
+                                    ? buildAdvancePaymentMessage({
+                                        customerName: lastBooking.name,
+                                        cafeName: lastBooking.cafeName,
+                                        date: lastBooking.date,
+                                        startTime: lastBooking.time,
+                                        duration: lastBooking.duration,
+                                        itemsLabel: lastBooking.itemsLabel,
+                                        totalAmount: lastBooking.amount,
+                                        paymentLink: lastBooking.paymentLink,
+                                    })
+                                    : buildBookingTicketMessage({
+                                        customerName: lastBooking.name,
+                                        cafeName: lastBooking.cafeName,
+                                        date: lastBooking.date,
+                                        startTime: lastBooking.time,
+                                        duration: lastBooking.duration,
+                                        itemsLabel: lastBooking.itemsLabel,
+                                        totalAmount: lastBooking.amount,
+                                        paymentMode: lastBooking.paymentMode,
+                                    });
+
+                                return (
+                                    <a
+                                        href={buildWhatsAppUrl(lastBooking.phone, message)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#20b558]"
+                                    >
+                                        {lastBooking.kind === 'advance' ? 'Send payment link' : 'Send on WhatsApp'}
+                                    </a>
+                                );
+                            })()
                         ) : (
                             <div className="glass-2 flex items-center justify-center rounded-xl px-4 py-3 text-sm text-slate-500">
                                 No phone number
@@ -769,7 +906,7 @@ export function Billing({
                         </button>
                     </div>
                 </div>
-            ) : mode === 'gaming' ? (
+            ) : isGamingFlow ? (
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_410px] xl:items-start">
                     <div className="space-y-5">
                         {customerInfoCard}
@@ -996,23 +1133,29 @@ export function Billing({
                                 </div>
                                 <div>
                                     <div className="text-[10px] smallcaps text-[var(--dim)]">Summary</div>
-                                    <h3 className="text-base font-semibold text-white">Collect payment</h3>
+                                    <h3 className="text-base font-semibold text-white">
+                                        {isAdvanceMode ? 'Create payment link' : 'Collect payment'}
+                                    </h3>
                                 </div>
                             </div>
 
                             <div className={`${GAMING_SUMMARY_HERO_CLASS} p-5`}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <div className="text-[10px] smallcaps text-cyan-200/70">Due now</div>
+                                        <div className="text-[10px] smallcaps text-cyan-200/70">
+                                            {isAdvanceMode ? 'Payable by customer' : 'Due now'}
+                                        </div>
                                         <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-white">Rs.{totalAmount}</div>
                                         <p className="mt-2 text-sm text-cyan-100/70">
                                             {items.length > 0
-                                                ? `${items.length} booking line${items.length === 1 ? '' : 's'} ready for checkout`
+                                                ? isAdvanceMode
+                                                    ? `${items.length} booking line${items.length === 1 ? '' : 's'} ready for payment link`
+                                                    : `${items.length} booking line${items.length === 1 ? '' : 's'} ready for checkout`
                                                 : 'Add a setup to begin billing'}
                                         </p>
                                     </div>
                                     <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
-                                        {paymentMode.toUpperCase()}
+                                        {(isAdvanceMode ? 'upi' : paymentMode).toUpperCase()}
                                     </span>
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1022,7 +1165,7 @@ export function Billing({
                                     </div>
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Payment mode</div>
-                                        <div className="mt-2 text-lg font-semibold text-white">{paymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
+                                        <div className="mt-2 text-lg font-semibold text-white">{isAdvanceMode ? 'UPI' : paymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1124,28 +1267,38 @@ export function Billing({
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentMode('cash')}
-                                    className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200 shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
-                                >
-                                    <Banknote className="mb-3" size={20} />
-                                    <div className="text-sm font-semibold">Cash</div>
-                                    <div className="mt-1 text-xs text-current/70">Collect directly at the counter</div>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentMode('upi')}
-                                    className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'upi' ? 'border-cyan-400/30 bg-cyan-500/12 text-cyan-100 shadow-[0_18px_36px_-22px_rgba(34,211,238,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
-                                >
-                                    <Smartphone className="mb-3" size={20} />
-                                    <div className="text-sm font-semibold">UPI</div>
-                                    <div className="mt-1 text-xs text-current/70">Show the QR and collect instantly</div>
-                                </button>
-                            </div>
+                            {isAdvanceMode ? (
+                                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-amber-100">
+                                    <Smartphone className="mb-3 text-amber-300" size={20} />
+                                    <div className="text-sm font-semibold">UPI payment link</div>
+                                    <div className="mt-1 text-xs text-amber-100/70">
+                                        Payment is locked to UPI. Share the generated link and confirm after checking Paytm Business.
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentMode('cash')}
+                                        className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200 shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    >
+                                        <Banknote className="mb-3" size={20} />
+                                        <div className="text-sm font-semibold">Cash</div>
+                                        <div className="mt-1 text-xs text-current/70">Collect directly at the counter</div>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentMode('upi')}
+                                        className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'upi' ? 'border-cyan-400/30 bg-cyan-500/12 text-cyan-100 shadow-[0_18px_36px_-22px_rgba(34,211,238,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    >
+                                        <Smartphone className="mb-3" size={20} />
+                                        <div className="text-sm font-semibold">UPI</div>
+                                        <div className="mt-1 text-xs text-current/70">Show the QR and collect instantly</div>
+                                    </button>
+                                </div>
+                            )}
 
-                            {paymentMode === 'upi' && totalAmount > 0 && (
+                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && (
                                 <div className="space-y-3 rounded-[24px] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(34,211,238,0.7)]">
                                     <div className="flex items-center justify-between gap-3 text-left">
                                         <div>
@@ -1162,7 +1315,7 @@ export function Billing({
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
                                         <QRCodeSVG
-                                            value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
+                                            value={`upi://pay?pa=${encodeURIComponent(PAYTM_UPI_ID)}&pn=${encodeURIComponent(PAYTM_UPI_NAME)}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
                                             size={qrExpanded ? 260 : 180}
                                             bgColor="#d4d4d4"
                                             fgColor="#111111"
@@ -1185,7 +1338,7 @@ export function Billing({
                                 loading={submitting}
                                 disabled={submitting || items.length === 0}
                             >
-                                {submitting ? 'Creating...' : 'Confirm Booking'}
+                                {submitting ? 'Creating...' : isAdvanceMode ? 'Create Payment Link' : 'Confirm Booking'}
                             </Button>
                         </Card>
                     </div>
@@ -1470,7 +1623,7 @@ export function Billing({
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
                                         <QRCodeSVG
-                                            value={`upi://pay?pa=${encodeURIComponent('paytmqr6k4kf1@ptys')}&pn=${encodeURIComponent('BookMyGame')}&am=${memTotalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Membership Payment')}`}
+                                            value={`upi://pay?pa=${encodeURIComponent(PAYTM_UPI_ID)}&pn=${encodeURIComponent(PAYTM_UPI_NAME)}&am=${memTotalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Membership Payment')}`}
                                             size={qrExpanded ? 260 : 180}
                                             bgColor="#d4d4d4"
                                             fgColor="#111111"
@@ -1501,27 +1654,33 @@ export function Billing({
             )}
 
             {/* Sticky mobile confirm bar */}
-            {isMobile && mode === 'gaming' && !lastBooking && items.length > 0 && (
+            {isMobile && isGamingFlow && !lastBooking && items.length > 0 && (
                 <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 border-t border-white/[0.08] bg-[#0d0d14]/95 px-4 py-3 backdrop-blur-md">
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] text-slate-500 font-medium">Total</p>
                         <p className="text-xl font-bold text-white leading-none">₹{totalAmount}</p>
                     </div>
                     <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setPaymentMode(paymentMode === 'cash' ? 'upi' : 'cash')}
-                            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${paymentMode === 'cash' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'}`}
-                        >
-                            {paymentMode === 'cash' ? 'Cash' : 'UPI'}
-                        </button>
+                        {isAdvanceMode ? (
+                            <span className="rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 py-2 text-sm font-semibold text-amber-200">
+                                UPI
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setPaymentMode(paymentMode === 'cash' ? 'upi' : 'cash')}
+                                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${paymentMode === 'cash' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'}`}
+                            >
+                                {paymentMode === 'cash' ? 'Cash' : 'UPI'}
+                            </button>
+                        )}
                         <Button
                             onClick={handleSubmit}
                             loading={submitting}
                             disabled={submitting}
                             className="px-5 py-2 rounded-xl text-sm font-bold"
                         >
-                            Confirm
+                            {isAdvanceMode ? 'Create link' : 'Confirm'}
                         </Button>
                     </div>
                 </div>

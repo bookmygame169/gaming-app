@@ -243,3 +243,43 @@ export function buildBookingTicketMessage({
     `_Thanks for visiting${cafeName ? ` ${cafeName}` : ''}!_`,
   ].join('\n');
 }
+
+export function buildAdvanceBookingPaymentMessage({
+  customerName,
+  cafeName,
+  date,
+  startTime,
+  duration,
+  itemsLabel,
+  totalAmount,
+  paymentLink,
+}: {
+  customerName: string;
+  cafeName?: string | null;
+  date: string;
+  startTime: string;
+  duration: number;
+  itemsLabel: string;
+  totalAmount: number;
+  paymentLink: string;
+}): string {
+  const firstName = customerName.split(' ')[0] || 'there';
+  return [
+    ...(cafeName ? [`*${cafeName}*`, ``] : []),
+    `*Advance Booking Payment*`,
+    ``,
+    `Hey *${firstName}*,`,
+    cafeName ? `Your slot is held at *${cafeName}* until payment is verified.` : `Your gaming slot is held until payment is verified.`,
+    ``,
+    `━━━━━━━━━━━━━━━━`,
+    `*Date*     ${date}`,
+    `*Time*     ${startTime} _(${formatDurationLabel(duration, { long: true })})_`,
+    `*Console*  ${itemsLabel}`,
+    `*Amount*   Rs.${totalAmount} · UPI`,
+    `━━━━━━━━━━━━━━━━`,
+    ``,
+    `Pay here: ${paymentLink}`,
+    ``,
+    `After payment, we will verify it in Paytm Business and confirm your booking.`,
+  ].join('\n');
+}

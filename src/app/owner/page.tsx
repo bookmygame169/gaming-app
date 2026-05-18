@@ -818,15 +818,22 @@ export default function OwnerDashboardPage() {
   // Handle edit booking
   const handleBookingStatusChange = async (id: string, status: string) => {
     const trueBookingId = id.includes('-item-') ? id.split('-item-')[0] : id;
+    const targetBooking = bookings.find((b: any) => (
+      b.id === id || b.id === trueBookingId || b.originalBookingId === trueBookingId
+    )) as any;
+    const resolvedStatus = status === 'confirmed' && targetBooking
+      ? getInitialOwnerBookingStatus(targetBooking.booking_date, targetBooking.start_time)
+      : status;
+
     // Optimistic update so badge changes immediately
     setBookings(prev => prev.map((b: any) =>
-      b.id === trueBookingId || b.originalBookingId === trueBookingId ? { ...b, status } : b
+      b.id === trueBookingId || b.originalBookingId === trueBookingId ? { ...b, status: resolvedStatus } : b
     ));
     try {
       const res = await fetch('/api/owner/billing', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: trueBookingId, booking: { status } }),
+        body: JSON.stringify({ bookingId: trueBookingId, booking: { status: resolvedStatus } }),
       });
 
       if (!res.ok) {
@@ -2571,6 +2578,7 @@ export default function OwnerDashboardPage() {
                 onViewAll={() => handleTabChange('bookings')}
                 onEdit={handleEditBooking}
                 onPaymentModeChange={handlePaymentModeChange}
+                onStatusChange={handleBookingStatusChange}
               />
 
               {/* Today's Snack Orders */}

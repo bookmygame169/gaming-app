@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Card, StatusBadge, Button } from './ui';
 import { Search, ChevronLeft, ChevronRight, X, CheckCircle, ShoppingBag, CalendarX } from 'lucide-react';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
-import { buildWhatsAppUrl, buildBookingTicketMessage, formatDurationLabel } from '../utils';
+import { buildWhatsAppUrl, buildBookingTicketMessage, buildAdvanceBookingPaymentMessage, formatDurationLabel } from '../utils';
 
 interface BookingsTableProps {
     bookings: any[];
@@ -120,7 +120,22 @@ export function BookingsTable({
         const phone = booking.customer_phone || booking.user_phone;
         if (!phone) return null;
         const itemsLabel = booking.booking_items?.map((it: any) => `${it.quantity}x ${it.console?.toUpperCase()}`).join(', ') || 'Gaming Session';
-        const message = buildBookingTicketMessage({
+        const isAdvancePending = booking.source === 'advance' && (booking.status || '').toLowerCase() === 'pending';
+        const paymentLink = typeof window === 'undefined'
+            ? `/bookings/${booking.id}`
+            : `${window.location.origin}/bookings/${booking.id}`;
+        const message = isAdvancePending ? buildAdvanceBookingPaymentMessage({
+            customerName: booking.customer_name || booking.user_name || 'Customer',
+            cafeName: booking.cafe_name || null,
+            date: booking.booking_date
+                ? new Date(booking.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '',
+            startTime: booking.start_time || '',
+            duration: booking.duration || 60,
+            itemsLabel,
+            totalAmount: getBookingRevenueTotal(booking),
+            paymentLink,
+        }) : buildBookingTicketMessage({
             customerName: booking.customer_name || booking.user_name || 'Customer',
             cafeName: booking.cafe_name || null,
             date: booking.booking_date
@@ -164,6 +179,7 @@ export function BookingsTable({
                         >
                             <option value="all">All Status</option>
                             <option value="confirmed">Confirmed</option>
+                            <option value="pending">Pending</option>
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
                             <option value="in-progress">In Progress</option>
@@ -230,7 +246,8 @@ export function BookingsTable({
                             </tr>
                         ) : (
                             paginatedBookings.map((booking) => {
-                                const rowAccent = booking.status === 'completed' ? 'border-l-2 border-l-emerald-500/40' : booking.status === 'in-progress' ? 'border-l-2 border-l-blue-500/40' : booking.status === 'cancelled' ? 'border-l-2 border-l-red-500/30 opacity-60' : booking.status === 'confirmed' ? 'border-l-2 border-l-amber-500/40' : '';
+                                const normalizedStatus = (booking.status || '').toLowerCase();
+                                const rowAccent = normalizedStatus === 'completed' ? 'border-l-2 border-l-emerald-500/40' : normalizedStatus === 'in-progress' ? 'border-l-2 border-l-blue-500/40' : normalizedStatus === 'cancelled' ? 'border-l-2 border-l-red-500/30 opacity-60' : normalizedStatus === 'pending' ? 'border-l-2 border-l-amber-500/40' : normalizedStatus === 'confirmed' ? 'border-l-2 border-l-amber-500/40' : '';
                                 return (
                                 <tr key={booking.id} className={`hover:bg-white/5 transition-colors ${rowAccent} ${selectedIds?.has(booking.id) ? 'bg-indigo-500/5' : ''}`}>
                                     {selectable && (
@@ -310,7 +327,19 @@ export function BookingsTable({
                                         <td className="px-4 py-1.5 text-right">
                                             <div className="flex items-center justify-end gap-1">
 
-                                                {onStatusChange && (booking.status === 'confirmed' || booking.status === 'in-progress') && (
+                                                {onStatusChange && normalizedStatus === 'pending' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                                        onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'confirmed'); }}
+                                                        title="Confirm Payment"
+                                                    >
+                                                        Confirm
+                                                    </Button>
+                                                )}
+
+                                                {onStatusChange && (normalizedStatus === 'confirmed' || normalizedStatus === 'in-progress') && (
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
@@ -322,7 +351,7 @@ export function BookingsTable({
                                                     </Button>
                                                 )}
 
-                                                {onStatusChange && ['confirmed', 'in-progress'].includes(booking.status) && (
+                                                {onStatusChange && ['confirmed', 'in-progress', 'pending'].includes(normalizedStatus) && (
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
@@ -346,7 +375,7 @@ export function BookingsTable({
                                                     </Button>
                                                 )}
 
-                                                {onPaymentModeChange && (
+                                                {onPaymentModeChange && !(booking.source === 'advance' && normalizedStatus === 'pending') && (
                                                     <div className="flex bg-white/[0.04] rounded-lg p-0.5 border border-white/5 mr-1">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
@@ -469,7 +498,7 @@ export function BookingsTable({
                                     <div className="mt-1 space-y-1.5 border-t border-white/[0.06] pt-2">
 
                                         {/* Row 1: Cash / UPI toggle */}
-                                        {onPaymentModeChange && (
+                                        {onPaymentModeChange && !(booking.source === 'advance' && (booking.status || '').toLowerCase() === 'pending') && (
                                             <div className="flex rounded-lg border border-white/[0.08] bg-white/[0.04] p-0.5">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
@@ -488,6 +517,15 @@ export function BookingsTable({
 
                                         {/* Row 2: action buttons */}
                                         <div className="flex items-center gap-1.5">
+
+                                            {onStatusChange && (booking.status || '').toLowerCase() === 'pending' && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'confirmed'); }}
+                                                    className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                                                >
+                                                    <CheckCircle size={13} /> Confirm
+                                                </button>
+                                            )}
 
                                             {onStatusChange && (booking.status === 'confirmed' || booking.status === 'in-progress') && (
                                                 <button
@@ -529,7 +567,7 @@ export function BookingsTable({
                                                 </button>
                                             )}
 
-                                            {onStatusChange && ['confirmed', 'in-progress'].includes(booking.status) && (
+                                            {onStatusChange && ['confirmed', 'in-progress', 'pending'].includes((booking.status || '').toLowerCase()) && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'cancelled'); }}
                                                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-400 transition-colors hover:bg-red-500/20"

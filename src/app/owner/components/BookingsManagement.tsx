@@ -728,6 +728,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                     { v: 'all', l: 'All', color: '' },
                                     { v: 'in-progress', l: 'Active', color: 'blue' },
                                     { v: 'confirmed', l: 'Confirmed', color: 'amber' },
+                                    { v: 'pending', l: 'Pending', color: 'amber' },
                                     { v: 'completed', l: 'Done', color: 'emerald' },
                                     { v: 'cancelled', l: 'Cancelled', color: 'red' },
                                 ] as { v: string; l: string; color: string }[]).map(({ v, l, color }) => {

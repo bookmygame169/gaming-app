@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
 import { isSessionBooking, normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
-import { getBookingRevenueTotal, getOwnerPaymentBucket } from "@/lib/ownerRevenue";
+import { getBookingRevenueTotal, getOwnerPaymentBucket, isBillableRevenueBooking } from "@/lib/ownerRevenue";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -195,7 +195,7 @@ function buildBookingSummary(summaryRows: BookingSummaryRecord[]): BookingSummar
     if (status === "in-progress") acc.inProgress += 1;
     if (status === "confirmed" || status === "pending") acc.pending += 1;
 
-    if (status !== "cancelled") {
+    if (isBillableRevenueBooking(booking)) {
       if (paymentBucket === "cash") acc.cashTotal += amount;
       if (paymentBucket === "upi") acc.upiTotal += amount;
     }

@@ -5,7 +5,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { colors, fonts } from "@/lib/constants";
 import {
   ArrowLeft,
   Gamepad2,
@@ -41,6 +40,7 @@ type BookingRow = {
   created_at: string | null;
   duration?: number | null;
   source?: string | null;
+  payment_mode?: string | null;
 };
 
 type BookingItemRow = {
@@ -65,6 +65,13 @@ type BookingWithRelations = BookingRow & {
   items: BookingItemRow[];
   cafe: CafeRow | null;
 };
+
+const PAYTM_UPI_ID = "paytmqr6k4kf1@ptys";
+const PAYTM_UPI_NAME = "BookMyGame";
+
+function buildUpiPaymentUrl(amount: number, bookingId: string, cafeName?: string | null): string {
+  return `upi://pay?pa=${encodeURIComponent(PAYTM_UPI_ID)}&pn=${encodeURIComponent(PAYTM_UPI_NAME)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Advance booking ${bookingId.slice(0, 8).toUpperCase()}${cafeName ? ` - ${cafeName}` : ""}`)}`;
+}
 
 export default function BookingDetailsPage() {
   const params = useParams<{ bookingId: string }>();
@@ -185,6 +192,7 @@ export default function BookingDetailsPage() {
   const bookingSource = useMemo(() => {
     if (!data?.source) return "Online";
     if (data.source === "walk_in" || data.source === "walk-in") return "Walk-in";
+    if (data.source === "advance") return "Advance";
     return "Online";
   }, [data?.source]);
 
@@ -221,6 +229,10 @@ export default function BookingDetailsPage() {
   };
 
   const statusInfo = getStatusInfo(data?.status);
+  const isPaymentPending = (data?.status || "").toLowerCase() === "pending";
+  const paymentUrl = data && bookingId
+    ? buildUpiPaymentUrl(Number(data.total_amount || 0), bookingId, data.cafe?.name)
+    : "";
 
   // Handle cancel booking
   const handleCancelBooking = async () => {
@@ -545,20 +557,35 @@ export default function BookingDetailsPage() {
             <h3 className="text-xl font-bold">Payment Summary</h3>
           </div>
 
-          <div className="bg-gradient-to-r from-green-500/10 to-green-700/10 border border-green-500/20 rounded-2xl p-6">
+          <div className={`${isPaymentPending ? "bg-gradient-to-r from-yellow-500/10 to-orange-700/10 border-yellow-500/20" : "bg-gradient-to-r from-green-500/10 to-green-700/10 border-green-500/20"} border rounded-2xl p-6`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-2">
-                  Total Amount Paid
+                  {isPaymentPending ? "Amount Payable" : "Total Amount Paid"}
                 </p>
                 <p className="text-4xl font-bold">
                   ₹{data.total_amount || 0}
                 </p>
+                {isPaymentPending && (
+                  <p className="mt-3 text-sm text-yellow-200/80">
+                    Pay now using UPI. The venue will verify the payment in Paytm Business and confirm this booking.
+                  </p>
+                )}
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 bg-green-500/20 rounded-full border border-green-500/30">
-                <ShieldCheck className="w-5 h-5 text-green-400" />
-                <span className="font-semibold text-green-400">Payment Secured</span>
-              </div>
+              {isPaymentPending ? (
+                <a
+                  href={paymentUrl}
+                  className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl font-bold text-black hover:opacity-90 transition"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  Pay Now
+                </a>
+              ) : (
+                <div className="flex items-center gap-3 px-6 py-3 bg-green-500/20 rounded-full border border-green-500/30">
+                  <ShieldCheck className="w-5 h-5 text-green-400" />
+                  <span className="font-semibold text-green-400">Payment Secured</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

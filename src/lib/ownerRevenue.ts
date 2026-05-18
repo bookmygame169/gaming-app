@@ -75,9 +75,11 @@ export function isOwnerUseRevenueBooking(booking: OwnerBookingRevenueLike): bool
 }
 
 export function isBillableRevenueBooking(booking: OwnerBookingRevenueLike): boolean {
+  const status = (booking.status || "").toLowerCase().trim();
   return (
     !booking.deleted_at &&
-    (booking.status || "").toLowerCase().trim() !== "cancelled" &&
+    status !== "cancelled" &&
+    status !== "pending" &&
     !isOwnerUseRevenueBooking(booking)
   );
 }
