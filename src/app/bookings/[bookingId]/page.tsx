@@ -26,8 +26,11 @@ import {
   History,
   Sparkles,
   ShieldCheck,
-  Share2
+  Share2,
+  Smartphone,
+  QrCode
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 type BookingRow = {
   id: string;
@@ -69,8 +72,58 @@ type BookingWithRelations = BookingRow & {
 const PAYTM_UPI_ID = "paytmqr6k4kf1@ptys";
 const PAYTM_UPI_NAME = "BookMyGame";
 
+function buildUpiQuery(amount: number, bookingId: string, cafeName?: string | null): string {
+  const params = new URLSearchParams({
+    pa: PAYTM_UPI_ID,
+    pn: PAYTM_UPI_NAME,
+    am: amount.toFixed(2),
+    cu: "INR",
+    tn: `Advance booking ${bookingId.slice(0, 8).toUpperCase()}${cafeName ? ` - ${cafeName}` : ""}`,
+  });
+
+  return params.toString();
+}
+
 function buildUpiPaymentUrl(amount: number, bookingId: string, cafeName?: string | null): string {
-  return `upi://pay?pa=${encodeURIComponent(PAYTM_UPI_ID)}&pn=${encodeURIComponent(PAYTM_UPI_NAME)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Advance booking ${bookingId.slice(0, 8).toUpperCase()}${cafeName ? ` - ${cafeName}` : ""}`)}`;
+  return `upi://pay?${buildUpiQuery(amount, bookingId, cafeName)}`;
+}
+
+function buildAndroidUpiChooserUrl(amount: number, bookingId: string, cafeName?: string | null): string {
+  const query = buildUpiQuery(amount, bookingId, cafeName);
+  const fallback = buildUpiPaymentUrl(amount, bookingId, cafeName);
+
+  return `intent://pay?${query}#Intent;scheme=upi;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
+}
+
+function buildUpiAppOptions(amount: number, bookingId: string, cafeName?: string | null) {
+  const query = buildUpiQuery(amount, bookingId, cafeName);
+
+  return [
+    {
+      label: "Paytm",
+      helper: "Open Paytm",
+      href: `paytmmp://pay?${query}`,
+      className: "from-sky-500 to-cyan-500 text-white",
+    },
+    {
+      label: "Google Pay",
+      helper: "Open GPay",
+      href: `tez://upi/pay?${query}`,
+      className: "from-blue-500 to-emerald-500 text-white",
+    },
+    {
+      label: "PhonePe",
+      helper: "Open PhonePe",
+      href: `phonepe://pay?${query}`,
+      className: "from-violet-500 to-purple-700 text-white",
+    },
+    {
+      label: "BHIM",
+      helper: "Open BHIM",
+      href: `bhim://upi/pay?${query}`,
+      className: "from-orange-500 to-rose-600 text-white",
+    },
+  ];
 }
 
 export default function BookingDetailsPage() {
@@ -233,6 +286,12 @@ export default function BookingDetailsPage() {
   const paymentUrl = data && bookingId
     ? buildUpiPaymentUrl(Number(data.total_amount || 0), bookingId, data.cafe?.name)
     : "";
+  const androidUpiChooserUrl = data && bookingId
+    ? buildAndroidUpiChooserUrl(Number(data.total_amount || 0), bookingId, data.cafe?.name)
+    : "";
+  const upiAppOptions = data && bookingId
+    ? buildUpiAppOptions(Number(data.total_amount || 0), bookingId, data.cafe?.name)
+    : [];
 
   // Handle cancel booking
   const handleCancelBooking = async () => {
@@ -574,11 +633,11 @@ export default function BookingDetailsPage() {
               </div>
               {isPaymentPending ? (
                 <a
-                  href={paymentUrl}
+                  href={androidUpiChooserUrl || paymentUrl}
                   className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl font-bold text-black hover:opacity-90 transition"
                 >
-                  <CreditCard className="w-5 h-5" />
-                  Pay Now
+                  <Smartphone className="w-5 h-5" />
+                  Choose UPI App
                 </a>
               ) : (
                 <div className="flex items-center gap-3 px-6 py-3 bg-green-500/20 rounded-full border border-green-500/30">
@@ -587,6 +646,50 @@ export default function BookingDetailsPage() {
                 </div>
               )}
             </div>
+
+            {isPaymentPending && (
+              <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto]">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-yellow-200/70">
+                    Pay with any UPI app
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {upiAppOptions.map((option) => (
+                      <a
+                        key={option.label}
+                        href={option.href}
+                        className={`rounded-2xl bg-gradient-to-br px-4 py-3 text-center font-bold shadow-lg transition hover:-translate-y-0.5 hover:opacity-90 ${option.className}`}
+                      >
+                        <span className="block text-sm">{option.label}</span>
+                        <span className="mt-1 block text-[11px] font-semibold opacity-80">{option.helper}</span>
+                      </a>
+                    ))}
+                  </div>
+                  <a
+                    href={paymentUrl}
+                    className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-100 transition hover:bg-yellow-500/20"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Other UPI apps
+                  </a>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4 text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-yellow-200">
+                    <QrCode className="h-5 w-5" />
+                  </div>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+                    Scan QR
+                  </p>
+                  <div className="mt-3 rounded-2xl bg-white p-3">
+                    <QRCodeSVG value={paymentUrl} size={132} level="M" includeMargin />
+                  </div>
+                  <p className="mt-3 max-w-[160px] text-xs text-gray-400">
+                    Scan with any UPI app if buttons do not open.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
