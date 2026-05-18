@@ -92,11 +92,6 @@ type BookingItemRecord = {
   title?: string | null;
 };
 
-type BulkCustomerPayload = {
-  name?: string | null;
-  phone?: string | null;
-};
-
 function normaliseConsoleForStations(raw: string | null | undefined): string {
   const normalized = (raw || "")
     .trim()
@@ -116,22 +111,6 @@ function normalizeBookingItemPayload(raw: Partial<BookingItemPayload>, fallback?
     title: raw.title ?? fallback?.title ?? null,
     duration: raw.duration == null ? undefined : toPositiveDbInteger(raw.duration, 60),
   };
-}
-
-function normalizeBulkCustomerPayload(raw: BulkCustomerPayload): { name: string; phone: string | null } {
-  return {
-    name: String(raw.name || "").trim(),
-    phone: raw.phone ? String(raw.phone).trim() : null,
-  };
-}
-
-function splitDbIntegerAmount(totalAmount: number, count: number): number[] {
-  if (count <= 0) return [];
-  const safeTotal = toDbInteger(totalAmount, 0);
-  const base = Math.floor(safeTotal / count);
-  const remainder = safeTotal - base * count;
-
-  return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
 }
 
 function getRequestedStationsForItem(item: BookingItemPayload): string[] {
@@ -464,7 +443,7 @@ export async function POST(request: NextRequest) {
 
   const { ownerId, supabase } = auth.context;
   const body = await request.json();
-  const { booking, items, bulk_customers: bulkCustomersInput, final_total_amount: finalTotalAmount } = body;
+  const { booking, items } = body;
 
   if (!booking?.cafe_id) {
     return NextResponse.json({ error: "booking.cafe_id is required" }, { status: 400 });
@@ -483,29 +462,13 @@ export async function POST(request: NextRequest) {
     return accessResponse;
   }
 
-  const baseItems: BookingItemPayload[] = Array.isArray(items)
+  let resolvedItems: BookingItemPayload[] = Array.isArray(items)
     ? items.map((item: Partial<BookingItemPayload>) => normalizeBookingItemPayload(item))
     : [];
-  const requestedDuration = deriveBookingDuration(baseItems, booking.duration);
-  const bulkCustomers = Array.isArray(bulkCustomersInput)
-    ? bulkCustomersInput
-        .map((customer: BulkCustomerPayload) => normalizeBulkCustomerPayload(customer))
-        .filter((customer) => customer.name || customer.phone)
-    : [];
+  const requestedDuration = deriveBookingDuration(resolvedItems, booking.duration);
 
-  for (const customer of bulkCustomers) {
-    if (!customer.name) {
-      return NextResponse.json({ error: "Each bulk customer must include a name" }, { status: 400 });
-    }
-    if (customer.phone && !validatePhone(customer.phone)) {
-      return NextResponse.json({ error: `Invalid phone number for ${customer.name}` }, { status: 400 });
-    }
-  }
-
-  async function createBookingForCustomer(customer: { name?: string; phone?: string | null } | null, amount: number) {
-    let resolvedItems: BookingItemPayload[] = baseItems;
-
-    if (baseItems.length > 0) {
+  if (resolvedItems.length > 0) {
+    try {
       const reservationState = await loadStationReservationState(
         supabase,
         booking.cafe_id,
@@ -514,7 +477,7 @@ export async function POST(request: NextRequest) {
         requestedDuration
       );
 
-      resolvedItems = baseItems.map((item) => {
+      resolvedItems = resolvedItems.map((item) => {
         const duration = getItemDurationFromPayload(item);
         const requestedStations = parseAssignedStationsFromTitle(item.title);
         const assignedStations = reserveStations(
@@ -529,84 +492,49 @@ export async function POST(request: NextRequest) {
           title: encodeAssignedStationsTitle(duration, assignedStations),
         };
       });
-    }
-
-    const resolvedBooking = {
-      ...booking,
-      customer_name: customer?.name ?? booking.customer_name,
-      customer_phone: customer ? customer.phone : booking.customer_phone,
-      total_amount: toDbInteger(amount, 0),
-      duration: toPositiveDbInteger(requestedDuration, 60),
-      status: booking.status === "in-progress" || booking.status === "confirmed"
-        ? getInitialOwnerBookingStatus(booking.booking_date, booking.start_time)
-        : booking.status,
-    };
-
-    const { data: newBooking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert(resolvedBooking)
-      .select()
-      .single();
-
-    if (bookingError) throw bookingError;
-
-    if (resolvedItems.length > 0) {
-      const itemsToInsert = resolvedItems.map((item: BookingItemPayload) => ({
-        booking_id: newBooking.id,
-        console: item.console,
-        quantity: item.quantity,
-        price: toDbInteger(item.price, 0),
-        title: normalizeBookingItemTitle(item),
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('booking_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) {
-        await supabase.from('bookings').delete().eq('id', newBooking.id);
-        throw itemsError;
-      }
-    }
-
-    return newBooking.id as string;
-  }
-
-  if (bulkCustomers.length > 0) {
-    const totalBulkAmount = toDbInteger(finalTotalAmount ?? Number(booking.total_amount || 0) * bulkCustomers.length, 0);
-    const bookingAmounts = splitDbIntegerAmount(totalBulkAmount, bulkCustomers.length);
-    const createdBookingIds: string[] = [];
-
-    try {
-      for (let index = 0; index < bulkCustomers.length; index += 1) {
-        const bookingId = await createBookingForCustomer(bulkCustomers[index], bookingAmounts[index]);
-        createdBookingIds.push(bookingId);
-      }
     } catch (err: unknown) {
-      if (createdBookingIds.length > 0) {
-        await supabase.from('booking_items').delete().in('booking_id', createdBookingIds);
-        await supabase.from('bookings').delete().in('id', createdBookingIds);
-      }
-      const message = err instanceof Error ? err.message : "Failed to create bulk bookings";
-      const status = /occupied|available|configured|station/i.test(message) ? 409 : 500;
-      return NextResponse.json({ error: message }, { status });
+      const message = err instanceof Error ? err.message : "Failed to assign stations";
+      return NextResponse.json({ error: message }, { status: 409 });
     }
-
-    return NextResponse.json({
-      success: true,
-      bookingId: createdBookingIds[0] || null,
-      bookingIds: createdBookingIds,
-      createdCount: createdBookingIds.length,
-      totalAmount: totalBulkAmount,
-    });
   }
 
-  try {
-    const bookingId = await createBookingForCustomer(null, booking.total_amount);
-    return NextResponse.json({ success: true, bookingId });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to create booking";
-    const status = /occupied|available|configured|station/i.test(message) ? 409 : 500;
-    return NextResponse.json({ error: message }, { status });
+  const resolvedDuration = requestedDuration;
+
+  const resolvedBooking = {
+    ...booking,
+    total_amount: toDbInteger(booking.total_amount, 0),
+    duration: toPositiveDbInteger(resolvedDuration, 60),
+    status: booking.status === "in-progress" || booking.status === "confirmed"
+      ? getInitialOwnerBookingStatus(booking.booking_date, booking.start_time)
+      : booking.status,
+  };
+
+  const { data: newBooking, error: bookingError } = await supabase
+    .from('bookings')
+    .insert(resolvedBooking)
+    .select()
+    .single();
+
+  if (bookingError) return NextResponse.json({ error: bookingError.message }, { status: 500 });
+
+  if (resolvedItems.length > 0) {
+    const itemsToInsert = resolvedItems.map((item: BookingItemPayload) => ({
+      booking_id: newBooking.id,
+      console: item.console,
+      quantity: item.quantity,
+      price: toDbInteger(item.price, 0),
+      title: normalizeBookingItemTitle(item),
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('booking_items')
+      .insert(itemsToInsert);
+
+    if (itemsError) {
+      await supabase.from('bookings').delete().eq('id', newBooking.id);
+      return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    }
   }
+
+  return NextResponse.json({ success: true, bookingId: newBooking.id });
 }
