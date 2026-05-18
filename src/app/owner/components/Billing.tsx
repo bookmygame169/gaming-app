@@ -7,7 +7,7 @@ import { getInitialOwnerBookingStatus } from '@/lib/bookingFilters';
 import { dedupeStationPricingRows, normaliseStationName } from '@/lib/stationNames';
 import { Card, Button } from './ui';
 import {
-    User, Smartphone, Clock, Plus, Trash2, X,
+    User, Users, Smartphone, Clock, Plus, Trash2, X,
     CreditCard, Banknote, CheckCircle, Star,
     Store, CalendarDays, IndianRupee, Gamepad2, ExternalLink
 } from 'lucide-react';
@@ -53,6 +53,12 @@ type CustomerSuggestion = {
     visits?: number;
     total_spent?: number;
     last_visit?: string;
+};
+
+type BulkCustomer = {
+    id: string;
+    name: string;
+    phone: string;
 };
 
 type StationPricingRecord = {
@@ -128,6 +134,23 @@ function getBookingPaymentLink(bookingId: string): string {
     return `${window.location.origin}/bookings/${bookingId}`;
 }
 
+function createBulkCustomer(name = '', phone = ''): BulkCustomer {
+    return {
+        id: Math.random().toString(36).slice(2, 11),
+        name,
+        phone,
+    };
+}
+
+function splitWholeRupees(totalAmount: number, count: number): number[] {
+    if (count <= 0) return [];
+    const safeTotal = toWholeRupees(totalAmount);
+    const base = Math.floor(safeTotal / count);
+    const remainder = safeTotal - base * count;
+
+    return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
+}
+
 function buildAdvancePaymentMessage({
     customerName,
     cafeName,
@@ -179,8 +202,8 @@ export function Billing({
     stationPricingList,
     membershipPlans = [],
 }: BillingProps) {
-    // Mode: walk-in gaming, advance payment-link booking, or membership checkout.
-    const [mode, setMode] = useState<'gaming' | 'advance' | 'membership'>('gaming');
+    // Mode: walk-in gaming, bulk group checkout, advance payment-link booking, or membership checkout.
+    const [mode, setMode] = useState<'gaming' | 'bulk' | 'advance' | 'membership'>('gaming');
 
     // Membership cart state
     type MemItem = { id: string; planId: string; quantity: number };
@@ -193,6 +216,7 @@ export function Billing({
     // Shared customer state
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
+    const [bulkCustomers, setBulkCustomers] = useState<BulkCustomer[]>([]);
     const [bookingDate, setBookingDate] = useState(getLocalDateString());
     const [startTime, setStartTime] = useState(() => getCurrentIndiaTimeInput());
     const [items, setItems] = useState<BillingItem[]>([]);
@@ -206,7 +230,7 @@ export function Billing({
         name: string; phone: string; date: string; time: string;
         duration: number; itemsLabel: string; amount: number;
         paymentMode: string; cafeName: string; kind: 'walk-in' | 'advance';
-        bookingId?: string; paymentLink?: string;
+        bookingId?: string; paymentLink?: string; groupCount?: number; bookingIds?: string[];
     };
     const [lastBooking, setLastBooking] = useState<LastBooking | null>(null);
     const [autoResetSecs, setAutoResetSecs] = useState<number | null>(null);
@@ -372,6 +396,14 @@ export function Billing({
         if (mode === 'advance') setPaymentMode('upi');
     }, [mode]);
 
+    useEffect(() => {
+        if (mode !== 'bulk' || bulkCustomers.length > 0) return;
+        setBulkCustomers([
+            createBulkCustomer(customerName, customerPhone),
+            createBulkCustomer(),
+        ]);
+    }, [bulkCustomers.length, customerName, customerPhone, mode]);
+
     // Fetch recent customers for quick-pick
     useEffect(() => {
         if (!cafeId) return;
@@ -424,15 +456,23 @@ export function Billing({
         setItems(items.filter(i => i.id !== id));
     };
 
+    const isBulkMode = mode === 'bulk';
+    const isAdvanceMode = mode === 'advance';
+    const isGamingFlow = mode === 'gaming' || mode === 'bulk' || mode === 'advance';
+    const activeBulkCustomers = bulkCustomers
+        .map((customer) => ({ name: customer.name.trim(), phone: customer.phone.trim() }))
+        .filter((customer) => customer.name || customer.phone);
+    const bulkCustomerCount = isBulkMode ? activeBulkCustomers.length : 1;
     const calculatedTotal = items.reduce((sum, i) => sum + i.price, 0);
-    const totalAmount = manualAmount !== null ? manualAmount : calculatedTotal;
-    const previousCalculatedTotalRef = useRef(calculatedTotal);
+    const calculatedCheckoutTotal = isBulkMode ? calculatedTotal * Math.max(1, bulkCustomerCount) : calculatedTotal;
+    const totalAmount = manualAmount !== null ? manualAmount : calculatedCheckoutTotal;
+    const previousCalculatedTotalRef = useRef(calculatedCheckoutTotal);
 
     useEffect(() => {
-        if (previousCalculatedTotalRef.current === calculatedTotal) return;
-        previousCalculatedTotalRef.current = calculatedTotal;
+        if (previousCalculatedTotalRef.current === calculatedCheckoutTotal) return;
+        previousCalculatedTotalRef.current = calculatedCheckoutTotal;
         setManualAmount(null);
-    }, [calculatedTotal]);
+    }, [calculatedCheckoutTotal]);
 
     // Reset manual amount when items change (recalculate)
     const resetManualAmount = () => setManualAmount(null);
@@ -450,11 +490,35 @@ export function Billing({
         setSuggestionField(null);
     };
 
+    const updateBulkCustomer = (id: string, field: keyof Omit<BulkCustomer, 'id'>, value: string) => {
+        setBulkCustomers((current) =>
+            current.map((customer) =>
+                customer.id === id ? { ...customer, [field]: value } : customer
+            )
+        );
+    };
+
+    const addBulkCustomer = () => {
+        setBulkCustomers((current) => [...current, createBulkCustomer()]);
+    };
+
+    const removeBulkCustomer = (id: string) => {
+        setBulkCustomers((current) =>
+            current.length <= 1 ? current : current.filter((customer) => customer.id !== id)
+        );
+    };
+
     const modeIntro = mode === 'gaming'
         ? {
             eyebrow: 'Counter Billing',
             title: 'Quick walk-in booking',
             description: 'Build the session, collect payment, and confirm the booking from one counter screen.',
+        }
+        : mode === 'bulk'
+        ? {
+            eyebrow: 'Bulk Billing',
+            title: 'Fast group booking',
+            description: 'Add every group member once, reuse the same session setup, and create all bookings together.',
         }
         : mode === 'advance'
         ? {
@@ -470,8 +534,18 @@ export function Billing({
 
     const handleSubmit = async () => {
         const isAdvanceBooking = mode === 'advance';
-        if (!customerName || !startTime || items.length === 0) {
+        const isBulkBooking = mode === 'bulk';
+        const bulkCustomersForSubmit = activeBulkCustomers;
+        if ((!isBulkBooking && !customerName) || !startTime || items.length === 0) {
             setFormError('Please fill all required fields and add at least one console.');
+            return;
+        }
+        if (isBulkBooking && bulkCustomersForSubmit.length === 0) {
+            setFormError('Please add at least one group member.');
+            return;
+        }
+        if (isBulkBooking && bulkCustomersForSubmit.some((customer) => !customer.name)) {
+            setFormError('Every group member needs a name. Phone number can stay blank.');
             return;
         }
         if (isAdvanceBooking && !customerPhone.trim()) {
@@ -494,6 +568,9 @@ export function Billing({
             const startTime12h = `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
             const bookingDuration = items.reduce((max, item) => Math.max(max, item.duration || 60), 0) || 60;
             const effectivePaymentMode = isAdvanceBooking ? 'upi' : paymentMode;
+            const bookingAmounts = isBulkBooking
+                ? splitWholeRupees(totalAmount, bulkCustomersForSubmit.length)
+                : [totalAmount];
 
             const res = await fetch('/api/owner/billing', {
                 method: 'POST',
@@ -502,16 +579,18 @@ export function Billing({
                 body: JSON.stringify({
                     booking: {
                         cafe_id: cafeId,
-                        customer_name: customerName,
-                        customer_phone: customerPhone || null,
+                        customer_name: isBulkBooking ? bulkCustomersForSubmit[0]?.name : customerName,
+                        customer_phone: isBulkBooking ? bulkCustomersForSubmit[0]?.phone || null : customerPhone || null,
                         booking_date: bookingDate,
                         start_time: startTime12h,
                         duration: bookingDuration,
-                        total_amount: totalAmount,
+                        total_amount: bookingAmounts[0] ?? totalAmount,
                         status: isAdvanceBooking ? 'pending' : getInitialOwnerBookingStatus(bookingDate, startTime12h),
                         source: isAdvanceBooking ? 'advance' : 'walk-in',
                         payment_mode: effectivePaymentMode,
                     },
+                    bulk_customers: isBulkBooking ? bulkCustomersForSubmit : undefined,
+                    final_total_amount: isBulkBooking ? totalAmount : undefined,
                     items: items.map(it => ({
                         console: it.console,
                         quantity: it.quantity,
@@ -526,9 +605,10 @@ export function Billing({
             const cafeName = cafes.find(c => c.id === cafeId)?.name || '';
             const itemsLabel = items.map(it => `${it.quantity}x ${it.console.toUpperCase()}`).join(', ');
             const paymentLink = result.bookingId ? getBookingPaymentLink(result.bookingId) : undefined;
+            const createdCount = Number(result.createdCount || (isBulkBooking ? bulkCustomersForSubmit.length : 1));
             setLastBooking({
-                name: customerName,
-                phone: customerPhone,
+                name: isBulkBooking ? `${createdCount} group members` : customerName,
+                phone: isBulkBooking ? '' : customerPhone,
                 date: bookingDate,
                 time: startTime12h,
                 duration: bookingDuration,
@@ -539,9 +619,14 @@ export function Billing({
                 kind: isAdvanceBooking ? 'advance' : 'walk-in',
                 bookingId: result.bookingId,
                 paymentLink,
+                groupCount: isBulkBooking ? createdCount : undefined,
+                bookingIds: Array.isArray(result.bookingIds) ? result.bookingIds : undefined,
             });
             setCustomerName('');
             setCustomerPhone('');
+            if (isBulkBooking) {
+                setBulkCustomers([createBulkCustomer(), createBulkCustomer()]);
+            }
             setItems([]);
             setManualAmount(null);
             setPaymentMode(isAdvanceBooking ? 'upi' : 'cash');
@@ -663,10 +748,10 @@ export function Billing({
         );
     };
 
-    const isGamingFlow = mode === 'gaming' || mode === 'advance';
-    const isAdvanceMode = mode === 'advance';
     const customerCardTitle = isAdvanceMode
         ? 'Advance customer'
+        : isBulkMode
+        ? 'Group members'
         : mode === 'membership'
         ? 'Member details'
         : 'Walk-in details';
@@ -684,7 +769,7 @@ export function Billing({
                     </div>
                 </div>
 
-                {matchedCustomer && (
+                {!isBulkMode && matchedCustomer && (
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="chip border-transparent bg-cyan-500/12 text-cyan-200">Returning guest</span>
                         {typeof matchedCustomer.visits === 'number' && (
@@ -701,6 +786,60 @@ export function Billing({
                 )}
             </div>
 
+            {isBulkMode ? (
+                <div className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="text-[10px] smallcaps text-[var(--dim)]">Group members</div>
+                            <p className="text-sm text-slate-400">
+                                Each member gets a separate booking with the same console setup and time.
+                            </p>
+                        </div>
+                        <Button size="sm" variant="secondary" onClick={addBulkCustomer}>
+                            <Plus size={14} /> Add Member
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                        {bulkCustomers.map((member, index) => (
+                            <div key={member.id} className={`${CONTROL_SURFACE_CLASS} grid gap-3 p-3 md:grid-cols-[44px_minmax(0,1fr)_minmax(0,1fr)_36px] md:items-center`}>
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/12 text-sm font-bold text-cyan-200">
+                                    {index + 1}
+                                </div>
+                                <label className="min-w-0">
+                                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">Name</span>
+                                    <input
+                                        value={member.name}
+                                        onChange={(event) => updateBulkCustomer(member.id, 'name', event.target.value)}
+                                        placeholder="Customer name"
+                                        maxLength={100}
+                                        className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-sm text-white placeholder:text-[#4b5060] focus:border-cyan-400/40 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="min-w-0">
+                                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">Phone optional</span>
+                                    <input
+                                        value={member.phone}
+                                        onChange={(event) => updateBulkCustomer(member.id, 'phone', event.target.value)}
+                                        placeholder="98765 43210"
+                                        maxLength={15}
+                                        className="mono w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-sm text-white placeholder:text-[#4b5060] focus:border-cyan-400/40 focus:outline-none"
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => removeBulkCustomer(member.id)}
+                                    disabled={bulkCustomers.length <= 1}
+                                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] text-slate-500 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-400/30 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-30"
+                                    aria-label={`Remove member ${index + 1}`}
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
             <div className="grid gap-4 md:grid-cols-2 items-start">
                 <div>
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
@@ -748,6 +887,7 @@ export function Billing({
                     </div>
                 </div>
             </div>
+            )}
 
         </Card>
     );
@@ -781,6 +921,13 @@ export function Billing({
                             </button>
                             <button
                                 type="button"
+                                onClick={() => setMode('bulk')}
+                                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'bulk' ? 'bg-emerald-500/15 text-white shadow-[0_0_24px_-10px_rgba(16,185,129,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Bulk
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => setMode('advance')}
                                 className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'advance' ? 'bg-amber-500/15 text-white shadow-[0_0_24px_-10px_rgba(245,158,11,0.75)]' : 'text-slate-400 hover:text-white'}`}
                             >
@@ -807,7 +954,11 @@ export function Billing({
                             </div>
                             <div>
                                 <p className="text-lg font-semibold text-white">
-                                    {lastBooking.kind === 'advance' ? 'Payment link ready' : 'Booking confirmed'}
+                                    {lastBooking.kind === 'advance'
+                                        ? 'Payment link ready'
+                                        : lastBooking.groupCount
+                                        ? 'Bulk bookings confirmed'
+                                        : 'Booking confirmed'}
                                 </p>
                                 <p className={`text-sm ${lastBooking.kind === 'advance' ? 'text-amber-300/80' : 'text-emerald-300/80'}`}>{lastBooking.name}</p>
                             </div>
@@ -819,6 +970,7 @@ export function Billing({
                             lastBooking.cafeName ? { icon: <Store size={13} className="text-slate-500" />, label: 'Cafe', value: lastBooking.cafeName, highlight: false } : null,
                             { icon: <CalendarDays size={13} className="text-slate-500" />, label: 'Date', value: lastBooking.date, highlight: false },
                             { icon: <Clock size={13} className="text-slate-500" />, label: 'Time', value: `${lastBooking.time} (${formatDurationLabel(lastBooking.duration, { long: true })})`, highlight: false },
+                            lastBooking.groupCount ? { icon: <Users size={13} className="text-slate-500" />, label: 'Group', value: `${lastBooking.groupCount} bookings created`, highlight: false } : null,
                             { icon: <Gamepad2 size={13} className="text-slate-500" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
                             { icon: <IndianRupee size={13} className={lastBooking.kind === 'advance' ? 'text-amber-400' : 'text-emerald-400'} />, label: lastBooking.kind === 'advance' ? 'Amount due' : 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
                         ] as const).filter(Boolean).map((row, index, rows) => (
@@ -1148,7 +1300,9 @@ export function Billing({
                                         <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-white">Rs.{totalAmount}</div>
                                         <p className="mt-2 text-sm text-cyan-100/70">
                                             {items.length > 0
-                                                ? isAdvanceMode
+                                                ? isBulkMode
+                                                    ? `${activeBulkCustomers.length || 0} member${activeBulkCustomers.length === 1 ? '' : 's'} · ${items.length} session line${items.length === 1 ? '' : 's'}`
+                                                    : isAdvanceMode
                                                     ? `${items.length} booking line${items.length === 1 ? '' : 's'} ready for payment link`
                                                     : `${items.length} booking line${items.length === 1 ? '' : 's'} ready for checkout`
                                                 : 'Add a setup to begin billing'}
@@ -1161,7 +1315,10 @@ export function Billing({
                                 <div className="mt-4 grid grid-cols-2 gap-3">
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Calculated</div>
-                                        <div className="mono mt-2 text-lg font-semibold text-white">Rs.{calculatedTotal}</div>
+                                        <div className="mono mt-2 text-lg font-semibold text-white">Rs.{calculatedCheckoutTotal}</div>
+                                        {isBulkMode && activeBulkCustomers.length > 0 && (
+                                            <div className="mt-1 text-[11px] text-[var(--muted)]">Rs.{calculatedTotal} each</div>
+                                        )}
                                     </div>
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Payment mode</div>
@@ -1238,26 +1395,26 @@ export function Billing({
 
                             <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between gap-3">
-                                    <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
-                                    <span className="mono rounded-full bg-white/[0.04] px-3 py-1 text-xs text-slate-300">Calc Rs.{calculatedTotal}</span>
+                                    <div className="text-[10px] smallcaps text-[var(--dim)]">{isBulkMode ? 'Final group amount' : 'Final amount'}</div>
+                                    <span className="mono rounded-full bg-white/[0.04] px-3 py-1 text-xs text-slate-300">Calc Rs.{calculatedCheckoutTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
-                                    <span className="text-sm text-[var(--muted)]">Charge customer</span>
+                                    <span className="text-sm text-[var(--muted)]">{isBulkMode ? 'Charge group' : 'Charge customer'}</span>
                                     <div className="flex items-center gap-2">
                                         <span className="mono text-sm text-white">Rs.</span>
                                         <input
                                             type="number"
-                                            value={manualAmount !== null ? manualAmount : calculatedTotal}
+                                            value={manualAmount !== null ? manualAmount : calculatedCheckoutTotal}
                                             onChange={(event) => {
                                                 const value = parseFloat(event.target.value) || 0;
-                                                setManualAmount(value === calculatedTotal ? null : value);
+                                                setManualAmount(value === calculatedCheckoutTotal ? null : value);
                                             }}
                                             min={0}
                                             className="mono w-32 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right text-lg font-semibold text-white focus:border-cyan-400/40 focus:outline-none"
                                         />
                                     </div>
                                 </div>
-                                {manualAmount !== null && manualAmount !== calculatedTotal && (
+                                {manualAmount !== null && manualAmount !== calculatedCheckoutTotal && (
                                     <div className="mt-3 flex items-center justify-between text-xs">
                                         <span className="text-amber-300">Manual override applied</span>
                                         <button type="button" onClick={resetManualAmount} className="text-slate-400 underline transition hover:text-white">
@@ -1338,7 +1495,7 @@ export function Billing({
                                 loading={submitting}
                                 disabled={submitting || items.length === 0}
                             >
-                                {submitting ? 'Creating...' : isAdvanceMode ? 'Create Payment Link' : 'Confirm Booking'}
+                                {submitting ? 'Creating...' : isBulkMode ? 'Create Bulk Bookings' : isAdvanceMode ? 'Create Payment Link' : 'Confirm Booking'}
                             </Button>
                         </Card>
                     </div>
