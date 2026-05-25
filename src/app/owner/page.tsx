@@ -6,7 +6,7 @@
 // are used for flexibility. These can be refactored incrementally with proper typing.
 
 import { useEffect, useState } from "react";
-import { AlarmClock, ShoppingBag, BarChart3, ChevronRight, Clock3, Loader2, Minus, Plus, X } from 'lucide-react';
+import { AlarmClock, ShoppingBag, BarChart3, ChevronRight, Clock3, Loader2, X } from 'lucide-react';
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -3060,149 +3060,131 @@ export default function OwnerDashboardPage() {
       />
 
       {/* Quick Time Adjustment Modal */}
-      {timeAdjustment && (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-4"
-          onClick={() => {
-            if (!savingTimeAdjustment) setTimeAdjustment(null);
-          }}
-        >
+      {timeAdjustment && (() => {
+        const diffMinutes = timeAdjustment.nextDuration - timeAdjustment.currentDuration;
+        const hasChange = diffMinutes !== 0;
+        const diffLabel = !hasChange
+          ? 'No change yet'
+          : `${diffMinutes > 0 ? 'Extends by' : 'Reduces by'} ${formatDurationLabel(Math.abs(diffMinutes), { long: true })}`;
+        const diffTone = diffMinutes > 0 ? 'text-cyan-200' : diffMinutes < 0 ? 'text-rose-200' : 'text-slate-400';
+        const adjustDuration = (delta: number) => {
+          setTimeAdjustment((prev) => prev ? {
+            ...prev,
+            nextDuration: Math.max(30, prev.nextDuration + delta),
+          } : prev);
+        };
+
+        return (
           <div
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-[#090d14] shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-4"
+            onClick={() => {
+              if (!savingTimeAdjustment) setTimeAdjustment(null);
+            }}
           >
-            <div className="flex items-center justify-between border-b border-slate-800 bg-[#0f1520] px-5 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300">
-                  <Clock3 size={18} />
-                </div>
+            <div
+              className="w-full max-w-sm overflow-hidden rounded-[26px] border border-white/[0.08] bg-[#090d14] shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
                 <div className="min-w-0">
-                  <h2 className="text-base font-bold text-white">Adjust Time</h2>
-                  <p className="truncate text-xs text-slate-500">
-                    {timeAdjustment.stationName} · {timeAdjustment.customerName}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={savingTimeAdjustment}
-                onClick={() => setTimeAdjustment(null)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-slate-400 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Close time adjustment"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-5 p-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-800 bg-[#111827] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-                    Current
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-white">
-                    {formatDurationLabel(timeAdjustment.currentDuration, { long: true })}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-300/70">
-                    New
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-cyan-200">
-                    {formatDurationLabel(timeAdjustment.nextDuration, { long: true })}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  Add Time
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[30, 60].map((minutes) => (
-                    <button
-                      key={`add-${minutes}`}
-                      type="button"
-                      disabled={savingTimeAdjustment}
-                      onClick={() => setTimeAdjustment((prev) => prev ? {
-                        ...prev,
-                        nextDuration: prev.nextDuration + minutes,
-                      } : prev)}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-cyan-500/25 bg-cyan-500/10 text-sm font-semibold text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Plus size={14} />
-                      {formatDurationLabel(minutes)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  Remove Time
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[30, 60].map((minutes) => (
-                    <button
-                      key={`remove-${minutes}`}
-                      type="button"
-                      disabled={savingTimeAdjustment || timeAdjustment.nextDuration <= 30}
-                      onClick={() => setTimeAdjustment((prev) => prev ? {
-                        ...prev,
-                        nextDuration: Math.max(30, prev.nextDuration - minutes),
-                      } : prev)}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-500/25 bg-rose-500/10 text-sm font-semibold text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <Minus size={14} />
-                      {formatDurationLabel(minutes)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {(() => {
-                const diffMinutes = timeAdjustment.nextDuration - timeAdjustment.currentDuration;
-                const diffLabel = diffMinutes === 0
-                  ? 'No change'
-                  : `${diffMinutes > 0 ? '+' : '-'}${formatDurationLabel(Math.abs(diffMinutes), { long: true })}`;
-
-                return (
-                  <div className="rounded-xl border border-slate-800 bg-[#111827] px-3 py-2 text-sm text-slate-400">
-                    Difference:{' '}
-                    <span className={diffMinutes > 0 ? 'font-semibold text-cyan-300' : diffMinutes < 0 ? 'font-semibold text-rose-300' : 'font-semibold text-slate-300'}>
-                      {diffLabel}
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                      <Clock3 size={17} />
                     </span>
+                    <div className="min-w-0">
+                      <h2 className="text-base font-bold text-white">Add or remove time</h2>
+                      <p className="truncate text-xs text-slate-500">
+                        {timeAdjustment.stationName} · {timeAdjustment.customerName}
+                      </p>
+                    </div>
                   </div>
-                );
-              })()}
-            </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={savingTimeAdjustment}
+                  onClick={() => setTimeAdjustment(null)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-slate-400 transition hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Close time adjustment"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
-            <div className="flex items-center gap-3 border-t border-slate-800 bg-[#0f1520] px-5 py-4">
-              <button
-                type="button"
-                disabled={savingTimeAdjustment}
-                onClick={() => setTimeAdjustment(null)}
-                className="h-11 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={savingTimeAdjustment || timeAdjustment.nextDuration === timeAdjustment.currentDuration}
-                onClick={handleSaveTimeAdjustment}
-                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
-              >
-                {savingTimeAdjustment ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Clock3 size={16} />
-                )}
-                Save Time
-              </button>
+              <div className="space-y-4 p-5">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Current</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-300">
+                        {formatDurationLabel(timeAdjustment.currentDuration, { long: true })}
+                      </p>
+                    </div>
+                    <ChevronRight size={18} className="text-slate-600" />
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/70">New</p>
+                      <p className="mt-1 text-2xl font-black tracking-tight text-cyan-100">
+                        {formatDurationLabel(timeAdjustment.nextDuration, { long: true })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: '-1h', delta: -60, tone: 'remove' },
+                    { label: '-30m', delta: -30, tone: 'remove' },
+                    { label: '+30m', delta: 30, tone: 'add' },
+                    { label: '+1h', delta: 60, tone: 'add' },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      disabled={savingTimeAdjustment || (option.delta < 0 && timeAdjustment.nextDuration <= 30)}
+                      onClick={() => adjustDuration(option.delta)}
+                      className={`flex h-12 items-center justify-center rounded-2xl border text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                        option.tone === 'add'
+                          ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-100 hover:border-cyan-400/50 hover:bg-cyan-500/18'
+                          : 'border-rose-500/25 bg-rose-500/10 text-rose-100 hover:border-rose-400/50 hover:bg-rose-500/18'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3">
+                  <span className="text-sm text-slate-500">Change</span>
+                  <span className={`text-sm font-bold ${diffTone}`}>{diffLabel}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 border-t border-white/[0.08] bg-white/[0.025] px-5 py-4">
+                <button
+                  type="button"
+                  disabled={savingTimeAdjustment}
+                  onClick={() => setTimeAdjustment(null)}
+                  className="h-11 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 text-sm font-semibold text-slate-300 transition hover:border-white/[0.18] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={savingTimeAdjustment || !hasChange}
+                  onClick={handleSaveTimeAdjustment}
+                  className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                >
+                  {savingTimeAdjustment ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : hasChange ? (
+                    <Clock3 size={16} />
+                  ) : null}
+                  {savingTimeAdjustment ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Session Ended Popup */}
       <SessionEndedPopup
