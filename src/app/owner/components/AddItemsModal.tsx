@@ -2,9 +2,8 @@
 // Can be removed along with inventory feature
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 import {
   X,
   Plus,
@@ -57,16 +56,7 @@ export default function AddItemsModal({
   const [selectedCategory, setSelectedCategory] = useState<InventoryCategory | "all">("all");
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Load inventory
-  useEffect(() => {
-    if (isOpen) {
-      loadInventory();
-      setCart([]);
-      setSearchQuery("");
-    }
-  }, [isOpen, cafeId]);
-
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -85,7 +75,16 @@ export default function AddItemsModal({
     } finally {
       setLoading(false);
     }
-  }
+  }, [cafeId]);
+
+  // Load inventory
+  useEffect(() => {
+    if (isOpen) {
+      loadInventory();
+      setCart([]);
+      setSearchQuery("");
+    }
+  }, [isOpen, cafeId, loadInventory]);
 
   // Filter items
   const filteredItems = items.filter((item) => {
@@ -163,37 +162,31 @@ export default function AddItemsModal({
     try {
       setSaving(true);
 
-      // Insert orders
-      const orders = cart.map((item) => ({
-        booking_id: bookingId,
-        inventory_item_id: item.inventory_item_id,
-        item_name: item.name,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price,
-      }));
+      const res = await fetch("/api/owner/booking-orders", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId,
+          items: cart.map((item) => ({
+            inventory_item_id: item.inventory_item_id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
 
-      const stockAdjustments = cart.map((item) => ({
-        inventoryItemId: item.inventory_item_id,
-        quantity: item.quantity,
-      }));
-
-      await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
-
-      const { error: orderError } = await supabase
-        .from("booking_orders")
-        .insert(orders);
-
-      if (orderError) {
-        await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
-        throw orderError;
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to add items");
       }
 
+      setCart([]);
+      await loadInventory();
       onItemsAdded();
       onClose();
     } catch (err) {
       console.error("Error saving order:", err);
-      alert("Failed to add items. Please try again.");
+      alert(err instanceof Error ? err.message : "Failed to add items. Please try again.");
     } finally {
       setSaving(false);
     }

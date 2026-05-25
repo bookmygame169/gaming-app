@@ -195,43 +195,25 @@ export default function ViewOrdersModal({
   async function handleAddItems() {
     if (cart.length === 0) return;
 
-    // Make a copy of cart to avoid any state issues
-    const cartSnapshot = [...cart];
-
     try {
       setAdding(true);
 
-      // Calculate total from cart snapshot
-      let totalToAdd = 0;
-      const orderRecords = cartSnapshot.map((c) => {
-        const itemTotal = c.item.price * c.quantity;
-        totalToAdd += itemTotal;
-        return {
-          booking_id: bookingId,
-          inventory_item_id: c.item.id,
-          item_name: c.item.name,
-          quantity: c.quantity,
-          unit_price: c.item.price,
-          total_price: itemTotal,
-        };
+      const res = await fetch("/api/owner/booking-orders", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId,
+          items: cart.map((cartItem) => ({
+            inventory_item_id: cartItem.item.id,
+            quantity: cartItem.quantity,
+          })),
+        }),
       });
 
-
-      const stockAdjustments = cartSnapshot.map((cartItem) => ({
-        inventoryItemId: cartItem.item.id,
-        quantity: cartItem.quantity,
-      }));
-
-      await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
-
-      const { error: orderError } = await supabase
-        .from("booking_orders")
-        .insert(orderRecords);
-
-      if (orderError) {
-        console.error("Error inserting orders:", orderError);
-        await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
-        throw orderError;
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to add items");
       }
 
       // Clear cart, refresh orders and inventory
@@ -241,14 +223,14 @@ export default function ViewOrdersModal({
       await loadInventory();
       const updatedAt = await loadBookingUpdatedAt();
       onOrdersUpdated({
-        amountDelta: totalToAdd,
+        amountDelta: Number(result.amountAdded || 0),
         bookingId,
         orders: latestOrders,
         updatedAt,
       });
     } catch (err) {
       console.error("Error adding items:", err);
-      alert("Failed to add items. Please try again.");
+      alert(err instanceof Error ? err.message : "Failed to add items. Please try again.");
     } finally {
       setAdding(false);
     }
