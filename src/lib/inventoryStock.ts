@@ -9,15 +9,51 @@ export async function adjustInventoryStock(
   supabase: SupabaseClient,
   inventoryItemId: string,
   amount: number
-): Promise<void> {
-  const { error } = await supabase.rpc("increment_inventory_stock", {
-    row_id: inventoryItemId,
-    amount,
-  });
+): Promise<number> {
+  const normalizedAmount = Math.trunc(Number(amount) || 0);
+  if (!inventoryItemId || normalizedAmount === 0) {
+    const { data, error } = await supabase
+      .from("inventory_items")
+      .select("stock_quantity")
+      .eq("id", inventoryItemId)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message || "Failed to update inventory stock");
+    if (error) {
+      throw new Error(error.message || "Failed to read inventory stock");
+    }
+
+    return Math.max(0, Math.trunc(Number(data?.stock_quantity) || 0));
   }
+
+  const { data: currentRow, error: readError } = await supabase
+    .from("inventory_items")
+    .select("stock_quantity")
+    .eq("id", inventoryItemId)
+    .maybeSingle();
+
+  if (readError) {
+    throw new Error(readError.message || "Failed to read inventory stock");
+  }
+
+  if (!currentRow) {
+    throw new Error("Inventory item not found");
+  }
+
+  const currentQuantity = Math.max(0, Math.trunc(Number(currentRow.stock_quantity) || 0));
+  const nextQuantity = Math.max(0, currentQuantity + normalizedAmount);
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("inventory_items")
+    .update({ stock_quantity: nextQuantity })
+    .eq("id", inventoryItemId)
+    .select("stock_quantity")
+    .maybeSingle();
+
+  if (updateError) {
+    throw new Error(updateError.message || "Failed to update inventory stock");
+  }
+
+  return Math.max(0, Math.trunc(Number(updatedRow?.stock_quantity ?? nextQuantity) || 0));
 }
 
 export async function adjustInventoryStockBatch(

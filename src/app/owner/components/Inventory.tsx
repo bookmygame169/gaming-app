@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { adjustInventoryStock } from "@/lib/inventoryStock";
 import {
   Package,
   Plus,
@@ -239,8 +240,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
     const optimistic = Math.max(0, item.stock_quantity + change);
     setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: optimistic } : i));
     try {
-      const { data: auth, error } = await supabase.rpc("increment_inventory_stock", { row_id: item.id, amount: change });
-      if (error) throw error;
+      const auth = await adjustInventoryStock(supabase, item.id, change);
       if (typeof auth === "number" && auth !== optimistic) {
         setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: auth } : i));
       }
