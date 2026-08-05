@@ -315,7 +315,8 @@ type TableWithCafeId =
   | "subscriptions"
   | "membership_plans"
   | "gallery_images"
-  | "cafe_images";
+  | "cafe_images"
+  | "inventory_items";
 
 export async function getOwnedCafeIdForRecord(
   supabase: SupabaseClient,

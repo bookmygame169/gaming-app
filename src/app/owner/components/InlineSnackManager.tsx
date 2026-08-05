@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { adjustInventoryStockBatch } from '@/lib/inventoryStock';
 import { Plus, Minus, Trash2, Loader2, ShoppingCart, Check, Package } from 'lucide-react';
 import { InventoryItem, BookingOrder } from '@/types/inventory';
 
@@ -94,28 +93,19 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
     setAdding(true);
     try {
       const snap = [...cart];
-      let totalToAdd = 0;
 
-      const records = snap.map(c => {
-        const lineTotal = c.item.price * c.quantity;
-        totalToAdd += lineTotal;
-        return {
-          booking_id:        bookingId,
-          inventory_item_id: c.item.id,
-          item_name:         c.item.name,
-          quantity:          c.quantity,
-          unit_price:        c.item.price,
-          total_price:       lineTotal,
-        };
+      const res = await fetch('/api/owner/booking-orders', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId,
+          items: snap.map((c) => ({ inventory_item_id: c.item.id, quantity: c.quantity })),
+        }),
       });
-
-      const stockAdjustments = snap.map((c) => ({ inventoryItemId: c.item.id, quantity: c.quantity }));
-      await adjustInventoryStockBatch(supabase, stockAdjustments, 'deduct');
-
-      const { error: insertErr } = await supabase.from('booking_orders').insert(records);
-      if (insertErr) {
-        await adjustInventoryStockBatch(supabase, stockAdjustments, 'restore');
-        throw insertErr;
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to add items');
       }
 
       // Reload orders
@@ -126,13 +116,13 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
       loadInventory();
 
       const updatedAt = await getBookingUpdatedAt(bookingId);
-      onOrdersUpdated({ amountDelta: totalToAdd, bookingId, orders: next, updatedAt });
+      onOrdersUpdated({ amountDelta: Number(result.amountAdded) || 0, bookingId, orders: next, updatedAt });
 
       setAddedAnim(true);
       setTimeout(() => setAddedAnim(false), 1800);
     } catch (e) {
       console.error('InlineSnackManager: add failed', e);
-      alert('Failed to add snacks. Please try again.');
+      alert(e instanceof Error ? e.message : 'Failed to add snacks. Please try again.');
     } finally {
       setAdding(false);
     }
@@ -142,20 +132,13 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
   async function handleRemove(order: BookingOrder) {
     setDeletingId(order.id);
     try {
-      const delta = Number(order.total_price) || 0;
-      await adjustInventoryStockBatch(
-        supabase,
-        [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
-        'restore'
-      );
-      const { error: deleteErr } = await supabase.from('booking_orders').delete().eq('id', order.id);
-      if (deleteErr) {
-        await adjustInventoryStockBatch(
-          supabase,
-          [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
-          'deduct'
-        );
-        throw deleteErr;
+      const res = await fetch(`/api/owner/booking-orders?orderId=${encodeURIComponent(order.id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to remove item');
       }
 
       const next = orders.filter(o => o.id !== order.id);
@@ -163,10 +146,10 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
       loadInventory();
 
       const updatedAt = await getBookingUpdatedAt(bookingId);
-      onOrdersUpdated({ amountDelta: -delta, bookingId, orders: next, updatedAt });
+      onOrdersUpdated({ amountDelta: -(Number(result.amountRemoved ?? order.total_price) || 0), bookingId, orders: next, updatedAt });
     } catch (e) {
       console.error('InlineSnackManager: remove failed', e);
-      alert('Failed to remove item. Please try again.');
+      alert(e instanceof Error ? e.message : 'Failed to remove item. Please try again.');
     } finally {
       setDeletingId(null);
     }

@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 import { X, Trash2, Loader2, ShoppingBag, Package, Plus, Minus } from "lucide-react";
 import { BookingOrder, InventoryItem } from "@/types/inventory";
 
@@ -120,24 +119,13 @@ export default function ViewOrdersModal({
     try {
       setDeleting(order.id);
 
-      await adjustInventoryStockBatch(
-        supabase,
-        [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
-        "restore"
-      );
-
-      const { error: deleteError } = await supabase
-        .from("booking_orders")
-        .delete()
-        .eq("id", order.id);
-
-      if (deleteError) {
-        await adjustInventoryStockBatch(
-          supabase,
-          [{ inventoryItemId: order.inventory_item_id, quantity: order.quantity }],
-          "deduct"
-        );
-        throw deleteError;
+      const res = await fetch(`/api/owner/booking-orders?orderId=${encodeURIComponent(order.id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to remove item");
       }
 
       // Refresh orders list and inventory
@@ -145,7 +133,7 @@ export default function ViewOrdersModal({
       await loadInventory();
       const updatedAt = await loadBookingUpdatedAt();
       onOrdersUpdated({
-        amountDelta: -(Number(order.total_price) || 0),
+        amountDelta: -(Number(result.amountRemoved ?? order.total_price) || 0),
         bookingId,
         orders: latestOrders,
         updatedAt,

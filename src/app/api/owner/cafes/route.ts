@@ -6,6 +6,52 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+// Fields an owner is allowed to change about their own cafe. Anything else
+// in the request body (e.g. owner_id, is_active, is_featured) is dropped
+// rather than passed straight to the DB update.
+const ALLOWED_CAFE_UPDATE_FIELDS = new Set([
+  "name",
+  "address",
+  "description",
+  "phone",
+  "email",
+  "hourly_price",
+  "price_starts_from",
+  "google_maps_url",
+  "instagram_url",
+  "cover_url",
+  "ps5_count",
+  "ps4_count",
+  "xbox_count",
+  "pc_count",
+  "pool_count",
+  "arcade_count",
+  "snooker_count",
+  "steering_wheel_count",
+  "racing_sim_count",
+  "vr_count",
+  "opening_hours",
+  "peak_hours",
+  "popular_games",
+  "offers",
+  "monitor_details",
+  "processor_details",
+  "gpu_details",
+  "ram_details",
+  "accessories_details",
+  "show_tech_specs",
+]);
+
+function pickAllowedCafeUpdates(updates: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates || {})) {
+    if (ALLOWED_CAFE_UPDATE_FIELDS.has(key)) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 // GET /api/owner/cafes?cafeId=... — fetch cafe by id
 export async function GET(request: NextRequest) {
   try {
@@ -63,11 +109,16 @@ export async function PUT(request: NextRequest) {
       return accessResponse;
     }
 
+    const allowedUpdates = pickAllowedCafeUpdates(updates || {});
+    if (Object.keys(allowedUpdates).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
     // Ownership already verified above — use only cafeId so the update
     // isn't silently skipped by an owner_id type/value mismatch
     const { error } = await supabase
       .from("cafes")
-      .update(updates)
+      .update(allowedUpdates)
       .eq("id", cafeId);
 
     if (error) {

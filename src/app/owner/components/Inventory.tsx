@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { adjustInventoryStock } from "@/lib/inventoryStock";
 import {
   Package,
   Plus,
@@ -164,7 +163,6 @@ export default function Inventory({ cafeId }: InventoryProps) {
     try {
       setSaving(true); setError(null);
       const itemData = {
-        cafe_id: cafeId,
         name: formData.name.trim(),
         category: formData.category,
         price,
@@ -172,13 +170,24 @@ export default function Inventory({ cafeId }: InventoryProps) {
         stock_quantity: stockQuantity,
         is_available: formData.is_available,
       };
-      if (editingItem) {
-        const { error } = await supabase.from("inventory_items").update(itemData).eq("id", editingItem.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("inventory_items").insert(itemData);
-        if (error) throw error;
-      }
+
+      const res = editingItem
+        ? await fetch("/api/owner/inventory", {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId: editingItem.id, ...itemData }),
+          })
+        : await fetch("/api/owner/inventory", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cafeId, ...itemData }),
+          });
+
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Failed to save item");
+
       setShowModal(false);
       loadItems();
     } catch (err) {
@@ -191,14 +200,15 @@ export default function Inventory({ cafeId }: InventoryProps) {
   async function handleDelete(item: InventoryItem) {
     if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
     try {
-      const { data: orders } = await supabase.from("booking_orders").select("id").eq("inventory_item_id", item.id).limit(1);
-      if (orders && orders.length > 0) {
-        await supabase.from("inventory_items").update({ is_available: false, stock_quantity: 0 }).eq("id", item.id);
+      const res = await fetch(`/api/owner/inventory?itemId=${encodeURIComponent(item.id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Failed to delete item");
+      if (result.disabled) {
         alert("Item marked as unavailable (it has sales history).");
-        loadItems(); return;
       }
-      const { error } = await supabase.from("inventory_items").delete().eq("id", item.id);
-      if (error) throw error;
       loadItems();
     } catch (err) {
       alert(`Failed to delete: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -211,11 +221,17 @@ export default function Inventory({ cafeId }: InventoryProps) {
     if (!quickName.trim() || !Number.isFinite(price)) return;
     setQuickSaving(true);
     try {
-      const { error } = await supabase.from("inventory_items").insert({
-        cafe_id: cafeId, name: quickName.trim(), category: "snacks" as InventoryCategory,
-        price, stock_quantity: quantity, is_available: true,
+      const res = await fetch("/api/owner/inventory", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cafeId, name: quickName.trim(), category: "snacks" as InventoryCategory,
+          price, stock_quantity: quantity, is_available: true,
+        }),
       });
-      if (error) throw error;
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Failed to add item");
       setQuickName(""); setQuickPrice(""); setQuickQty("");
       loadItems();
     } catch (err) {
@@ -227,8 +243,14 @@ export default function Inventory({ cafeId }: InventoryProps) {
 
   async function toggleAvailability(item: InventoryItem) {
     try {
-      const { error } = await supabase.from("inventory_items").update({ is_available: !item.is_available }).eq("id", item.id);
-      if (error) throw error;
+      const res = await fetch("/api/owner/inventory", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, is_available: !item.is_available }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Failed to update item");
       loadItems();
     } catch (err) {
       console.error("Error toggling availability:", err);
@@ -240,9 +262,16 @@ export default function Inventory({ cafeId }: InventoryProps) {
     const optimistic = Math.max(0, item.stock_quantity + change);
     setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: optimistic } : i));
     try {
-      const auth = await adjustInventoryStock(supabase, item.id, change);
-      if (typeof auth === "number" && auth !== optimistic) {
-        setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: auth } : i));
+      const res = await fetch("/api/owner/inventory/stock", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, amount: change }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Failed to update stock");
+      if (typeof result.stock_quantity === "number" && result.stock_quantity !== optimistic) {
+        setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: result.stock_quantity } : i));
       }
     } catch (err) {
       console.error("Stock update error:", err);

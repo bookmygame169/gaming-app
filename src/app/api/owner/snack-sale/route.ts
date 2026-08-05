@@ -1,20 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnerContext } from "@/lib/ownerAuth";
+import { requireOwnerContext, requireOwnerCafeAccess } from "@/lib/ownerAuth";
 import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 
 export const dynamic = "force-dynamic";
+
+function toPositiveInteger(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.floor(numeric));
+}
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireOwnerContext(request);
     if (auth.response) return auth.response;
-    const { supabase } = auth.context;
+    const { ownerId, supabase } = auth.context;
 
     const body = await request.json();
     const { cafeId, customerName, customerPhone, paymentMode, isOwnerUse, items } = body;
 
     if (!cafeId || !items?.length) {
       return NextResponse.json({ error: "cafeId and items are required" }, { status: 400 });
+    }
+
+    const accessResponse = await requireOwnerCafeAccess(supabase, ownerId, cafeId);
+    if (accessResponse) return accessResponse;
+
+    const requestedItemIds = Array.from(
+      new Set(
+        items
+          .map((item: { inventory_item_id: string }) => String(item.inventory_item_id || ""))
+          .filter(Boolean)
+      )
+    ) as string[];
+
+    const { data: inventoryRows, error: inventoryError } = await supabase
+      .from("inventory_items")
+      .select("id, cafe_id, name, stock_quantity, is_available")
+      .eq("cafe_id", cafeId)
+      .in("id", requestedItemIds);
+
+    if (inventoryError) {
+      return NextResponse.json({ error: inventoryError.message }, { status: 500 });
+    }
+
+    const inventoryById = new Map(
+      (inventoryRows || []).map((row) => [row.id, row])
+    );
+
+    const requestedQuantities = new Map<string, number>();
+    for (const item of items as Array<{ inventory_item_id: string; quantity: number }>) {
+      const itemId = String(item.inventory_item_id || "");
+      const quantity = toPositiveInteger(item.quantity);
+      if (!itemId || quantity <= 0) continue;
+      requestedQuantities.set(itemId, (requestedQuantities.get(itemId) || 0) + quantity);
+    }
+
+    for (const [itemId, quantity] of requestedQuantities) {
+      const inventoryItem = inventoryById.get(itemId);
+      if (!inventoryItem || inventoryItem.is_available === false) {
+        return NextResponse.json({ error: "One or more items are no longer available" }, { status: 409 });
+      }
+      const stockQuantity = toPositiveInteger(inventoryItem.stock_quantity);
+      if (quantity > stockQuantity) {
+        return NextResponse.json(
+          { error: `${inventoryItem.name} has only ${stockQuantity} left in stock` },
+          { status: 409 }
+        );
+      }
     }
 
     const now = new Date();

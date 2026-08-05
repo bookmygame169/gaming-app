@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOwnedCafeIdForBooking, requireOwnerContext } from "@/lib/ownerAuth";
-import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
+import { adjustInventoryStockBatch, adjustInventoryStock } from "@/lib/inventoryStock";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +129,64 @@ export async function POST(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to add items";
     console.error("Owner booking order add error:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await requireOwnerContext(request);
+    if (auth.response) return auth.response;
+
+    const { ownerId, supabase } = auth.context;
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get("orderId") || "";
+
+    if (!orderId) {
+      return NextResponse.json({ error: "orderId is required" }, { status: 400 });
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from("booking_orders")
+      .select("id, booking_id, inventory_item_id, quantity, total_price")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderError) {
+      return NextResponse.json({ error: orderError.message }, { status: 500 });
+    }
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const ownedCafeId = await getOwnedCafeIdForBooking(supabase, order.booking_id, ownerId);
+    if (!ownedCafeId) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (order.inventory_item_id && order.quantity > 0) {
+      await adjustInventoryStock(supabase, order.inventory_item_id, order.quantity);
+    }
+
+    const { error: deleteError } = await supabase
+      .from("booking_orders")
+      .delete()
+      .eq("id", orderId);
+
+    if (deleteError) {
+      if (order.inventory_item_id && order.quantity > 0) {
+        await adjustInventoryStock(supabase, order.inventory_item_id, -order.quantity);
+      }
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      amountRemoved: Number(order.total_price) || 0,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to remove item";
+    console.error("Owner booking order delete error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
