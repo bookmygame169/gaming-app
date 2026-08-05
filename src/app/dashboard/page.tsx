@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatDate } from "@/lib/timeUtils";
+import { getIndiaDateString } from "@/lib/bookingFilters";
 import {
   Calendar,
   Clock,
@@ -167,7 +168,7 @@ export default function DashboardPage() {
         past: [] as BookingWithCafe[],
       };
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
 
     const upcomingBookings = bookings
       .filter((b) => {
@@ -233,7 +234,7 @@ export default function DashboardPage() {
     if (!booking.booking_date || !booking.start_time) return false;
 
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString(now);
 
     // Only check today's bookings
     if (booking.booking_date !== todayStr) return false;
@@ -307,7 +308,7 @@ export default function DashboardPage() {
     const status = (b.status || "").toLowerCase();
     if (status === "cancelled") return false;
     if (!b.booking_date) return false;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
     return b.booking_date >= todayStr;
   }
 

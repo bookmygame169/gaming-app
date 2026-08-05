@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/userAuth";
+import { getIndiaDateString } from "@/lib/bookingFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Booking is already cancelled" }, { status: 400 });
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
     if (booking.booking_date && booking.booking_date < todayStr) {
       return NextResponse.json({ error: "Past bookings cannot be cancelled" }, { status: 400 });
     }

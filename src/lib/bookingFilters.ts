@@ -34,7 +34,7 @@ export function isSessionBooking(booking: BookingLike | null | undefined): boole
   return true;
 }
 
-function getIndiaDateString(date: Date = new Date()): string {
+export function getIndiaDateString(date: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",

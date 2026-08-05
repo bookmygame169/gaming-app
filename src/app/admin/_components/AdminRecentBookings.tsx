@@ -409,7 +409,7 @@ export default function AdminRecentBookings() {
                           }`,
                         }}
                       >
-                        💻 Online
+                        {source === "walk_in" ? "🚶 Walk-in" : "💻 Online"}
                       </span>
                     </td>
 

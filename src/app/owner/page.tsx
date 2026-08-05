@@ -702,19 +702,14 @@ export default function OwnerDashboardPage() {
   useEffect(() => {
     if (editingBooking && !editAmountManuallyEdited) {
       const totalConsolesPrice = editingBookingItemId
-        ? (editingBooking.booking_items || []).reduce((sum: number, existingItem: any) => {
-            if (existingItem.id !== editingBookingItemId) {
-              return sum + (Number(existingItem.price) || 0);
-            }
-
+        ? (() => {
             const editedItem = editItems.find((item) => item.id === editingBookingItemId) || editItems[0];
-            const itemForPrice = editedItem || existingItem;
-            const consoleType = normaliseConsoleType(itemForPrice.console || existingItem.console || '') as ConsoleId;
-            const quantity = itemForPrice.quantity || 1;
-            const duration = itemForPrice.duration || getBookingItemDuration(existingItem, editDuration || editingBooking.duration || 60);
-            const price = getBillingPrice(consoleType, quantity, duration) || Number(itemForPrice.price) || 0;
-            return sum + price;
-          }, 0)
+            if (!editedItem) return 0;
+            const consoleType = normaliseConsoleType(editedItem.console || '') as ConsoleId;
+            const quantity = editedItem.quantity || 1;
+            const duration = editedItem.duration || editDuration || editingBooking.duration || 60;
+            return getBillingPrice(consoleType, quantity, duration) || Number(editedItem.price) || 0;
+          })()
         : editItems.reduce((sum, item) => {
             const consoleType = normaliseConsoleType(item.console || '') as ConsoleId;
             const quantity = item.quantity || 1;
@@ -1101,7 +1096,13 @@ export default function OwnerDashboardPage() {
 
     setEditingBooking(actualBooking);
     setEditingBookingItemId(specificItemId);
-    setEditAmount(getBookingGamingTotal(actualBooking).toString());
+    const seedItem = specificItemId
+      ? actualBooking.booking_items?.find((item: any) => item.id === specificItemId)
+      : null;
+    const seedAmount = specificItemId && seedItem
+      ? Number(seedItem.price) || 0
+      : getBookingGamingTotal(actualBooking);
+    setEditAmount(seedAmount.toString());
     setEditAmountManuallyEdited(true); // Preserve DB amount on open; set to false when user changes items
     setEditStatus(actualBooking.status || "confirmed");
     setEditPaymentMethod(normaliseOwnerPaymentMode(actualBooking.payment_mode));
@@ -1277,11 +1278,21 @@ export default function OwnerDashboardPage() {
 
       const shouldApplyManualAmount = isMembershipBooking || editAmountManuallyEdited;
       if (shouldApplyManualAmount && nextBookingItems.length > 0) {
-        nextBookingItems = distributeWholeRupees(nextBookingItems, updatedAmount);
+        if (isSingleItemEdit && editingBookingItemId) {
+          // Only the targeted item's price should move — sibling items the
+          // owner never saw in this modal must keep their existing price.
+          nextBookingItems = nextBookingItems.map((item: any) => (
+            item.id === editingBookingItemId
+              ? { ...item, price: toWholeRupees(updatedAmount) }
+              : item
+          ));
+        } else {
+          nextBookingItems = distributeWholeRupees(nextBookingItems, updatedAmount);
+        }
       }
 
       const calculatedGamingAmount = nextBookingItems.reduce((sum: number, item: any) => sum + (Number(item.price) || 0), 0);
-      const amountToSave = shouldApplyManualAmount ? updatedAmount : toWholeRupees(calculatedGamingAmount);
+      const amountToSave = toWholeRupees(calculatedGamingAmount);
 
       const buildServerItemPayload = (item: any) => ({
         ...(item.id && !String(item.id).startsWith('temp-item-') ? { id: item.id } : {}),

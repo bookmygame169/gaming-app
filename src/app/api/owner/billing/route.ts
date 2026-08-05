@@ -7,6 +7,7 @@ import {
 } from "@/lib/ownerAuth";
 import {
   encodeAssignedStationsTitle,
+  findConflictingStations,
   getOccupiedUnitCountForConsole,
   getItemDurationFromPayload,
   loadStationReservationState,
@@ -199,6 +200,13 @@ export async function PUT(request: NextRequest) {
 
     let resolvedItemsForWrite: BookingItemPayload[] | null = null;
     let shouldDeleteMissingItems = false;
+    let stationConflictCheck: {
+      bookingDate: string;
+      startTime: string;
+      duration: number;
+      stationNames: string[];
+      revertItems: BookingItemRecord[];
+    } | null = null;
 
     if ((bookingItemId && item) || (items && Array.isArray(items))) {
       const { data: currentDbItems, error: getError } = await supabase
@@ -269,6 +277,17 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: message }, { status: 409 });
       }
 
+      const assignedStationNames = resolvedItemsForWrite.flatMap((it) => parseAssignedStationsFromTitle(it.title));
+      if (assignedStationNames.length > 0) {
+        stationConflictCheck = {
+          bookingDate: nextBookingDate,
+          startTime: nextStartTime,
+          duration: requestedDuration,
+          stationNames: assignedStationNames,
+          revertItems: currentItems,
+        };
+      }
+
       safeBooking.duration = toPositiveDbInteger(requestedDuration, Number(existingBooking.duration || 60));
     }
 
@@ -316,6 +335,40 @@ export async function PUT(request: NextRequest) {
           .eq("booking_id", bookingId);
         if (delError) return NextResponse.json({ error: delError.message }, { status: 500 });
       }
+
+      // Re-verify no concurrent request claimed the same station(s) between
+      // our read and this write. If it did, revert the items we just wrote
+      // back to their pre-edit state and ask the caller to retry — better
+      // than silently leaving two bookings on the same physical station.
+      if (stationConflictCheck) {
+        const conflicts = await findConflictingStations(
+          supabase,
+          ownedCafeId,
+          stationConflictCheck.bookingDate,
+          stationConflictCheck.startTime,
+          stationConflictCheck.duration,
+          bookingId,
+          stationConflictCheck.stationNames
+        );
+        if (conflicts.length > 0) {
+          await Promise.all(stationConflictCheck.revertItems.map((revertItem) =>
+            supabase
+              .from("booking_items")
+              .update({
+                console: revertItem.console,
+                quantity: revertItem.quantity,
+                price: revertItem.price,
+                title: revertItem.title,
+              })
+              .eq("id", revertItem.id)
+              .eq("booking_id", bookingId)
+          ));
+          return NextResponse.json(
+            { error: `${conflicts.map((s) => s.toUpperCase()).join(", ")} was just booked by someone else. Please try again.` },
+            { status: 409 }
+          );
+        }
+      }
     }
 
     // Update booking
@@ -351,7 +404,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { ownerId, supabase } = auth.context;
-    const { bookingId, specificItemId, newTotalAmount, deleted_remark } = await request.json();
+    const { bookingId, specificItemId, deleted_remark } = await request.json();
 
     if (!bookingId) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
@@ -400,16 +453,30 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: itemError.message }, { status: 500 });
       }
 
-      // Update the booking's total_amount
-      if (newTotalAmount !== undefined) {
-        const { error: updateError } = await supabase
-          .from("bookings")
-          .update({ total_amount: toDbInteger(newTotalAmount, 0) })
-          .eq("id", bookingId);
+      // Recompute total_amount server-side from the remaining items rather
+      // than trusting a client-supplied figure — a stale or tampered
+      // newTotalAmount must never silently overwrite the real total.
+      const { data: remainingItems, error: remainingItemsError } = await supabase
+        .from("booking_items")
+        .select("price")
+        .eq("booking_id", bookingId);
 
-        if (updateError) {
-          console.error("Error updating booking total after item delete:", updateError);
-        }
+      if (remainingItemsError) {
+        return NextResponse.json({ error: remainingItemsError.message }, { status: 500 });
+      }
+
+      const recomputedTotal = (remainingItems || []).reduce(
+        (sum, item) => sum + (Number(item.price) || 0),
+        0
+      );
+
+      const { error: updateError } = await supabase
+        .from("bookings")
+        .update({ total_amount: toDbInteger(recomputedTotal, 0) })
+        .eq("id", bookingId);
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
     } else {
       // Soft-delete the full booking by setting deleted_at + remark
@@ -533,6 +600,30 @@ export async function POST(request: NextRequest) {
     if (itemsError) {
       await supabase.from('bookings').delete().eq('id', newBooking.id);
       return NextResponse.json({ error: itemsError.message }, { status: 500 });
+    }
+
+    // Re-verify no concurrent request claimed the same station(s) between our
+    // read and this write. If it did, undo this booking and ask the caller
+    // to retry rather than silently leaving two bookings on one station.
+    const assignedStationNames = resolvedItems.flatMap((item) => parseAssignedStationsFromTitle(item.title));
+    if (assignedStationNames.length > 0) {
+      const conflicts = await findConflictingStations(
+        supabase,
+        booking.cafe_id,
+        booking.booking_date,
+        booking.start_time,
+        resolvedDuration,
+        newBooking.id,
+        assignedStationNames
+      );
+      if (conflicts.length > 0) {
+        await supabase.from('booking_items').delete().eq('booking_id', newBooking.id);
+        await supabase.from('bookings').delete().eq('id', newBooking.id);
+        return NextResponse.json(
+          { error: `${conflicts.map((s) => s.toUpperCase()).join(", ")} was just booked by someone else. Please try again.` },
+          { status: 409 }
+        );
+      }
     }
   }
 

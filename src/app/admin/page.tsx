@@ -1481,7 +1481,7 @@ export default function AdminDashboardPage() {
 
   const filteredBookings = sortData(
     bookings.filter(booking => {
-      if (bookingStatusFilter !== "all" && booking.status !== bookingStatusFilter) return false;
+      if (bookingStatusFilter !== "all" && (booking.status || "confirmed") !== bookingStatusFilter) return false;
       if (bookingDateFilter && booking.booking_date !== bookingDateFilter) return false;
       if (bookingDateFrom && booking.booking_date < bookingDateFrom) return false;
       if (bookingDateTo && booking.booking_date > bookingDateTo) return false;

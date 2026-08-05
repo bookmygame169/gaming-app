@@ -252,9 +252,11 @@ function ProfilePageContent() {
 
       if (isPhoneRequired) {
         // Redirect back to where the user came from — only ever to a
-        // same-site path, never to an attacker-supplied external URL.
+        // same-site path, never to an attacker-supplied external URL. Must
+        // start with exactly one "/": "//evil.com" and "/\evil.com" both
+        // get normalized by browsers into a protocol-relative external URL.
         const decoded = returnUrl ? decodeURIComponent(returnUrl) : "/";
-        const nextUrl = decoded.startsWith("/") && !decoded.startsWith("//") ? decoded : "/";
+        const nextUrl = /^\/(?!\/|\\)/.test(decoded) ? decoded : "/";
         setTimeout(() => router.replace(nextUrl), 1500);
       }
     } catch (err) {

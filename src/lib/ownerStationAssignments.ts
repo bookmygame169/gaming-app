@@ -304,6 +304,37 @@ export async function loadStationReservationState(
   return { availableStationsByConsole, occupiedStations };
 }
 
+// Re-checks a set of already-assigned station names against the current DB
+// state, excluding the booking that just claimed them. loadStationReservationState
+// + reserveStations is a read-then-write sequence with no DB-level lock, so
+// two concurrent requests can both read the same station as free and both
+// "win" it. Calling this immediately after the write closes that window down
+// to the gap between two near-simultaneous writes — if a conflict is found,
+// the caller should undo its own write and ask the user to retry, rather
+// than silently leaving two bookings pointing at the same physical station.
+export async function findConflictingStations(
+  supabase: SupabaseClient,
+  cafeId: string,
+  bookingDate: string,
+  requestedStartTime: string | null | undefined,
+  requestedDuration: number | null | undefined,
+  excludeBookingId: string | null | undefined,
+  stationNames: string[]
+): Promise<string[]> {
+  if (stationNames.length === 0) return [];
+
+  const { occupiedStations } = await loadStationReservationState(
+    supabase,
+    cafeId,
+    bookingDate,
+    requestedStartTime,
+    requestedDuration,
+    excludeBookingId
+  );
+
+  return stationNames.filter((stationName) => occupiedStations.has(stationName));
+}
+
 export function reserveStations(
   state: StationReservationState,
   consoleType: string,

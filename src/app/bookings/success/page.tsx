@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { colors, fonts } from "@/lib/constants";
 import { formatDate } from "@/lib/timeUtils";
+import { getIndiaDateString } from "@/lib/bookingFilters";
 import {
   CheckCircle,
   Gamepad2,
@@ -191,7 +192,7 @@ function BookingSuccessContent() {
     if (status === "cancelled") return false;
     if (!data.booking.booking_date) return false;
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
     return data.booking.booking_date >= todayStr;
   }, [data]);
 

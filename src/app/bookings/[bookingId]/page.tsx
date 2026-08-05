@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getIndiaDateString } from "@/lib/bookingFilters";
 import {
   ArrowLeft,
   Gamepad2,
@@ -239,13 +240,13 @@ export default function BookingDetailsPage() {
     if (status === "cancelled") return false;
     if (!data.booking_date) return false;
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
     return data.booking_date >= todayStr;
   }, [data]);
 
   const isUpcoming = useMemo(() => {
     if (!data?.booking_date) return false;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getIndiaDateString();
     return data.booking_date >= todayStr;
   }, [data]);
 

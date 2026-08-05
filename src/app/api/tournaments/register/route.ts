@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if tournament is full
+    // Fast-fail pre-check on the count we already fetched (may be stale
+    // under concurrent registrations — the atomic RPC below is authoritative).
     if (
       tournament.max_participants &&
       tournament.current_participants >= tournament.max_participants
@@ -84,6 +85,31 @@ export async function POST(request: NextRequest) {
         { error: "Already registered for this tournament" },
         { status: 400 }
       );
+    }
+
+    // Atomically claim a slot: increments current_participants only if still
+    // under max_participants, so two concurrent registrations can't both read
+    // the same stale count and both succeed past capacity.
+    if (tournament.max_participants) {
+      const { data: newCount, error: capacityError } = await supabase.rpc(
+        "increment_tournament_participants",
+        { p_tournament_id: tournament_id }
+      );
+
+      if (capacityError) {
+        console.error("Error reserving tournament slot:", capacityError);
+        return NextResponse.json(
+          { error: "Failed to register for tournament" },
+          { status: 500 }
+        );
+      }
+
+      if (newCount === null) {
+        return NextResponse.json(
+          { error: "Tournament is full" },
+          { status: 400 }
+        );
+      }
     }
 
     // Determine registration status (confirmed if no fee, pending if there's a fee)
@@ -113,6 +139,16 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
+      // Registration row failed after we already claimed a slot — release it
+      // so the count doesn't drift upward for a registration that never happened.
+      if (tournament.max_participants) {
+        const { error: undoError } = await supabase.rpc("increment_tournament_participants_undo", {
+          p_tournament_id: tournament_id,
+        });
+        if (undoError) {
+          console.error("Failed to release tournament slot after insert failure:", undoError);
+        }
+      }
       console.error("Error creating registration:", createError);
       return NextResponse.json(
         { error: "Failed to register for tournament" },
