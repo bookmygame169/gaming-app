@@ -1,6 +1,7 @@
 // src/app/api/memberships/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { requireUser } from "@/lib/userAuth";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,12 +34,15 @@ export async function GET() {
 // POST /api/memberships - Create a new membership subscription
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { user_id, tier_id, billing_cycle, payment_method } = body;
+    const { userId: user_id, response: authResponse } = await requireUser(request);
+    if (authResponse) return authResponse;
 
-    if (!user_id || !tier_id || !billing_cycle) {
+    const body = await request.json();
+    const { tier_id, billing_cycle, payment_method } = body;
+
+    if (!tier_id || !billing_cycle) {
       return NextResponse.json(
-        { error: "Missing required fields: user_id, tier_id, billing_cycle" },
+        { error: "Missing required fields: tier_id, billing_cycle" },
         { status: 400 }
       );
     }

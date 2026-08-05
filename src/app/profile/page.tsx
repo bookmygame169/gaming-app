@@ -251,8 +251,10 @@ function ProfilePageContent() {
       setIsEditing(false);
 
       if (isPhoneRequired) {
-        // Redirect back to where the user came from
-        const nextUrl = returnUrl ? decodeURIComponent(returnUrl) : "/";
+        // Redirect back to where the user came from — only ever to a
+        // same-site path, never to an attacker-supplied external URL.
+        const decoded = returnUrl ? decodeURIComponent(returnUrl) : "/";
+        const nextUrl = decoded.startsWith("/") && !decoded.startsWith("//") ? decoded : "/";
         setTimeout(() => router.replace(nextUrl), 1500);
       }
     } catch (err) {

@@ -1,25 +1,29 @@
 // src/app/api/tournaments/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { requireUser } from "@/lib/userAuth";
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/tournaments/register - Register for a tournament
 export async function POST(request: NextRequest) {
   try {
+    const { userId, response: authResponse } = await requireUser(request);
+    if (authResponse) return authResponse;
+
     const body = await request.json();
     const {
       tournament_id,
-      user_id,
       player_name,
       player_email,
       player_phone,
       team_name,
     } = body;
+    const user_id = userId;
 
-    if (!tournament_id || !user_id || !player_name || !player_email) {
+    if (!tournament_id || !player_name || !player_email) {
       return NextResponse.json(
-        { error: "Missing required fields: tournament_id, user_id, player_name, player_email" },
+        { error: "Missing required fields: tournament_id, player_name, player_email" },
         { status: 400 }
       );
     }
@@ -135,15 +139,10 @@ export async function POST(request: NextRequest) {
 // GET /api/tournaments/register?user_id=xxx - Get user's tournament registrations
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const user_id = searchParams.get("user_id");
+    const { userId, response: authResponse } = await requireUser(request);
+    if (authResponse) return authResponse;
 
-    if (!user_id) {
-      return NextResponse.json(
-        { error: "user_id parameter is required" },
-        { status: 400 }
-      );
-    }
+    const user_id = userId;
 
     const { data: registrations, error } = await supabase
       .from("tournament_registrations")

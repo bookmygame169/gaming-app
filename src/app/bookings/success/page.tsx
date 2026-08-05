@@ -38,6 +38,7 @@ import {
 type BookingRow = {
   id: string;
   cafe_id: string | null;
+  user_id?: string | null;
   booking_date: string | null;
   start_time: string | null;
   total_amount: number | null;
@@ -129,6 +130,13 @@ function BookingSuccessContent() {
           return;
         }
 
+        const { data: userData } = await supabase.auth.getUser();
+        const currentUserId = userData?.user?.id ?? null;
+        if (!currentUserId || booking.user_id !== currentUserId) {
+          setErrorMsg("Booking not found.");
+          return;
+        }
+
         // cafe
         let cafe: CafeRow | null = null;
         if (booking.cafe_id) {
@@ -199,15 +207,18 @@ function BookingSuccessContent() {
     try {
       setIsCancelling(true);
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
 
-      if (error) throw error;
+      const cancelResponse = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+
+      if (!cancelResponse.ok) {
+        const body = await cancelResponse.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to cancel booking");
+      }
 
       setData((prev) =>
         prev

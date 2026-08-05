@@ -1,6 +1,7 @@
 // src/app/api/memberships/user/[userId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { requireUser } from "@/lib/userAuth";
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,12 @@ export async function GET(
         { error: "User ID is required" },
         { status: 400 }
       );
+    }
+
+    const { userId: authUserId, response: authResponse } = await requireUser(request);
+    if (authResponse) return authResponse;
+    if (userId !== authUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { data: membership, error } = await supabase
@@ -72,6 +79,12 @@ export async function PATCH(
       );
     }
 
+    const { userId: authUserId, response: authResponse } = await requireUser(request);
+    if (authResponse) return authResponse;
+    if (userId !== authUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const updateData: { auto_renew?: boolean; status?: string } = {};
     if (status) updateData.status = status;
     if (typeof auto_renew === "boolean") updateData.auto_renew = auto_renew;
@@ -118,6 +131,12 @@ export async function DELETE(
         { error: "User ID is required" },
         { status: 400 }
       );
+    }
+
+    const { userId: authUserId, response: authResponse } = await requireUser(request);
+    if (authResponse) return authResponse;
+    if (userId !== authUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { data: membership, error } = await supabase

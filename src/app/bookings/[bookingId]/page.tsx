@@ -160,6 +160,13 @@ export default function BookingDetailsPage() {
           return;
         }
 
+        const { data: userData } = await supabase.auth.getUser();
+        const currentUserId = userData?.user?.id ?? null;
+        if (!currentUserId || booking.user_id !== currentUserId) {
+          setErrorMsg("Booking not found.");
+          return;
+        }
+
         // Fetch items
         const { data: itemsRows, error: itemsError } = await supabase
           .from("booking_items")
@@ -301,15 +308,18 @@ export default function BookingDetailsPage() {
 
     try {
       setIsCancelling(true);
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
 
-      if (error) throw error;
+      const cancelResponse = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+
+      if (!cancelResponse.ok) {
+        const body = await cancelResponse.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to cancel booking");
+      }
 
       // Send cancellation email
       const { data: userData } = await supabase.auth.getUser();

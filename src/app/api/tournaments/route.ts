@@ -1,6 +1,7 @@
 // src/app/api/tournaments/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { requireAdminContext } from "@/lib/adminAuth";
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
 // POST /api/tournaments - Create a new tournament (admin only)
 export async function POST(request: NextRequest) {
   try {
+    const { response: authResponse } = await requireAdminContext(request);
+    if (authResponse) return authResponse;
+
     const body = await request.json();
     const {
       name,
