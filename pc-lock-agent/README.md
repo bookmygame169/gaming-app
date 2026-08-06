@@ -42,15 +42,24 @@ Each step is built and verified before the next one starts.
 |---|---|---|
 | 1 | `LockedScreenForm` — fullscreen lock screen | **done, verified on Windows** |
 | 2 | `SystemLockService` — keyboard hooks, Task Manager policy | **done, verified on Windows** |
-| 3 | `MqttService` — subscribe to unlock/lock/warn | **done, unverified** |
-| 4 | `GameMenuForm` — game tiles, launching, return-on-exit | **done, unverified** |
+| 3 | `MqttService` — subscribe to unlock/lock/warn | **done, partly verified** |
+| 4 | `GameMenuForm` — game tiles, launching, return-on-exit | **done, verified on Windows** |
 | 5 | `SessionManager` — countdown, warnings, auto-relock | not started |
 | 6 | Auto-start on Windows boot | not started |
 
-> Steps 1-2 were authored on macOS (where Windows Forms cannot build) and then
-> verified on a real Windows machine: fullscreen lock covers the taskbar, every
-> listed shortcut is blocked, Task Manager refuses to open while active and works
-> again after exit.
+> Everything here was authored on macOS (where Windows Forms cannot build) and
+> verified afterwards on a real Windows machine.
+>
+> **Verified:** fullscreen lock covers the taskbar; every listed shortcut is
+> blocked; Task Manager refuses to open while active and works again after exit;
+> the agent connects and subscribes to the broker; unlocking shows the game menu;
+> launching a game keeps it inside the kiosk with no desktop visible; closing it
+> returns to the menu.
+>
+> **Not yet verified:** MQTT command *parsing* end to end. Lock and unlock have
+> so far been driven by the dev chords, which exercise the same shell code but
+> not the message-handling path. Sending a real `mosquitto_pub` command is still
+> worth doing once.
 
 ### What step 2 blocks
 
