@@ -28,6 +28,37 @@ internal sealed class AgentConfig
     [JsonPropertyName("mqtt")]
     public MqttConfig Mqtt { get; init; } = new();
 
+    [JsonPropertyName("heartbeat")]
+    public HeartbeatConfig Heartbeat { get; init; } = new();
+
+    /// <summary>
+    /// Reporting this station's state to the website over plain HTTP.
+    /// </summary>
+    /// <remarks>
+    /// The agent already publishes status over MQTT, but reading that needs a
+    /// permanently open subscription and the site runs serverless. Posting the
+    /// same state over HTTP means the dashboard can show which machines are
+    /// alive without an always-on listener.
+    /// <para>
+    /// Optional — leave <see cref="Url"/> empty and the agent simply does not
+    /// report in. Locking and unlocking are unaffected either way.
+    /// </para>
+    /// </remarks>
+    internal sealed class HeartbeatConfig
+    {
+        /// <summary>e.g. https://bookmygame.co.in/api/stations/heartbeat</summary>
+        [JsonPropertyName("url")]
+        public string? Url { get; init; }
+
+        /// <summary>Must match STATION_HEARTBEAT_TOKEN on the server.</summary>
+        [JsonPropertyName("token")]
+        public string? Token { get; init; }
+
+        /// <summary>Which café this machine belongs to.</summary>
+        [JsonPropertyName("cafeId")]
+        public string? CafeId { get; init; }
+    }
+
     /// <summary>Games offered on the menu once a session is unlocked.</summary>
     [JsonPropertyName("games")]
     public List<GameEntry> Games { get; init; } = [];
@@ -79,6 +110,21 @@ internal sealed class AgentConfig
 
         [JsonPropertyName("mqtt")]
         public MqttOverride? Mqtt { get; init; }
+
+        [JsonPropertyName("heartbeat")]
+        public HeartbeatOverride? Heartbeat { get; init; }
+
+        internal sealed class HeartbeatOverride
+        {
+            [JsonPropertyName("url")]
+            public string? Url { get; init; }
+
+            [JsonPropertyName("token")]
+            public string? Token { get; init; }
+
+            [JsonPropertyName("cafeId")]
+            public string? CafeId { get; init; }
+        }
 
         internal sealed class MqttOverride
         {
@@ -172,6 +218,12 @@ internal sealed class AgentConfig
             {
                 StationId = overrides.StationId ?? config.StationId,
                 Games = config.Games,
+                Heartbeat = new HeartbeatConfig
+                {
+                    Url = overrides.Heartbeat?.Url ?? config.Heartbeat.Url,
+                    Token = overrides.Heartbeat?.Token ?? config.Heartbeat.Token,
+                    CafeId = overrides.Heartbeat?.CafeId ?? config.Heartbeat.CafeId,
+                },
                 Mqtt = new MqttConfig
                 {
                     Host = overrides.Mqtt?.Host ?? config.Mqtt.Host,

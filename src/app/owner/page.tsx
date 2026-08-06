@@ -48,6 +48,7 @@ const Coupons = dynamic(() => import('./components/Coupons').then((mod) => mod.C
 const Reports = dynamic(() => import('./components/Reports').then((mod) => mod.Reports), { ssr: false });
 const StationsTab = dynamic(() => import('./components/StationsTab').then((mod) => mod.StationsTab), { ssr: false });
 const UnlockHistory = dynamic(() => import('./components/UnlockHistory').then((mod) => mod.UnlockHistory), { ssr: false });
+const StationLiveStatus = dynamic(() => import('./components/StationLiveStatus').then((mod) => mod.StationLiveStatus), { ssr: false });
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
 const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
@@ -2957,7 +2958,8 @@ export default function OwnerDashboardPage() {
               }}
               theme={theme}
             />
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col gap-4">
+              <StationLiveStatus cafeId={selectedCafeId || undefined} />
               <UnlockHistory cafeId={selectedCafeId || undefined} />
             </div>
             </ErrorBoundary>

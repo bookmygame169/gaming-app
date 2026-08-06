@@ -22,6 +22,7 @@ internal sealed class AgentShell : ApplicationContext
     private readonly SystemLockService _lockService;
     private readonly MqttService _mqttService;
     private readonly SessionManager _session;
+    private readonly HeartbeatReporter _heartbeat;
     private readonly LockedScreenForm _lockedScreen;
     private readonly GameMenuForm _gameMenu;
     private readonly WarningOverlayForm _warningOverlay;
@@ -34,6 +35,7 @@ internal sealed class AgentShell : ApplicationContext
         _lockService = new SystemLockService(AgentSettings.AllowDevExit);
         _mqttService = new MqttService(config);
         _session = new SessionManager();
+        _heartbeat = new HeartbeatReporter(config);
         _lockedScreen = new LockedScreenForm(config);
         _gameMenu = new GameMenuForm(config);
         _warningOverlay = new WarningOverlayForm();
@@ -75,6 +77,7 @@ internal sealed class AgentShell : ApplicationContext
 
         _lockService.Activate();
         _mqttService.Start();
+        _heartbeat.Start();
 
         // A session that was still running when the agent last stopped resumes
         // here, so a crash — or someone killing the agent hoping for a fresh
@@ -86,7 +89,7 @@ internal sealed class AgentShell : ApplicationContext
         }
         else
         {
-            _mqttService.ReportState(locked: true, sessionId: null);
+            ReportState(locked: true, sessionId: null);
         }
     }
 
@@ -110,7 +113,7 @@ internal sealed class AgentShell : ApplicationContext
         _gameMenu.UpdateRemaining(_session.TimeRemaining);
         _lockedScreen.Hide();
 
-        _mqttService.ReportState(locked: false, sessionId: sessionId);
+        ReportState(locked: false, sessionId: sessionId);
     }
 
     private void OnSessionExpired()
@@ -140,7 +143,22 @@ internal sealed class AgentShell : ApplicationContext
         _lockedScreen.ShowLocked(reassertTopMost: !_lockService.Passthrough);
         _gameMenu.Hide();
 
-        _mqttService.ReportState(locked: true, sessionId: null);
+        ReportState(locked: true, sessionId: null);
+    }
+
+    /// <summary>
+    /// Announces the station's state on both channels.
+    /// </summary>
+    /// <remarks>
+    /// MQTT reaches anything subscribed to the broker; the HTTP heartbeat is what
+    /// the dashboard actually reads, since a serverless site cannot hold a
+    /// subscription open. Both are best-effort — neither can stop a lock or
+    /// unlock from happening.
+    /// </remarks>
+    private void ReportState(bool locked, string? sessionId)
+    {
+        _mqttService.ReportState(locked, sessionId);
+        _heartbeat.ReportState(locked, sessionId);
     }
 
     private void OnGameExited()
@@ -265,6 +283,7 @@ internal sealed class AgentShell : ApplicationContext
         // Not Stop(): that clears the saved state, and a session interrupted by
         // a restart should resume rather than be forfeited.
         _session.Dispose();
+        _heartbeat.Dispose();
 
         // Releases the keyboard hook, restores the Task Manager policy and the
         // taskbar.
