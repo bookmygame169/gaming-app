@@ -44,7 +44,7 @@ Each step is built and verified before the next one starts.
 | 2 | `SystemLockService` — keyboard hooks, Task Manager policy | **done, verified on Windows** |
 | 3 | `MqttService` — subscribe to unlock/lock/warn | **done, partly verified** |
 | 4 | `GameMenuForm` — game tiles, launching, return-on-exit | **done, verified on Windows** |
-| 5 | `SessionManager` — countdown, warnings, auto-relock | **done, unverified** |
+| 5 | `SessionManager` — countdown, warnings, auto-relock | **done, verified on Windows** |
 | 6 | Auto-start on Windows boot | not started |
 
 > Everything here was authored on macOS (where Windows Forms cannot build) and
