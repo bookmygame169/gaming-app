@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOwnedCafeIdForBooking, requireOwnerContext } from "@/lib/ownerAuth";
 import {
   getItemDurationFromPayload,
@@ -13,6 +14,66 @@ type BookingItemRow = {
   title: string | null;
   duration?: number | null;
 };
+
+type UnlockLogEntry = {
+  cafeId: string;
+  bookingId: string;
+  action: "unlock" | "lock";
+  staffId: string;
+  stationNames: string[];
+  durationByStation: Map<string, number>;
+  bookingAmount: number;
+  paymentMode: string | null;
+  bookingStatus: string;
+};
+
+/**
+ * Writes one audit row per station affected.
+ *
+ * The booking's amount, payment mode and status are copied in rather than
+ * referenced, so the record still means something after the booking is edited or
+ * deleted — which is the case this table exists to catch.
+ *
+ * A failure here is logged loudly but does not fail the request. The alternative
+ * is a café where nobody can start a PC because of an audit table problem, and a
+ * missing log line is the lesser harm. It does mean a broken log is invisible to
+ * staff, so the server error matters.
+ */
+async function recordUnlockLog(
+  supabase: SupabaseClient,
+  entry: UnlockLogEntry
+): Promise<void> {
+  try {
+    const rows = entry.stationNames.map((stationName) => ({
+      cafe_id: entry.cafeId,
+      station_name: stationName,
+      action: entry.action,
+      booking_id: entry.bookingId,
+      trigger_source: "staff_manual",
+      staff_id: entry.staffId,
+      booking_amount: entry.bookingAmount,
+      payment_mode: entry.paymentMode,
+      booking_status: entry.bookingStatus,
+      duration_seconds:
+        entry.action === "unlock"
+          ? (entry.durationByStation.get(stationName) || 60) * 60
+          : null,
+    }));
+
+    const { error } = await supabase.from("station_unlock_log").insert(rows);
+
+    if (error) {
+      console.error(
+        "AUDIT WRITE FAILED for station_unlock_log. The station was still controlled, " +
+          "but this action has no audit trail. Has migration " +
+          "20260806000000_add_station_unlock_log.sql been run?",
+        error.message
+      );
+    }
+  } catch (err) {
+    console.error("AUDIT WRITE FAILED for station_unlock_log:", err);
+  }
+}
 
 /**
  * POST /api/owner/stations
@@ -55,7 +116,9 @@ export async function POST(request: NextRequest) {
 
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
-      .select("id, duration, status, deleted_at, booking_items(id, title)")
+      .select(
+        "id, duration, status, deleted_at, total_amount, payment_mode, booking_items(id, title)"
+      )
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -67,11 +130,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    if (action === "unlock" && (booking.status || "").toLowerCase() === "cancelled") {
-      return NextResponse.json(
-        { error: "This booking is cancelled" },
-        { status: 409 }
-      );
+    const bookingStatus = (booking.status || "").toLowerCase();
+
+    // The payment gate. Locking is always allowed — stopping a session must
+    // never be blocked — but unlocking is not.
+    if (action === "unlock") {
+      if (bookingStatus === "cancelled") {
+        return NextResponse.json(
+          { error: "This booking is cancelled, so the station cannot be unlocked." },
+          { status: 409 }
+        );
+      }
+
+      // 'pending' is what this app uses for "money not taken yet" — it is the
+      // status advance bookings sit in until payment lands. Staff must record
+      // the payment before the machine will start.
+      if (bookingStatus === "pending") {
+        return NextResponse.json(
+          {
+            error:
+              "Payment for this booking has not been recorded yet. Mark it paid before unlocking the station.",
+          },
+          { status: 402 }
+        );
+      }
     }
 
     const items = (booking.booking_items || []) as BookingItemRow[];
@@ -124,6 +206,20 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
+
+    // Written after the command actually went out, so the log records what
+    // happened rather than what was attempted.
+    await recordUnlockLog(supabase, {
+      cafeId: ownedCafeId,
+      bookingId,
+      action,
+      staffId: ownerId,
+      stationNames,
+      durationByStation,
+      bookingAmount: Number(booking.total_amount) || 0,
+      paymentMode: booking.payment_mode ?? null,
+      bookingStatus,
+    });
 
     return NextResponse.json({
       success: true,

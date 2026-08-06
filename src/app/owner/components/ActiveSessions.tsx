@@ -417,11 +417,19 @@ export function ActiveSessions({
 
                         {/* Physical machine control. Separate row from the
                             buttons above so the grid there is left alone. */}
-                        {onStationCommand && !isShowingEndCollect && (
+                        {onStationCommand && !isShowingEndCollect && (() => {
+                            // 'pending' is this app's "money not taken yet".
+                            // The API refuses these too — this only stops the
+                            // button looking available. Locking stays allowed
+                            // whatever the payment state.
+                            const isUnpaid = (booking.status || '').toLowerCase() === 'pending';
+
+                            return (
                             <div className="grid grid-cols-2 gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
                                 <button
                                     type="button"
-                                    disabled={stationBusyId === bookingId}
+                                    title={isUnpaid ? 'Record the payment before starting this session' : undefined}
+                                    disabled={isUnpaid || stationBusyId === bookingId}
                                     onClick={async (e) => {
                                         e.stopPropagation();
                                         setStationBusyId(bookingId);
@@ -435,7 +443,11 @@ export function ActiveSessions({
                                     style={{ border: '1px solid rgba(255,255,255,0.07)' }}
                                 >
                                     <Unlock className="h-3 w-3" />
-                                    {stationBusyId === bookingId ? 'Sending…' : 'Unlock PC'}
+                                    {stationBusyId === bookingId
+                                        ? 'Sending…'
+                                        : isUnpaid
+                                            ? 'Unpaid'
+                                            : 'Unlock PC'}
                                 </button>
                                 <button
                                     type="button"
@@ -456,7 +468,8 @@ export function ActiveSessions({
                                     Lock PC
                                 </button>
                             </div>
-                        )}
+                            );
+                        })()}
                     </div>
                 );
             })}
