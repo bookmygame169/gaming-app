@@ -213,7 +213,9 @@ internal sealed class LockedScreenForm : Form
 
     private Label BuildStationLabel() => new()
     {
-        Text = $"Station  {_config.StationId}",
+        // Upper-cased for display only — the id itself stays lower case to match
+        // the MQTT topic the website publishes to.
+        Text = $"Station  {_config.StationId.ToUpperInvariant()}",
         Font = new Font("Segoe UI", 12f, FontStyle.Bold),
         ForeColor = Palette.TextPrimary,
         AutoSize = true,

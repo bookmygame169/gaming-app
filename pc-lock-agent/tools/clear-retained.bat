@@ -10,7 +10,7 @@ REM The real backend must never publish commands retained: a stale unlock would
 REM replay on every station reconnect and open a PC nobody paid for.
 
 set MOSQUITTO=C:\Program Files\mosquitto\mosquitto_pub.exe
-set STATION=PC-01
+set STATION=pc-01
 set BROKER=127.0.0.1
 
 "%MOSQUITTO%" -h %BROKER% -t "cafe/station/%STATION%/command" -r -n

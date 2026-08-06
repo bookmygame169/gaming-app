@@ -14,8 +14,16 @@ namespace PcLockAgent;
 /// </remarks>
 internal sealed class AgentConfig
 {
+    /// <summary>
+    /// Identifies this machine. Must match the station name the website stores
+    /// on bookings, which is always lower case (<c>pc-01</c>, <c>ps5-02</c>).
+    /// </summary>
+    /// <remarks>
+    /// Case matters: MQTT topics are case-sensitive, so <c>PC-01</c> here would
+    /// silently never receive commands published to <c>pc-01</c>.
+    /// </remarks>
     [JsonPropertyName("stationId")]
-    public string StationId { get; init; } = "PC-01";
+    public string StationId { get; init; } = "pc-01";
 
     [JsonPropertyName("mqtt")]
     public MqttConfig Mqtt { get; init; } = new();

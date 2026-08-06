@@ -102,7 +102,7 @@ internal sealed class GameMenuForm : Form
 
         header.Controls.Add(new Label
         {
-            Text = $"Station {_config.StationId}",
+            Text = $"Station {_config.StationId.ToUpperInvariant()}",
             Font = new Font("Segoe UI", 11f, FontStyle.Regular),
             ForeColor = Palette.TextMuted,
             AutoSize = true,
