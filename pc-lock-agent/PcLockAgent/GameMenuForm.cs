@@ -333,7 +333,7 @@ internal sealed class GameMenuForm : Form
             _runningProcess = process;
 
             AgentLog.Info($"Launched '{game.Name}' (pid {process.Id}).");
-            Hide();
+            EnterBackgroundMode(game.Name);
             GameStarted?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
@@ -426,6 +426,24 @@ internal sealed class GameMenuForm : Form
                 process.Dispose();
             }
         });
+    }
+
+    /// <summary>
+    /// Steps back so the game can come to the front, without ever revealing the
+    /// desktop.
+    /// </summary>
+    /// <remarks>
+    /// This form deliberately stays visible and fullscreen — hiding it would
+    /// expose the Windows desktop behind any game that is windowed, minimised or
+    /// still loading. Only <see cref="Form.TopMost"/> is dropped, so the game
+    /// can sit above this while this covers everything below it.
+    /// </remarks>
+    private void EnterBackgroundMode(string gameName)
+    {
+        TopMost = false;
+
+        _statusLabel.Text = $"{gameName} is running — close it to come back here.";
+        _statusLabel.ForeColor = Palette.TextMuted;
     }
 
     /// <summary>Re-shows the menu and puts it back on top.</summary>

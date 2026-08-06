@@ -215,7 +215,7 @@ Watch the heartbeat and status messages the agent publishes back:
 |---|---|
 | Broker running, agent starts | Indicator green, `status` message published |
 | `unlock` | Lock screen is replaced by the game menu; keys stay blocked |
-| Click a game tile | Menu hides, game launches, Alt+F4 becomes allowed |
+| Click a game tile | Game launches above the menu; the desktop is never shown |
 | Close the game | Back to the game menu, never the desktop |
 | `lock` | Any running game is closed, lock screen returns to the front |
 | `warn` | Log line only — warning UI is step 5 |
@@ -231,13 +231,34 @@ Diagnostics are written to `agent.log` beside the exe (and to the debugger
 output window). That file is the first place to look when something misbehaves
 on a real café PC.
 
-### If Task Manager stays disabled after a crash
+### Hiding the desktop and taskbar
 
-`DisableTaskMgr` is restored on normal exit, but a hard kill (power loss, "End
-task") can leave it set. To clear it manually:
+Blocking keys is only half the job — the desktop and taskbar have to be
+unreachable by mouse too:
+
+- **The taskbar is hidden** while the lock is active, and restored on exit or
+  when dev passthrough is switched on. Without this the Start button, clock and
+  pinned apps stay one click away, and the taskbar sits above the game menu
+  whenever the menu is not topmost.
+- **The game menu stays on screen behind a running game** rather than hiding
+  itself. Hiding it would expose the desktop behind any game that is windowed,
+  minimised, or still loading.
+
+### Recovering after a crash
+
+Both the Task Manager policy and the hidden taskbar are undone on normal exit,
+but a hard kill (power loss, "End task") can leave them applied.
+
+Restore Task Manager:
 
 ```
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v DisableTaskMgr /f
+```
+
+Restore the taskbar — easiest is to restart Explorer:
+
+```
+taskkill /f /im explorer.exe && start explorer.exe
 ```
 
 ---

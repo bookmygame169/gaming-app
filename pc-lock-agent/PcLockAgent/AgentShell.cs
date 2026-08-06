@@ -81,8 +81,10 @@ internal sealed class AgentShell : ApplicationContext
         AgentLog.Info($"Unlocking station (duration {e.DurationSeconds}s, session {e.SessionId ?? "(none)"}). " +
                       "Auto-relock not implemented until step 5.");
 
-        _lockedScreen.Hide();
+        // Menu up before the lock screen goes down. The other order leaves a
+        // frame or two with neither on screen, which shows the desktop.
         _gameMenu.ShowMenu();
+        _lockedScreen.Hide();
 
         _mqttService.ReportState(locked: false, sessionId: e.SessionId);
     }
@@ -99,8 +101,10 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         _lockService.SetGameRunning(false);
-        _gameMenu.Hide();
+
+        // Lock screen up before the menu goes down, for the same reason.
         _lockedScreen.ShowLocked(reassertTopMost: !_lockService.Passthrough);
+        _gameMenu.Hide();
 
         _mqttService.ReportState(locked: true, sessionId: null);
     }

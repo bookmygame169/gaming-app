@@ -144,10 +144,12 @@ internal sealed class SystemLockService : IDisposable
         if (enabled)
         {
             RestoreTaskManager();
+            SetTaskbarVisible(true);
         }
         else
         {
             DisableTaskManager();
+            SetTaskbarVisible(false);
         }
 
         AgentLog.Info($"Dev passthrough {(enabled ? "ON — keys unblocked" : "OFF — keys blocked")}.");
@@ -173,11 +175,17 @@ internal sealed class SystemLockService : IDisposable
 
         InstallKeyboardHook();
         DisableTaskManager();
+        SetTaskbarVisible(false);
 
         // Best-effort cleanup if the process ends without Deactivate() running.
         // Does not fire on a hard kill (Task Manager "End task", power loss), so
-        // the policy can survive a crash — see the recovery note in README.
-        _processExitHandler = (_, _) => RestoreTaskManager();
+        // the policy and the hidden taskbar can survive a crash — see the
+        // recovery notes in README.
+        _processExitHandler = (_, _) =>
+        {
+            RestoreTaskManager();
+            SetTaskbarVisible(true);
+        };
         AppDomain.CurrentDomain.ProcessExit += _processExitHandler;
     }
 
@@ -192,6 +200,7 @@ internal sealed class SystemLockService : IDisposable
         _hookProc = null;
 
         RestoreTaskManager();
+        SetTaskbarVisible(true);
 
         if (_processExitHandler is not null)
         {
@@ -439,6 +448,51 @@ internal sealed class SystemLockService : IDisposable
     }
 
     // -----------------------------------------------------------------------
+    // Taskbar
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Hides or restores the Windows taskbar.
+    /// </summary>
+    /// <remarks>
+    /// Blocking the Windows key is not enough on its own — the Start button, the
+    /// clock and any pinned app stay one mouse click away, and the lock screen
+    /// only covers the taskbar while it is topmost. During a game it is not, so
+    /// without this the taskbar sits on top of everything.
+    /// <para>
+    /// This is a system-wide change, so it is undone in <see cref="Deactivate"/>,
+    /// on process exit, and whenever dev passthrough is switched on. A hard kill
+    /// can still leave it hidden — restart Explorer to get it back.
+    /// </para>
+    /// </remarks>
+    private static void SetTaskbarVisible(bool visible)
+    {
+        try
+        {
+            var command = visible ? NativeMethods.SW_SHOW : NativeMethods.SW_HIDE;
+
+            var primary = NativeMethods.FindWindow("Shell_TrayWnd", null);
+            if (primary != IntPtr.Zero)
+            {
+                NativeMethods.ShowWindow(primary, command);
+            }
+
+            // Multi-monitor setups get an extra taskbar per additional display.
+            // FindWindow returns only the first, so this covers a second screen
+            // but not a third — see the multi-monitor note in README.
+            var secondary = NativeMethods.FindWindow("Shell_SecondaryTrayWnd", null);
+            if (secondary != IntPtr.Zero)
+            {
+                NativeMethods.ShowWindow(secondary, command);
+            }
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not {(visible ? "restore" : "hide")} the taskbar: {ex.Message}");
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Win32 interop
     // -----------------------------------------------------------------------
 
@@ -492,6 +546,16 @@ internal sealed class SystemLockService : IDisposable
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        public const int SW_HIDE = 0;
+        public const int SW_SHOW = 5;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
