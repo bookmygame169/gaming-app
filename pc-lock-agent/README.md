@@ -195,10 +195,14 @@ Note `mqtts://`, not `mqtt://`. Redeploy afterwards for the variables to apply.
 
 For local development the same variables live in `.env.local`.
 
-**Give the website and the stations separate credentials.** The website only
-ever publishes and the stations only ever subscribe, so if HiveMQ's permission
-settings allow it, restrict each accordingly — a leaked station password then
-cannot be used to unlock anything.
+**Permissions.** The station credential needs **publish and subscribe**, not
+subscribe only. The agent subscribes to `.../command`, but it also publishes its
+own state and a heartbeat to `.../status`, so a subscribe-only credential leaves
+it unable to report in.
+
+Separate credentials for the website and the stations are still worth having —
+the website never needs to subscribe — but neither side can be locked down to a
+single direction.
 
 ---
 
