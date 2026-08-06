@@ -35,6 +35,7 @@ internal sealed class LockedScreenForm : Form
     private bool _exiting;
 
     private Label _connectionLabel = null!;
+    private Label? _devBadge;
 
     // BookMyGame palette, matched to the customer-facing site.
     private static readonly Color ColorBackground = Color.FromArgb(0x0A, 0x0E, 0x17);
@@ -55,6 +56,7 @@ internal sealed class LockedScreenForm : Form
         BuildLayout();
 
         _lockService.DevExitRequested += (_, _) => RequestExit();
+        _lockService.DevPassthroughToggleRequested += (_, _) => ToggleDevPassthrough();
         _mqttService.UnlockRequested += OnUnlockRequested;
         _mqttService.LockRequested += (_, _) => ApplyLocked();
         _mqttService.WarnRequested += OnWarnRequested;
@@ -122,11 +124,16 @@ internal sealed class LockedScreenForm : Form
         Show();
 
         // Re-assert topmost after being hidden: another window may have taken
-        // the foreground while this form was not visible.
-        TopMost = false;
-        TopMost = true;
-        BringToFront();
-        Activate();
+        // the foreground while this form was not visible. Skipped while dev
+        // passthrough is on, or a `lock` command would snatch the screen back
+        // over the terminal being used to send these commands.
+        if (!_lockService.Passthrough)
+        {
+            TopMost = false;
+            TopMost = true;
+            BringToFront();
+            Activate();
+        }
 
         _mqttService.ReportState(locked: true, sessionId: null);
     }
@@ -220,9 +227,38 @@ internal sealed class LockedScreenForm : Form
 
         if (AgentSettings.AllowDevExit)
         {
-            var badge = BuildDevModeBadge();
-            Controls.Add(badge);
-            badge.BringToFront();
+            _devBadge = BuildDevModeBadge();
+            Controls.Add(_devBadge);
+            _devBadge.BringToFront();
+        }
+    }
+
+    /// <summary>
+    /// Suspends the lock so a developer can reach a terminal, and puts it back.
+    /// </summary>
+    /// <remarks>
+    /// Dropping <see cref="Form.TopMost"/> matters as much as unblocking the
+    /// keys: with it still set, Alt+Tabbing to another window would just place
+    /// that window behind this one.
+    /// </remarks>
+    private void ToggleDevPassthrough()
+    {
+        var enabled = !_lockService.Passthrough;
+        _lockService.SetPassthrough(enabled);
+
+        TopMost = !enabled;
+        if (!enabled)
+        {
+            BringToFront();
+            Activate();
+        }
+
+        if (_devBadge is not null)
+        {
+            _devBadge.Text = enabled
+                ? "DEV BUILD — lock SUSPENDED (Ctrl+Shift+Alt+L to restore)"
+                : "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend";
+            _devBadge.ForeColor = enabled ? ColorAccent : ColorOffline;
         }
     }
 
@@ -324,7 +360,7 @@ internal sealed class LockedScreenForm : Form
     /// </summary>
     private static Label BuildDevModeBadge() => new()
     {
-        Text = "DEV BUILD — Ctrl+Shift+Alt+Q to exit",
+        Text = "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend",
         Font = new Font("Segoe UI", 9f, FontStyle.Bold),
         ForeColor = Color.FromArgb(0xF5, 0x9E, 0x0B),
         BackColor = Color.FromArgb(0x1E, 0x29, 0x3B),

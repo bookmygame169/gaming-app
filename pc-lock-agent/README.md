@@ -130,7 +130,10 @@ allow_anonymous true
 **4. Start the agent** in another terminal. The bottom-left indicator should turn
 green and read "Broker connected".
 
-**5. Send commands** from a third terminal.
+**5. Press Ctrl+Shift+Alt+L** to suspend the lock, then Alt+Tab to a terminal.
+Without this you cannot reach one — see [Dev chords](#dev-chords).
+
+**6. Send commands** from that terminal.
 
 > These are **PowerShell** commands. The single quotes around the JSON matter —
 > they keep the inner double quotes literal. In `cmd.exe` you would need
@@ -200,14 +203,27 @@ dotnet run --project PcLockAgent
 
 Or open `PcLockAgent.sln` in Visual Studio 2022 and press F5.
 
-### Getting back out
+### Dev chords
 
-The lock screen is fullscreen, always-on-top, and now swallows Alt+F4 and
-Alt+Tab. **Ctrl+Shift+Alt+Q is the only way out.**
+The lock screen is fullscreen, always-on-top, and swallows Alt+F4 and Alt+Tab.
+Two chords exist while `AllowDevExit` is true:
 
-That chord is handled in two places — the global keyboard hook and the form's
-own key handler — so it still works if the hook fails to install or if the
-window loses focus.
+| Chord | Effect |
+|---|---|
+| **Ctrl+Shift+Alt+Q** | Quit the agent |
+| **Ctrl+Shift+Alt+L** | Suspend/restore the lock |
+
+**Ctrl+Shift+Alt+L is what makes the agent testable.** With the lock active there
+is no way to reach a terminal to publish MQTT commands — Alt+Tab and the Windows
+key are gone, and the window sits above everything. Suspending unblocks the keys
+*and* drops always-on-top, so you can Alt+Tab to PowerShell, send a command, and
+watch the screen react. Press it again to restore the lock.
+
+Both chords are handled inside the keyboard hook itself, so they work even when
+the window has lost focus. The Q chord is additionally handled by the form's own
+key handler, as a fallback in case the hook failed to install.
+
+Neither chord exists once `AllowDevExit` is false.
 
 ### Before deploying to a café PC
 

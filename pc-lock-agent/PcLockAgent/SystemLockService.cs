@@ -32,7 +32,29 @@ internal sealed class SystemLockService : IDisposable
     /// </summary>
     public event EventHandler? DevExitRequested;
 
+    /// <summary>
+    /// Raised when the developer passthrough chord is pressed. See
+    /// <see cref="Passthrough"/>.
+    /// </summary>
+    public event EventHandler? DevPassthroughToggleRequested;
+
     private readonly bool _allowDevExit;
+
+    /// <summary>
+    /// When true the hook stays installed but stops swallowing keys.
+    /// </summary>
+    /// <remarks>
+    /// Development affordance only. A fullscreen topmost window that eats
+    /// Alt+Tab and the Windows key leaves no way to reach a terminal, which
+    /// makes the agent impossible to test against a broker on a single-monitor
+    /// machine. Gated behind the same flag as the exit chord.
+    /// <para>
+    /// The hook is deliberately left installed rather than uninstalled, so the
+    /// chord that toggles this back off is still seen globally even when our
+    /// window has lost focus.
+    /// </para>
+    /// </remarks>
+    private volatile bool _passthrough;
 
     /// <summary>
     /// Held in a field on purpose. <see cref="NativeMethods.SetWindowsHookEx"/>
@@ -57,6 +79,36 @@ internal sealed class SystemLockService : IDisposable
     }
 
     public bool IsActive => _hookHandle != IntPtr.Zero;
+
+    /// <summary>
+    /// Whether key blocking is currently suspended for development.
+    /// </summary>
+    public bool Passthrough => _passthrough;
+
+    /// <summary>
+    /// Suspends or resumes key blocking, and restores or re-applies the Task
+    /// Manager policy to match.
+    /// </summary>
+    public void SetPassthrough(bool enabled)
+    {
+        if (!_allowDevExit || _passthrough == enabled)
+        {
+            return;
+        }
+
+        _passthrough = enabled;
+
+        if (enabled)
+        {
+            RestoreTaskManager();
+        }
+        else
+        {
+            DisableTaskManager();
+        }
+
+        AgentLog.Info($"Dev passthrough {(enabled ? "ON — keys unblocked" : "OFF — keys blocked")}.");
+    }
 
     /// <summary>
     /// Installs the keyboard hook and disables Task Manager.
@@ -171,15 +223,24 @@ internal sealed class SystemLockService : IDisposable
             var ctrlDown = NativeMethods.IsKeyDown(NativeMethods.VK_CONTROL);
             var shiftDown = NativeMethods.IsKeyDown(NativeMethods.VK_SHIFT);
 
-            // Checked before the block list so the escape hatch keeps working
-            // globally, even if our window has somehow lost focus.
-            if (_allowDevExit && ctrlDown && shiftDown && altDown && key == Keys.Q)
+            // Dev chords are checked before the block list, and regardless of
+            // passthrough, so they keep working globally even when our window
+            // has lost focus.
+            if (_allowDevExit && ctrlDown && shiftDown && altDown)
             {
-                RaiseDevExitRequested();
-                return NativeMethods.Suppress;
+                switch (key)
+                {
+                    case Keys.Q:
+                        RaiseDevExitRequested();
+                        return NativeMethods.Suppress;
+
+                    case Keys.L:
+                        RaiseOnUi(() => DevPassthroughToggleRequested?.Invoke(this, EventArgs.Empty));
+                        return NativeMethods.Suppress;
+                }
             }
 
-            if (ShouldBlock(key, altDown, ctrlDown))
+            if (!_passthrough && ShouldBlock(key, altDown, ctrlDown))
             {
                 return NativeMethods.Suppress;
             }
@@ -219,23 +280,25 @@ internal sealed class SystemLockService : IDisposable
         return false;
     }
 
-    private void RaiseDevExitRequested()
-    {
-        var handler = DevExitRequested;
-        if (handler is null)
-        {
-            return;
-        }
+    private void RaiseDevExitRequested() =>
+        RaiseOnUi(() => DevExitRequested?.Invoke(this, EventArgs.Empty));
 
-        // Post (not Send) so the hook returns immediately rather than waiting on
-        // the UI thread — see the timeout note on HookCallback.
+    /// <summary>
+    /// Marshals an event onto the thread that called <see cref="Activate"/>.
+    /// </summary>
+    /// <remarks>
+    /// Post (not Send) so the hook returns immediately rather than blocking on
+    /// the UI thread — see the timeout note on <see cref="HookCallback"/>.
+    /// </remarks>
+    private void RaiseOnUi(Action action)
+    {
         if (_uiContext is not null)
         {
-            _uiContext.Post(_ => handler(this, EventArgs.Empty), null);
+            _uiContext.Post(_ => action(), null);
         }
         else
         {
-            handler(this, EventArgs.Empty);
+            action();
         }
     }
 
