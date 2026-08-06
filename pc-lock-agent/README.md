@@ -170,7 +170,10 @@ green and read "Broker connected".
 **5. Press Ctrl+Shift+Alt+L** to suspend the lock, then Alt+Tab to a terminal.
 Without this you cannot reach one — see [Dev chords](#dev-chords).
 
-**6. Send commands** from that terminal.
+**6. Send commands.** Either double-click the scripts in `tools/`
+(`unlock.bat`, `lock.bat`, `clear-retained.bat`) or run the commands below by
+hand. Edit the `STATION` and `BROKER` variables at the top of each script if
+yours differ.
 
 > **Start the agent before publishing.** A normal MQTT message is delivered only
 > to subscribers connected at that instant — it is not queued. Publishing while
@@ -258,8 +261,16 @@ Two chords exist while `AllowDevExit` is true:
 
 | Chord | Effect |
 |---|---|
-| **Ctrl+Shift+Alt+Q** | Quit the agent |
+| **Ctrl+Shift+Alt+U** | Act as though an `unlock` command arrived |
+| **Ctrl+Shift+Alt+K** | Act as though a `lock` command arrived |
 | **Ctrl+Shift+Alt+L** | Suspend/restore the lock |
+| **Ctrl+Shift+Alt+Q** | Quit the agent |
+
+**U and K are the easy way to test.** They drive exactly the same code an MQTT
+command would, so the whole flow — lock screen → game menu → launch a game →
+close it → back to the menu → locked again — can be exercised with the keyboard
+alone, no broker and no terminal. What they do *not* test is message parsing and
+the broker connection; use `mosquitto_pub` for that.
 
 **Ctrl+Shift+Alt+L is what makes the agent testable.** With the lock active there
 is no way to reach a terminal to publish MQTT commands — Alt+Tab and the Windows

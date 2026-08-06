@@ -36,9 +36,11 @@ internal sealed class AgentShell : ApplicationContext
 
         _lockService.DevExitRequested += (_, _) => Shutdown();
         _lockService.DevPassthroughToggleRequested += (_, _) => ToggleDevPassthrough();
+        _lockService.DevSimulateUnlockRequested += (_, _) => SimulateUnlock();
+        _lockService.DevSimulateLockRequested += (_, _) => SimulateLock();
 
-        _lockedScreen.DevExitRequested += (_, _) => Shutdown();
-        _lockedScreen.DevPassthroughToggleRequested += (_, _) => ToggleDevPassthrough();
+        _lockedScreen.DevChordPressed += OnDevChordPressed;
+        _gameMenu.DevChordPressed += OnDevChordPressed;
 
         _mqttService.UnlockRequested += OnUnlockRequested;
         _mqttService.LockRequested += (_, _) => ApplyLocked();
@@ -129,6 +131,43 @@ internal sealed class AgentShell : ApplicationContext
     // -----------------------------------------------------------------------
     // Dev affordances
     // -----------------------------------------------------------------------
+
+    private void OnDevChordPressed(object? sender, DevChord chord)
+    {
+        switch (chord)
+        {
+            case DevChord.Exit:
+                Shutdown();
+                break;
+
+            case DevChord.TogglePassthrough:
+                ToggleDevPassthrough();
+                break;
+
+            case DevChord.SimulateUnlock:
+                SimulateUnlock();
+                break;
+
+            case DevChord.SimulateLock:
+                SimulateLock();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Drives the same path an MQTT <c>unlock</c> would, without a broker.
+    /// </summary>
+    private void SimulateUnlock()
+    {
+        AgentLog.Info("Dev chord: simulating unlock.");
+        OnUnlockRequested(this, new UnlockEventArgs(3600, "dev-simulated"));
+    }
+
+    private void SimulateLock()
+    {
+        AgentLog.Info("Dev chord: simulating lock.");
+        ApplyLocked();
+    }
 
     private void ToggleDevPassthrough()
     {

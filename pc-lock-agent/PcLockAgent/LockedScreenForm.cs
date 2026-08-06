@@ -15,11 +15,8 @@ namespace PcLockAgent;
 /// </remarks>
 internal sealed class LockedScreenForm : Form
 {
-    /// <summary>Fallback for the dev exit chord if the keyboard hook is not installed.</summary>
-    public event EventHandler? DevExitRequested;
-
-    /// <summary>Fallback for the dev passthrough chord if the keyboard hook is not installed.</summary>
-    public event EventHandler? DevPassthroughToggleRequested;
+    /// <summary>Fallback for the dev chords if the keyboard hook is not installed.</summary>
+    public event EventHandler<DevChord>? DevChordPressed;
 
     private readonly AgentConfig _config;
 
@@ -71,8 +68,8 @@ internal sealed class LockedScreenForm : Form
         }
 
         _devBadge.Text = suspended
-            ? "DEV BUILD — lock SUSPENDED (Ctrl+Shift+Alt+L to restore)"
-            : "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend";
+            ? "DEV BUILD — lock SUSPENDED  (Ctrl+Shift+Alt + L restore)"
+            : DevBadgeText;
         _devBadge.ForeColor = suspended ? Palette.Accent : Palette.Warning;
     }
 
@@ -253,9 +250,12 @@ internal sealed class LockedScreenForm : Form
     /// escape hatch compiled in, so it is hard to deploy one to a café PC by
     /// mistake.
     /// </summary>
+    private const string DevBadgeText =
+        "DEV BUILD — Ctrl+Shift+Alt +  U unlock · K lock · L suspend · Q quit";
+
     private static Label BuildDevModeBadge() => new()
     {
-        Text = "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend",
+        Text = DevBadgeText,
         Font = new Font("Segoe UI", 9f, FontStyle.Bold),
         ForeColor = Palette.Warning,
         BackColor = Palette.Border,
@@ -275,28 +275,12 @@ internal sealed class LockedScreenForm : Form
     /// </remarks>
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (!AgentSettings.AllowDevExit)
+        if (DevChords.Match(e) is not { } chord)
         {
             return;
         }
 
-        // Deliberately awkward chords — a customer will not hit these by accident.
-        if (!e.Control || !e.Shift || !e.Alt)
-        {
-            return;
-        }
-
-        switch (e.KeyCode)
-        {
-            case Keys.Q:
-                e.Handled = true;
-                DevExitRequested?.Invoke(this, EventArgs.Empty);
-                break;
-
-            case Keys.L:
-                e.Handled = true;
-                DevPassthroughToggleRequested?.Invoke(this, EventArgs.Empty);
-                break;
-        }
+        e.Handled = true;
+        DevChordPressed?.Invoke(this, chord);
     }
 }

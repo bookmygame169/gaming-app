@@ -38,6 +38,21 @@ internal sealed class SystemLockService : IDisposable
     /// </summary>
     public event EventHandler? DevPassthroughToggleRequested;
 
+    /// <summary>
+    /// Raised by the dev chord that fakes an <c>unlock</c> command.
+    /// </summary>
+    /// <remarks>
+    /// Testing the real path means publishing MQTT from a terminal, which this
+    /// agent makes hard to reach by design. These chords drive the same code an
+    /// MQTT command would, so the screens and game launching can be exercised
+    /// without a broker. They do not test message parsing — use mosquitto_pub
+    /// for that.
+    /// </remarks>
+    public event EventHandler? DevSimulateUnlockRequested;
+
+    /// <summary>Raised by the dev chord that fakes a <c>lock</c> command.</summary>
+    public event EventHandler? DevSimulateLockRequested;
+
     private readonly bool _allowDevExit;
 
     /// <summary>
@@ -271,6 +286,14 @@ internal sealed class SystemLockService : IDisposable
 
                     case Keys.L:
                         RaiseOnUi(() => DevPassthroughToggleRequested?.Invoke(this, EventArgs.Empty));
+                        return NativeMethods.Suppress;
+
+                    case Keys.U:
+                        RaiseOnUi(() => DevSimulateUnlockRequested?.Invoke(this, EventArgs.Empty));
+                        return NativeMethods.Suppress;
+
+                    case Keys.K:
+                        RaiseOnUi(() => DevSimulateLockRequested?.Invoke(this, EventArgs.Empty));
                         return NativeMethods.Suppress;
                 }
             }

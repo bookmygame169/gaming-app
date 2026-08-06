@@ -18,6 +18,9 @@ internal sealed class GameMenuForm : Form
     /// <summary>Raised when the running game has exited on its own.</summary>
     public event EventHandler? GameExited;
 
+    /// <summary>Fallback for the dev chords if the keyboard hook is not installed.</summary>
+    public event EventHandler<DevChord>? DevChordPressed;
+
     private readonly AgentConfig _config;
     private Process? _runningProcess;
     private Label _statusLabel = null!;
@@ -40,6 +43,21 @@ internal sealed class GameMenuForm : Form
         StartPosition = FormStartPosition.Manual;
         BackColor = Palette.Background;
         Text = "BookMyGame — Choose a game";
+
+        // Same fallback as the lock screen: if the keyboard hook failed to
+        // install, the dev chords must still work from here or a session with a
+        // game menu on screen would be unexitable.
+        KeyPreview = true;
+        KeyDown += (_, e) =>
+        {
+            if (DevChords.Match(e) is not { } chord)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            DevChordPressed?.Invoke(this, chord);
+        };
     }
 
     private void BuildLayout()
@@ -221,6 +239,24 @@ internal sealed class GameMenuForm : Form
         };
 
         footer.Controls.Add(_statusLabel);
+
+        if (AgentSettings.AllowDevExit)
+        {
+            // Repeated here because the lock screen's badge is hidden for the
+            // whole of a session — without this there is no on-screen reminder
+            // of how to get out once a game menu is up.
+            footer.Controls.Add(new Label
+            {
+                Text = "DEV BUILD — Ctrl+Shift+Alt +  K lock · L suspend · Q quit",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ForeColor = Palette.Warning,
+                BackColor = Palette.Border,
+                AutoSize = true,
+                Padding = new Padding(8, 5, 8, 5),
+                Location = new Point(Bounds.Width - 460, 14),
+            });
+        }
+
         return footer;
     }
 
