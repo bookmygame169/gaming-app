@@ -19,6 +19,18 @@ internal static class Program
         ApplicationConfiguration.Initialize();
 
         AgentLog.Info("=== PcLockAgent starting ===");
+
+        if (AgentSettings.AllowDevExit)
+        {
+            // Written every start so an unsafe build is obvious in the log of a
+            // machine that is already deployed, not just on the screen in front
+            // of whoever built it.
+            AgentLog.Warn(
+                "AllowDevExit is TRUE. Anyone can quit this agent with Ctrl+Shift+Alt+Q " +
+                "or suspend the lock with Ctrl+Shift+Alt+L. Set it to false in " +
+                "AgentSettings.cs before using this on a cafe PC.");
+        }
+
         var config = AgentConfig.Load();
 
         // An ApplicationContext rather than a form: the agent has to outlive the

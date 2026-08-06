@@ -45,7 +45,7 @@ Each step is built and verified before the next one starts.
 | 3 | `MqttService` — subscribe to unlock/lock/warn | **done, partly verified** |
 | 4 | `GameMenuForm` — game tiles, launching, return-on-exit | **done, verified on Windows** |
 | 5 | `SessionManager` — countdown, warnings, auto-relock | **done, verified on Windows** |
-| 6 | Auto-start on Windows boot | not started |
+| 6 | Auto-start on Windows boot | **done, unverified** |
 
 > Everything here was authored on macOS (where Windows Forms cannot build) and
 > verified afterwards on a real Windows machine.
@@ -233,6 +233,64 @@ Watch the heartbeat and status messages the agent publishes back:
 | `warn` | Log line only — warning UI is step 5 |
 | Broker stopped mid-session | Indicator amber, station **stays as-is**, retries every 5s |
 | Malformed JSON published | Warning in `agent.log`, command ignored, stays locked |
+
+---
+
+## Deploying to a café PC
+
+**1. Turn off the dev escape hatch.** Set `AllowDevExit = false` in
+`AgentSettings.cs`. While it is true, anyone can quit the agent with
+Ctrl+Shift+Alt+Q or suspend the lock with Ctrl+Shift+Alt+L. The agent writes a
+warning to `agent.log` on every start while it is still enabled.
+
+**2. Build a release copy:**
+
+```bash
+dotnet publish PcLockAgent -c Release -o "C:\BookMyGame\PcLockAgent"
+```
+
+**3. Set that machine's station id and broker address** in
+`C:\BookMyGame\PcLockAgent\appsettings.json`.
+
+**4. Install the startup task** — right-click PowerShell, Run as Administrator:
+
+```bash
+.\tools\install-startup.ps1
+```
+
+To remove it later: `.\tools\uninstall-startup.ps1`
+
+### How the startup task works
+
+It has two triggers:
+
+- **At log on** — the agent is up before the customer touches anything.
+- **Every minute** — a watchdog.
+
+The watchdog matters more than it looks. Starting at logon alone would mean that
+killing the agent leaves the PC unlocked and free for the rest of the day. With
+a repeating trigger and `MultipleInstances=IgnoreNew`, a killed agent is back
+within a minute, and the repeat does nothing while it is already running.
+
+The task runs as the logged-in user at normal privilege. The agent does not need
+admin — it writes only to `HKCU` and hooks its own session — and running it
+elevated would add a UAC prompt for no benefit.
+
+### Recommended alongside this
+
+From the project plan's hardening notes, and still worth doing:
+
+- A **standard (non-admin) Windows account** for gaming, with auto-login. A
+  customer then cannot install software, change settings, or elevate anything —
+  which also closes the gap where a keyboard hook cannot intercept keys headed
+  for an elevated process.
+- **Static IPs / DHCP reservations** so station addresses do not move.
+
+Replacing the Windows shell (`explorer.exe`) with this agent is a stronger lock
+still — killing it would leave no desktop at all rather than exposing one. The
+project plan lists it as a possible later phase; the code is structured so the
+lock screen and game menu do not assume Explorer is running, but this has not
+been attempted.
 
 ---
 
