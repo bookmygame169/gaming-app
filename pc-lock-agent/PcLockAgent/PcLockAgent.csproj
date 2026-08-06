@@ -22,4 +22,19 @@
     <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      PreserveNewest, not Always: this file holds the station id and broker
+      address, which are edited per machine. Copying on every build would
+      overwrite a café PC's real settings with the repo's localhost defaults.
+    -->
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

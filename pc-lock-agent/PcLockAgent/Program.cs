@@ -18,6 +18,11 @@ internal static class Program
         // .csproj and applies them. Must run before any Form is created.
         ApplicationConfiguration.Initialize();
 
-        Application.Run(new LockedScreenForm());
+        AgentLog.Info("=== PcLockAgent starting ===");
+        var config = AgentConfig.Load();
+
+        Application.Run(new LockedScreenForm(config));
+
+        AgentLog.Info("=== PcLockAgent stopped ===");
     }
 }

@@ -1,0 +1,81 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace PcLockAgent;
+
+/// <summary>
+/// Per-machine settings loaded from <c>appsettings.json</c> beside the exe, so
+/// the same binary can be deployed to every café PC and only the JSON changes.
+/// </summary>
+/// <remarks>
+/// Note what is deliberately NOT here: <see cref="AgentSettings.AllowDevExit"/>.
+/// The escape hatch stays a compile-time constant so it cannot be switched back
+/// on by editing a text file on a café PC.
+/// </remarks>
+internal sealed class AgentConfig
+{
+    [JsonPropertyName("stationId")]
+    public string StationId { get; init; } = "PC-01";
+
+    [JsonPropertyName("mqtt")]
+    public MqttConfig Mqtt { get; init; } = new();
+
+    internal sealed class MqttConfig
+    {
+        [JsonPropertyName("host")]
+        public string Host { get; init; } = "127.0.0.1";
+
+        [JsonPropertyName("port")]
+        public int Port { get; init; } = 1883;
+
+        [JsonPropertyName("username")]
+        public string? Username { get; init; }
+
+        [JsonPropertyName("password")]
+        public string? Password { get; init; }
+    }
+
+    private const string FileName = "appsettings.json";
+
+    /// <summary>
+    /// Loads config from beside the executable, falling back to defaults if the
+    /// file is missing or malformed.
+    /// </summary>
+    /// <remarks>
+    /// Falls back rather than throwing on purpose: this agent runs unattended on
+    /// a kiosk with no one to read an exception dialog. Starting with defaults
+    /// leaves the PC locked and the failure written to the log, which is the
+    /// safe outcome. Refusing to start would leave the PC sitting on an
+    /// unprotected Windows desktop.
+    /// </remarks>
+    public static AgentConfig Load()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, FileName);
+
+        try
+        {
+            if (!File.Exists(path))
+            {
+                AgentLog.Warn($"{FileName} not found at {path}. Using defaults.");
+                return new AgentConfig();
+            }
+
+            var json = File.ReadAllText(path);
+            var config = JsonSerializer.Deserialize<AgentConfig>(json);
+
+            if (config is null)
+            {
+                AgentLog.Warn($"{FileName} deserialised to null. Using defaults.");
+                return new AgentConfig();
+            }
+
+            AgentLog.Info($"Loaded config: station={config.StationId}, broker={config.Mqtt.Host}:{config.Mqtt.Port}");
+            return config;
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Error($"Failed to read {FileName}: {ex.Message}. Using defaults.");
+            return new AgentConfig();
+        }
+    }
+}
