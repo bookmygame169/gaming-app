@@ -135,6 +135,18 @@ Without this you cannot reach one — see [Dev chords](#dev-chords).
 
 **6. Send commands** from that terminal.
 
+> **Start the agent before publishing.** A normal MQTT message is delivered only
+> to subscribers connected at that instant — it is not queued. Publishing while
+> the agent is stopped means the broker accepts the message and discards it, and
+> `mosquitto_pub` still exits silently with no error, so it looks like it worked.
+> This needs two terminals: one running the agent, one to publish from.
+>
+> To avoid the two-terminal dance entirely, publish with `-r` (retained) *before*
+> starting the agent — the broker holds the message and delivers it the moment
+> the agent subscribes. Clear it afterwards with `-r -n` or it fires on every
+> start. **Testing only:** the real backend must never publish commands retained,
+> or a stale unlock would replay on every station reconnect.
+
 > These are **PowerShell** commands. The single quotes around the JSON matter —
 > they keep the inner double quotes literal. In `cmd.exe` you would need
 > `-m "{\"action\":\"lock\"}"` instead.
