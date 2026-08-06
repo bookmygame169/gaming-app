@@ -40,16 +40,17 @@ Each step is built and verified before the next one starts.
 
 | # | Piece | Status |
 |---|---|---|
-| 1 | `LockedScreenForm` — fullscreen lock screen | **done, unverified** |
-| 2 | `SystemLockService` — keyboard hooks, Task Manager policy | **done, unverified** |
+| 1 | `LockedScreenForm` — fullscreen lock screen | **done, verified on Windows** |
+| 2 | `SystemLockService` — keyboard hooks, Task Manager policy | **done, verified on Windows** |
 | 3 | `MqttService` — subscribe to unlock/lock/warn | not started |
 | 4 | `GameMenuForm` — game tiles, launching, return-on-exit | not started |
 | 5 | `SessionManager` — countdown, warnings, auto-relock | not started |
 | 6 | Auto-start on Windows boot | not started |
 
-> Steps 1-2 are written but have **never been compiled or run** — they were
-> authored on macOS, where neither the .NET SDK nor Windows Forms is available.
-> First run on a Windows machine is the real verification.
+> Steps 1-2 were authored on macOS (where Windows Forms cannot build) and then
+> verified on a real Windows machine: fullscreen lock covers the taskbar, every
+> listed shortcut is blocked, Task Manager refuses to open while active and works
+> again after exit.
 
 ### What step 2 blocks
 
