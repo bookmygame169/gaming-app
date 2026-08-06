@@ -130,22 +130,28 @@ allow_anonymous true
 **4. Start the agent** in another terminal. The bottom-left indicator should turn
 green and read "Broker connected".
 
-**5. Send commands** from a third terminal. Unlock for one hour:
+**5. Send commands** from a third terminal.
+
+> These are **PowerShell** commands. The single quotes around the JSON matter —
+> they keep the inner double quotes literal. In `cmd.exe` you would need
+> `-m "{\"action\":\"lock\"}"` instead.
+
+Unlock for one hour:
 
 ```bash
-"C:\Program Files\mosquitto\mosquitto_pub.exe" -h 127.0.0.1 -t "cafe/station/PC-01/command" -m "{\"action\":\"unlock\",\"duration_seconds\":3600,\"session_id\":\"test-1\"}"
+& "C:\Program Files\mosquitto\mosquitto_pub.exe" -h 127.0.0.1 -t "cafe/station/PC-01/command" -m '{"action":"unlock","duration_seconds":3600,"session_id":"test-1"}'
 ```
 
 Lock it again:
 
 ```bash
-"C:\Program Files\mosquitto\mosquitto_pub.exe" -h 127.0.0.1 -t "cafe/station/PC-01/command" -m "{\"action\":\"lock\"}"
+& "C:\Program Files\mosquitto\mosquitto_pub.exe" -h 127.0.0.1 -t "cafe/station/PC-01/command" -m '{"action":"lock"}'
 ```
 
 Watch the heartbeat and status messages the agent publishes back:
 
 ```bash
-"C:\Program Files\mosquitto\mosquitto_sub.exe" -h 127.0.0.1 -t "cafe/station/PC-01/status" -v
+& "C:\Program Files\mosquitto\mosquitto_sub.exe" -h 127.0.0.1 -t "cafe/station/PC-01/status" -v
 ```
 
 ### What to expect
