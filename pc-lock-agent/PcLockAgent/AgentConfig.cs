@@ -61,6 +61,43 @@ internal sealed class AgentConfig
     }
 
     private const string FileName = "appsettings.json";
+    private const string LocalFileName = "appsettings.Local.json";
+
+    /// <summary>
+    /// Optional per-machine overrides, layered on top of <c>appsettings.json</c>.
+    /// </summary>
+    /// <remarks>
+    /// Every field is nullable: only what is present overrides the base file.
+    /// This exists so broker credentials never have to be committed —
+    /// <c>appsettings.Local.json</c> is git-ignored, while the shared file keeps
+    /// the non-secret host and port.
+    /// </remarks>
+    private sealed class ConfigOverride
+    {
+        [JsonPropertyName("stationId")]
+        public string? StationId { get; init; }
+
+        [JsonPropertyName("mqtt")]
+        public MqttOverride? Mqtt { get; init; }
+
+        internal sealed class MqttOverride
+        {
+            [JsonPropertyName("host")]
+            public string? Host { get; init; }
+
+            [JsonPropertyName("port")]
+            public int? Port { get; init; }
+
+            [JsonPropertyName("useTls")]
+            public bool? UseTls { get; init; }
+
+            [JsonPropertyName("username")]
+            public string? Username { get; init; }
+
+            [JsonPropertyName("password")]
+            public string? Password { get; init; }
+        }
+    }
 
     /// <summary>
     /// Loads config from beside the executable, falling back to defaults if the
@@ -94,13 +131,63 @@ internal sealed class AgentConfig
                 return new AgentConfig();
             }
 
-            AgentLog.Info($"Loaded config: station={config.StationId}, broker={config.Mqtt.Host}:{config.Mqtt.Port}");
+            config = ApplyLocalOverrides(config);
+
+            AgentLog.Info(
+                $"Loaded config: station={config.StationId}, " +
+                $"broker={config.Mqtt.Host}:{config.Mqtt.Port}, " +
+                $"user={(string.IsNullOrWhiteSpace(config.Mqtt.Username) ? "(none)" : config.Mqtt.Username)}");
             return config;
         }
         catch (Exception ex)
         {
             AgentLog.Error($"Failed to read {FileName}: {ex.Message}. Using defaults.");
             return new AgentConfig();
+        }
+    }
+
+    /// <summary>
+    /// Layers <c>appsettings.Local.json</c> over the loaded config, if present.
+    /// </summary>
+    private static AgentConfig ApplyLocalOverrides(AgentConfig config)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, LocalFileName);
+
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return config;
+            }
+
+            var overrides = JsonSerializer.Deserialize<ConfigOverride>(File.ReadAllText(path));
+            if (overrides is null)
+            {
+                return config;
+            }
+
+            AgentLog.Info($"Applying overrides from {LocalFileName}.");
+
+            return new AgentConfig
+            {
+                StationId = overrides.StationId ?? config.StationId,
+                Games = config.Games,
+                Mqtt = new MqttConfig
+                {
+                    Host = overrides.Mqtt?.Host ?? config.Mqtt.Host,
+                    Port = overrides.Mqtt?.Port ?? config.Mqtt.Port,
+                    UseTls = overrides.Mqtt?.UseTls ?? config.Mqtt.UseTls,
+                    Username = overrides.Mqtt?.Username ?? config.Mqtt.Username,
+                    Password = overrides.Mqtt?.Password ?? config.Mqtt.Password,
+                },
+            };
+        }
+        catch (Exception ex)
+        {
+            // Falling back to the base config would silently connect without
+            // credentials, so this is worth shouting about rather than ignoring.
+            AgentLog.Error($"Failed to read {LocalFileName}: {ex.Message}. Using {FileName} only.");
+            return config;
         }
     }
 }

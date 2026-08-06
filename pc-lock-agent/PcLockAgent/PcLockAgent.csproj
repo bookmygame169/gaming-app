@@ -35,6 +35,14 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+
+    <!--
+      Per-machine secrets, git-ignored. Conditional because most checkouts will
+      not have one, and an unconditional Update on a missing file is a warning.
+    -->
+    <None Update="appsettings.Local.json" Condition="Exists('appsettings.Local.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

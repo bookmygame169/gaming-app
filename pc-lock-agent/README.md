@@ -161,17 +161,23 @@ HiveMQ Cloud has a free plan that is enough for a café.
 Note the hostname (`something.s1.eu.hivemq.cloud`) and create an access
 credential — a username and password.
 
-**2. Point the agent at it** in `appsettings.json` on each PC:
+**2. Point the agent at it.** The host and port live in `appsettings.json`, which
+is committed. The **credentials do not** — put those in
+`appsettings.Local.json`, which is git-ignored:
 
 ```json
-"mqtt": {
-  "host": "something.s1.eu.hivemq.cloud",
-  "port": 8883,
-  "useTls": true,
-  "username": "station-user",
-  "password": "the-password"
+{
+  "stationId": "pc-01",
+  "mqtt": {
+    "username": "station",
+    "password": "the-real-password"
+  }
 }
 ```
+
+Copy `appsettings.Local.example.json` as a starting point. Anything omitted
+falls back to `appsettings.json`, so each PC's file usually only needs its
+station id and the credentials.
 
 Port **8883** and `useTls: true` go together — hosted brokers refuse plain
 connections. Without TLS the broker password and every unlock command would
