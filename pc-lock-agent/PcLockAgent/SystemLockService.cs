@@ -57,6 +57,19 @@ internal sealed class SystemLockService : IDisposable
     private volatile bool _passthrough;
 
     /// <summary>
+    /// Relaxes the Alt+F4 block only, while a game is in the foreground.
+    /// </summary>
+    /// <remarks>
+    /// Alt+F4 is blocked to stop a customer closing the lock screen or the game
+    /// menu. But it is also the standard way to quit a game, and with it blocked
+    /// a customer who launches something with no in-game exit is stranded until
+    /// their time runs out. The Windows key and Alt+Tab stay blocked throughout —
+    /// closing a game returns them to the menu, which is fine; reaching the
+    /// desktop is not.
+    /// </remarks>
+    private volatile bool _gameRunning;
+
+    /// <summary>
     /// Held in a field on purpose. <see cref="NativeMethods.SetWindowsHookEx"/>
     /// stores a raw function pointer, which the GC does not count as a
     /// reference — if the only reference to this delegate were the local
@@ -84,6 +97,21 @@ internal sealed class SystemLockService : IDisposable
     /// Whether key blocking is currently suspended for development.
     /// </summary>
     public bool Passthrough => _passthrough;
+
+    /// <summary>
+    /// Tells the hook a game is in the foreground, which relaxes Alt+F4 only.
+    /// See <see cref="_gameRunning"/>.
+    /// </summary>
+    public void SetGameRunning(bool running)
+    {
+        if (_gameRunning == running)
+        {
+            return;
+        }
+
+        _gameRunning = running;
+        AgentLog.Info($"Alt+F4 {(running ? "allowed (game running)" : "blocked")}.");
+    }
 
     /// <summary>
     /// Suspends or resumes key blocking, and restores or re-applies the Task
@@ -247,7 +275,7 @@ internal sealed class SystemLockService : IDisposable
                 }
             }
 
-            if (!_passthrough && ShouldBlock(key, altDown, ctrlDown))
+            if (!_passthrough && ShouldBlock(key, altDown, ctrlDown, _gameRunning))
             {
                 return NativeMethods.Suppress;
             }
@@ -256,7 +284,7 @@ internal sealed class SystemLockService : IDisposable
         return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
     }
 
-    private static bool ShouldBlock(Keys key, bool altDown, bool ctrlDown)
+    private static bool ShouldBlock(Keys key, bool altDown, bool ctrlDown, bool gameRunning)
     {
         // Windows key — opens the Start menu, and Win+D / Win+E / Win+R would
         // each reach the desktop, Explorer or the Run box.
@@ -265,8 +293,16 @@ internal sealed class SystemLockService : IDisposable
             return true;
         }
 
-        // Alt+Tab (switch window), Alt+Esc (cycle windows), Alt+F4 (close us).
-        if (altDown && key is Keys.Tab or Keys.Escape or Keys.F4)
+        // Alt+F4 quits the focused window. Allowed only while a game is running,
+        // so a customer can close it and come back to the menu.
+        if (altDown && key == Keys.F4)
+        {
+            return !gameRunning;
+        }
+
+        // Alt+Tab (switch window) and Alt+Esc (cycle windows) stay blocked even
+        // during a game — both are routes to the desktop.
+        if (altDown && key is Keys.Tab or Keys.Escape)
         {
             return true;
         }

@@ -21,7 +21,9 @@ internal static class Program
         AgentLog.Info("=== PcLockAgent starting ===");
         var config = AgentConfig.Load();
 
-        Application.Run(new LockedScreenForm(config));
+        // An ApplicationContext rather than a form: the agent has to outlive the
+        // lock screen, which stays hidden for the whole of a paid session.
+        Application.Run(new AgentShell(config));
 
         AgentLog.Info("=== PcLockAgent stopped ===");
     }

@@ -43,7 +43,7 @@ Each step is built and verified before the next one starts.
 | 1 | `LockedScreenForm` — fullscreen lock screen | **done, verified on Windows** |
 | 2 | `SystemLockService` — keyboard hooks, Task Manager policy | **done, verified on Windows** |
 | 3 | `MqttService` — subscribe to unlock/lock/warn | **done, unverified** |
-| 4 | `GameMenuForm` — game tiles, launching, return-on-exit | not started |
+| 4 | `GameMenuForm` — game tiles, launching, return-on-exit | **done, unverified** |
 | 5 | `SessionManager` — countdown, warnings, auto-relock | not started |
 | 6 | Auto-start on Windows boot | not started |
 
@@ -58,12 +58,19 @@ Each step is built and verified before the next one starts.
 |---|---|---|
 | Windows key (L/R) | yes | keyboard hook |
 | Alt+Tab | yes | keyboard hook |
-| Alt+F4 | yes | keyboard hook |
+| Alt+F4 | yes, **except while a game is running** | keyboard hook |
 | Alt+Esc | yes | keyboard hook |
 | Ctrl+Esc (Start menu) | yes | keyboard hook |
 | Ctrl+Shift+Esc (Task Manager) | yes | keyboard hook |
 | Context-menu key | yes | keyboard hook |
 | **Ctrl+Alt+Del** | **no — impossible** | see below |
+
+Alt+F4 is the one deliberate exception. It is blocked on the lock screen and the
+game menu, but allowed while a game is in the foreground — it is the standard way
+to quit a game, and with it blocked a customer who launches something without an
+in-game exit would be stranded until their time ran out. Closing a game returns
+them to the menu, never the desktop. Alt+Tab and the Windows key stay blocked
+throughout.
 
 **Ctrl+Alt+Del cannot be intercepted by any application.** Windows reserves it
 at the kernel level as the Secure Attention Sequence, precisely so no program can
@@ -91,6 +98,36 @@ non-admin auto-login account (per the plan's hardening notes) remains important.
 
 Set `stationId` uniquely per machine — it drives both MQTT topics and is how the
 backend identifies the station.
+
+### Games
+
+The `games` list drives the menu shown during a session:
+
+```json
+"games": [
+  {
+    "name": "Valorant",
+    "exePath": "C:\\Riot Games\\VALORANT\\live\\VALORANT.exe",
+    "iconPath": "C:\\CafeAssets\\valorant.png",
+    "arguments": null,
+    "workingDirectory": null
+  }
+]
+```
+
+Only `name` and `exePath` are required. Without `iconPath` the tile uses the icon
+embedded in the executable. `workingDirectory` defaults to the exe's own folder,
+which many games need in order to find their data files.
+
+The repo ships with Notepad and Paint as placeholders so the menu can be tested
+before any real games are installed — replace them.
+
+**Launcher-based games are a known limitation.** Titles that go through Steam,
+Epic or Riot often start a small process that hands off to the launcher and exits
+immediately. The agent watches the process it started, so it would see that exit
+and bounce straight back to the menu while the game is still loading. Direct
+`.exe` launches work correctly. Handling launcher titles needs different
+detection and is not solved yet.
 
 `AllowDevExit` is deliberately **not** in this file. It stays a compile-time
 constant in `AgentSettings.cs` so the escape hatch cannot be switched back on by
@@ -174,19 +211,18 @@ Watch the heartbeat and status messages the agent publishes back:
 | Action | Expected |
 |---|---|
 | Broker running, agent starts | Indicator green, `status` message published |
-| `unlock` | Lock screen disappears; keys stay blocked |
-| `lock` | Lock screen returns to the front |
+| `unlock` | Lock screen is replaced by the game menu; keys stay blocked |
+| Click a game tile | Menu hides, game launches, Alt+F4 becomes allowed |
+| Close the game | Back to the game menu, never the desktop |
+| `lock` | Any running game is closed, lock screen returns to the front |
 | `warn` | Log line only — warning UI is step 5 |
 | Broker stopped mid-session | Indicator amber, station **stays as-is**, retries every 5s |
 | Malformed JSON published | Warning in `agent.log`, command ignored, stays locked |
 
-**Two known gaps at this step**, both by design:
-
-- **Unlock reveals the Windows desktop.** Step 4 replaces that with a fullscreen
-  game menu so the desktop is never visible. Key blocking stays active meanwhile,
-  so Alt+Tab / Windows key / Task Manager are still unreachable.
-- **`duration_seconds` is logged but not enforced.** There is no countdown yet —
-  a session stays open until an explicit `lock` arrives. Auto-relock is step 5.
+**One known gap**, by design: **`duration_seconds` is logged but not enforced.**
+There is no countdown yet, so a session stays open until an explicit `lock`
+arrives. Auto-relock is step 5 — and it is the part that actually closes the
+revenue leak, so it should not sit unfinished for long.
 
 Diagnostics are written to `agent.log` beside the exe (and to the debugger
 output window). That file is the first place to look when something misbehaves

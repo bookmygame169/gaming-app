@@ -6,150 +6,74 @@ namespace PcLockAgent;
 /// or interact with until the backend confirms payment.
 /// </summary>
 /// <remarks>
-/// Steps 1-3 of the build order: layout, key blocking via
-/// <see cref="SystemLockService"/>, and lock/unlock driven by
-/// <see cref="MqttService"/>.
+/// A view only: it decides nothing about sessions. <see cref="AgentShell"/> owns
+/// the services and tells this form when to appear.
 /// <para>
-/// Deliberately NOT here yet (each is its own step):
-/// <list type="bullet">
-///   <item>A real QR code — arrives with the backend token endpoint</item>
-///   <item>Game menu instead of the desktop on unlock — GameMenuForm (step 4)</item>
-///   <item>Countdown, warning UI and auto-relock — SessionManager (step 5)</item>
-/// </list>
+/// The QR code is still a placeholder — the real one arrives with the backend
+/// token endpoint.
 /// </para>
 /// </remarks>
 internal sealed class LockedScreenForm : Form
 {
+    /// <summary>Fallback for the dev exit chord if the keyboard hook is not installed.</summary>
+    public event EventHandler? DevExitRequested;
+
+    /// <summary>Fallback for the dev passthrough chord if the keyboard hook is not installed.</summary>
+    public event EventHandler? DevPassthroughToggleRequested;
+
     private readonly AgentConfig _config;
-
-    /// <summary>Swallows the escape shortcuts. Stays active during a session too.</summary>
-    private readonly SystemLockService _lockService;
-
-    /// <summary>The only thing that can unlock this station.</summary>
-    private readonly MqttService _mqttService;
-
-    /// <summary>
-    /// Guards against re-entering the close path — the dev chord can arrive from
-    /// both the global hook and this form's own KeyDown handler.
-    /// </summary>
-    private bool _exiting;
 
     private Label _connectionLabel = null!;
     private Label? _devBadge;
 
-    // BookMyGame palette, matched to the customer-facing site.
-    private static readonly Color ColorBackground = Color.FromArgb(0x0A, 0x0E, 0x17);
-    private static readonly Color ColorAccent = Color.FromArgb(0xE1, 0x1D, 0x48);
-    private static readonly Color ColorTextPrimary = Color.FromArgb(0xF1, 0xF5, 0xF9);
-    private static readonly Color ColorTextMuted = Color.FromArgb(0x94, 0xA3, 0xB8);
-    private static readonly Color ColorPanelBorder = Color.FromArgb(0x1E, 0x29, 0x3B);
-    private static readonly Color ColorOnline = Color.FromArgb(0x22, 0xC5, 0x5E);
-    private static readonly Color ColorOffline = Color.FromArgb(0xF5, 0x9E, 0x0B);
-
     public LockedScreenForm(AgentConfig config)
     {
         _config = config;
-        _lockService = new SystemLockService(AgentSettings.AllowDevExit);
-        _mqttService = new MqttService(config);
-
         InitializeWindowBehaviour();
         BuildLayout();
-
-        _lockService.DevExitRequested += (_, _) => RequestExit();
-        _lockService.DevPassthroughToggleRequested += (_, _) => ToggleDevPassthrough();
-        _mqttService.UnlockRequested += OnUnlockRequested;
-        _mqttService.LockRequested += (_, _) => ApplyLocked();
-        _mqttService.WarnRequested += OnWarnRequested;
-        _mqttService.ConnectionChanged += OnConnectionChanged;
     }
 
-    /// <summary>
-    /// Starts the key hook and MQTT only once the window is on screen.
-    /// </summary>
-    /// <remarks>
-    /// Ordering matters both ways: a failure while building the UI must not
-    /// leave the keyboard locked down with nothing visible to explain why, and
-    /// MQTT must not start before WinForms has installed the
-    /// SynchronizationContext its callbacks marshal through.
-    /// </remarks>
-    protected override void OnShown(EventArgs e)
-    {
-        base.OnShown(e);
-
-        _lockService.Activate();
-        _mqttService.Start();
-        _mqttService.ReportState(locked: true, sessionId: null);
-    }
-
-    protected override void OnFormClosed(FormClosedEventArgs e)
-    {
-        // Releases the hook and puts the Task Manager policy back.
-        _lockService.Dispose();
-
-        // Fire-and-forget: OnFormClosed cannot be async, and the process is
-        // ending anyway. The broker will notice the dropped TCP connection.
-        _ = _mqttService.DisposeAsync().AsTask();
-
-        base.OnFormClosed(e);
-    }
-
-    // -----------------------------------------------------------------------
-    // Lock / unlock
-    // -----------------------------------------------------------------------
-
-    private void OnUnlockRequested(object? sender, UnlockEventArgs e)
-    {
-        // NOTE: e.DurationSeconds is recorded but not yet enforced — the
-        // countdown and auto-relock are SessionManager (step 5). Until then a
-        // session stays open until an explicit `lock` command arrives.
-        AgentLog.Info($"Unlocking station (duration {e.DurationSeconds}s, session {e.SessionId ?? "(none)"}). " +
-                      "Auto-relock not implemented until step 5.");
-
-        ApplyUnlocked(e.SessionId);
-    }
-
-    private void ApplyUnlocked(string? sessionId)
-    {
-        // Hiding this form reveals the Windows desktop, which is NOT the
-        // intended end state — step 4 replaces it with a fullscreen game menu so
-        // the customer never sees the desktop at all. The keyboard hook stays
-        // active meanwhile, so Alt+Tab, the Windows key and Task Manager remain
-        // blocked even during a paid session.
-        Hide();
-        _mqttService.ReportState(locked: false, sessionId: sessionId);
-    }
-
-    private void ApplyLocked()
+    /// <summary>Shows the lock screen and brings it back to the front.</summary>
+    /// <param name="reassertTopMost">
+    /// False while dev passthrough is on, so a <c>lock</c> command does not
+    /// snatch the screen back over the terminal being used to send it.
+    /// </param>
+    public void ShowLocked(bool reassertTopMost)
     {
         Show();
 
-        // Re-assert topmost after being hidden: another window may have taken
-        // the foreground while this form was not visible. Skipped while dev
-        // passthrough is on, or a `lock` command would snatch the screen back
-        // over the terminal being used to send these commands.
-        if (!_lockService.Passthrough)
+        if (!reassertTopMost)
         {
-            TopMost = false;
-            TopMost = true;
-            BringToFront();
-            Activate();
+            return;
         }
 
-        _mqttService.ReportState(locked: true, sessionId: null);
+        // Toggled rather than just set: another window may have taken the
+        // foreground while this form was hidden.
+        TopMost = false;
+        TopMost = true;
+        BringToFront();
+        Activate();
     }
 
-    private void OnWarnRequested(object? sender, int remainingSeconds)
+    public void SetConnectionState(bool connected)
     {
-        // Parsed and logged only. The on-screen warning banner belongs to
-        // SessionManager (step 5), which owns the countdown that decides when a
-        // warning is actually due.
-        AgentLog.Info($"Warn received ({remainingSeconds}s remaining). No UI until step 5.");
+        _connectionLabel.Text = connected
+            ? "●  Broker connected"
+            : "●  Broker offline — station stays locked";
+        _connectionLabel.ForeColor = connected ? Palette.Online : Palette.Warning;
     }
 
-    private void OnConnectionChanged(object? sender, bool connected)
+    public void SetPassthroughIndicator(bool suspended)
     {
-        _connectionLabel.Text = connected ? "●  Broker connected" : "●  Broker offline — station stays locked";
-        _connectionLabel.ForeColor = connected ? ColorOnline : ColorOffline;
+        if (_devBadge is null)
+        {
+            return;
+        }
+
+        _devBadge.Text = suspended
+            ? "DEV BUILD — lock SUSPENDED (Ctrl+Shift+Alt+L to restore)"
+            : "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend";
+        _devBadge.ForeColor = suspended ? Palette.Accent : Palette.Warning;
     }
 
     // -----------------------------------------------------------------------
@@ -174,12 +98,12 @@ internal sealed class LockedScreenForm : Form
         ShowInTaskbar = false;
 
         StartPosition = FormStartPosition.Manual;
-        BackColor = ColorBackground;
+        BackColor = Palette.Background;
         Text = "BookMyGame — Locked";
         Cursor = Cursors.Default;
 
         // Route key presses to the form's KeyDown before any child control sees
-        // them, so the dev escape hatch works regardless of what has focus.
+        // them, so the dev chords work regardless of what has focus.
         KeyPreview = true;
         KeyDown += OnKeyDown;
     }
@@ -233,40 +157,11 @@ internal sealed class LockedScreenForm : Form
         }
     }
 
-    /// <summary>
-    /// Suspends the lock so a developer can reach a terminal, and puts it back.
-    /// </summary>
-    /// <remarks>
-    /// Dropping <see cref="Form.TopMost"/> matters as much as unblocking the
-    /// keys: with it still set, Alt+Tabbing to another window would just place
-    /// that window behind this one.
-    /// </remarks>
-    private void ToggleDevPassthrough()
-    {
-        var enabled = !_lockService.Passthrough;
-        _lockService.SetPassthrough(enabled);
-
-        TopMost = !enabled;
-        if (!enabled)
-        {
-            BringToFront();
-            Activate();
-        }
-
-        if (_devBadge is not null)
-        {
-            _devBadge.Text = enabled
-                ? "DEV BUILD — lock SUSPENDED (Ctrl+Shift+Alt+L to restore)"
-                : "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend";
-            _devBadge.ForeColor = enabled ? ColorAccent : ColorOffline;
-        }
-    }
-
     private static Label BuildHeading() => new()
     {
         Text = "LOCKED",
         Font = new Font("Segoe UI", 46f, FontStyle.Bold),
-        ForeColor = ColorAccent,
+        ForeColor = Palette.Accent,
         AutoSize = true,
         Anchor = AnchorStyles.None,
         Margin = new Padding(0, 0, 0, 4),
@@ -276,7 +171,7 @@ internal sealed class LockedScreenForm : Form
     {
         Text = "Scan the QR code to pay and start your session",
         Font = new Font("Segoe UI", 15f, FontStyle.Regular),
-        ForeColor = ColorTextPrimary,
+        ForeColor = Palette.TextPrimary,
         AutoSize = true,
         Anchor = AnchorStyles.None,
         Margin = new Padding(0, 0, 0, 28),
@@ -293,7 +188,7 @@ internal sealed class LockedScreenForm : Form
             Width = 260,
             Height = 260,
             Anchor = AnchorStyles.None,
-            BackColor = Color.FromArgb(0x11, 0x18, 0x27),
+            BackColor = Palette.Surface,
             Margin = new Padding(0, 0, 0, 24),
         };
 
@@ -301,12 +196,12 @@ internal sealed class LockedScreenForm : Form
         // it use the palette colour instead of the Windows system grey.
         panel.Paint += (_, e) =>
         {
-            using var borderPen = new Pen(ColorPanelBorder, 2f);
+            using var borderPen = new Pen(Palette.Border, 2f);
             e.Graphics.DrawRectangle(borderPen, 1, 1, panel.Width - 3, panel.Height - 3);
 
             const string placeholder = "QR CODE";
             using var font = new Font("Segoe UI", 13f, FontStyle.Bold);
-            using var brush = new SolidBrush(ColorTextMuted);
+            using var brush = new SolidBrush(Palette.TextMuted);
             var size = e.Graphics.MeasureString(placeholder, font);
             e.Graphics.DrawString(
                 placeholder,
@@ -323,7 +218,7 @@ internal sealed class LockedScreenForm : Form
     {
         Text = $"Station  {_config.StationId}",
         Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-        ForeColor = ColorTextPrimary,
+        ForeColor = Palette.TextPrimary,
         AutoSize = true,
         Anchor = AnchorStyles.None,
         Margin = new Padding(0, 0, 0, 6),
@@ -333,7 +228,7 @@ internal sealed class LockedScreenForm : Form
     {
         Text = "Need help? Ask at the counter.",
         Font = new Font("Segoe UI", 10f, FontStyle.Regular),
-        ForeColor = ColorTextMuted,
+        ForeColor = Palette.TextMuted,
         AutoSize = true,
         Anchor = AnchorStyles.None,
         Margin = new Padding(0),
@@ -347,7 +242,7 @@ internal sealed class LockedScreenForm : Form
     {
         Text = "●  Connecting to broker…",
         Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-        ForeColor = ColorTextMuted,
+        ForeColor = Palette.TextMuted,
         BackColor = Color.Transparent,
         AutoSize = true,
         Location = new Point(16, Bounds.Height - 34),
@@ -362,18 +257,18 @@ internal sealed class LockedScreenForm : Form
     {
         Text = "DEV BUILD — Ctrl+Shift+Alt+Q exit · Ctrl+Shift+Alt+L suspend",
         Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-        ForeColor = Color.FromArgb(0xF5, 0x9E, 0x0B),
-        BackColor = Color.FromArgb(0x1E, 0x29, 0x3B),
+        ForeColor = Palette.Warning,
+        BackColor = Palette.Border,
         AutoSize = true,
         Padding = new Padding(8, 5, 8, 5),
         Location = new Point(16, 16),
     };
 
     /// <summary>
-    /// Fallback path for the dev chord.
+    /// Fallback path for the dev chords.
     /// </summary>
     /// <remarks>
-    /// <see cref="SystemLockService"/> already catches this globally. This stays
+    /// <see cref="SystemLockService"/> already catches these globally. This stays
     /// as a second route for the case where the hook failed to install — without
     /// it, a hook failure plus a shipped build with no Alt+F4 would leave no way
     /// out at all.
@@ -395,31 +290,13 @@ internal sealed class LockedScreenForm : Form
         {
             case Keys.Q:
                 e.Handled = true;
-                RequestExit();
+                DevExitRequested?.Invoke(this, EventArgs.Empty);
                 break;
 
             case Keys.L:
                 e.Handled = true;
-                ToggleDevPassthrough();
+                DevPassthroughToggleRequested?.Invoke(this, EventArgs.Empty);
                 break;
         }
-    }
-
-    private void RequestExit()
-    {
-        if (_exiting)
-        {
-            return;
-        }
-
-        _exiting = true;
-        AgentLog.Info("Dev exit chord pressed. Shutting down.");
-
-        Close();
-
-        // Redundant today (closing the main form ends Application.Run even when
-        // it is hidden), but keeps the chord working once step 4 adds a second
-        // form that could still be open when this one is hidden.
-        Application.Exit();
     }
 }

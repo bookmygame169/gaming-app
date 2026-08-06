@@ -20,6 +20,10 @@ internal sealed class AgentConfig
     [JsonPropertyName("mqtt")]
     public MqttConfig Mqtt { get; init; } = new();
 
+    /// <summary>Games offered on the menu once a session is unlocked.</summary>
+    [JsonPropertyName("games")]
+    public List<GameEntry> Games { get; init; } = [];
+
     internal sealed class MqttConfig
     {
         [JsonPropertyName("host")]
