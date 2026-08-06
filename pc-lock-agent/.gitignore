@@ -1,0 +1,11 @@
+# .NET build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Local machine config (station id, broker credentials) once it exists
+appsettings.Local.json

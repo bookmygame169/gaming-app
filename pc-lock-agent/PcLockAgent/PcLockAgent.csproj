@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe (not Exe) means no console window appears behind the app. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PcLockAgent</RootNamespace>
+    <AssemblyName>PcLockAgent</AssemblyName>
+
+    <!--
+      PerMonitorV2 DPI awareness matters a lot here: this app sizes itself to
+      the exact pixel bounds of the screen. Without it, Windows would scale the
+      window for us on a display running at 125%/150%, leaving the "fullscreen"
+      lock screen blurry and slightly the wrong size (often with a visible strip
+      of desktop along one edge).
+    -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+  </PropertyGroup>
+
+</Project>
