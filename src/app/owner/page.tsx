@@ -847,6 +847,47 @@ export default function OwnerDashboardPage() {
     }
   };
 
+  /**
+   * Unlocks or locks the physical machine(s) attached to a booking.
+   *
+   * The duration is worked out server-side from the booking, so nothing here
+   * can influence how long the station stays open.
+   */
+  async function handleStationCommand(bookingId: string, action: 'unlock' | 'lock') {
+    // Flattened cards use a synthetic "<id>-item-<itemId>" id; the API needs
+    // the real booking.
+    const trueBookingId = bookingId.includes('-item-')
+      ? bookingId.split('-item-')[0]
+      : bookingId;
+
+    try {
+      const res = await fetch('/api/owner/stations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bookingId: trueBookingId, action }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send the command');
+      }
+
+      const stations = Array.isArray(data.stations) ? data.stations.join(', ') : '';
+      toast.success(
+        action === 'unlock'
+          ? `Unlocked ${stations || 'station'}`
+          : `Locked ${stations || 'station'}`
+      );
+    } catch (err) {
+      // Deliberately surfaced rather than swallowed: staff must not think a PC
+      // was unlocked when the command never arrived.
+      console.error('[handleStationCommand]', err);
+      toast.error(err instanceof Error ? err.message : 'Could not reach the station');
+    }
+  }
+
   async function handleOpenTimeAdjustment(booking: BookingRow) {
     const originalBookingId = (booking as any).originalBookingId;
     const targetBookingId = originalBookingId || booking.id;
@@ -2560,6 +2601,7 @@ export default function OwnerDashboardPage() {
                   timerElapsed={timerElapsed}
                   currentTime={currentTime}
                   onAddTime={handleOpenTimeAdjustment}
+                  onStationCommand={handleStationCommand}
                   onAddItems={(bookingId, customerName) => {
                     setAddItemsBookingId(bookingId);
                     setAddItemsCustomerName(customerName);

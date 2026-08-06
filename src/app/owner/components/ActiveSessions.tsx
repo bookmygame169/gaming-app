@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConsoleId, CONSOLE_ICONS, CONSOLE_COLORS, CONSOLE_LABELS } from '@/lib/constants';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
-import { Clock3, MessageCircle, Banknote, Smartphone, Gamepad2, X, Square, UtensilsCrossed } from 'lucide-react';
+import { Clock3, MessageCircle, Banknote, Smartphone, Gamepad2, X, Square, UtensilsCrossed, Lock, Unlock } from 'lucide-react';
 
 interface SessionEndedInfo {
     customerName: string;
@@ -49,6 +49,8 @@ interface ActiveSessionsProps {
     onSessionEnded?: (info: SessionEndedInfo) => void;
     onEndCollect?: (bookingId: string, paymentMode: 'cash' | 'upi') => void;
     onEndMembership?: (subscriptionId: string) => Promise<void> | void;
+    /** Unlocks or locks the physical machine(s) attached to this booking. */
+    onStationCommand?: (bookingId: string, action: 'unlock' | 'lock') => Promise<void> | void;
 }
 
 export function ActiveSessions({
@@ -62,7 +64,10 @@ export function ActiveSessions({
     onSessionEnded,
     onEndCollect,
     onEndMembership,
+    onStationCommand,
 }: ActiveSessionsProps) {
+    // Which card is mid-request, so the buttons can be disabled and show progress.
+    const [stationBusyId, setStationBusyId] = useState<string | null>(null);
     const endedSessionsRef = useRef<Set<string>>(new Set());
     // Clear ended-session tracking when bookings list changes (prevents unbounded Set growth)
     useEffect(() => {
@@ -407,6 +412,49 @@ export function ActiveSessions({
                                         <Square className="h-3 w-3" /> End
                                     </button>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Physical machine control. Separate row from the
+                            buttons above so the grid there is left alone. */}
+                        {onStationCommand && !isShowingEndCollect && (
+                            <div className="grid grid-cols-2 gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
+                                <button
+                                    type="button"
+                                    disabled={stationBusyId === bookingId}
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setStationBusyId(bookingId);
+                                        try {
+                                            await onStationCommand(bookingId, 'unlock');
+                                        } finally {
+                                            setStationBusyId(null);
+                                        }
+                                    }}
+                                    className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-emerald-300 transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/8 hover:text-white disabled:opacity-40 sm:gap-1.5 sm:text-[11px] rounded-lg"
+                                    style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+                                >
+                                    <Unlock className="h-3 w-3" />
+                                    {stationBusyId === bookingId ? 'Sending…' : 'Unlock PC'}
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={stationBusyId === bookingId}
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setStationBusyId(bookingId);
+                                        try {
+                                            await onStationCommand(bookingId, 'lock');
+                                        } finally {
+                                            setStationBusyId(null);
+                                        }
+                                    }}
+                                    className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-slate-300 transition-colors hover:border-red-500/30 hover:bg-red-500/8 hover:text-white disabled:opacity-40 sm:gap-1.5 sm:text-[11px] rounded-lg"
+                                    style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+                                >
+                                    <Lock className="h-3 w-3" />
+                                    Lock PC
+                                </button>
                             </div>
                         )}
                     </div>
