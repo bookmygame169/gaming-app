@@ -17,6 +17,15 @@ internal enum DevChord
     /// <summary>U — act as though an <c>unlock</c> command had arrived.</summary>
     SimulateUnlock,
 
+    /// <summary>
+    /// T — a deliberately short session, so the countdown can be watched.
+    /// </summary>
+    /// <remarks>
+    /// A normal unlock is an hour, which would mean waiting 55 minutes to see
+    /// the first warning fire.
+    /// </remarks>
+    SimulateShortSession,
+
     /// <summary>K — act as though a <c>lock</c> command had arrived.</summary>
     SimulateLock,
 }
@@ -49,6 +58,7 @@ internal static class DevChords
             Keys.Q => DevChord.Exit,
             Keys.L => DevChord.TogglePassthrough,
             Keys.U => DevChord.SimulateUnlock,
+            Keys.T => DevChord.SimulateShortSession,
             Keys.K => DevChord.SimulateLock,
             _ => null,
         };

@@ -251,7 +251,7 @@ internal sealed class LockedScreenForm : Form
     /// mistake.
     /// </summary>
     private const string DevBadgeText =
-        "DEV BUILD — Ctrl+Shift+Alt +  U unlock · K lock · L suspend · Q quit";
+        "DEV BUILD — Ctrl+Shift+Alt +  U unlock · T 90s test · K lock · L suspend · Q quit";
 
     private static Label BuildDevModeBadge() => new()
     {

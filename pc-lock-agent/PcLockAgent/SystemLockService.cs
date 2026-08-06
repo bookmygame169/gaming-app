@@ -50,6 +50,9 @@ internal sealed class SystemLockService : IDisposable
     /// </remarks>
     public event EventHandler? DevSimulateUnlockRequested;
 
+    /// <summary>Raised by the dev chord that starts a deliberately short session.</summary>
+    public event EventHandler? DevSimulateShortSessionRequested;
+
     /// <summary>Raised by the dev chord that fakes a <c>lock</c> command.</summary>
     public event EventHandler? DevSimulateLockRequested;
 
@@ -299,6 +302,10 @@ internal sealed class SystemLockService : IDisposable
 
                     case Keys.U:
                         RaiseOnUi(() => DevSimulateUnlockRequested?.Invoke(this, EventArgs.Empty));
+                        return NativeMethods.Suppress;
+
+                    case Keys.T:
+                        RaiseOnUi(() => DevSimulateShortSessionRequested?.Invoke(this, EventArgs.Empty));
                         return NativeMethods.Suppress;
 
                     case Keys.K:

@@ -21,8 +21,10 @@ internal sealed class AgentShell : ApplicationContext
     private readonly AgentConfig _config;
     private readonly SystemLockService _lockService;
     private readonly MqttService _mqttService;
+    private readonly SessionManager _session;
     private readonly LockedScreenForm _lockedScreen;
     private readonly GameMenuForm _gameMenu;
+    private readonly WarningOverlayForm _warningOverlay;
 
     private bool _exiting;
 
@@ -31,12 +33,19 @@ internal sealed class AgentShell : ApplicationContext
         _config = config;
         _lockService = new SystemLockService(AgentSettings.AllowDevExit);
         _mqttService = new MqttService(config);
+        _session = new SessionManager();
         _lockedScreen = new LockedScreenForm(config);
         _gameMenu = new GameMenuForm(config);
+        _warningOverlay = new WarningOverlayForm();
+
+        _session.SessionExpired += (_, _) => OnSessionExpired();
+        _session.WarningDue += (_, secondsRemaining) => _warningOverlay.ShowWarning(secondsRemaining);
+        _session.Remaining += (_, remaining) => _gameMenu.UpdateRemaining(remaining);
 
         _lockService.DevExitRequested += (_, _) => Shutdown();
         _lockService.DevPassthroughToggleRequested += (_, _) => ToggleDevPassthrough();
         _lockService.DevSimulateUnlockRequested += (_, _) => SimulateUnlock();
+        _lockService.DevSimulateShortSessionRequested += (_, _) => SimulateShortSession();
         _lockService.DevSimulateLockRequested += (_, _) => SimulateLock();
 
         _lockedScreen.DevChordPressed += OnDevChordPressed;
@@ -66,7 +75,19 @@ internal sealed class AgentShell : ApplicationContext
 
         _lockService.Activate();
         _mqttService.Start();
-        _mqttService.ReportState(locked: true, sessionId: null);
+
+        // A session that was still running when the agent last stopped resumes
+        // here, so a crash — or someone killing the agent hoping for a fresh
+        // start — does not hand out free time.
+        if (_session.TryResume())
+        {
+            AgentLog.Info($"Restoring in-progress session with {_session.TimeRemaining.TotalMinutes:0.#} minutes left.");
+            EnterUnlockedState(_session.SessionId);
+        }
+        else
+        {
+            _mqttService.ReportState(locked: true, sessionId: null);
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -75,18 +96,27 @@ internal sealed class AgentShell : ApplicationContext
 
     private void OnUnlockRequested(object? sender, UnlockEventArgs e)
     {
-        // NOTE: e.DurationSeconds is recorded but not yet enforced — the
-        // countdown and auto-relock are SessionManager (step 5). Until then a
-        // session stays open until an explicit `lock` command arrives.
-        AgentLog.Info($"Unlocking station (duration {e.DurationSeconds}s, session {e.SessionId ?? "(none)"}). " +
-                      "Auto-relock not implemented until step 5.");
+        AgentLog.Info($"Unlocking station (duration {e.DurationSeconds}s, session {e.SessionId ?? "(none)"}).");
 
+        _session.Start(e.DurationSeconds, e.SessionId);
+        EnterUnlockedState(e.SessionId);
+    }
+
+    private void EnterUnlockedState(string? sessionId)
+    {
         // Menu up before the lock screen goes down. The other order leaves a
         // frame or two with neither on screen, which shows the desktop.
         _gameMenu.ShowMenu();
+        _gameMenu.UpdateRemaining(_session.TimeRemaining);
         _lockedScreen.Hide();
 
-        _mqttService.ReportState(locked: false, sessionId: e.SessionId);
+        _mqttService.ReportState(locked: false, sessionId: sessionId);
+    }
+
+    private void OnSessionExpired()
+    {
+        _warningOverlay.ShowWarning(0);
+        ApplyLocked();
     }
 
     private void ApplyLocked()
@@ -101,6 +131,10 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         _lockService.SetGameRunning(false);
+
+        // Safe to call whether or not a countdown is running — this path is also
+        // reached by an explicit lock command part-way through a session.
+        _session.Stop();
 
         // Lock screen up before the menu goes down, for the same reason.
         _lockedScreen.ShowLocked(reassertTopMost: !_lockService.Passthrough);
@@ -124,12 +158,18 @@ internal sealed class AgentShell : ApplicationContext
         _gameMenu.ShowMenu();
     }
 
-    private static void OnWarnRequested(object? sender, int remainingSeconds)
+    /// <summary>
+    /// Shows a warning the backend asked for, independently of the local countdown.
+    /// </summary>
+    /// <remarks>
+    /// The agent warns on its own schedule, so this is not required for normal
+    /// operation — it exists so the backend can warn out-of-band (for example
+    /// when staff need the customer to wrap up early).
+    /// </remarks>
+    private void OnWarnRequested(object? sender, int remainingSeconds)
     {
-        // Parsed and logged only. The on-screen warning belongs to
-        // SessionManager (step 5), which owns the countdown that decides when a
-        // warning is actually due.
-        AgentLog.Info($"Warn received ({remainingSeconds}s remaining). No UI until step 5.");
+        AgentLog.Info($"Warn command received ({remainingSeconds}s remaining).");
+        _warningOverlay.ShowWarning(remainingSeconds);
     }
 
     // -----------------------------------------------------------------------
@@ -152,6 +192,10 @@ internal sealed class AgentShell : ApplicationContext
                 SimulateUnlock();
                 break;
 
+            case DevChord.SimulateShortSession:
+                SimulateShortSession();
+                break;
+
             case DevChord.SimulateLock:
                 SimulateLock();
                 break;
@@ -165,6 +209,16 @@ internal sealed class AgentShell : ApplicationContext
     {
         AgentLog.Info("Dev chord: simulating unlock.");
         OnUnlockRequested(this, new UnlockEventArgs(3600, "dev-simulated"));
+    }
+
+    /// <summary>
+    /// A 90-second session, long enough to watch the 1-minute warning fire and
+    /// the station re-lock on its own without waiting out a real hour.
+    /// </summary>
+    private void SimulateShortSession()
+    {
+        AgentLog.Info("Dev chord: simulating a 90-second session.");
+        OnUnlockRequested(this, new UnlockEventArgs(90, "dev-short"));
     }
 
     private void SimulateLock()
@@ -208,13 +262,19 @@ internal sealed class AgentShell : ApplicationContext
             _gameMenu.TerminateRunningGame();
         }
 
-        // Releases the keyboard hook and restores the Task Manager policy.
+        // Not Stop(): that clears the saved state, and a session interrupted by
+        // a restart should resume rather than be forfeited.
+        _session.Dispose();
+
+        // Releases the keyboard hook, restores the Task Manager policy and the
+        // taskbar.
         _lockService.Dispose();
 
         // Fire-and-forget: the process is ending and the broker will notice the
         // dropped TCP connection regardless.
         _ = _mqttService.DisposeAsync().AsTask();
 
+        _warningOverlay.Close();
         _gameMenu.Close();
         _lockedScreen.Close();
 

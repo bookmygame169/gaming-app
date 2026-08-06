@@ -24,6 +24,7 @@ internal sealed class GameMenuForm : Form
     private readonly AgentConfig _config;
     private Process? _runningProcess;
     private Label _statusLabel = null!;
+    private Label _remainingLabel = null!;
 
     public GameMenuForm(AgentConfig config)
     {
@@ -108,7 +109,48 @@ internal sealed class GameMenuForm : Form
             Location = new Point(52, 76),
         });
 
+        // Right-aligned countdown. Anchored so it stays pinned to the right edge
+        // rather than drifting when the header is laid out.
+        _remainingLabel = new Label
+        {
+            Text = string.Empty,
+            Font = new Font("Segoe UI", 22f, FontStyle.Bold),
+            ForeColor = Palette.TextPrimary,
+            TextAlign = ContentAlignment.MiddleRight,
+            AutoSize = false,
+            Width = 320,
+            Height = 46,
+            Location = new Point(Bounds.Width - 368, 40),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+        };
+
+        header.Controls.Add(_remainingLabel);
         return header;
+    }
+
+    /// <summary>Updates the countdown shown in the header.</summary>
+    public void UpdateRemaining(TimeSpan remaining)
+    {
+        if (_remainingLabel is null)
+        {
+            return;
+        }
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            // Blank rather than "00:00" — an unbounded session (backend sent no
+            // duration) has nothing meaningful to show here.
+            _remainingLabel.Text = string.Empty;
+            return;
+        }
+
+        _remainingLabel.Text = remaining.TotalHours >= 1
+            ? $"{(int)remaining.TotalHours}:{remaining.Minutes:00}:{remaining.Seconds:00} left"
+            : $"{remaining.Minutes:00}:{remaining.Seconds:00} left";
+
+        // Turns red for the last five minutes, matching when the warning banner
+        // starts appearing.
+        _remainingLabel.ForeColor = remaining.TotalMinutes <= 5 ? Palette.Accent : Palette.TextPrimary;
     }
 
     private Control BuildTileArea()

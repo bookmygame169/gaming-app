@@ -44,7 +44,7 @@ Each step is built and verified before the next one starts.
 | 2 | `SystemLockService` — keyboard hooks, Task Manager policy | **done, verified on Windows** |
 | 3 | `MqttService` — subscribe to unlock/lock/warn | **done, partly verified** |
 | 4 | `GameMenuForm` — game tiles, launching, return-on-exit | **done, verified on Windows** |
-| 5 | `SessionManager` — countdown, warnings, auto-relock | not started |
+| 5 | `SessionManager` — countdown, warnings, auto-relock | **done, unverified** |
 | 6 | Auto-start on Windows boot | not started |
 
 > Everything here was authored on macOS (where Windows Forms cannot build) and
@@ -223,18 +223,50 @@ Watch the heartbeat and status messages the agent publishes back:
 | Action | Expected |
 |---|---|
 | Broker running, agent starts | Indicator green, `status` message published |
-| `unlock` | Lock screen is replaced by the game menu; keys stay blocked |
+| `unlock` | Lock screen is replaced by the game menu; countdown starts |
 | Click a game tile | Game launches above the menu; the desktop is never shown |
 | Close the game | Back to the game menu, never the desktop |
+| 5 min / 1 min left | Warning banner appears without stealing focus |
+| Countdown reaches zero | Game closed, station re-locks by itself |
 | `lock` | Any running game is closed, lock screen returns to the front |
+| Restart mid-session | Session resumes with the correct time left |
 | `warn` | Log line only — warning UI is step 5 |
 | Broker stopped mid-session | Indicator amber, station **stays as-is**, retries every 5s |
 | Malformed JSON published | Warning in `agent.log`, command ignored, stays locked |
 
-**One known gap**, by design: **`duration_seconds` is logged but not enforced.**
-There is no countdown yet, so a session stays open until an explicit `lock`
-arrives. Auto-relock is step 5 — and it is the part that actually closes the
-revenue leak, so it should not sit unfinished for long.
+---
+
+## Sessions and time enforcement
+
+`duration_seconds` from the `unlock` command now drives a real countdown:
+
+- Remaining time is shown in the game menu header, turning red for the last
+  five minutes.
+- A banner appears at **5 minutes** and **1 minute** remaining. It never takes
+  focus, so it cannot throw a customer out of a fullscreen game.
+- At zero the station re-locks by itself, closing any running game.
+
+**Time is stored as a wall-clock end instant, not a countdown budget.** Sleeping
+or suspending the machine therefore cannot be used to bank extra time — on wake
+the deadline has simply passed.
+
+**Sessions survive a restart.** The end time is written to `session.json` beside
+the exe and resumed on startup. Without that, killing the agent would be a way to
+get free time: it would come back locked, ready to be unlocked again with no
+record. It also means a genuine crash does not cost a paying customer the rest of
+their hour. An expired session found on startup is discarded and the station
+stays locked.
+
+**If the backend omits `duration_seconds`,** the station unlocks with no
+countdown and stays open until an explicit `lock`. That is an unbounded session —
+exactly the hole this system exists to close — so it is logged as an ERROR.
+Cutting a customer off early on a guessed limit seemed worse than requiring the
+backend to always send the field, but it does mean this must not be missed when
+the publisher is built.
+
+**Known limitation:** a game running in true exclusive-fullscreen DirectX may
+paint over the warning banner. Borderless-windowed mode, which most modern titles
+default to, shows it correctly.
 
 Diagnostics are written to `agent.log` beside the exe (and to the debugger
 output window). That file is the first place to look when something misbehaves
@@ -291,7 +323,8 @@ Two chords exist while `AllowDevExit` is true:
 
 | Chord | Effect |
 |---|---|
-| **Ctrl+Shift+Alt+U** | Act as though an `unlock` command arrived |
+| **Ctrl+Shift+Alt+U** | Act as though an `unlock` command arrived (1 hour) |
+| **Ctrl+Shift+Alt+T** | Start a 90-second session, to watch the countdown |
 | **Ctrl+Shift+Alt+K** | Act as though a `lock` command arrived |
 | **Ctrl+Shift+Alt+L** | Suspend/restore the lock |
 | **Ctrl+Shift+Alt+Q** | Quit the agent |
