@@ -18,7 +18,7 @@ namespace PcLockAgent;
 /// </list>
 /// </para>
 /// </remarks>
-public sealed class LockedScreenForm : Form
+internal sealed class LockedScreenForm : Form
 {
     private readonly AgentConfig _config;
 
