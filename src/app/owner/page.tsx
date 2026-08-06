@@ -2753,6 +2753,7 @@ export default function OwnerDashboardPage() {
               onUpdateStatus={handleBookingStatusChange}
               onEdit={handleEditBooking}
               onAdjustTime={handleOpenTimeAdjustment}
+              onStationCommand={handleStationCommand}
               onPaymentModeChange={handlePaymentModeChange}
               onRefresh={() => refreshData()}
               refreshTrigger={bookingsMgmtRefreshKey}

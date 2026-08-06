@@ -48,6 +48,8 @@ interface BookingsManagementProps {
     onAddItems?: (bookingId: string, customerName: string) => void;
     onSessionEnded?: (info: { customerName: string; stationName: string; duration: number }) => void;
     onEndCollect?: (bookingId: string, paymentMode: 'cash' | 'upi') => Promise<void>;
+    /** Unlocks or locks the physical machine(s) attached to a booking. */
+    onStationCommand?: (bookingId: string, action: 'unlock' | 'lock') => Promise<void> | void;
 }
 
 function getDateRange(range: string, customStart: string, customEnd: string): { dateFrom: string; dateTo: string } {
@@ -116,7 +118,7 @@ function isActiveSessionBooking(booking: any, todayStr: string, yesterdayStr: st
     return false;
 }
 
-export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onAdjustTime, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, pageBookings, onAddItems, onSessionEnded, onEndCollect }: BookingsManagementProps) {
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onAdjustTime, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, pageBookings, onAddItems, onSessionEnded, onEndCollect, onStationCommand }: BookingsManagementProps) {
     const [bookings, setBookings] = useState<any[]>([]);
     const [summary, setSummary] = useState(EMPTY_BOOKING_SUMMARY);
     const [total, setTotal] = useState(0);
@@ -433,6 +435,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                         onSessionEnded={onSessionEnded}
                         onEndCollect={onEndCollect}
                         onEndMembership={onStopTimer}
+                        onStationCommand={onStationCommand}
                     />
                 </div>
             </section>
