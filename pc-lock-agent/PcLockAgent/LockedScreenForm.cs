@@ -385,11 +385,23 @@ internal sealed class LockedScreenForm : Form
             return;
         }
 
-        // Deliberately awkward chord — a customer will not hit this by accident.
-        if (e.Control && e.Shift && e.Alt && e.KeyCode == Keys.Q)
+        // Deliberately awkward chords — a customer will not hit these by accident.
+        if (!e.Control || !e.Shift || !e.Alt)
         {
-            e.Handled = true;
-            RequestExit();
+            return;
+        }
+
+        switch (e.KeyCode)
+        {
+            case Keys.Q:
+                e.Handled = true;
+                RequestExit();
+                break;
+
+            case Keys.L:
+                e.Handled = true;
+                ToggleDevPassthrough();
+                break;
         }
     }
 

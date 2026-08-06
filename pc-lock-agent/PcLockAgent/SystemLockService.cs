@@ -217,9 +217,16 @@ internal sealed class SystemLockService : IDisposable
             var info = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
             var key = (Keys)info.vkCode;
 
-            // Alt state comes from the hook's own flags. Ctrl/Shift are not in
-            // there, so those are read from the live keyboard state instead.
-            var altDown = (info.flags & NativeMethods.LLKHF_ALTDOWN) != 0;
+            // LLKHF_ALTDOWN alone is not enough. It carries the message's
+            // "context code", which Windows only sets on WM_SYSKEYDOWN — and a
+            // Ctrl+Alt+<key> combination arrives as plain WM_KEYDOWN, where the
+            // context code is always 0. Relying on the flag by itself makes
+            // every Ctrl+Alt chord invisible to this hook. Reading the live key
+            // state covers that case; the flag is kept as the primary source
+            // since it describes the keystroke being delivered rather than the
+            // keyboard's state at the moment we happen to ask.
+            var altDown = (info.flags & NativeMethods.LLKHF_ALTDOWN) != 0
+                          || NativeMethods.IsKeyDown(NativeMethods.VK_MENU);
             var ctrlDown = NativeMethods.IsKeyDown(NativeMethods.VK_CONTROL);
             var shiftDown = NativeMethods.IsKeyDown(NativeMethods.VK_SHIFT);
 
@@ -385,6 +392,7 @@ internal sealed class SystemLockService : IDisposable
 
         public const int VK_SHIFT = 0x10;
         public const int VK_CONTROL = 0x11;
+        public const int VK_MENU = 0x12; // Alt
 
         public const string PoliciesSystemKey = @"Software\Microsoft\Windows\CurrentVersion\Policies\System";
         public const string DisableTaskMgrValue = "DisableTaskMgr";
