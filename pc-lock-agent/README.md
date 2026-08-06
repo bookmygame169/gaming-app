@@ -149,6 +149,53 @@ wrong station id.
 
 ---
 
+## Using a cloud broker (HiveMQ Cloud)
+
+A broker on the internet is what lets the live site on Vercel reach café PCs. A
+Mosquitto on someone's desktop cannot be reached from Vercel, so local testing
+only ever works with the site running locally too.
+
+HiveMQ Cloud has a free plan that is enough for a café.
+
+**1. Create a free cluster** at [hivemq.cloud](https://www.hivemq.com/products/mqtt-cloud-broker/).
+Note the hostname (`something.s1.eu.hivemq.cloud`) and create an access
+credential — a username and password.
+
+**2. Point the agent at it** in `appsettings.json` on each PC:
+
+```json
+"mqtt": {
+  "host": "something.s1.eu.hivemq.cloud",
+  "port": 8883,
+  "useTls": true,
+  "username": "station-user",
+  "password": "the-password"
+}
+```
+
+Port **8883** and `useTls: true` go together — hosted brokers refuse plain
+connections. Without TLS the broker password and every unlock command would
+cross the internet in clear text.
+
+**3. Point the website at it.** In Vercel → Settings → Environment Variables:
+
+```
+MQTT_BROKER_URL = mqtts://something.s1.eu.hivemq.cloud:8883
+MQTT_USERNAME   = web-user
+MQTT_PASSWORD   = the-password
+```
+
+Note `mqtts://`, not `mqtt://`. Redeploy afterwards for the variables to apply.
+
+For local development the same variables live in `.env.local`.
+
+**Give the website and the stations separate credentials.** The website only
+ever publishes and the stations only ever subscribe, so if HiveMQ's permission
+settings allow it, restrict each accordingly — a leaked station password then
+cannot be used to unlock anything.
+
+---
+
 ## Testing step 3 with a local broker
 
 The agent needs an MQTT broker. For development, run Mosquitto on the same PC —

@@ -83,6 +83,16 @@ internal sealed class MqttService : IAsyncDisposable
             builder = builder.WithCredentials(config.Mqtt.Username, config.Mqtt.Password ?? string.Empty);
         }
 
+        if (config.Mqtt.UseTls)
+        {
+            // Certificate validation is left at the default, so a hosted
+            // broker's certificate is properly checked. Do not add a
+            // "trust everything" callback to work around a connection
+            // problem — that would leave the link open to interception, and
+            // the payload here decides whether a PC unlocks.
+            builder = builder.WithTlsOptions(tls => tls.UseTls());
+        }
+
         _options = builder.Build();
     }
 
@@ -104,7 +114,9 @@ internal sealed class MqttService : IAsyncDisposable
         _connectionLoop = RunConnectionLoopAsync(_cts.Token);
         _heartbeatLoop = RunHeartbeatLoopAsync(_cts.Token);
 
-        AgentLog.Info($"MQTT starting. Broker {_config.Mqtt.Host}:{_config.Mqtt.Port}, subscribing to {_commandTopic}");
+        AgentLog.Info(
+            $"MQTT starting. Broker {_config.Mqtt.Host}:{_config.Mqtt.Port} " +
+            $"(TLS {(_config.Mqtt.UseTls ? "on" : "off")}), subscribing to {_commandTopic}");
     }
 
     /// <summary>

@@ -40,6 +40,19 @@ internal sealed class AgentConfig
         [JsonPropertyName("port")]
         public int Port { get; init; } = 1883;
 
+        /// <summary>
+        /// Encrypts the connection. Required by hosted brokers such as HiveMQ
+        /// Cloud, which listen on 8883 and refuse plain connections.
+        /// </summary>
+        /// <remarks>
+        /// Leave false for a Mosquitto running on the same machine during
+        /// development. Set true for anything reaching over the internet —
+        /// without it the broker password and every lock/unlock command travel
+        /// in clear text.
+        /// </remarks>
+        [JsonPropertyName("useTls")]
+        public bool UseTls { get; init; }
+
         [JsonPropertyName("username")]
         public string? Username { get; init; }
 
