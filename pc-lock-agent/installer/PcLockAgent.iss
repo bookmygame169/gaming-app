@@ -30,9 +30,11 @@ WizardStyle=modern
 ; Creating a Windows account and a scheduled task both need admin.
 PrivilegesRequired=admin
 
-; The agent is 64-bit self-contained.
-ArchitecturesInstallIn64BitMode=x64compatible
-ArchitecturesAllowed=x64compatible
+; No Architectures* directives on purpose. The agent itself is 64-bit, but the
+; installer only copies files into {sd}\BookMyGame — it never touches Program
+; Files or the 64-bit registry view, so it has no reason to care. Setting them
+; only risks a version-specific quirk in whichever Inno Setup happens to be
+; installed, for no benefit here.
 
 [Files]
 Source: "..\publish\{#AppExeName}";      DestDir: "{app}"; Flags: ignoreversion

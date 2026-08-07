@@ -73,6 +73,7 @@ if (-not $InnoSetupPath -or -not (Test-Path $InnoSetupPath)) {
 
 Write-Host ""
 Write-Host "Building the installer" -ForegroundColor Cyan
+Write-Host "  Using: $InnoSetupPath" -ForegroundColor DarkGray
 Write-Host ""
 
 # --- Warn about the escape hatch ---------------------------------------------
@@ -120,9 +121,18 @@ if ($LASTEXITCODE -ne 0) {
 
 $output = Join-Path $installerIn "Output\BookMyGame-PC-Lock-Setup.exe"
 
+if (-not (Test-Path $output)) {
+    Write-Host "Inno Setup reported success but produced no file at:" -ForegroundColor Red
+    Write-Host "  $output"
+    exit 1
+}
+
+$sizeMb = [math]::Round((Get-Item $output).Length / 1MB, 1)
+
 Write-Host ""
 Write-Host "Done." -ForegroundColor Green
 Write-Host "  $output"
+Write-Host "  $sizeMb MB" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "This file contains no passwords, so it is safe to upload publicly." -ForegroundColor Cyan
 Write-Host "Attach it to a GitHub Release, then point" -ForegroundColor Cyan
