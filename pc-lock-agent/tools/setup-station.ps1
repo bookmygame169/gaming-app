@@ -128,11 +128,17 @@ if ($SkipBuild) {
         Write-Host "  Publishing to $InstallPath (needs .NET 8 Desktop Runtime on this PC) ..." -ForegroundColor Cyan
         dotnet publish $projectDir -c Release -o $InstallPath | Out-Null
     } else {
-        # Self-contained so the folder can simply be copied to a café PC that has
-        # nothing installed. Larger, but it removes a prerequisite from every
-        # machine after the first.
-        Write-Host "  Publishing self-contained build to $InstallPath (this takes a minute) ..." -ForegroundColor Cyan
-        dotnet publish $projectDir -c Release -r win-x64 --self-contained true -o $InstallPath | Out-Null
+        # Self-contained and single-file: the whole app plus the .NET runtime
+        # collapse into one PcLockAgent.exe, so a café PC needs nothing
+        # installed and there is one file to copy rather than a folder of
+        # hundreds. The JSON config stays alongside it, since it is meant to be
+        # edited per machine.
+        Write-Host "  Publishing single-file build to $InstallPath (this takes a minute) ..." -ForegroundColor Cyan
+        dotnet publish $projectDir -c Release -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o $InstallPath | Out-Null
     }
 
     if ($LASTEXITCODE -ne 0) {
