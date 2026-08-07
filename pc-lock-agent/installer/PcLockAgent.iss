@@ -31,7 +31,7 @@ WizardStyle=modern
 PrivilegesRequired=admin
 
 ; No Architectures* directives on purpose. The agent itself is 64-bit, but the
-; installer only copies files into {sd}\BookMyGame — it never touches Program
+; installer only copies files into {sd}\BookMyGame - it never touches Program
 ; Files or the 64-bit registry view, so it has no reason to care. Setting them
 ; only risks a version-specific quirk in whichever Inno Setup happens to be
 ; installed, for no benefit here.
