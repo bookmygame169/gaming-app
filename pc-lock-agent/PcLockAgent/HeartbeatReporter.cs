@@ -127,7 +127,7 @@ internal sealed class HeartbeatReporter : IDisposable
             {
                 if (!_lastAttemptFailed)
                 {
-                    AgentLog.Warn($"Heartbeat rejected: HTTP {(int)response.StatusCode}. Check the token and cafeId.");
+                    AgentLog.Warn($"Heartbeat rejected: HTTP {(int)response.StatusCode}. {ExplainFailure(response.StatusCode)}");
                     _lastAttemptFailed = true;
                 }
                 return;
@@ -154,6 +154,29 @@ internal sealed class HeartbeatReporter : IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// Turns a status code into the thing to actually go and fix.
+    /// </summary>
+    /// <remarks>
+    /// These land in a log read by whoever is setting a café PC up, often after
+    /// several config steps, so "check the token" on a code that has nothing to
+    /// do with the token sends them looking in the wrong place.
+    /// </remarks>
+    private static string ExplainFailure(System.Net.HttpStatusCode statusCode) => statusCode switch
+    {
+        System.Net.HttpStatusCode.ServiceUnavailable =>
+            "The website has no STATION_HEARTBEAT_TOKEN set. Add it to the server environment and redeploy — nothing to fix on this PC.",
+        System.Net.HttpStatusCode.Unauthorized =>
+            "The token here does not match the one on the website. Check heartbeat.token in appsettings.Local.json.",
+        System.Net.HttpStatusCode.BadRequest =>
+            "The website rejected the details. Check heartbeat.cafeId and stationId in appsettings.Local.json.",
+        System.Net.HttpStatusCode.NotFound =>
+            "No such endpoint. Check heartbeat.url in appsettings.Local.json.",
+        System.Net.HttpStatusCode.InternalServerError =>
+            "The website hit an error saving this — most likely the station_status table does not exist yet.",
+        _ => "Locking and unlocking are unaffected.",
+    };
 
     public void Dispose()
     {
