@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds BookMyGame-PC-Lock-Setup.exe — the installer you run on each café PC.
+    Builds BookMyGame-PC-Lock-Setup.exe - the installer you run on each cafe PC.
 
 .DESCRIPTION
     Run this once on the machine that has the source code. It publishes the agent
@@ -63,7 +63,7 @@ if (-not $InnoSetupPath -or -not (Test-Path $InnoSetupPath)) {
     Write-Host ""
     Write-Host "Inno Setup is not installed." -ForegroundColor Red
     Write-Host ""
-    Write-Host "It is free, and only needed on this machine — not on the cafe PCs." -ForegroundColor Yellow
+    Write-Host "It is free, and only needed on this machine - not on the cafe PCs." -ForegroundColor Yellow
     Write-Host "Download it from: https://jrsoftware.org/isdl.php" -ForegroundColor Yellow
     Write-Host "Install it, then run this script again."
     Write-Host ""
@@ -117,7 +117,7 @@ if ($HeartbeatUrl -and $HeartbeatToken -and $CafeId) {
         cafeId = $CafeId
     }
 } else {
-    Write-Host "  No heartbeat details given — installed PCs will not appear on the" -ForegroundColor Yellow
+    Write-Host "  No heartbeat details given - installed PCs will not appear on the" -ForegroundColor Yellow
     Write-Host "  dashboard's live status list. Locking and unlocking still work." -ForegroundColor Yellow
 }
 
@@ -147,5 +147,5 @@ Write-Host ""
 Write-Host "Copy that one file to each cafe PC and run it. It asks only which" -ForegroundColor Cyan
 Write-Host "station the machine is." -ForegroundColor Cyan
 Write-Host ""
-Write-Host "It contains your broker password — keep it off anything public." -ForegroundColor Yellow
+Write-Host "It contains your broker password - keep it off anything public." -ForegroundColor Yellow
 Write-Host ""

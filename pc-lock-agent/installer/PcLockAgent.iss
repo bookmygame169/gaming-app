@@ -1,10 +1,10 @@
 ; Inno Setup script for the BookMyGame PC Lock installer.
 ;
-; Do not compile this by hand — run tools\build-installer.ps1, which publishes
+; Do not compile this by hand - run tools\build-installer.ps1, which publishes
 ; the agent and generates the settings this script bundles.
 ;
 ; The installer asks for one thing: which station this PC is. Everything else
-; (broker address, credentials, café id) is baked in at build time, because it
+; (broker address, credentials, cafe id) is baked in at build time, because it
 ; is identical on every machine and asking five times invites a typo.
 
 #define AppName "BookMyGame PC Lock"

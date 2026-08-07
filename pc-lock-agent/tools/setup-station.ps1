@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Run this once on each machine, changing only -StationId. Everything else
-    stays the same across the café.
+    stays the same across the cafe.
 
     It writes appsettings.Local.json (which git ignores, so credentials never
     reach the repo), publishes a Release build, and registers the startup task
@@ -22,13 +22,13 @@
         -CafeId "your-cafe-id"
 
 .EXAMPLE
-    # On the second PC — identical except the station id
+    # On the second PC - identical except the station id
     .\setup-station.ps1 -StationId pc-02 -BrokerHost "..." -BrokerUsername "station" ...
 
 .NOTES
     Keep this command somewhere safe (a note on your phone, a text file on a USB
     stick) so each PC is set up identically. Do not commit it with real values
-    filled in — the repo is public.
+    filled in - the repo is public.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$StationId,
@@ -54,8 +54,8 @@ param(
     [switch]$SkipBuild,
 
     # Builds a smaller folder that needs the .NET 8 Desktop Runtime installed on
-    # the machine. The default bundles the runtime, so a café PC needs nothing
-    # installed at all — worth the extra size when copying to several machines.
+    # the machine. The default bundles the runtime, so a cafe PC needs nothing
+    # installed at all - worth the extra size when copying to several machines.
     [switch]$FrameworkDependent
 )
 
@@ -106,7 +106,7 @@ if ($HeartbeatUrl -and $HeartbeatToken -and $CafeId) {
         cafeId = $CafeId
     }
 } else {
-    Write-Host "No heartbeat details given — this PC will not appear on the dashboard's" -ForegroundColor Yellow
+    Write-Host "No heartbeat details given - this PC will not appear on the dashboard's" -ForegroundColor Yellow
     Write-Host "live status list. Locking and unlocking still work." -ForegroundColor Yellow
     Write-Host ""
 }
@@ -129,7 +129,7 @@ if ($SkipBuild) {
         dotnet publish $projectDir -c Release -o $InstallPath | Out-Null
     } else {
         # Self-contained and single-file: the whole app plus the .NET runtime
-        # collapse into one PcLockAgent.exe, so a café PC needs nothing
+        # collapse into one PcLockAgent.exe, so a cafe PC needs nothing
         # installed and there is one file to copy rather than a folder of
         # hundreds. The JSON config stays alongside it, since it is meant to be
         # edited per machine.
@@ -148,7 +148,7 @@ if ($SkipBuild) {
     Write-Host "  Built." -ForegroundColor Green
 }
 
-# The published copy is what actually runs, so its config must be written last —
+# The published copy is what actually runs, so its config must be written last -
 # a publish overwrites the folder.
 New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
 $configJson | Set-Content -Encoding UTF8 (Join-Path $InstallPath "appsettings.Local.json")

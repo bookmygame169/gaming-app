@@ -28,7 +28,7 @@ param(
     [string]$TaskName = "BookMyGame PC Lock Agent",
 
     # The Windows account customers use. The task runs ONLY for this account, so
-    # signing in as an administrator gives a normal, unlocked Windows — which is
+    # signing in as an administrator gives a normal, unlocked Windows - which is
     # how the machine stays administrable once the dev exit chord is disabled.
     # Without this the agent would start for every account including yours.
     [Parameter(Mandatory = $true)][string]$GamingUser
@@ -85,7 +85,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
 # Bound to the gaming account only, at normal privilege. The agent does not need
-# admin — it writes only to HKCU and hooks its own session — and running it
+# admin - it writes only to HKCU and hooks its own session - and running it
 # elevated would add a UAC prompt for no benefit.
 $principal = New-ScheduledTaskPrincipal -UserId $GamingUser -LogonType Interactive -RunLevel Limited
 

@@ -7,7 +7,7 @@
     Stops the agent restarting itself, so the PC goes back to normal Windows
     behaviour. Use this when taking a machine out of service or moving it.
 
-    Note this does not close a running agent — do that first, or the watchdog
+    Note this does not close a running agent - do that first, or the watchdog
     may start one more time before the task is removed.
 #>
 param(
