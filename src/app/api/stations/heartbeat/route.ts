@@ -21,7 +21,10 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   try {
-    const expectedToken = process.env.STATION_HEARTBEAT_TOKEN;
+    // Trimmed because copying a value into a hosting dashboard very easily picks
+    // up a trailing space or newline, which then fails to match with no clue as
+    // to why.
+    const expectedToken = process.env.STATION_HEARTBEAT_TOKEN?.trim();
     if (!expectedToken) {
       console.error("STATION_HEARTBEAT_TOKEN is not set; rejecting heartbeat.");
       return NextResponse.json({ error: "Server not configured" }, { status: 503 });
