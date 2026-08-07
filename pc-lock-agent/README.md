@@ -131,12 +131,33 @@ which many games need in order to find their data files.
 The repo ships with Notepad and Paint as placeholders so the menu can be tested
 before any real games are installed — replace them.
 
-**Launcher-based games are a known limitation.** Titles that go through Steam,
-Epic or Riot often start a small process that hands off to the launcher and exits
-immediately. The agent watches the process it started, so it would see that exit
-and bounce straight back to the menu while the game is still loading. Direct
-`.exe` launches work correctly. Handling launcher titles needs different
-detection and is not solved yet.
+### Launcher-based games (Steam, Epic, Riot)
+
+Titles that go through a launcher start a small process that hands off and exits
+within seconds. Watching that process would look like the customer had closed the
+game, snapping the menu back over it while it was still loading.
+
+Set `processName` to what the game actually runs as, and the agent watches for
+that instead:
+
+```json
+{
+  "name": "Valorant",
+  "exePath": "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
+  "arguments": "--launch-product=valorant --launch-patchline=live",
+  "processName": "VALORANT-Win64-Shipping"
+}
+```
+
+To find the right name: start the game normally, open **Task Manager → Details**,
+and use the name of the entry that appears, without `.exe`.
+
+The agent then waits up to two minutes for that process to show up — long enough
+for a launcher to update itself — and returns to the menu once it disappears. If
+it never appears, the log says so and names the setting to check.
+
+Leave `processName` out for games that stay as the process you started, which
+covers most standalone titles.
 
 `AllowDevExit` is deliberately **not** in this file. It stays a compile-time
 constant in `AgentSettings.cs` so the escape hatch cannot be switched back on by

@@ -21,6 +21,29 @@ internal sealed class GameEntry
     [JsonPropertyName("iconPath")]
     public string? IconPath { get; init; }
 
+    /// <summary>
+    /// The process to actually watch, without the <c>.exe</c>, when it differs
+    /// from the one launched.
+    /// </summary>
+    /// <remarks>
+    /// Needed for anything that goes through a launcher. Starting
+    /// <c>VALORANT.exe</c> hands off to the Riot Client and exits within
+    /// seconds; watching the launched process would look like the customer had
+    /// closed the game and snap the menu back over it while it was still
+    /// loading. Set this to the process the game really runs as — for Valorant,
+    /// <c>VALORANT-Win64-Shipping</c>.
+    /// <para>
+    /// Leave it out for anything that stays as the process you started, which
+    /// covers most standalone games.
+    /// </para>
+    /// <para>
+    /// Find the right name in Task Manager: start the game, open the Details
+    /// tab, and use the name of the entry that appears, minus <c>.exe</c>.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("processName")]
+    public string? ProcessName { get; init; }
+
     /// <summary>Optional command-line arguments.</summary>
     [JsonPropertyName("arguments")]
     public string? Arguments { get; init; }

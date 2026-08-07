@@ -21,10 +21,28 @@ internal sealed class GameMenuForm : Form
     /// <summary>Fallback for the dev chords if the keyboard hook is not installed.</summary>
     public event EventHandler<DevChord>? DevChordPressed;
 
+    /// <summary>
+    /// How long to wait for a launcher-started game to actually appear before
+    /// concluding it failed to start.
+    /// </summary>
+    /// <remarks>
+    /// Generous on purpose: a launcher may need to update itself, and returning
+    /// the customer to the menu while their game is still loading is worse than
+    /// waiting a little longer.
+    /// </remarks>
+    private static readonly TimeSpan LaunchGracePeriod = TimeSpan.FromMinutes(2);
+
     private readonly AgentConfig _config;
     private Process? _runningProcess;
     private Label _statusLabel = null!;
     private Label _remainingLabel = null!;
+
+    // Name-based watching, used when a game runs as a different process than the
+    // one launched. See GameEntry.ProcessName.
+    private System.Windows.Forms.Timer? _watchTimer;
+    private string? _watchedProcessName;
+    private DateTime _watchStartedUtc;
+    private bool _watchedProcessSeen;
 
     public GameMenuForm(AgentConfig config)
     {
@@ -33,7 +51,7 @@ internal sealed class GameMenuForm : Form
         BuildLayout();
     }
 
-    public bool IsGameRunning => _runningProcess is not null;
+    public bool IsGameRunning => _runningProcess is not null || _watchedProcessName is not null;
 
     private void InitializeWindowBehaviour()
     {
@@ -335,7 +353,7 @@ internal sealed class GameMenuForm : Form
 
     private void LaunchGame(GameEntry game)
     {
-        if (_runningProcess is not null)
+        if (IsGameRunning)
         {
             return;
         }
@@ -369,12 +387,24 @@ internal sealed class GameMenuForm : Form
                 return;
             }
 
-            // Required for Exited to fire at all.
-            process.EnableRaisingEvents = true;
-            process.Exited += OnGameProcessExited;
-            _runningProcess = process;
+            if (string.IsNullOrWhiteSpace(game.ProcessName))
+            {
+                // The launched process is the game. Required for Exited to fire.
+                process.EnableRaisingEvents = true;
+                process.Exited += OnGameProcessExited;
+                _runningProcess = process;
 
-            AgentLog.Info($"Launched '{game.Name}' (pid {process.Id}).");
+                AgentLog.Info($"Launched '{game.Name}' (pid {process.Id}).");
+            }
+            else
+            {
+                // The launched process hands off and exits, so watch by name
+                // instead. The starter process is let go immediately — its exit
+                // means nothing here.
+                process.Dispose();
+                StartWatchingByName(game.Name, game.ProcessName.Trim());
+            }
+
             EnterBackgroundMode(game.Name);
             GameStarted?.Invoke(this, EventArgs.Empty);
         }
@@ -384,6 +414,106 @@ internal sealed class GameMenuForm : Form
             _statusLabel.Text = $"Could not start {game.Name}.";
             _statusLabel.ForeColor = Palette.Accent;
         }
+    }
+
+    /// <summary>
+    /// Polls for a game that runs under a different process than the one
+    /// launched.
+    /// </summary>
+    /// <remarks>
+    /// Polling rather than an Exited event because there is no process to
+    /// subscribe to yet — the game has not started when the launcher is still
+    /// working. Two seconds is frequent enough that the menu returns promptly
+    /// and cheap enough to be irrelevant next to a running game.
+    /// </remarks>
+    private void StartWatchingByName(string gameName, string processName)
+    {
+        _watchedProcessName = processName;
+        _watchedProcessSeen = false;
+        _watchStartedUtc = DateTime.UtcNow;
+
+        AgentLog.Info($"Launched '{gameName}'; watching for process '{processName}'.");
+
+        _watchTimer?.Dispose();
+        _watchTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+        _watchTimer.Tick += (_, _) => CheckWatchedProcess(gameName);
+        _watchTimer.Start();
+    }
+
+    private void CheckWatchedProcess(string gameName)
+    {
+        if (_watchedProcessName is null)
+        {
+            StopWatching();
+            return;
+        }
+
+        var running = Process.GetProcessesByName(_watchedProcessName);
+        try
+        {
+            if (running.Length > 0)
+            {
+                if (!_watchedProcessSeen)
+                {
+                    _watchedProcessSeen = true;
+                    AgentLog.Info($"'{gameName}' is now running.");
+                }
+
+                return;
+            }
+
+            // Not running. Before the game has ever appeared this just means the
+            // launcher is still working, so wait — unless it has taken so long
+            // that it is not coming.
+            if (!_watchedProcessSeen)
+            {
+                if (DateTime.UtcNow - _watchStartedUtc < LaunchGracePeriod)
+                {
+                    return;
+                }
+
+                AgentLog.Warn(
+                    $"'{gameName}' never started a process called '{_watchedProcessName}' " +
+                    $"within {LaunchGracePeriod.TotalMinutes:0} minutes. Check the processName " +
+                    "setting for this game. Returning to the menu.");
+            }
+            else
+            {
+                AgentLog.Info($"'{gameName}' closed. Returning to menu.");
+            }
+
+            StopWatching();
+            GameExited?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            foreach (var process in running)
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // Not parented to the form's component container, so it needs
+            // disposing by hand or the poll would outlive the window.
+            _watchTimer?.Dispose();
+            _watchTimer = null;
+        }
+
+        base.Dispose(disposing);
+    }
+
+    private void StopWatching()
+    {
+        _watchTimer?.Stop();
+        _watchTimer?.Dispose();
+        _watchTimer = null;
+        _watchedProcessName = null;
+        _watchedProcessSeen = false;
     }
 
     /// <summary>
@@ -429,6 +559,16 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     public void TerminateRunningGame()
     {
+        // A game being watched by name has no Process object here, so it is
+        // ended by looking its processes up first.
+        var watchedName = _watchedProcessName;
+        if (watchedName is not null)
+        {
+            StopWatching();
+            TerminateByName(watchedName);
+            return;
+        }
+
         var process = Interlocked.Exchange(ref _runningProcess, null);
         if (process is null)
         {
@@ -486,6 +626,72 @@ internal sealed class GameMenuForm : Form
 
         _statusLabel.Text = $"{gameName} is running — close it to come back here.";
         _statusLabel.ForeColor = Palette.TextMuted;
+    }
+
+    /// <summary>
+    /// Ends every process with the given name, politely then forcibly.
+    /// </summary>
+    /// <remarks>
+    /// Plural because a launcher-based game often runs several: the game itself
+    /// plus the launcher that started it. Leaving the launcher behind would put
+    /// a window on screen that the customer could use after their time is up.
+    /// </remarks>
+    private static void TerminateByName(string processName)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(processName);
+                if (processes.Length == 0)
+                {
+                    return;
+                }
+
+                AgentLog.Info($"Session ended — closing {processes.Length} '{processName}' process(es).");
+
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.CloseMainWindow();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AgentLog.Warn($"Could not ask '{processName}' to close: {ex.Message}");
+                    }
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            AgentLog.Warn($"'{processName}' ignored the close request; killing it.");
+                            process.Kill(entireProcessTree: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AgentLog.Warn($"Could not kill '{processName}': {ex.Message}");
+                    }
+                    finally
+                    {
+                        process.Dispose();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Warn($"Error terminating '{processName}': {ex.Message}");
+            }
+        });
     }
 
     /// <summary>Re-shows the menu and puts it back on top.</summary>
