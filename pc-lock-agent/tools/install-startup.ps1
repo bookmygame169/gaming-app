@@ -25,7 +25,13 @@
 #>
 param(
     [string]$ExePath = "C:\BookMyGame\PcLockAgent\PcLockAgent.exe",
-    [string]$TaskName = "BookMyGame PC Lock Agent"
+    [string]$TaskName = "BookMyGame PC Lock Agent",
+
+    # The Windows account customers use. The task runs ONLY for this account, so
+    # signing in as an administrator gives a normal, unlocked Windows — which is
+    # how the machine stays administrable once the dev exit chord is disabled.
+    # Without this the agent would start for every account including yours.
+    [Parameter(Mandatory = $true)][string]$GamingUser
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,7 +54,21 @@ Write-Host "Installing startup task for: $ExePath" -ForegroundColor Cyan
 
 $action = New-ScheduledTaskAction -Execute $ExePath -WorkingDirectory (Split-Path $ExePath -Parent)
 
-$logonTrigger = New-ScheduledTaskTrigger -AtLogOn
+if (-not (Get-LocalUser -Name $GamingUser -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "There is no Windows account called '$GamingUser' on this PC." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Create a standard (non-admin) account for customers first:" -ForegroundColor Yellow
+    Write-Host "  net user $GamingUser /add"
+    Write-Host "  net localgroup Users $GamingUser /add"
+    Write-Host ""
+    Write-Host "Keeping customers off an admin account matters: a standard user" -ForegroundColor Yellow
+    Write-Host "cannot install anything or elevate past the lock." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
+$logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $GamingUser
 
 # A "run once, then repeat forever" trigger is the standard way to express a
 # watchdog in Task Scheduler; there is no native "keep this running" option.
@@ -64,10 +84,10 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
-# Runs as whoever is logged in, at normal privilege. The agent does not need
-# admin: it writes only to HKCU and hooks its own session. Running it elevated
-# would add a UAC prompt for no benefit.
-$principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
+# Bound to the gaming account only, at normal privilege. The agent does not need
+# admin — it writes only to HKCU and hooks its own session — and running it
+# elevated would add a UAC prompt for no benefit.
+$principal = New-ScheduledTaskPrincipal -UserId $GamingUser -LogonType Interactive -RunLevel Limited
 
 Register-ScheduledTask `
     -TaskName $TaskName `
@@ -79,7 +99,8 @@ Register-ScheduledTask `
     -Force | Out-Null
 
 Write-Host ""
-Write-Host "Done. The agent will start at log on and restart within a minute if closed." -ForegroundColor Green
+Write-Host "Done. The agent starts when '$GamingUser' logs on, and restarts within" -ForegroundColor Green
+Write-Host "a minute if it is closed. Other accounts are unaffected." -ForegroundColor Green
 Write-Host ""
 Write-Host "Start it now without rebooting:" -ForegroundColor Cyan
 Write-Host "  Start-ScheduledTask -TaskName '$TaskName'"

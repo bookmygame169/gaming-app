@@ -42,6 +42,11 @@ param(
 
     [int]$BrokerPort = 8883,
     [string]$InstallPath = "C:\BookMyGame\PcLockAgent",
+
+    # The account customers use. The agent runs only for this one, so your admin
+    # account keeps a normal unlocked Windows and the PC stays administrable.
+    [string]$GamingUser = "GamingUser",
+
     [switch]$SkipStartupTask
 )
 
@@ -110,7 +115,9 @@ Copy-Item $configPath (Join-Path $InstallPath "appsettings.Local.json") -Force
 if ($SkipStartupTask) {
     Write-Host "  Skipped the startup task (-SkipStartupTask)." -ForegroundColor Yellow
 } else {
-    & (Join-Path $PSScriptRoot "install-startup.ps1") -ExePath (Join-Path $InstallPath "PcLockAgent.exe")
+    & (Join-Path $PSScriptRoot "install-startup.ps1") `
+        -ExePath (Join-Path $InstallPath "PcLockAgent.exe") `
+        -GamingUser $GamingUser
 }
 
 Write-Host ""
