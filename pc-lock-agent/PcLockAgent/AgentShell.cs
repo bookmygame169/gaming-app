@@ -26,6 +26,7 @@ internal sealed class AgentShell : ApplicationContext
     private readonly LockedScreenForm _lockedScreen;
     private readonly GameMenuForm _gameMenu;
     private readonly WarningOverlayForm _warningOverlay;
+    private readonly ScreenBlanker _screenBlanker;
 
     private bool _exiting;
 
@@ -39,6 +40,7 @@ internal sealed class AgentShell : ApplicationContext
         _lockedScreen = new LockedScreenForm(config);
         _gameMenu = new GameMenuForm(config);
         _warningOverlay = new WarningOverlayForm();
+        _screenBlanker = new ScreenBlanker();
 
         _session.SessionExpired += (_, _) => OnSessionExpired();
         _session.WarningDue += (_, secondsRemaining) => _warningOverlay.ShowWarning(secondsRemaining);
@@ -58,7 +60,14 @@ internal sealed class AgentShell : ApplicationContext
         _mqttService.WarnRequested += OnWarnRequested;
         _mqttService.ConnectionChanged += (_, connected) => _lockedScreen.SetConnectionState(connected);
 
-        _gameMenu.GameStarted += (_, _) => _lockService.SetGameRunning(true);
+        _gameMenu.GameStarted += (_, _) =>
+        {
+            _lockService.SetGameRunning(true);
+
+            // Lets a game that spans both monitors draw over the covers. They
+            // stay visible underneath, so the desktop is still hidden.
+            _screenBlanker.SetTopMost(false);
+        };
         _gameMenu.GameExited += (_, _) => OnGameExited();
 
         // Services start only once a window handle exists: both the keyboard
@@ -76,6 +85,7 @@ internal sealed class AgentShell : ApplicationContext
         _lockedScreen.Shown -= OnLockedScreenShown;
 
         _lockService.Activate();
+        _screenBlanker.Show();
         _mqttService.Start();
         _heartbeat.Start();
 
@@ -134,6 +144,7 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         _lockService.SetGameRunning(false);
+        _screenBlanker.SetTopMost(!_lockService.Passthrough);
 
         // Safe to call whether or not a countdown is running — this path is also
         // reached by an explicit lock command part-way through a session.
@@ -164,6 +175,7 @@ internal sealed class AgentShell : ApplicationContext
     private void OnGameExited()
     {
         _lockService.SetGameRunning(false);
+        _screenBlanker.SetTopMost(!_lockService.Passthrough);
 
         // Back to the menu, never the desktop — unless the session ended while
         // the game was running, in which case the lock screen is already up and
@@ -254,6 +266,7 @@ internal sealed class AgentShell : ApplicationContext
         // set, Alt+Tabbing to a terminal would just place it behind our window.
         _lockedScreen.TopMost = !enabled;
         _gameMenu.TopMost = !enabled;
+        _screenBlanker.SetTopMost(!enabled);
 
         if (!enabled)
         {
@@ -293,6 +306,7 @@ internal sealed class AgentShell : ApplicationContext
         // dropped TCP connection regardless.
         _ = _mqttService.DisposeAsync().AsTask();
 
+        _screenBlanker.Dispose();
         _warningOverlay.Close();
         _gameMenu.Close();
         _lockedScreen.Close();

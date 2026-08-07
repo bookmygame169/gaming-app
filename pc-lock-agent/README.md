@@ -420,6 +420,10 @@ unreachable by mouse too:
 - **The game menu stays on screen behind a running game** rather than hiding
   itself. Hiding it would expose the desktop behind any game that is windowed,
   minimised, or still loading.
+- **Every other monitor is covered.** The lock screen and game menu size
+  themselves to the primary display, so on a two-monitor machine the second
+  screen would otherwise still show the desktop, taskbar and icons — defeating
+  the lock entirely. Nothing is created on a single-monitor machine.
 
 ### Recovering after a crash
 
