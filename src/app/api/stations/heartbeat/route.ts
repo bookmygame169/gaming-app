@@ -36,7 +36,20 @@ export async function POST(request: NextRequest) {
       : "";
 
     if (token !== expectedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      // Lengths only, never the values. Enough to tell a truncated paste from a
+      // genuinely different token, which is otherwise slow to diagnose across
+      // two machines, and useless to anyone probing the endpoint.
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          hint:
+            `Received a token of ${token.length} characters; the server expects ` +
+            `${expectedToken.length}. If those differ, the value was truncated or ` +
+            `has stray whitespace. If they match, the two values are simply different — ` +
+            `and remember the site must be redeployed after changing an environment variable.`,
+        },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();

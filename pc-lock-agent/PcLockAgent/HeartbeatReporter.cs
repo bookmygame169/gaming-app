@@ -127,7 +127,18 @@ internal sealed class HeartbeatReporter : IDisposable
             {
                 if (!_lastAttemptFailed)
                 {
+                    // The body usually carries the server's own explanation,
+                    // which is more specific than anything guessable from the
+                    // status code alone.
+                    var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
                     AgentLog.Warn($"Heartbeat rejected: HTTP {(int)response.StatusCode}. {ExplainFailure(response.StatusCode)}");
+
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        AgentLog.Warn($"Server said: {body.Trim()}");
+                    }
+
                     _lastAttemptFailed = true;
                 }
                 return;
