@@ -25,6 +25,39 @@ normal one. That separation is what keeps the machine usable for you.
 
 ---
 
+## The short version: build an installer
+
+If you would rather hand each PC a single `Setup.exe` than follow the steps
+below, build one once on the machine with the source:
+
+```powershell
+.\tools\build-installer.ps1 `
+    -BrokerHost "your-cluster.s1.eu.hivemq.cloud" `
+    -BrokerUsername "station" `
+    -BrokerPassword "..." `
+    -HeartbeatUrl "https://www.yoursite.co.in/api/stations/heartbeat" `
+    -HeartbeatToken "..." `
+    -CafeId "..."
+```
+
+Needs [Inno Setup 6](https://jrsoftware.org/isdl.php) — free, and only on this
+one machine.
+
+That produces `installer\Output\BookMyGame-PC-Lock-Setup.exe`. Copy it to each
+café PC and run it. It asks one question — which station this PC is — then
+creates the customer account, installs the agent, and sets it to start on boot.
+
+Steps 1, 3 and 6 below are then done for you. You still want **Step 2** (turn off
+the escape hatch) **before building**, and **Step 4** (auto-login) afterwards.
+
+> The Setup.exe contains your broker password. Keep it on a USB stick or
+> somewhere private — not in the repo, not in shared storage.
+
+The rest of this document is the manual route, and explains what the installer is
+doing.
+
+---
+
 ## Step 1 — Make a customer account
 
 As Administrator:

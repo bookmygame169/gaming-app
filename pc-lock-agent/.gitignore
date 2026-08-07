@@ -9,3 +9,9 @@ obj/
 
 # Local machine config (station id, broker credentials) once it exists
 appsettings.Local.json
+
+# Installer build output — the Setup.exe and the baked-in settings both
+# contain the broker password.
+publish/
+installer/Output/
+installer/generated/
