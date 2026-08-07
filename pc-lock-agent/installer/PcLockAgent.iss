@@ -107,6 +107,14 @@ begin
   Result := Exec(FileName, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+{ Everything the post-install steps do is written here. Without it a failure
+  surfaces as a bare exit code with no way to tell what went wrong, since these
+  run hidden. }
+function SetupLogPath: String;
+begin
+  Result := ExpandConstant('{app}\install-log.txt');
+end;
+
 procedure EnsureGamingAccount;
 var
   ResultCode: Integer;
@@ -115,22 +123,32 @@ begin
     Exit;
 
   { net user fails harmlessly if the account already exists, so this is safe to
-    run either way. }
+    run either way. Output is appended rather than checked, because "already
+    exists" is a failure code we deliberately ignore. }
   RunHidden(ExpandConstant('{cmd}'),
-    '/C net user "' + GamingUser + '" /add', ResultCode);
+    '/C net user "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
 
   RunHidden(ExpandConstant('{cmd}'),
-    '/C net localgroup Users "' + GamingUser + '" /add', ResultCode);
+    '/C net localgroup Users "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
 end;
 
 procedure InstallStartupTask;
 var
   ResultCode: Integer;
 begin
-  if not RunHidden('powershell.exe',
-    '-ExecutionPolicy Bypass -NoProfile -File "' + ExpandConstant('{app}\install-startup.ps1') +
+  { Routed through cmd so the script's own output lands in the log. Running
+    powershell.exe directly would discard it, which is what made an earlier
+    failure impossible to diagnose. }
+  { {sysnative} rather than plain powershell.exe: this installer is a 32-bit
+    process, so an unqualified name resolves to the 32-bit PowerShell, which is
+    missing modules the script needs. On 32-bit Windows {sysnative} is simply
+    {sys}, so this is safe either way. }
+  if not RunHidden(ExpandConstant('{cmd}'),
+    '/C "' + ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe') +
+    '" -ExecutionPolicy Bypass -NoProfile -File "' +
+    ExpandConstant('{app}\install-startup.ps1') +
     '" -ExePath "' + ExpandConstant('{app}\{#AppExeName}') +
-    '" -GamingUser "' + GamingUser + '"', ResultCode) then
+    '" -GamingUser "' + GamingUser + '" >> "' + SetupLogPath + '" 2>&1', ResultCode) then
   begin
     MsgBox('Could not run the startup setup. The lock is installed but will not' + #13#10 +
            'start on its own. Run install-startup.ps1 from the install folder as' + #13#10 +
@@ -140,7 +158,9 @@ begin
 
   if ResultCode <> 0 then
     MsgBox('The startup setup reported a problem (code ' + IntToStr(ResultCode) + ').' + #13#10 +
-           'The lock will not start on its own until that is fixed.', mbError, MB_OK);
+           'The lock will not start on its own until that is fixed.' + #13#10 + #13#10 +
+           'What went wrong is written to:' + #13#10 +
+           SetupLogPath, mbError, MB_OK);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

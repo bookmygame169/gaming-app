@@ -54,7 +54,24 @@ Write-Host "Installing startup task for: $ExePath" -ForegroundColor Cyan
 
 $action = New-ScheduledTaskAction -Execute $ExePath -WorkingDirectory (Split-Path $ExePath -Parent)
 
-if (-not (Get-LocalUser -Name $GamingUser -ErrorAction SilentlyContinue)) {
+# Checked with `net user` rather than Get-LocalUser: that cmdlet lives in the
+# LocalAccounts module, which is missing from 32-bit PowerShell on 64-bit
+# Windows. The installer is a 32-bit process, so it would launch exactly that
+# PowerShell and the script would die here for reasons having nothing to do with
+# the account.
+$accountExists = $false
+try {
+    # Relaxed just for this call: `net user` writes to stderr when the account
+    # does not exist, and with ErrorActionPreference Stop that terminates the
+    # script instead of answering the question being asked.
+    $ErrorActionPreference = "SilentlyContinue"
+    $null = & net user $GamingUser 2>&1
+    $accountExists = ($LASTEXITCODE -eq 0)
+} finally {
+    $ErrorActionPreference = "Stop"
+}
+
+if (-not $accountExists) {
     Write-Host ""
     Write-Host "There is no Windows account called '$GamingUser' on this PC." -ForegroundColor Red
     Write-Host ""
