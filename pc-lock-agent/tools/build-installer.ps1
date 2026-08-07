@@ -52,11 +52,22 @@ $generated   = Join-Path $installerIn "generated"
 # --- Find Inno Setup ---------------------------------------------------------
 
 if (-not $InnoSetupPath) {
-    $candidates = @(
-        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-    )
-    $InnoSetupPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    # Searched by wildcard rather than a fixed "Inno Setup 6" path so version 7,
+    # or whatever comes next, is found too. Newest first.
+    foreach ($root in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+        if (-not $root) { continue }
+
+        $found = Get-ChildItem -Path $root -Filter "Inno Setup *" -Directory -ErrorAction SilentlyContinue |
+            Sort-Object Name -Descending |
+            ForEach-Object { Join-Path $_.FullName "ISCC.exe" } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+
+        if ($found) {
+            $InnoSetupPath = $found
+            break
+        }
+    }
 }
 
 if (-not $InnoSetupPath -or -not (Test-Path $InnoSetupPath)) {
@@ -64,8 +75,12 @@ if (-not $InnoSetupPath -or -not (Test-Path $InnoSetupPath)) {
     Write-Host "Inno Setup is not installed." -ForegroundColor Red
     Write-Host ""
     Write-Host "It is free, and only needed on this machine - not on the cafe PCs." -ForegroundColor Yellow
-    Write-Host "Download it from: https://jrsoftware.org/isdl.php" -ForegroundColor Yellow
-    Write-Host "Install it, then run this script again."
+    Write-Host ""
+    Write-Host "Install it with one command:" -ForegroundColor Cyan
+    Write-Host "  winget install --id JRSoftware.InnoSetup -e"
+    Write-Host ""
+    Write-Host "Or download from https://jrsoftware.org/isdl.php - version 6 or 7," -ForegroundColor Yellow
+    Write-Host "either works. Then run this script again." -ForegroundColor Yellow
     Write-Host ""
     exit 1
 }
