@@ -132,13 +132,42 @@ Finally check the machine appears on the **Stations** tab as a green card.
 
 ---
 
-## Step 6 — Repeat for the other machines
+## Step 6 — The other machines
 
-Same command, changing only `-StationId` to `pc-02`, `pc-03` and so on.
+**They do not need the code, or .NET, or anything installed.** The build from
+Step 3 bundles everything it needs, so the other PCs just need the folder.
+
+On the PC you built on, copy `C:\BookMyGame\PcLockAgent` to a USB stick.
+
+Then on each other machine:
+
+1. Create the customer account (Step 1)
+2. Copy the folder from the USB stick to `C:\BookMyGame\PcLockAgent`
+3. Copy `pc-lock-agent\tools` across as well, and run, as Administrator:
+
+```powershell
+.\setup-station.ps1 -StationId pc-02 `
+    -BrokerHost "your-cluster.s1.eu.hivemq.cloud" `
+    -BrokerUsername "station" `
+    -BrokerPassword "..." `
+    -HeartbeatUrl "https://www.yoursite.co.in/api/stations/heartbeat" `
+    -HeartbeatToken "..." `
+    -CafeId "..." `
+    -GamingUser "GamingUser" `
+    -SkipBuild
+```
+
+`-SkipBuild` tells it to configure the copied folder instead of building. The
+only thing that changes between machines is `-StationId`.
+
+4. Set auto-login (Step 4)
 
 Station ids must match the number of PCs configured for the café on the website.
 Five PCs means the site expects `pc-01` through `pc-05`; a machine set to `pc-07`
 will never be targeted by a booking and will simply never unlock.
+
+> Rebuilding later — after changing a setting or taking a fix — means copying the
+> folder out again. Only the machine with the code can produce a new build.
 
 ---
 

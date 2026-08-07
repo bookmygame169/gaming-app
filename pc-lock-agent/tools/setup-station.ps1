@@ -47,7 +47,16 @@ param(
     # account keeps a normal unlocked Windows and the PC stays administrable.
     [string]$GamingUser = "GamingUser",
 
-    [switch]$SkipStartupTask
+    [switch]$SkipStartupTask,
+
+    # For PCs where you copied an already-built folder instead of cloning the
+    # repo. Only the config and the startup task are set up.
+    [switch]$SkipBuild,
+
+    # Builds a smaller folder that needs the .NET 8 Desktop Runtime installed on
+    # the machine. The default bundles the runtime, so a café PC needs nothing
+    # installed at all — worth the extra size when copying to several machines.
+    [switch]$FrameworkDependent
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,9 +66,19 @@ $ErrorActionPreference = "Stop"
 $StationId = $StationId.ToLowerInvariant()
 
 $projectDir = Join-Path (Split-Path $PSScriptRoot -Parent) "PcLockAgent"
-if (-not (Test-Path $projectDir)) {
+
+if (-not $SkipBuild -and -not (Test-Path $projectDir)) {
     Write-Host "Could not find the project at $projectDir" -ForegroundColor Red
-    Write-Host "Run this script from the pc-lock-agent\tools folder of the repo."
+    Write-Host ""
+    Write-Host "Either run this from the pc-lock-agent\tools folder of the repo," -ForegroundColor Yellow
+    Write-Host "or pass -SkipBuild if you copied an already-built folder to this PC." -ForegroundColor Yellow
+    exit 1
+}
+
+if ($SkipBuild -and -not (Test-Path (Join-Path $InstallPath "PcLockAgent.exe"))) {
+    Write-Host "-SkipBuild was given, but there is no PcLockAgent.exe at $InstallPath" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Copy the built folder there first, then run this again." -ForegroundColor Yellow
     exit 1
 }
 
@@ -92,23 +111,42 @@ if ($HeartbeatUrl -and $HeartbeatToken -and $CafeId) {
     Write-Host ""
 }
 
-$configPath = Join-Path $projectDir "appsettings.Local.json"
-$config | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $configPath
-Write-Host "  Wrote $configPath" -ForegroundColor Green
+$configJson = $config | ConvertTo-Json -Depth 5
+
+# Written to the source folder too when it exists, so running from the repo with
+# `dotnet run` picks up the same settings.
+if (Test-Path $projectDir) {
+    $configJson | Set-Content -Encoding UTF8 (Join-Path $projectDir "appsettings.Local.json")
+}
 
 # --- 2. Build ----------------------------------------------------------------
 
-Write-Host "  Publishing release build to $InstallPath ..." -ForegroundColor Cyan
-dotnet publish $projectDir -c Release -o $InstallPath | Out-Null
+if ($SkipBuild) {
+    Write-Host "  Skipped the build; using the copy already at $InstallPath." -ForegroundColor Yellow
+} else {
+    if ($FrameworkDependent) {
+        Write-Host "  Publishing to $InstallPath (needs .NET 8 Desktop Runtime on this PC) ..." -ForegroundColor Cyan
+        dotnet publish $projectDir -c Release -o $InstallPath | Out-Null
+    } else {
+        # Self-contained so the folder can simply be copied to a café PC that has
+        # nothing installed. Larger, but it removes a prerequisite from every
+        # machine after the first.
+        Write-Host "  Publishing self-contained build to $InstallPath (this takes a minute) ..." -ForegroundColor Cyan
+        dotnet publish $projectDir -c Release -r win-x64 --self-contained true -o $InstallPath | Out-Null
+    }
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build failed. Fix the errors above and run again." -ForegroundColor Red
-    exit 1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build failed. Fix the errors above and run again." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Built." -ForegroundColor Green
 }
-Write-Host "  Built." -ForegroundColor Green
 
-# The published copy is what actually runs, so the config has to be beside it.
-Copy-Item $configPath (Join-Path $InstallPath "appsettings.Local.json") -Force
+# The published copy is what actually runs, so its config must be written last —
+# a publish overwrites the folder.
+New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
+$configJson | Set-Content -Encoding UTF8 (Join-Path $InstallPath "appsettings.Local.json")
+Write-Host "  Wrote $InstallPath\appsettings.Local.json" -ForegroundColor Green
 
 # --- 3. Startup task ---------------------------------------------------------
 
