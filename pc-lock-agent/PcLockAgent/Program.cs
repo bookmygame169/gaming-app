@@ -33,6 +33,25 @@ internal static class Program
 
         var config = AgentConfig.Load();
 
+        // A machine that has never redeemed a setup code has no broker details,
+        // so there is nothing for it to obey. Ask before locking anything —
+        // putting up an unexitable lock screen on a PC that cannot be unlocked
+        // remotely would strand it.
+        if (!config.IsEnrolled)
+        {
+            AgentLog.Info("This PC is not linked to a café yet. Asking for a setup code.");
+
+            using var enrollment = new EnrollmentForm(config);
+            if (enrollment.ShowDialog() != DialogResult.OK)
+            {
+                AgentLog.Info("Setup was cancelled. Nothing has been locked.");
+                return;
+            }
+
+            // Re-read so the freshly written settings are the ones used.
+            config = AgentConfig.Load();
+        }
+
         // An ApplicationContext rather than a form: the agent has to outlive the
         // lock screen, which stays hidden for the whole of a paid session.
         Application.Run(new AgentShell(config));

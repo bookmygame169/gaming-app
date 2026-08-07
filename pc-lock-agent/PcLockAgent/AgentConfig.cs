@@ -32,6 +32,28 @@ internal sealed class AgentConfig
     public HeartbeatConfig Heartbeat { get; init; } = new();
 
     /// <summary>
+    /// Where a freshly installed agent redeems its setup code.
+    /// </summary>
+    /// <remarks>
+    /// Lives in the committed <c>appsettings.json</c> because it is not secret —
+    /// it is just the public website address, and it must be the same in every
+    /// copy of the installer.
+    /// </remarks>
+    [JsonPropertyName("enrollUrl")]
+    public string? EnrollUrl { get; init; }
+
+    /// <summary>
+    /// Whether this machine has been linked to a café yet.
+    /// </summary>
+    /// <remarks>
+    /// Not read from JSON — set during <see cref="Load"/> based on whether
+    /// <c>appsettings.Local.json</c> exists. A machine without one has never
+    /// redeemed a setup code and cannot reach a broker.
+    /// </remarks>
+    [JsonIgnore]
+    public bool IsEnrolled { get; private set; }
+
+    /// <summary>
     /// Reporting this station's state to the website over plain HTTP.
     /// </summary>
     /// <remarks>
@@ -177,6 +199,7 @@ internal sealed class AgentConfig
                 return new AgentConfig();
             }
 
+            config.IsEnrolled = File.Exists(Path.Combine(AppContext.BaseDirectory, LocalFileName));
             config = ApplyLocalOverrides(config);
 
             AgentLog.Info(
@@ -189,6 +212,51 @@ internal sealed class AgentConfig
         {
             AgentLog.Error($"Failed to read {FileName}: {ex.Message}. Using defaults.");
             return new AgentConfig();
+        }
+    }
+
+    /// <summary>
+    /// Writes the settings returned by a successful enrollment.
+    /// </summary>
+    /// <remarks>
+    /// The server returns exactly the shape of <c>appsettings.Local.json</c>, so
+    /// this validates it parses and stores it. Written beside the executable
+    /// rather than in the user profile so the whole install stays in one folder.
+    /// </remarks>
+    public static bool SaveEnrollment(string responseJson, out string? error)
+    {
+        error = null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseJson);
+
+            if (!document.RootElement.TryGetProperty("stationId", out var stationId)
+                || string.IsNullOrWhiteSpace(stationId.GetString()))
+            {
+                error = "The website did not say which station this PC is.";
+                return false;
+            }
+
+            var formatted = JsonSerializer.Serialize(
+                document.RootElement,
+                new JsonSerializerOptions { WriteIndented = true });
+
+            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, LocalFileName), formatted);
+            return true;
+        }
+        catch (JsonException ex)
+        {
+            error = $"The website sent something unexpected: {ex.Message}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Most likely the install folder is not writable, which on a café PC
+            // usually means it was installed somewhere under Program Files
+            // without admin rights.
+            error = $"Could not save the settings: {ex.Message}";
+            return false;
         }
     }
 
@@ -218,6 +286,8 @@ internal sealed class AgentConfig
             {
                 StationId = overrides.StationId ?? config.StationId,
                 Games = config.Games,
+                EnrollUrl = config.EnrollUrl,
+                IsEnrolled = config.IsEnrolled,
                 Heartbeat = new HeartbeatConfig
                 {
                     Url = overrides.Heartbeat?.Url ?? config.Heartbeat.Url,

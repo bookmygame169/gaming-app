@@ -49,6 +49,7 @@ const Reports = dynamic(() => import('./components/Reports').then((mod) => mod.R
 const StationsTab = dynamic(() => import('./components/StationsTab').then((mod) => mod.StationsTab), { ssr: false });
 const UnlockHistory = dynamic(() => import('./components/UnlockHistory').then((mod) => mod.UnlockHistory), { ssr: false });
 const StationLiveStatus = dynamic(() => import('./components/StationLiveStatus').then((mod) => mod.StationLiveStatus), { ssr: false });
+const AddStationPc = dynamic(() => import('./components/AddStationPc').then((mod) => mod.AddStationPc), { ssr: false });
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
 const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
@@ -2960,6 +2961,10 @@ export default function OwnerDashboardPage() {
             />
             <div className="mt-4 flex flex-col gap-4">
               <StationLiveStatus cafeId={selectedCafeId || undefined} />
+              <AddStationPc
+                cafeId={selectedCafeId || undefined}
+                downloadUrl={process.env.NEXT_PUBLIC_AGENT_DOWNLOAD_URL}
+              />
               <UnlockHistory cafeId={selectedCafeId || undefined} />
             </div>
             </ErrorBoundary>
