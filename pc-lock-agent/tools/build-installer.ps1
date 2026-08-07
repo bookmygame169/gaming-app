@@ -1,42 +1,29 @@
 <#
 .SYNOPSIS
-    Builds BookMyGame-PC-Lock-Setup.exe - the installer you run on each cafe PC.
+    Builds BookMyGame-PC-Lock-Setup.exe - the installer for cafe PCs.
 
 .DESCRIPTION
-    Run this once on the machine that has the source code. It publishes the agent
-    as a single self-contained exe, bakes in the broker and heartbeat settings,
-    and compiles everything into one Setup.exe.
+    Run this on the machine that has the source code.
 
-    Settings are baked in because they are identical on every machine. The
-    installer then only asks for the one thing that differs: which station the PC
-    is.
+    The installer carries no passwords. A PC gets its settings on first run by
+    redeeming a setup code from the owner dashboard, so one build works for every
+    cafe, can be hosted publicly, and never needs rebuilding when a password
+    changes.
 
-    Requires Inno Setup 6 (free): https://jrsoftware.org/isdl.php
+    Requires Inno Setup (free): https://jrsoftware.org/isdl.php
 
 .EXAMPLE
-    .\build-installer.ps1 `
-        -BrokerHost "abc123.s1.eu.hivemq.cloud" `
-        -BrokerUsername "station" `
-        -BrokerPassword "..." `
-        -HeartbeatUrl "https://www.bookmygame.co.in/api/stations/heartbeat" `
-        -HeartbeatToken "..." `
-        -CafeId "..."
+    .\build-installer.ps1
+
+.EXAMPLE
+    .\build-installer.ps1 -Version 1.1.0
 
 .NOTES
-    The Setup.exe produced contains your broker password. Treat it like a
-    password: keep it on a USB stick or somewhere private, and do not put it in
-    the repo or anywhere public.
+    Before building for real cafe PCs, set AllowDevExit to false in
+    AgentSettings.cs. While it is true anyone can quit the lock with
+    Ctrl+Shift+Alt+Q.
 #>
 param(
-    [Parameter(Mandatory = $true)][string]$BrokerHost,
-    [Parameter(Mandatory = $true)][string]$BrokerUsername,
-    [Parameter(Mandatory = $true)][string]$BrokerPassword,
-
-    [string]$HeartbeatUrl = "",
-    [string]$HeartbeatToken = "",
-    [string]$CafeId = "",
-
-    [int]$BrokerPort = 8883,
     [string]$Version = "1.0.0",
     [string]$InnoSetupPath = ""
 )
@@ -47,7 +34,6 @@ $agentRoot   = Split-Path $PSScriptRoot -Parent
 $projectDir  = Join-Path $agentRoot "PcLockAgent"
 $publishDir  = Join-Path $agentRoot "publish"
 $installerIn = Join-Path $agentRoot "installer"
-$generated   = Join-Path $installerIn "generated"
 
 # --- Find Inno Setup ---------------------------------------------------------
 
@@ -89,6 +75,17 @@ Write-Host ""
 Write-Host "Building the installer" -ForegroundColor Cyan
 Write-Host ""
 
+# --- Warn about the escape hatch ---------------------------------------------
+
+$settingsFile = Join-Path $projectDir "AgentSettings.cs"
+if ((Test-Path $settingsFile) -and (Select-String -Path $settingsFile -Pattern 'AllowDevExit\s*=\s*true' -Quiet)) {
+    Write-Host "  WARNING: AllowDevExit is still true." -ForegroundColor Yellow
+    Write-Host "  Anyone can quit the lock with Ctrl+Shift+Alt+Q, or suspend it with" -ForegroundColor Yellow
+    Write-Host "  Ctrl+Shift+Alt+L. Fine for testing; set it to false in" -ForegroundColor Yellow
+    Write-Host "  AgentSettings.cs before this goes on a real cafe PC." -ForegroundColor Yellow
+    Write-Host ""
+}
+
 # --- 1. Publish the agent ----------------------------------------------------
 
 Write-Host "  Publishing the agent (this takes a minute) ..." -ForegroundColor Cyan
@@ -110,39 +107,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "  Published." -ForegroundColor Green
 
-# --- 2. Bake in the settings -------------------------------------------------
-
-# __STATION_ID__ is filled in by the installer, since it is the one value that
-# differs per machine.
-$settings = [ordered]@{
-    stationId = "__STATION_ID__"
-    mqtt      = [ordered]@{
-        host     = $BrokerHost
-        port     = $BrokerPort
-        useTls   = ($BrokerPort -ne 1883)
-        username = $BrokerUsername
-        password = $BrokerPassword
-    }
-}
-
-if ($HeartbeatUrl -and $HeartbeatToken -and $CafeId) {
-    $settings.heartbeat = [ordered]@{
-        url    = $HeartbeatUrl
-        token  = $HeartbeatToken
-        cafeId = $CafeId
-    }
-} else {
-    Write-Host "  No heartbeat details given - installed PCs will not appear on the" -ForegroundColor Yellow
-    Write-Host "  dashboard's live status list. Locking and unlocking still work." -ForegroundColor Yellow
-}
-
-New-Item -ItemType Directory -Force -Path $generated | Out-Null
-$settings | ConvertTo-Json -Depth 5 |
-    Set-Content -Encoding UTF8 (Join-Path $generated "appsettings.Local.template")
-
-Write-Host "  Settings baked in." -ForegroundColor Green
-
-# --- 3. Compile the installer ------------------------------------------------
+# --- 2. Compile the installer ------------------------------------------------
 
 Write-Host "  Compiling ..." -ForegroundColor Cyan
 
@@ -159,8 +124,10 @@ Write-Host ""
 Write-Host "Done." -ForegroundColor Green
 Write-Host "  $output"
 Write-Host ""
-Write-Host "Copy that one file to each cafe PC and run it. It asks only which" -ForegroundColor Cyan
-Write-Host "station the machine is." -ForegroundColor Cyan
+Write-Host "This file contains no passwords, so it is safe to upload publicly." -ForegroundColor Cyan
+Write-Host "Attach it to a GitHub Release, then point" -ForegroundColor Cyan
+Write-Host "NEXT_PUBLIC_AGENT_DOWNLOAD_URL at it so the dashboard can offer it." -ForegroundColor Cyan
 Write-Host ""
-Write-Host "It contains your broker password - keep it off anything public." -ForegroundColor Yellow
+Write-Host "On each cafe PC: run it, then type the setup code from the" -ForegroundColor Cyan
+Write-Host "dashboard's Stations tab." -ForegroundColor Cyan
 Write-Host ""

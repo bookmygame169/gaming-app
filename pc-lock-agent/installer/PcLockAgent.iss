@@ -1,11 +1,11 @@
 ; Inno Setup script for the BookMyGame PC Lock installer.
 ;
 ; Do not compile this by hand - run tools\build-installer.ps1, which publishes
-; the agent and generates the settings this script bundles.
+; the agent first.
 ;
-; The installer asks for one thing: which station this PC is. Everything else
-; (broker address, credentials, cafe id) is baked in at build time, because it
-; is identical on every machine and asking five times invites a typo.
+; This installer contains no credentials. The agent asks for a setup code the
+; first time it runs and fetches its own settings, which is what lets one build
+; serve every cafe and be hosted as a public download.
 
 #define AppName "BookMyGame PC Lock"
 #define AppPublisher "BookMyGame"
@@ -35,17 +35,18 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
 
 [Files]
-Source: "..\publish\{#AppExeName}";              DestDir: "{app}"; Flags: ignoreversion
-Source: "..\publish\appsettings.json";           DestDir: "{app}"; Flags: ignoreversion
-Source: "generated\appsettings.Local.template";  DestDir: "{app}"; Flags: ignoreversion
-Source: "..\tools\install-startup.ps1";          DestDir: "{app}"; Flags: ignoreversion
-Source: "..\tools\uninstall-startup.ps1";        DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\{#AppExeName}";      DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\appsettings.json";   DestDir: "{app}"; Flags: ignoreversion
+Source: "..\tools\install-startup.ps1";  DestDir: "{app}"; Flags: ignoreversion
+Source: "..\tools\uninstall-startup.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
-; Shown as a tick box on the final page rather than run automatically, so the
-; installer never starts a fullscreen lock on the machine of whoever is setting
-; it up without warning.
-Filename: "{app}\{#AppExeName}"; Description: "Start the lock now"; Flags: postinstall nowait skipifsilent unchecked
+; Ticked by default: the agent needs running once to ask for the setup code, and
+; until that happens it locks nothing. Starting it here means the person doing
+; the install can finish the job while they are still at the machine.
+Filename: "{app}\{#AppExeName}"; \
+  Description: "Enter the setup code now"; \
+  Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 Filename: "powershell.exe"; \
@@ -54,26 +55,23 @@ Filename: "powershell.exe"; \
 
 [Code]
 var
-  SettingsPage: TInputQueryWizardPage;
+  AccountPage: TInputQueryWizardPage;
   CreateAccountCheck: TInputOptionWizardPage;
 
 procedure InitializeWizard;
 begin
-  SettingsPage := CreateInputQueryPage(wpSelectDir,
-    'This machine',
-    'Which station is this PC?',
-    'Each PC needs its own station name, matching the ones on your BookMyGame' + #13#10 +
-    'dashboard. Use lower case: pc-01, pc-02, and so on.' + #13#10 + #13#10 +
-    'The Windows account is the one customers will use. It is kept separate from' + #13#10 +
-    'your own account, so you can always sign in normally to manage the PC.');
+  AccountPage := CreateInputQueryPage(wpSelectDir,
+    'Customer account',
+    'Which Windows account will customers use?',
+    'The lock runs only for this account, so your own account keeps a normal' + #13#10 +
+    'Windows and you can always sign in to manage this PC.' + #13#10 + #13#10 +
+    'You do not need to choose a station name here - that comes from the setup' + #13#10 +
+    'code you will enter after installing.');
 
-  SettingsPage.Add('Station name (e.g. pc-01):', False);
-  SettingsPage.Add('Customer Windows account:', False);
+  AccountPage.Add('Customer Windows account:', False);
+  AccountPage.Values[0] := 'GamingUser';
 
-  SettingsPage.Values[0] := 'pc-01';
-  SettingsPage.Values[1] := 'GamingUser';
-
-  CreateAccountCheck := CreateInputOptionPage(SettingsPage.ID,
+  CreateAccountCheck := CreateInputOptionPage(AccountPage.ID,
     'Customer account',
     'Create the Windows account if it does not exist?',
     'Leave this ticked unless you have already made the account yourself.' + #13#10 +
@@ -85,35 +83,19 @@ begin
   CreateAccountCheck.Values[0] := True;
 end;
 
-function StationId: String;
-begin
-  Result := Lowercase(Trim(SettingsPage.Values[0]));
-end;
-
 function GamingUser: String;
 begin
-  Result := Trim(SettingsPage.Values[1]);
+  Result := Trim(AccountPage.Values[0]);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
 
-  if CurPageID = SettingsPage.ID then
+  if (CurPageID = AccountPage.ID) and (GamingUser = '') then
   begin
-    if StationId = '' then
-    begin
-      MsgBox('Please enter a station name, such as pc-01.', mbError, MB_OK);
-      Result := False;
-      Exit;
-    end;
-
-    if GamingUser = '' then
-    begin
-      MsgBox('Please enter the Windows account customers will use.', mbError, MB_OK);
-      Result := False;
-      Exit;
-    end;
+    MsgBox('Please enter the Windows account customers will use.', mbError, MB_OK);
+    Result := False;
   end;
 end;
 
@@ -121,27 +103,6 @@ end;
 function RunHidden(const FileName, Params: String; var ResultCode: Integer): Boolean;
 begin
   Result := Exec(FileName, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-end;
-
-procedure WriteStationConfig;
-var
-  Template: AnsiString;
-  Contents: String;
-begin
-  { The template carries the broker settings, with the station name left as a
-    placeholder because it is the one value that differs per machine. }
-  if not LoadStringFromFile(ExpandConstant('{app}\appsettings.Local.template'), Template) then
-  begin
-    MsgBox('Could not read the bundled settings template. The install is incomplete.',
-      mbError, MB_OK);
-    Exit;
-  end;
-
-  Contents := String(Template);
-  StringChangeEx(Contents, '__STATION_ID__', StationId, True);
-
-  if not SaveStringToFile(ExpandConstant('{app}\appsettings.Local.json'), Contents, False) then
-    MsgBox('Could not write the settings file. The install is incomplete.', mbError, MB_OK);
 end;
 
 procedure EnsureGamingAccount;
@@ -185,7 +146,6 @@ begin
   if CurStep = ssPostInstall then
   begin
     EnsureGamingAccount;
-    WriteStationConfig;
     InstallStartupTask;
   end;
 end;
