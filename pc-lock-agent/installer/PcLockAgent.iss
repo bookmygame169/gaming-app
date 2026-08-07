@@ -51,7 +51,9 @@ Filename: "{app}\{#AppExeName}"; \
   Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
-Filename: "powershell.exe"; \
+; {sysnative} for the same reason as the install step: the uninstaller is a
+; 32-bit process, and the 32-bit PowerShell is missing modules this needs.
+Filename: "{sysnative}\WindowsPowerShell\v1.0\powershell.exe"; \
   Parameters: "-ExecutionPolicy Bypass -NoProfile -File ""{app}\uninstall-startup.ps1"""; \
   Flags: runhidden; RunOnceId: "RemoveStartupTask"
 
