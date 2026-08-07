@@ -314,6 +314,51 @@ Watch the heartbeat and status messages the agent publishes back:
 
 ---
 
+## Rolling out to a whole café
+
+Every PC runs the same build. The only thing that differs is its `stationId` —
+`pc-01`, `pc-02`, and so on.
+
+`tools/setup-station.ps1` does the whole per-machine setup in one command:
+writes the config, publishes a Release build, and installs the startup task.
+
+On each PC, as Administrator:
+
+```powershell
+.\setup-station.ps1 -StationId pc-01 `
+    -BrokerHost "abc123.s1.eu.hivemq.cloud" `
+    -BrokerUsername "station" `
+    -BrokerPassword "..." `
+    -HeartbeatUrl "https://www.bookmygame.co.in/api/stations/heartbeat" `
+    -HeartbeatToken "..." `
+    -CafeId "..."
+```
+
+Only `-StationId` changes between machines. Keep the full command somewhere you
+can copy it from — a note on your phone, or a text file on the USB stick you
+carry between PCs. Do not commit it with real values; this repo is public.
+
+### Things to get right
+
+**Station ids must match the café's console count.** The website generates
+station names from the number of PCs configured for the café, so five PCs means
+it expects `pc-01` through `pc-05`. If a machine is set to `pc-07`, bookings will
+never target it and it will simply never unlock.
+
+**Ids are lower case.** MQTT topics are case-sensitive, so `PC-01` receives
+nothing at all, with no error anywhere. The setup script lower-cases whatever you
+pass, but a hand-edited config can still get this wrong.
+
+**One credential is fine for all of them.** Every station can share the same
+broker username and password — each agent connects with its own client id derived
+from its station id, so they do not clash.
+
+**Check they all arrived.** After setting up each PC, the Stations tab should
+show one more green card. Five PCs, five cards. A machine that never appears
+either has the wrong `cafeId`, or is not running.
+
+---
+
 ## Deploying to a café PC
 
 **1. Turn off the dev escape hatch.** Set `AllowDevExit = false` in
