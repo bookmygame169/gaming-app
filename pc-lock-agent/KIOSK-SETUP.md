@@ -25,6 +25,38 @@ normal one. That separation is what keeps the machine usable for you.
 
 ---
 
+## Hosting the installer so the dashboard can offer it
+
+The installer contains no credentials — a PC gets its settings by redeeming a
+setup code — so it is safe to host publicly and the same file works for every
+café.
+
+GitHub Releases is the simplest place: free, handles a file this size, and gives
+a permanent link.
+
+1. Build it (see below), producing
+   `pc-lock-agent\installer\Output\BookMyGame-PC-Lock-Setup.exe`
+2. Go to your repo → **Releases** → **Draft a new release**
+3. Create a tag such as `v1.0.0`, give it a title
+4. Drag the `.exe` into the attachments box
+5. **Publish release**
+
+Then set this on Vercel and redeploy:
+
+```
+NEXT_PUBLIC_AGENT_DOWNLOAD_URL = https://github.com/<user>/<repo>/releases/latest/download/BookMyGame-PC-Lock-Setup.exe
+```
+
+Note `latest` rather than a version number. That URL always resolves to the
+newest release, so publishing a new version updates every café's download button
+without touching Vercel again.
+
+> Windows will warn about an unsigned program the first time anyone runs it —
+> "Windows protected your PC" → **More info** → **Run anyway**. Silencing that
+> needs a paid code-signing certificate and is not worth it yet.
+
+---
+
 ## The short version: build an installer
 
 If you would rather hand each PC a single `Setup.exe` than follow the steps
