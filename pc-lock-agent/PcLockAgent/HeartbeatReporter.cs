@@ -38,7 +38,16 @@ internal sealed class HeartbeatReporter : IDisposable
     public HeartbeatReporter(AgentConfig config)
     {
         _config = config;
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+
+        // Redirects are deliberately NOT followed. An HTTP client drops the
+        // Authorization header when a redirect crosses to a different host —
+        // which "example.com" -> "www.example.com" does. Following it silently
+        // would send the request on without its token and produce a 401 that
+        // looks exactly like a wrong password, with the real cause invisible.
+        // Failing here instead lets the message below name the actual problem.
+        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+
+        _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
     }
 
     private bool IsConfigured =>
@@ -127,6 +136,19 @@ internal sealed class HeartbeatReporter : IDisposable
             {
                 if (!_lastAttemptFailed)
                 {
+                    // Called out separately because the fix is a config change,
+                    // not a credentials problem.
+                    if ((int)response.StatusCode is >= 300 and < 400)
+                    {
+                        var target = response.Headers.Location?.ToString() ?? "(not given)";
+                        AgentLog.Warn(
+                            $"Heartbeat URL redirects to {target}. The Authorization header is dropped " +
+                            "across a redirect, so the token would never arrive. Put that address in " +
+                            "heartbeat.url in appsettings.Local.json instead.");
+                        _lastAttemptFailed = true;
+                        return;
+                    }
+
                     // The body usually carries the server's own explanation,
                     // which is more specific than anything guessable from the
                     // status code alone.
