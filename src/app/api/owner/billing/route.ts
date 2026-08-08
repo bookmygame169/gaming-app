@@ -15,6 +15,8 @@ import {
   reserveStations,
 } from "@/lib/ownerStationAssignments";
 import { getInitialOwnerBookingStatus } from "@/lib/bookingFilters";
+import { syncStationsForBooking } from "@/lib/stationSync";
+import { sendStationCommands } from "@/lib/stationCommands";
 
 export const dynamic = 'force-dynamic';
 
@@ -387,6 +389,11 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Push the change out to the machine. Adding time here would otherwise
+    // leave the PC still locking at the original hour, and marking a booking
+    // cancelled would leave it running.
+    await syncStationsForBooking(supabase, bookingId);
+
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     console.error("Error updating booking:", err);
@@ -443,6 +450,17 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
+      // Read which machines this item held before it disappears. Once the row
+      // is gone there is nothing left to say which station to switch off, and
+      // it would sit unlocked with no booking behind it.
+      const { data: itemBeingRemoved } = await supabase
+        .from("booking_items")
+        .select("title")
+        .eq("id", specificItemId)
+        .maybeSingle();
+
+      const freedStations = parseAssignedStationsFromTitle(itemBeingRemoved?.title);
+
       // Hard-delete individual booking_item (items are not soft-deleted)
       const { error: itemError } = await supabase
         .from("booking_items")
@@ -478,6 +496,16 @@ export async function DELETE(request: NextRequest) {
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
+
+      // Only the machine that was removed. The rest of the booking is still
+      // running and is brought back in line below.
+      if (freedStations.length > 0) {
+        try {
+          await sendStationCommands(freedStations, () => ({ action: "lock" }));
+        } catch (err) {
+          console.error("Could not lock the removed station:", err);
+        }
+      }
     } else {
       // Soft-delete the full booking by setting deleted_at + remark
       const { error } = await supabase
@@ -492,6 +520,13 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     }
+
+    // Removing one console leaves the rest of the booking running, so the
+    // remaining machines are re-synced rather than switched off. Deleting the
+    // whole booking locks everything: there is no paid time behind it any more,
+    // and a machine running against a record that no longer exists is the case
+    // the audit log was added to catch.
+    await syncStationsForBooking(supabase, bookingId, { forceLock: !specificItemId });
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
