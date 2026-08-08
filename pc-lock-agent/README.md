@@ -314,6 +314,20 @@ Watch the heartbeat and status messages the agent publishes back:
 
 ---
 
+## The menu
+
+On Windows, double-click **`MENU.bat`** in this folder. It covers everything
+routine — running the app, building the installer, removing the lock, reading
+the logs, pulling the latest code — as numbered options.
+
+It exists so nothing has to be copied between machines. Development happens on
+one computer and the café PCs are another, and retyping long commands across
+that gap is where mistakes come from.
+
+It asks for administrator rights only for the tasks that need them.
+
+---
+
 ## Rolling out to a whole café
 
 Every PC runs the same build. The only thing that differs is its `stationId` —
