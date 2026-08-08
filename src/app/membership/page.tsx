@@ -1,728 +1,352 @@
 // src/app/membership/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
-  Check,
-  Star,
-  Zap,
-  Users,
-  TrendingUp,
-  Gift,
-  Crown,
-  Shield,
-  Sparkles,
+  Clock,
+  CalendarDays,
   Loader2,
+  AlertCircle,
+  Ticket,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import { colors, fonts } from "@/lib/constants";
+import { supabase } from "@/lib/supabaseClient";
 
-type MembershipTier = {
+type Membership = {
   id: string;
-  name: string;
-  icon: string;
-  color: string;
-  monthly_price: number;
-  yearly_price: number;
-  description: string;
-  badge: string;
-  features: string[];
-  discount_percentage: number;
+  cafeName: string;
+  planName: string;
+  planType: string | null;
+  description: string | null;
+  hoursPurchased: number;
+  hoursRemaining: number;
+  amountPaid: number;
+  purchaseDate: string;
+  expiryDate: string;
+  daysLeft: number;
+  isUsable: boolean;
+  isExpired: boolean;
 };
 
-const benefits = [
-  {
-    icon: Zap,
-    title: "Instant Bookings",
-    description: "Book your gaming session instantly with priority access",
-  },
-  {
-    icon: Gift,
-    title: "Exclusive Rewards",
-    description: "Get special rewards, gifts, and member-only offers",
-  },
-  {
-    icon: TrendingUp,
-    title: "Level Up",
-    description: "Track your gaming progress and climb the leaderboards",
-  },
-  {
-    icon: Users,
-    title: "Community",
-    description: "Connect with gamers and join exclusive events",
-  },
-  {
-    icon: Sparkles,
-    title: "Premium Support",
-    description: "Get dedicated support and personalized assistance",
-  },
-  {
-    icon: Shield,
-    title: "Protected Gear",
-    description: "Insurance coverage for your gaming equipment",
-  },
-];
+type Plan = {
+  id: string;
+  cafeId: string;
+  cafeName: string;
+  cafeSlug: string | null;
+  planType: string;
+  name: string;
+  description: string | null;
+  price: number;
+  hours: number | null;
+  validityDays: number;
+};
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export default function MembershipPage() {
   const router = useRouter();
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
-  const [membershipTiers, setMembershipTiers] = useState<MembershipTier[]>([]);
+
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [needsPhone, setNeedsPhone] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch membership tiers from API
-  useEffect(() => {
-    async function fetchTiers() {
-      try {
-        const response = await fetch("/api/memberships");
-        if (!response.ok) {
-          throw new Error("Failed to fetch membership tiers");
-        }
-        const data = await response.json();
-        setMembershipTiers(data.tiers || []);
-      } catch (err) {
-        console.error("Error fetching tiers:", err);
-        setError("Failed to load membership tiers");
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Plans are public, so they load for signed-out visitors deciding whether
+      // this is worth signing up for.
+      const plansRes = await fetch("/api/memberships/plans");
+      const plansData = await plansRes.json().catch(() => ({}));
+      if (!plansRes.ok) throw new Error(plansData.error || "Could not load plans");
+      setPlans(Array.isArray(plansData.plans) ? plansData.plans : []);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        setSignedIn(false);
+        return;
       }
+
+      setSignedIn(true);
+
+      const mineRes = await fetch("/api/memberships/mine", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const mineData = await mineRes.json().catch(() => ({}));
+
+      if (mineRes.ok) {
+        setMemberships(Array.isArray(mineData.memberships) ? mineData.memberships : []);
+        setNeedsPhone(Boolean(mineData.needsPhone));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
     }
-    fetchTiers();
   }, []);
 
-  const handleSelectTier = async (tier: MembershipTier) => {
-    // For now, show alert - in production, integrate with payment gateway
-    alert(
-      `Membership enrollment coming soon!\n\nSelected: ${tier.name}\nBilling: ${billingCycle}\nPrice: ₹${billingCycle === "monthly" ? tier.monthly_price : tier.yearly_price}`
-    );
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
-    <>
-      <style jsx global>{`
-        .membership-page {
-          min-height: 100vh;
-          background: linear-gradient(180deg, ${colors.dark} 0%, #0a0a10 100%);
-          font-family: ${fonts.body};
-          color: ${colors.textPrimary};
-        }
+    <div style={{ background: colors.dark, minHeight: "100vh", fontFamily: fonts.body }}>
+      <div className="mx-auto max-w-4xl px-4 pb-16 pt-6">
+        <button
+          onClick={() => router.back()}
+          className="mb-6 flex items-center gap-2 text-sm transition-colors hover:text-white"
+          style={{ color: colors.textSecondary }}
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
 
-        .membership-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 20px 16px;
-        }
+        <h1
+          className="text-3xl font-bold sm:text-4xl"
+          style={{ fontFamily: fonts.heading, color: colors.textPrimary }}
+        >
+          Memberships
+        </h1>
+        <p className="mt-2 text-sm" style={{ color: colors.textSecondary }}>
+          Day passes and hour packs — cheaper than paying per session.
+        </p>
 
-        .page-header {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          margin-bottom: 40px;
-          padding-top: 16px;
-        }
+        {loading && (
+          <div className="flex items-center gap-2 py-16" style={{ color: colors.textSecondary }}>
+            <Loader2 size={18} className="animate-spin" />
+            Loading…
+          </div>
+        )}
 
-        .back-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 40px;
-          height: 40px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid ${colors.border};
-          color: ${colors.textSecondary};
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
+        {error && !loading && (
+          <div
+            className="mt-6 flex items-start gap-2 rounded-xl p-4 text-sm"
+            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: colors.orange }}
+          >
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
-        .back-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          transform: translateX(-2px);
-        }
-
-        .header-content {
-          flex: 1;
-        }
-
-        .header-title {
-          font-family: ${fonts.heading};
-          font-size: 32px;
-          font-weight: 700;
-          margin: 0 0 8px 0;
-          background: linear-gradient(135deg, ${colors.red} 0%, ${colors.cyan} 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .header-subtitle {
-          color: ${colors.textSecondary};
-          font-size: 14px;
-          margin: 0;
-        }
-
-        /* Benefits Section */
-        .benefits-section {
-          margin-bottom: 60px;
-        }
-
-        .section-title {
-          font-family: ${fonts.heading};
-          font-size: 24px;
-          font-weight: 700;
-          text-align: center;
-          margin-bottom: 32px;
-          color: ${colors.textPrimary};
-        }
-
-        .benefits-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 20px;
-        }
-
-        .benefit-card {
-          background: linear-gradient(135deg, rgba(255, 7, 58, 0.08) 0%, ${colors.darkCard} 100%);
-          border: 1px solid ${colors.border};
-          border-radius: 16px;
-          padding: 24px;
-          transition: all 0.3s ease;
-          text-align: center;
-        }
-
-        .benefit-card:hover {
-          transform: translateY(-4px);
-          border-color: ${colors.red};
-        }
-
-        .benefit-icon {
-          width: 48px;
-          height: 48px;
-          background: linear-gradient(135deg, ${colors.red} 0%, ${colors.cyan} 100%);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          margin: 0 auto 16px;
-        }
-
-        .benefit-title {
-          font-family: ${fonts.heading};
-          font-size: 16px;
-          font-weight: 700;
-          margin: 0 0 8px 0;
-          color: ${colors.textPrimary};
-        }
-
-        .benefit-description {
-          font-size: 13px;
-          color: ${colors.textSecondary};
-          margin: 0;
-          line-height: 1.5;
-        }
-
-        /* Pricing Section */
-        .pricing-section {
-          margin-bottom: 60px;
-        }
-
-        .pricing-header {
-          text-align: center;
-          margin-bottom: 40px;
-        }
-
-        .pricing-title {
-          font-family: ${fonts.heading};
-          font-size: 28px;
-          font-weight: 700;
-          margin: 0 0 16px 0;
-        }
-
-        .cycle-toggle {
-          display: inline-flex;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid ${colors.border};
-          border-radius: 12px;
-          padding: 4px;
-          gap: 4px;
-        }
-
-        .cycle-btn {
-          padding: 8px 16px;
-          border: none;
-          background: transparent;
-          color: ${colors.textSecondary};
-          cursor: pointer;
-          font-size: 13px;
-          font-weight: 600;
-          border-radius: 8px;
-          transition: all 0.2s ease;
-        }
-
-        .cycle-btn.active {
-          background: linear-gradient(135deg, ${colors.red} 0%, ${colors.cyan} 100%);
-          color: white;
-        }
-
-        .tiers-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 24px;
-          margin-bottom: 60px;
-        }
-
-        .tier-card {
-          background: linear-gradient(135deg, rgba(255, 7, 58, 0.08) 0%, ${colors.darkCard} 100%);
-          border: 1px solid ${colors.border};
-          border-radius: 16px;
-          padding: 28px;
-          position: relative;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex;
-          flex-direction: column;
-          cursor: pointer;
-          overflow: hidden;
-        }
-
-        .tier-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: var(--tier-color);
-        }
-
-        .tier-card:hover {
-          transform: translateY(-8px);
-          border-color: var(--tier-color);
-          box-shadow: 0 20px 60px rgba(255, 7, 58, 0.15);
-        }
-
-        .tier-card.featured {
-          border: 2px solid var(--tier-color);
-          box-shadow: 0 0 0 8px rgba(255, 7, 58, 0.1);
-        }
-
-        .tier-badge {
-          position: absolute;
-          top: -12px;
-          right: 20px;
-          background: linear-gradient(135deg, var(--tier-color) 0%, rgba(255, 7, 58, 0.5) 100%);
-          color: white;
-          padding: 6px 16px;
-          border-radius: 20px;
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .tier-icon {
-          font-size: 40px;
-          margin-bottom: 16px;
-        }
-
-        .tier-name {
-          font-family: ${fonts.heading};
-          font-size: 20px;
-          font-weight: 700;
-          margin: 0 0 8px 0;
-          color: var(--tier-color);
-        }
-
-        .tier-description {
-          font-size: 13px;
-          color: ${colors.textSecondary};
-          margin: 0 0 20px 0;
-        }
-
-        .tier-price {
-          font-family: ${fonts.heading};
-          font-size: 32px;
-          font-weight: 700;
-          margin: 0 0 4px 0;
-          color: ${colors.textPrimary};
-        }
-
-        .tier-period {
-          font-size: 12px;
-          color: ${colors.textSecondary};
-          margin-bottom: 24px;
-          padding-bottom: 24px;
-          border-bottom: 1px solid ${colors.border};
-        }
-
-        .tier-features {
-          list-style: none;
-          margin: 0 0 24px 0;
-          padding: 0;
-          flex: 1;
-        }
-
-        .tier-feature {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 12px;
-          font-size: 13px;
-          color: ${colors.textPrimary};
-        }
-
-        .feature-check {
-          color: ${colors.green};
-          flex-shrink: 0;
-          width: 16px;
-          height: 16px;
-        }
-
-        .tier-cta {
-          width: 100%;
-          padding: 14px 20px;
-          background: linear-gradient(135deg, var(--tier-color) 0%, rgba(255, 7, 58, 0.7) 100%);
-          border: none;
-          border-radius: 12px;
-          color: white;
-          font-family: ${fonts.heading};
-          font-size: 13px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .tier-cta:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(255, 7, 58, 0.3);
-        }
-
-        /* Testimonials */
-        .testimonials-section {
-          margin-bottom: 60px;
-        }
-
-        .testimonials-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 20px;
-        }
-
-        .testimonial-card {
-          background: linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, ${colors.darkCard} 100%);
-          border: 1px solid ${colors.border};
-          border-radius: 16px;
-          padding: 24px;
-          position: relative;
-        }
-
-        .testimonial-stars {
-          display: flex;
-          gap: 4px;
-          margin-bottom: 12px;
-        }
-
-        .testimonial-text {
-          font-size: 13px;
-          color: ${colors.textPrimary};
-          margin: 0 0 16px 0;
-          line-height: 1.6;
-          font-style: italic;
-        }
-
-        .testimonial-author {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .testimonial-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, ${colors.red} 0%, ${colors.cyan} 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: 700;
-        }
-
-        .testimonial-info h4 {
-          font-size: 13px;
-          font-weight: 700;
-          margin: 0;
-          color: ${colors.textPrimary};
-        }
-
-        .testimonial-info p {
-          font-size: 11px;
-          color: ${colors.textSecondary};
-          margin: 0;
-        }
-
-        /* CTA Section */
-        .cta-section {
-          background: linear-gradient(135deg, rgba(255, 7, 58, 0.2) 0%, rgba(0, 240, 255, 0.1) 100%);
-          border: 1px solid ${colors.border};
-          border-radius: 20px;
-          padding: 40px;
-          text-align: center;
-          margin-bottom: 40px;
-        }
-
-        .cta-title {
-          font-family: ${fonts.heading};
-          font-size: 24px;
-          font-weight: 700;
-          margin: 0 0 12px 0;
-        }
-
-        .cta-description {
-          font-size: 14px;
-          color: ${colors.textSecondary};
-          margin: 0 0 24px 0;
-          max-width: 600px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-
-        .cta-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 14px 32px;
-          background: linear-gradient(135deg, ${colors.red} 0%, ${colors.cyan} 100%);
-          border: none;
-          border-radius: 12px;
-          color: white;
-          font-family: ${fonts.heading};
-          font-size: 13px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .cta-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 32px rgba(255, 7, 58, 0.3);
-        }
-
-        @media (max-width: 768px) {
-          .header-title {
-            font-size: 24px;
-          }
-
-          .tiers-grid,
-          .benefits-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .tier-card.featured {
-            grid-column: 1;
-          }
-
-          .cta-section {
-            padding: 24px;
-          }
-        }
-      `}</style>
-
-      <div className="membership-page">
-        <div className="membership-container">
-          {/* Header */}
-          <header className="page-header">
-            <button
-              onClick={() => router.push("/")}
-              className="back-btn"
-              title="Go back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-
-            <div className="header-content">
-              <h1 className="header-title">
-                <Crown className="w-8 h-8 inline mr-2" />
-                Membership Plans
-              </h1>
-              <p className="header-subtitle">Unlock premium gaming experiences</p>
-            </div>
-          </header>
-
-          {/* Benefits Section */}
-          <section className="benefits-section">
-            <h2 className="section-title">Why Join?</h2>
-            <div className="benefits-grid">
-              {benefits.map((benefit, idx) => {
-                const Icon = benefit.icon;
-                return (
-                  <div key={idx} className="benefit-card">
-                    <div className="benefit-icon">
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <h3 className="benefit-title">{benefit.title}</h3>
-                    <p className="benefit-description">{benefit.description}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Pricing Section */}
-          <section className="pricing-section">
-            <div className="pricing-header">
-              <h2 className="pricing-title">Choose Your Plan</h2>
-              <div className="cycle-toggle">
-                <button
-                  className={`cycle-btn ${billingCycle === "monthly" ? "active" : ""}`}
-                  onClick={() => setBillingCycle("monthly")}
+        {!loading && !error && (
+          <>
+            {/* ---------------- Mine ---------------- */}
+            {signedIn && (
+              <section className="mt-10">
+                <h2
+                  className="mb-4 text-lg font-bold"
+                  style={{ fontFamily: fonts.heading, color: colors.textPrimary }}
                 >
-                  Monthly
-                </button>
-                <button
-                  className={`cycle-btn ${billingCycle === "yearly" ? "active" : ""}`}
-                  onClick={() => setBillingCycle("yearly")}
-                >
-                  Yearly (Save 20%)
-                </button>
-              </div>
-            </div>
+                  My memberships
+                </h2>
 
-            {/* Tier Cards */}
-            {loading ? (
-              <div className="tiers-grid">
-                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px" }}>
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: colors.cyan }} />
-                  <p style={{ marginTop: "16px", color: colors.textSecondary }}>Loading membership tiers...</p>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="tiers-grid">
-                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px" }}>
-                  <p style={{ color: colors.red }}>{error}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="tiers-grid">
-                {membershipTiers.map((tier, idx) => (
+                {needsPhone && (
                   <div
-                    key={tier.id}
-                    className={`tier-card ${idx === 2 ? "featured" : ""}`}
-                    style={{ "--tier-color": tier.color } as React.CSSProperties}
+                    className="rounded-xl p-4 text-sm"
+                    style={{ background: "rgba(0,240,255,0.06)", border: `1px solid ${colors.border}`, color: colors.textSecondary }}
                   >
-                    {tier.badge && <div className="tier-badge">{tier.badge}</div>}
-
-                    <div className="tier-icon">{tier.icon}</div>
-
-                    <h3 className="tier-name">{tier.name}</h3>
-                    <p className="tier-description">{tier.description}</p>
-
-                    <div className="tier-price">
-                      ₹{billingCycle === "monthly" ? tier.monthly_price : tier.yearly_price}
-                      <span className="tier-period">/{billingCycle === "monthly" ? "month" : "year"}</span>
-                    </div>
-
-                    <ul className="tier-features">
-                      {tier.features.map((feature, fidx) => (
-                        <li key={fidx} className="tier-feature">
-                          <Check className="feature-check" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <button
-                      className="tier-cta"
-                      onClick={() => handleSelectTier(tier)}
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      Get {tier.name}
-                    </button>
+                    Memberships are bought at the counter and recorded against your phone number.
+                    <Link href="/profile" className="ml-1 font-semibold" style={{ color: colors.cyan }}>
+                      Add your phone number
+                    </Link>{" "}
+                    to see them here.
                   </div>
-                ))}
+                )}
+
+                {!needsPhone && memberships.length === 0 && (
+                  <div
+                    className="rounded-xl p-5 text-sm"
+                    style={{ background: colors.darkCard, border: `1px solid ${colors.border}`, color: colors.textSecondary }}
+                  >
+                    You don&apos;t have a membership yet. Pick one below and buy it at the counter.
+                  </div>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {memberships.map((m) => {
+                    const isDayPass = m.planType === "day_pass";
+                    // Hours can run out before the date, and the date can pass
+                    // with hours unused, so both are shown.
+                    const usedRatio =
+                      m.hoursPurchased > 0
+                        ? Math.min(1, (m.hoursPurchased - m.hoursRemaining) / m.hoursPurchased)
+                        : 0;
+
+                    return (
+                      <div
+                        key={m.id}
+                        className="rounded-2xl p-5"
+                        style={{
+                          background: colors.darkCard,
+                          border: `1px solid ${m.isUsable ? "rgba(34,197,94,0.3)" : colors.border}`,
+                          opacity: m.isUsable ? 1 : 0.6,
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-bold" style={{ color: colors.textPrimary }}>
+                              {m.planName}
+                            </p>
+                            <p className="text-xs" style={{ color: colors.textMuted }}>
+                              {m.cafeName}
+                            </p>
+                          </div>
+                          <span
+                            className="rounded-md px-2 py-1 text-[10px] font-bold uppercase"
+                            style={{
+                              background: m.isUsable ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)",
+                              color: m.isUsable ? colors.green : colors.textMuted,
+                            }}
+                          >
+                            {m.isExpired ? "Expired" : m.isUsable ? "Active" : "Used up"}
+                          </span>
+                        </div>
+
+                        {isDayPass ? (
+                          <p className="mt-4 flex items-center gap-1.5 text-sm" style={{ color: colors.textSecondary }}>
+                            <InfinityIcon size={15} style={{ color: colors.cyan }} />
+                            Unlimited play
+                          </p>
+                        ) : (
+                          <div className="mt-4">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-2xl font-bold" style={{ color: colors.cyan }}>
+                                {m.hoursRemaining}
+                              </span>
+                              <span className="text-xs" style={{ color: colors.textMuted }}>
+                                of {m.hoursPurchased} hours left
+                              </span>
+                            </div>
+                            <div
+                              className="mt-2 h-1.5 w-full overflow-hidden rounded-full"
+                              style={{ background: "rgba(255,255,255,0.08)" }}
+                            >
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${usedRatio * 100}%`, background: colors.cyan }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="mt-4 flex items-center gap-1.5 text-xs" style={{ color: colors.textMuted }}>
+                          <CalendarDays size={13} />
+                          {m.isExpired
+                            ? `Expired ${formatDate(m.expiryDate)}`
+                            : `${m.daysLeft} ${m.daysLeft === 1 ? "day" : "days"} left · until ${formatDate(m.expiryDate)}`}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* ---------------- Available plans ---------------- */}
+            <section className="mt-12">
+              <h2
+                className="mb-4 text-lg font-bold"
+                style={{ fontFamily: fonts.heading, color: colors.textPrimary }}
+              >
+                Available plans
+              </h2>
+
+              {plans.length === 0 ? (
+                <div
+                  className="rounded-xl p-5 text-sm"
+                  style={{ background: colors.darkCard, border: `1px solid ${colors.border}`, color: colors.textSecondary }}
+                >
+                  No membership plans are on sale right now.
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {plans.map((plan) => {
+                    const isDayPass = plan.planType === "day_pass";
+
+                    return (
+                      <div
+                        key={plan.id}
+                        className="flex flex-col rounded-2xl p-5"
+                        style={{ background: colors.darkCard, border: `1px solid ${colors.border}` }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-bold" style={{ color: colors.textPrimary }}>
+                              {plan.name}
+                            </p>
+                            <p className="text-xs" style={{ color: colors.textMuted }}>
+                              {plan.cafeName}
+                            </p>
+                          </div>
+                          {isDayPass ? (
+                            <Ticket size={16} style={{ color: colors.purple }} />
+                          ) : (
+                            <Clock size={16} style={{ color: colors.cyan }} />
+                          )}
+                        </div>
+
+                        {plan.description && (
+                          <p className="mt-2 text-xs" style={{ color: colors.textSecondary }}>
+                            {plan.description}
+                          </p>
+                        )}
+
+                        <p className="mt-4 text-2xl font-bold" style={{ color: colors.textPrimary }}>
+                          ₹{plan.price.toLocaleString("en-IN")}
+                        </p>
+
+                        <p className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
+                          {isDayPass
+                            ? "Unlimited play for the day"
+                            : `${plan.hours} hours · use within ${plan.validityDays} days`}
+                        </p>
+
+                        {/* Buying online is not possible yet, so this points at
+                            the café rather than a checkout that does not exist. */}
+                        <Link
+                          href={plan.cafeSlug ? `/cafes/${plan.cafeSlug}` : `/cafes/${plan.cafeId}`}
+                          className="mt-5 rounded-xl py-2.5 text-center text-sm font-bold transition-opacity hover:opacity-90"
+                          style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${colors.border}`, color: colors.textPrimary }}
+                        >
+                          View café
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="mt-4 text-xs" style={{ color: colors.textMuted }}>
+                Memberships are bought at the café counter. Once bought, yours appears here
+                automatically.
+              </p>
+            </section>
+
+            {!signedIn && (
+              <div
+                className="mt-10 rounded-2xl p-5 text-sm"
+                style={{ background: colors.darkCard, border: `1px solid ${colors.border}`, color: colors.textSecondary }}
+              >
+                <Link href="/login" className="font-semibold" style={{ color: colors.cyan }}>
+                  Sign in
+                </Link>{" "}
+                to see your membership and how many hours you have left.
               </div>
             )}
-          </section>
-
-          {/* Testimonials */}
-          <section className="testimonials-section">
-            <h2 className="section-title">What Members Say</h2>
-            <div className="testimonials-grid">
-              {[
-                {
-                  name: "Arjun Kumar",
-                  role: "Gaming Enthusiast",
-                  avatar: "A",
-                  text: "Best decision ever! The exclusive tournaments and discount are amazing. Worth every penny!",
-                  rating: 5,
-                },
-                {
-                  name: "Priya Singh",
-                  role: "Pro Gamer",
-                  avatar: "P",
-                  text: "The Gold tier gives me everything I need. Priority booking + private room access is insane!",
-                  rating: 5,
-                },
-                {
-                  name: "Rahul Desai",
-                  role: "Casual Gamer",
-                  avatar: "R",
-                  text: "Bronze membership is perfect for casual players. Great value and friendly community!",
-                  rating: 4,
-                },
-              ].map((testimonial, idx) => (
-                <div key={idx} className="testimonial-card">
-                  <div className="testimonial-stars">
-                    {Array(testimonial.rating)
-                      .fill(0)
-                      .map((_, i) => (
-                        <Star
-                          key={i}
-                          className="w-4 h-4"
-                          style={{ fill: "#ffc107", color: "#ffc107" }}
-                        />
-                      ))}
-                  </div>
-                  <p className="testimonial-text">&quot;{testimonial.text}&quot;</p>
-                  <div className="testimonial-author">
-                    <div className="testimonial-avatar">{testimonial.avatar}</div>
-                    <div className="testimonial-info">
-                      <h4>{testimonial.name}</h4>
-                      <p>{testimonial.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* CTA Section */}
-          <section className="cta-section">
-            <h2 className="cta-title">Ready to Level Up?</h2>
-            <p className="cta-description">
-              Join thousands of gamers enjoying premium benefits, exclusive events, and amazing discounts!
-            </p>
-            <button
-              className="cta-btn"
-              onClick={() => {
-                alert("Membership enrollment coming soon!");
-              }}
-            >
-              <Crown className="w-4 h-4" />
-              Start Free Trial
-            </button>
-          </section>
-        </div>
+          </>
+        )}
       </div>
-    </>
+    </div>
   );
 }

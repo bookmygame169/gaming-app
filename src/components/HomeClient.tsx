@@ -37,16 +37,23 @@ type Props = {
 
 type SortKey = "relevance" | "price_asc" | "price_desc";
 type TabType = "book" | "membership" | "tournaments";
+/**
+ * A membership plan as the cafés actually sell them: a day pass, or a bundle of
+ * hours to use within a number of days.
+ *
+ * This replaced a monthly/yearly subscription tier shape that no table ever
+ * matched, which is why this section failed on every homepage load.
+ */
 type MembershipTierPreview = {
   id: string;
+  cafeId: string;
+  cafeName: string;
+  planType: string;
   name: string;
-  icon?: string | null;
-  color?: string | null;
-  monthly_price: number;
-  yearly_price: number;
   description?: string | null;
-  badge?: string | null;
-  features?: string[] | null;
+  price: number;
+  hours?: number | null;
+  validityDays: number;
 };
 type TournamentPreview = {
   id: string;
@@ -98,7 +105,7 @@ export default function HomeClient({ cafes }: Props) {
     async function loadPreviewData() {
       try {
         const [membershipResponse, tournamentResponse] = await Promise.all([
-          fetch("/api/memberships"),
+          fetch("/api/memberships/plans"),
           fetch("/api/tournaments?status=upcoming"),
         ]);
 
@@ -108,7 +115,7 @@ export default function HomeClient({ cafes }: Props) {
 
         if (membershipResponse.ok) {
           const membershipData = await membershipResponse.json();
-          setMembershipTiers(Array.isArray(membershipData.tiers) ? membershipData.tiers : []);
+          setMembershipTiers(Array.isArray(membershipData.plans) ? membershipData.plans : []);
           setMembershipError(null);
         } else {
           setMembershipError("Membership plans are not available right now.");
@@ -1616,10 +1623,11 @@ function MembershipPreviewSection({
                   <div
                     className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
                     style={{
-                      background: `linear-gradient(135deg, ${membership.color || "#ff073a"}33 0%, rgba(255,255,255,0.05) 100%)`,
+                      background:
+                        "linear-gradient(135deg, rgba(0,240,255,0.2) 0%, rgba(255,255,255,0.05) 100%)",
                     }}
                   >
-                    {membership.icon || "M"}
+                    {membership.planType === "day_pass" ? "🎟️" : "⏱️"}
                   </div>
                   <div>
                     <h3
@@ -1632,16 +1640,10 @@ function MembershipPreviewSection({
                       className="text-sm text-zinc-400"
                       style={{ fontFamily: "Inter, sans-serif" }}
                     >
-                      {membership.description || "Priority access and member-only perks."}
+                      {membership.cafeName}
                     </p>
                   </div>
                 </div>
-
-                {membership.badge && (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-[#00f0ff]">
-                    {membership.badge}
-                  </span>
-                )}
               </div>
 
               <div className="flex items-baseline gap-2">
@@ -1649,18 +1651,20 @@ function MembershipPreviewSection({
                   className="text-3xl font-bold text-[#00f0ff]"
                   style={{ fontFamily: "Orbitron, sans-serif" }}
                 >
-                  INR {membership.monthly_price}
-                </span>
-                <span
-                  className="text-sm text-zinc-400"
-                  style={{ fontFamily: "Inter, sans-serif" }}
-                >
-                  / month
+                  ₹{membership.price.toLocaleString("en-IN")}
                 </span>
               </div>
 
               <div className="space-y-2 flex-1">
-                {(membership.features || []).slice(0, 4).map((feature) => (
+                {/* Built from the plan's own fields rather than a features list,
+                    which the real plans do not have. */}
+                {(membership.planType === "day_pass"
+                  ? ["Unlimited play for the day", "Any available station"]
+                  : [
+                      `${membership.hours} hours of play`,
+                      `Use within ${membership.validityDays} days`,
+                    ]
+                ).map((feature) => (
                   <div key={feature} className="flex items-center gap-2 text-zinc-300">
                     <Check className="w-4 h-4 text-[#00f0ff]" />
                     <span
@@ -1671,6 +1675,14 @@ function MembershipPreviewSection({
                     </span>
                   </div>
                 ))}
+                {membership.description && (
+                  <p
+                    className="text-xs text-zinc-500 pt-1"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    {membership.description}
+                  </p>
+                )}
               </div>
 
               <button
