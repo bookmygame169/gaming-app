@@ -662,5 +662,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // A walk-in is created with the customer standing at the machine, so unlock it
+  // rather than making staff go and find the booking they just made. This is
+  // safe to call for any booking: it locks instead for anything unpaid, starting
+  // later, or already finished.
+  await syncStationsForBooking(supabase, newBooking.id);
+
   return NextResponse.json({ success: true, bookingId: newBooking.id });
 }

@@ -32,8 +32,13 @@ type BookingForSync = {
   booking_items: BookingItemRow[] | null;
 };
 
-/** Statuses where the machine should not be running, whatever the clock says. */
-const CLOSED_STATUSES = new Set(["cancelled", "completed"]);
+/**
+ * Statuses where the machine should not be running, whatever the clock says.
+ *
+ * 'pending' is in here because it means the money has not been taken yet — the
+ * same rule the unlock button enforces.
+ */
+const CLOSED_STATUSES = new Set(["cancelled", "completed", "pending"]);
 
 /**
  * Turns a booking's date and 12-hour start time into a real instant.
@@ -126,8 +131,18 @@ export async function syncStationsForBooking(
     const durationMinutes =
       Math.max(0, ...perItemMinutes, Number(booking.duration) || 0) || 60;
 
+    const now = Date.now();
+
+    // Not started yet. Without this the "time left" below would be measured from
+    // now to the end of a session hours away, and editing a booking made for
+    // this evening would unlock the machine immediately for the whole wait.
+    if (start.getTime() > now) {
+      await sendStationCommands(stationNames, () => ({ action: "lock" }));
+      return;
+    }
+
     const endsAt = start.getTime() + durationMinutes * 60_000;
-    const remainingSeconds = Math.floor((endsAt - Date.now()) / 1000);
+    const remainingSeconds = Math.floor((endsAt - now) / 1000);
 
     // Already over — lock rather than send a zero-length session, which the
     // agent would treat as "no limit given".
