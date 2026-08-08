@@ -33,7 +33,7 @@ const PRIMARY_NAV = [
 const MANAGE_NAV = [
     { id: 'stations', label: 'Stations', icon: Gamepad2 },
     { id: 'memberships', label: 'Memberships', icon: Ticket },
-    { id: 'subscriptions', label: 'Tournament', icon: Trophy },
+    { id: 'tournaments', label: 'Tournaments', icon: Trophy },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'coupons', label: 'Coupons', icon: Ticket },
     { id: 'settings', label: 'Settings', icon: Settings },

@@ -50,6 +50,7 @@ const StationsTab = dynamic(() => import('./components/StationsTab').then((mod) 
 const UnlockHistory = dynamic(() => import('./components/UnlockHistory').then((mod) => mod.UnlockHistory), { ssr: false });
 const StationLiveStatus = dynamic(() => import('./components/StationLiveStatus').then((mod) => mod.StationLiveStatus), { ssr: false });
 const AddStationPc = dynamic(() => import('./components/AddStationPc').then((mod) => mod.AddStationPc), { ssr: false });
+const OwnerTournaments = dynamic(() => import('./components/OwnerTournaments').then((mod) => mod.OwnerTournaments), { ssr: false });
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
 const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
@@ -2969,24 +2970,10 @@ export default function OwnerDashboardPage() {
           )}
 
           {/* Tournament Tab */}
-          {activeTab === 'subscriptions' && (
-            <div
-              style={{
-                background: theme.cardBackground,
-                borderRadius: 16,
-                border: `1px solid ${theme.border}`,
-                padding: "60px 20px",
-                textAlign: "center",
-              }}
-            >
-              <div style={{ fontSize: 64, marginBottom: 16, opacity: 0.3 }}>🏆</div>
-              <p style={{ fontSize: 18, color: theme.textSecondary, marginBottom: 8, fontWeight: 500 }}>
-                Tournament
-              </p>
-              <p style={{ fontSize: 14, color: theme.textMuted }}>
-                Manage tournaments and competitions here.
-              </p>
-            </div>
+          {activeTab === 'tournaments' && (
+            <ErrorBoundary>
+              <OwnerTournaments cafeId={selectedCafeId || undefined} />
+            </ErrorBoundary>
           )}
 
           {/* Memberships Tab */}

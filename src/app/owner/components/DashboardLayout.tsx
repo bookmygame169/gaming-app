@@ -30,7 +30,7 @@ const DESKTOP_PRIMARY_TABS = [
 
 const DESKTOP_MORE_TABS = [
     { id: 'stations',      label: 'Stations',    icon: Gamepad2 },
-    { id: 'subscriptions', label: 'Tournament',  icon: Trophy },
+    { id: 'tournaments',   label: 'Tournaments', icon: Trophy },
     { id: 'settings',      label: 'Settings',    icon: Settings },
 ];
 
