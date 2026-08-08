@@ -5,7 +5,7 @@
 // Note: This file contains complex React event handlers and UI code where explicit any types
 // are used for flexibility. These can be refactored incrementally with proper typing.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlarmClock, ShoppingBag, BarChart3, ChevronRight, Clock3, Loader2, X } from 'lucide-react';
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -30,7 +30,7 @@ import {
   TabSkeleton,
 } from './components';
 import OwnerPWAInstaller from './components/OwnerPWAInstaller';
-import { useBilling } from "./hooks/useBilling";
+import { calcBillingPrice } from "./utils/pricing";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
 import { useOwnerData } from "./hooks/useOwnerData";
 import { useToast } from "./hooks/useToast";
@@ -432,15 +432,13 @@ export default function OwnerDashboardPage() {
   const [savingPricing, setSavingPricing] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
 
-  // useBilling hook — only getBillingPrice is used here; Billing component owns the full form state
-  const { getBillingPrice } = useBilling({
-    enabled: activeTab === 'billing',
-    selectedCafeId,
-    consolePricing,
-    stationPricing,
-    cafeData: currentCafe,
-    toast,
-  });
+  // Prices the edit-booking modal's auto-calculation. The Billing component owns
+  // its own form state and prices its own items, so nothing else is shared.
+  const getBillingPrice = useCallback(
+    (consoleType: string, quantity: number, duration: number) =>
+      calcBillingPrice(consoleType, quantity, duration, selectedCafeId, consolePricing, stationPricing),
+    [selectedCafeId, consolePricing, stationPricing]
+  );
 
 
   // Pricing form state
