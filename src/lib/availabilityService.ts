@@ -9,6 +9,7 @@ import { ConsoleId } from "@/lib/constants";
 import { ConsoleAvailability } from "@/types/booking";
 import { BookingWithNestedItems } from "@/types/database";
 import { timeStringToMinutes, minutesToTimeString, doTimeSlotsOverlap } from "@/lib/timeSlotUtils";
+import { getOccupiedUnitCountForConsole } from "@/lib/ownerStationAssignments";
 import { logger } from "@/lib/logger";
 
 /**
@@ -83,10 +84,17 @@ export async function fetchLiveAvailability(options: {
         (booking.booking_items ?? []).forEach((item) => {
           const consoleId = item.console as ConsoleId;
           if (consoleId && availability[consoleId]) {
-            // Add to booked count - each booking_item represents 1 console unit
-            availability[consoleId]!.booked += 1;
-            availability[consoleId]!.available =
-              availability[consoleId]!.total - availability[consoleId]!.booked;
+            // How many physical machines this line actually occupies. Not one
+            // per line: a PC booked with quantity 2 takes two PCs, while a PS5
+            // with 2 controllers is still a single console. Counting one per
+            // line showed a station free while someone was sitting at it.
+            const unitsTaken = getOccupiedUnitCountForConsole(consoleId, item.quantity);
+
+            availability[consoleId]!.booked += unitsTaken;
+            availability[consoleId]!.available = Math.max(
+              0,
+              availability[consoleId]!.total - availability[consoleId]!.booked
+            );
 
             // Track for "next available" calculation
             if (!overlappingBookingsPerConsole[consoleId]) {
@@ -94,7 +102,7 @@ export async function fetchLiveAvailability(options: {
             }
             overlappingBookingsPerConsole[consoleId]!.push({
               endMinutes: bookingEndMinutes,
-              quantity: 1, // Each item = 1 console unit
+              quantity: unitsTaken,
             });
           }
         });
