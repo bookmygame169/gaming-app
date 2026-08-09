@@ -675,6 +675,28 @@ export default async function CafePage({ params }: CafePageProps) {
                 <Check size={12} style={{ color: "#22c55e" }} /> Free Cancellation
               </span>
             </div>
+
+            {/* The only route into the booking flow. Without it the checkout
+                page was unreachable and nobody could book from the site. */}
+            <Link
+              href={`/cafes/${cafe.slug || cafe.id}/book`}
+              style={{
+                display: "block",
+                marginTop: "18px",
+                padding: "15px",
+                borderRadius: "14px",
+                background: `linear-gradient(135deg, ${colors.red}, #ff4d6d)`,
+                color: "#fff",
+                fontFamily: fonts.heading,
+                fontWeight: 700,
+                fontSize: "15px",
+                textAlign: "center",
+                letterSpacing: "0.5px",
+                boxShadow: "0 8px 24px rgba(255, 7, 58, 0.25)",
+              }}
+            >
+              BOOK NOW
+            </Link>
           </div>
         </section>
 

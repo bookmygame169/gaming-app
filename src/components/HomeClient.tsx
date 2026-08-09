@@ -223,10 +223,27 @@ export default function HomeClient({ cafes }: Props) {
     return n;
   }, [onlyPs5, onlyPc, onlyPool, onlyWheel, onlyVr, onlySnooker]);
 
-  const featuredMemberships = useMemo(
-    () => membershipTiers.slice(0, 3),
-    [membershipTiers]
-  );
+  /**
+   * The cheapest plan from each café, rather than the first three plans
+   * overall.
+   *
+   * With one café the difference is invisible, but taking the first three would
+   * show three plans from whichever café happened to sort first once there are
+   * several — and repeat that café's name on every card while the others go
+   * unmentioned.
+   */
+  const featuredMemberships = useMemo(() => {
+    const cheapestByCafe = new Map<string, MembershipTierPreview>();
+
+    for (const plan of membershipTiers) {
+      const current = cheapestByCafe.get(plan.cafeId);
+      if (!current || plan.price < current.price) {
+        cheapestByCafe.set(plan.cafeId, plan);
+      }
+    }
+
+    return [...cheapestByCafe.values()].sort((a, b) => a.price - b.price).slice(0, 3);
+  }, [membershipTiers]);
 
   const featuredTournaments = useMemo(
     () => tournaments.slice(0, 3),

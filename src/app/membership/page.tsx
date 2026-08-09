@@ -1,7 +1,7 @@
 // src/app/membership/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -57,6 +57,19 @@ export default function MembershipPage() {
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  /** Plans grouped by café, so the list stays readable as venues are added. */
+  const plansByCafe = useMemo(() => {
+    const grouped = new Map<string, Plan[]>();
+
+    for (const plan of plans) {
+      const existing = grouped.get(plan.cafeId);
+      if (existing) existing.push(plan);
+      else grouped.set(plan.cafeId, [plan]);
+    }
+
+    return [...grouped.entries()];
+  }, [plans]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -270,8 +283,23 @@ export default function MembershipPage() {
                   No membership plans are on sale right now.
                 </div>
               ) : (
+                plansByCafe.map(([cafeKey, cafePlans]) => (
+                <div key={cafeKey} className="mb-8 last:mb-0">
+                  {/* Grouped under the café rather than listed flat. With one
+                      café it reads the same; with several, a flat list repeats
+                      the café name on every card and gives no sense of which
+                      venue a plan belongs to. */}
+                  {plansByCafe.length > 1 && (
+                    <h3
+                      className="mb-3 text-sm font-bold"
+                      style={{ color: colors.textPrimary }}
+                    >
+                      {cafePlans[0].cafeName}
+                    </h3>
+                  )}
+
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {plans.map((plan) => {
+                  {cafePlans.map((plan) => {
                     const isDayPass = plan.planType === "day_pass";
 
                     return (
@@ -325,6 +353,8 @@ export default function MembershipPage() {
                     );
                   })}
                 </div>
+                </div>
+                ))
               )}
 
               <p className="mt-4 text-xs" style={{ color: colors.textMuted }}>
