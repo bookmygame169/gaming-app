@@ -17,6 +17,7 @@ import {
 import { getInitialOwnerBookingStatus } from "@/lib/bookingFilters";
 import { syncStationsForBooking } from "@/lib/stationSync";
 import { sendStationCommands } from "@/lib/stationCommands";
+import { awardPointsForBooking } from "@/lib/loyalty";
 
 export const dynamic = 'force-dynamic';
 
@@ -394,6 +395,21 @@ export async function PUT(request: NextRequest) {
     // cancelled would leave it running.
     await syncStationsForBooking(supabase, bookingId);
 
+    // Points are earned when a session finishes, not when it is booked, so a
+    // cancelled or abandoned booking never pays out. Awarding is idempotent, so
+    // a second edit after completion cannot pay twice.
+    if (String(safeBooking.status ?? "").toLowerCase() === "completed") {
+      const { data: completed } = await supabase
+        .from("bookings")
+        .select("id, cafe_id, customer_phone, user_id, total_amount")
+        .eq("id", bookingId)
+        .maybeSingle();
+
+      if (completed) {
+        await awardPointsForBooking(supabase, completed);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     console.error("Error updating booking:", err);
@@ -667,6 +683,12 @@ export async function POST(request: NextRequest) {
   // safe to call for any booking: it locks instead for anything unpaid, starting
   // later, or already finished.
   await syncStationsForBooking(supabase, newBooking.id);
+
+  // A session entered after the fact is created already completed, so it never
+  // passes through the status change that normally awards points.
+  if (String(resolvedBooking.status ?? "").toLowerCase() === "completed") {
+    await awardPointsForBooking(supabase, newBooking);
+  }
 
   return NextResponse.json({ success: true, bookingId: newBooking.id });
 }

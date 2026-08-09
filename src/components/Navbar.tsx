@@ -553,6 +553,50 @@ export default function Navbar() {
                           </svg>
                         </button>
 
+                        {/* Points are earned at the counter without the
+                            customer doing anything, so they need somewhere to
+                            find out they have them. */}
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            router.push("/rewards");
+                          }}
+                          onTouchStart={() => setPressedItem("rewards")}
+                          onTouchEnd={() => setPressedItem(null)}
+                          onTouchCancel={() => setPressedItem(null)}
+                          className={`menu-item flex w-full items-center gap-3 px-3 py-3 rounded-xl ${pressedItem === "rewards" ? "menu-item-pressed" : ""}`}
+                        >
+                          <div className="icon-container flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200">
+                            <svg
+                              className="w-5 h-5 text-[#22c55e]"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M12 3l2.09 6.26L21 9.27l-5 4.87 1.18 6.88L12 17.77l-5.18 3.25L8 14.14l-5-4.87 6.91-.01L12 3z"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div
+                              className="menu-text text-sm font-medium text-white transition-colors"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              My Points
+                            </div>
+                            <div className="menu-subtext text-xs text-gray-400 transition-colors">
+                              Rewards you have earned
+                            </div>
+                          </div>
+                          <svg className="menu-arrow w-4 h-4 text-gray-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+
                         <button
                           onClick={() => {
                             setMenuOpen(false);
