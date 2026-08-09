@@ -509,6 +509,91 @@ export default function Navbar() {
                           </svg>
                         </button>
 
+                        {/* A member's hours and expiry were previously only
+                            reachable by typing the address, so someone who had
+                            paid for a membership had no way to find it. */}
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            router.push("/membership");
+                          }}
+                          onTouchStart={() => setPressedItem("membership")}
+                          onTouchEnd={() => setPressedItem(null)}
+                          onTouchCancel={() => setPressedItem(null)}
+                          className={`menu-item flex w-full items-center gap-3 px-3 py-3 rounded-xl ${pressedItem === "membership" ? "menu-item-pressed" : ""}`}
+                        >
+                          <div className="icon-container flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200">
+                            <svg
+                              className="w-5 h-5 text-[#a855f7]"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div
+                              className="menu-text text-sm font-medium text-white transition-colors"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              My Membership
+                            </div>
+                            <div className="menu-subtext text-xs text-gray-400 transition-colors">
+                              Hours left and plans
+                            </div>
+                          </div>
+                          <svg className="menu-arrow w-4 h-4 text-gray-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            router.push("/tournaments");
+                          }}
+                          onTouchStart={() => setPressedItem("tournaments")}
+                          onTouchEnd={() => setPressedItem(null)}
+                          onTouchCancel={() => setPressedItem(null)}
+                          className={`menu-item flex w-full items-center gap-3 px-3 py-3 rounded-xl ${pressedItem === "tournaments" ? "menu-item-pressed" : ""}`}
+                        >
+                          <div className="icon-container flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200">
+                            <svg
+                              className="w-5 h-5 text-[#f59e0b]"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M8 21h8m-4-4v4m6-17H6v5a6 6 0 0012 0V4zM6 6H4a2 2 0 000 4h2m12-4h2a2 2 0 010 4h-2"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div
+                              className="menu-text text-sm font-medium text-white transition-colors"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              Tournaments
+                            </div>
+                            <div className="menu-subtext text-xs text-gray-400 transition-colors">
+                              Compete and win prizes
+                            </div>
+                          </div>
+                          <svg className="menu-arrow w-4 h-4 text-gray-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+
                         <button
                           onClick={() => {
                             setMenuOpen(false);
