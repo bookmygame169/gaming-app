@@ -14,6 +14,7 @@ import {
   reserveStations,
 } from "@/lib/ownerStationAssignments";
 import { syncStationsForBooking } from "@/lib/stationSync";
+import { getOpeningWindow, sessionFitsOpeningHours } from "@/lib/openingHours";
 import type { ConsoleId } from "@/lib/constants";
 import type { ConsolePricingTier } from "@/types/booking";
 
@@ -43,6 +44,7 @@ type CafeRow = {
   name: string;
   is_active: boolean | null;
   hourly_price: number | null;
+  opening_hours: string | null;
 } & Record<string, unknown>;
 
 function getSupabaseAdmin(): SupabaseClient {
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
     const { data: cafeRow, error: cafeError } = await supabase
       .from("cafes")
       .select(
-        "id, name, is_active, hourly_price, ps5_count, ps4_count, xbox_count, pc_count, " +
+        "id, name, is_active, hourly_price, opening_hours, ps5_count, ps4_count, xbox_count, pc_count, " +
           "pool_count, snooker_count, arcade_count, vr_count, steering_wheel_count, racing_sim_count"
       )
       .eq("id", cafeId)
@@ -144,6 +146,17 @@ export async function POST(request: NextRequest) {
 
     if (!cafe || cafe.is_active === false) {
       return NextResponse.json({ error: "This café is not taking bookings." }, { status: 404 });
+    }
+
+    // The whole session has to fit inside opening hours, not just its start.
+    // The slot grid already hides impossible starts, but duration is chosen
+    // after the time, so a 90-minute session can still overrun closing.
+    const openingWindow = getOpeningWindow(cafe.opening_hours);
+    if (!sessionFitsOpeningHours(openingWindow, startMinutes, durationMinutes)) {
+      return NextResponse.json(
+        { error: "That session would run past closing time. Try a shorter one or an earlier slot." },
+        { status: 400 }
+      );
     }
 
     const { data: pricingRows } = await supabase

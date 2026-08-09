@@ -13,6 +13,7 @@ import type {
 } from "@/types/booking";
 import { fetchLiveAvailability } from "@/lib/availabilityService";
 import { generateTickets } from "@/lib/ticketService";
+import { getOpeningWindow, type OpeningWindow } from "@/lib/openingHours";
 import {
   DatePicker,
   TimeSlotGrid,
@@ -94,13 +95,21 @@ function buildDays(): DayOption[] {
   });
 }
 
+/** Shortest session on offer. A slot with less than this left before closing
+ *  is not worth showing. */
+const MIN_SESSION_MINUTES = 30;
+
 /**
- * Half-hour slots from 10am to 11pm.
+ * Half-hour slots across the café's own opening hours.
+ *
+ * These used to be hardcoded 10am–11pm regardless of the café. A venue open
+ * until 2am lost its busiest hours, and one opening at noon offered slots it
+ * could not honour.
  *
  * Slots already gone are dropped for today, so someone cannot book a session
  * that started an hour ago.
  */
-function buildSlots(dateKey: string): TimeSlot[] {
+function buildSlots(dateKey: string, window: OpeningWindow): TimeSlot[] {
   const now = new Date();
   const isToday = dateKey === indiaDateString(now);
 
@@ -118,21 +127,27 @@ function buildSlots(dateKey: string): TimeSlot[] {
     : -1;
 
   const slots: TimeSlot[] = [];
+  const lastStart = window.closeMinutes - MIN_SESSION_MINUTES;
 
-  for (let hour = 10; hour <= 22; hour += 1) {
-    for (const minutes of [0, 30]) {
-      if (isToday && hour * 60 + minutes <= nowMinutes) continue;
+  for (let start = window.openMinutes; start <= lastStart; start += 30) {
+    // Past midnight the clock has wrapped, but the slot still belongs to this
+    // café-day: 1:00 AM on a venue closing at 2 AM is the tail of tonight.
+    const clockMinutes = start % (24 * 60);
 
-      const period = hour >= 12 ? "PM" : "AM";
-      const display = hour % 12 || 12;
+    if (isToday && clockMinutes === start && start <= nowMinutes) continue;
 
-      slots.push({
-        label: `${display}:${String(minutes).padStart(2, "0")} ${period}`,
-        hour,
-        minutes,
-        isPeak: hour >= 18 && hour < 22,
-      });
-    }
+    const hour = Math.floor(clockMinutes / 60);
+    const minutes = clockMinutes % 60;
+    const period = hour >= 12 ? "PM" : "AM";
+    const display = hour % 12 || 12;
+
+    slots.push({
+      label: `${display}:${String(minutes).padStart(2, "0")} ${period}`,
+      hour,
+      minutes,
+      // Evening is busiest wherever the café's day ends.
+      isPeak: hour >= 18 && hour < 22,
+    });
   }
 
   return slots;
@@ -157,7 +172,14 @@ export default function BookCafePage() {
   const [quantities, setQuantities] = useState<Partial<Record<ConsoleId, number>>>({});
   const [availability, setAvailability] = useState<Partial<Record<ConsoleId, ConsoleAvailability>>>({});
 
-  const slots = useMemo(() => buildSlots(selectedDate), [selectedDate]);
+  // The café's real hours, falling back to a sensible day if the free-text
+  // field cannot be read.
+  const openingWindow = useMemo(() => getOpeningWindow(cafe?.opening_hours), [cafe?.opening_hours]);
+
+  const slots = useMemo(
+    () => buildSlots(selectedDate, openingWindow),
+    [selectedDate, openingWindow]
+  );
 
   // ---------------------------------------------------------------- load café
 
