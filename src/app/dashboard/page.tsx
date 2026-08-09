@@ -327,22 +327,30 @@ export default function DashboardPage() {
     try {
       setCancelingId(id);
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
 
-      if (error) throw error;
+      if (!accessToken) {
+        alert("Your session expired. Please sign in again.");
+        return;
+      }
+
+      // The same route the booking detail page uses. Writing straight to
+      // Supabase from here skipped its checks and is blocked on the cafés' ISP.
+      const res = await fetch(`/api/bookings/${id}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Could not cancel booking");
 
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, status: "cancelled" } : b))
       );
     } catch (err) {
       console.error("Error cancelling booking:", err);
-      alert("Could not cancel booking. Please try again.");
+      alert(err instanceof Error ? err.message : "Could not cancel booking. Please try again.");
     } finally {
       setCancelingId(null);
     }

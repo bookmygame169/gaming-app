@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/userAuth";
 import { getIndiaDateString } from "@/lib/bookingFilters";
+import { syncStationsForBooking } from "@/lib/stationSync";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       console.error("Error cancelling booking:", updateError);
       return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });
     }
+
+    // Re-locks the machine this booking was holding. Without it a cancelled
+    // session leaves a PC unlocked and free to walk up to.
+    await syncStationsForBooking(supabase, bookingId);
 
     return NextResponse.json({ success: true });
   } catch (err) {

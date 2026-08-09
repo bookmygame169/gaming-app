@@ -43,7 +43,7 @@ export function getIndiaDateString(date: Date = new Date()): string {
   }).format(date);
 }
 
-function getIndiaCurrentMinutes(date: Date = new Date()): number {
+export function getIndiaCurrentMinutes(date: Date = new Date()): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "2-digit",

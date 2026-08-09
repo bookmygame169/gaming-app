@@ -166,7 +166,7 @@ export default function RewardsPage() {
               Play a session and points land here automatically.
             </p>
             <Link
-              href="/cafes"
+              href="/"
               className="mt-5 inline-block rounded-xl px-5 py-2.5 text-sm font-bold"
               style={{ background: colors.cyan, color: colors.dark }}
             >

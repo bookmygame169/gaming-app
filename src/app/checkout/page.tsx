@@ -215,72 +215,49 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      const { cafeId, bookingDate, timeSlot, totalAmount: originalTotal, tickets } = draft;
+      const { cafeId, bookingDate, timeSlot, tickets } = draft;
 
-      // Calculate final amount with discount
-      const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-      const finalAmount = Math.max(0, originalTotal - discount);
-      const extraMinutes = appliedCoupon ? appliedCoupon.bonusMinutes : 0;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
 
-      // Create booking with confirmed status (Pay at Venue)
-      const { data: bookingData, error: bookingError } = await supabase
-        .from("bookings")
-        .insert({
-          cafe_id: cafeId,
-          user_id: user.id,
-          booking_date: bookingDate,
-          start_time: timeSlot,
-          total_amount: finalAmount,
-          status: "confirmed", // Auto-confirm for pay at venue
-          source: "online",
-          payment_mode: "cash", // Default to cash/pay at venue
-          coupon_id: appliedCoupon?.id || null,
-          coupon_discount: discount,
-          coupon_extra_minutes: extraMinutes
-        })
-        .select("id")
-        .maybeSingle();
-
-      if (bookingError || !bookingData) {
-        console.error("Booking insert error", bookingError);
-        setError("Could not place booking. Please try again.");
+      if (!accessToken) {
+        setError("Your session expired. Please sign in again.");
         setPlacing(false);
         return;
       }
 
-      const bookingId = bookingData.id;
+      // The server places the booking. It recalculates the price from the
+      // café's own pricing, reserves the actual machines, and re-checks the
+      // coupon — none of which can be trusted from this page. It also has to
+      // be a same-origin request, because the cafés' ISP blocks Supabase.
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          cafeId,
+          bookingDate,
+          startTime: timeSlot,
+          durationMinutes: draft.durationMinutes,
+          items: tickets.map((t) => ({ console: t.console, quantity: t.quantity })),
+          couponCode: appliedCoupon?.code || undefined,
+        }),
+      });
 
-      // Record coupon usage if applied
-      if (appliedCoupon) {
-        await supabase.rpc('use_coupon', {
-          p_coupon_id: appliedCoupon.id,
-          p_booking_id: bookingId,
-          p_user_phone: user.phone || null,
-          p_user_email: user.email || null,
-          p_discount_applied: discount,
-          p_extra_minutes: extraMinutes
-        });
-      }
+      const result = await res.json().catch(() => ({}));
 
-      const itemsPayload = tickets.map((t) => ({
-        booking_id: bookingId,
-        ticket_id: t.ticketId,
-        console: t.console,
-        title: t.title,
-        price: t.price,
-        quantity: t.quantity,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("booking_items")
-        .insert(itemsPayload);
-
-      if (itemsError) {
-        console.error("Booking items insert error", itemsError);
-        setError("Booking created but items failed. Contact support.");
+      if (!res.ok) {
+        setError(result.error || "Could not place booking. Please try again.");
         setPlacing(false);
         return;
       }
+
+      const bookingId = result.bookingId as string;
+      const finalAmount = Number(result.totalAmount) || 0;
+      const discount = Number(result.discount) || 0;
+      const extraMinutes = Number(result.bonusMinutes) || 0;
 
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("checkoutDraft");

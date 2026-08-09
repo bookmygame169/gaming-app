@@ -233,17 +233,35 @@ function ProfilePageContent() {
     }
 
     try {
-      const { error } = await supabase.from("profiles").upsert({
-        id: user.id,
-        first_name: firstName.trim() || null,
-        last_name: lastName.trim() || null,
-        phone: phone.trim() || null,
-        date_of_birth: dob || null,
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        setSaveError("Your session expired. Please sign in again.");
+        return;
+      }
+
+      // Saved through the server rather than straight to Supabase: the cafés'
+      // ISP blocks the direct call, and this is where the phone number that
+      // loyalty and membership are matched on gets set.
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          dateOfBirth: dob || "",
+        }),
       });
 
-      if (error) {
-        console.error("Error saving profile:", error);
-        setSaveError("Could not save changes. Please try again.");
+      const result = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setSaveError(result.error || "Could not save changes. Please try again.");
         return;
       }
 
