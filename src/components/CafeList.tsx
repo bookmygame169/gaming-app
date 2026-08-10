@@ -64,8 +64,19 @@ export default function CafeList({ cafes }: Props) {
             bottom: 0;
             left: 0;
             right: 0;
-            height: 70%; /* Increased gradient */
-            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            /* A café's cover is almost always its logo: bright, high contrast,
+               and centred exactly where the name sits. A single fade from 90%
+               to transparent left the title competing with the artwork. Two
+               stops hold it near-solid behind the text and let the picture
+               through above it. */
+            height: 78%;
+            background: linear-gradient(
+              to top,
+              rgba(0, 0, 0, 0.97) 0%,
+              rgba(0, 0, 0, 0.88) 34%,
+              rgba(0, 0, 0, 0.35) 68%,
+              transparent 100%
+            );
           }
           
           .mobile-cafe-title {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import LoadingBar from "@/components/LoadingBar";
+import MobileTabBar from "@/components/MobileTabBar";
 import { Inter, JetBrains_Mono, Orbitron, Rajdhani } from "next/font/google";
 import "./globals.css";
 
@@ -164,6 +165,7 @@ export default function RootLayout({
         <Navbar />
         {children}
         <Footer />
+        <MobileTabBar />
       </body>
     </html>
   );
