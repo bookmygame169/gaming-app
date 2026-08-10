@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getIndiaDateString } from "@/lib/bookingFilters";
 
 /**
  * Loyalty points: earning, balances, and the rules behind both.
@@ -41,14 +42,18 @@ export function describeReward(reward: Pick<LoyaltyReward, "kind" | "value">): s
 
 export type LoyaltySettings = {
   enabled: boolean;
-  pointsPerHundred: number;
+  /** Rupees the customer must spend across one day before it earns anything. */
+  minDailySpend: number;
+  /** What a qualifying day is worth. Flat — the fifth visit earns the same as the first. */
+  pointsPerDay: number;
   rupeesPerPoint: number;
   minRedeemPoints: number;
 };
 
 export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   enabled: false,
-  pointsPerHundred: 5,
+  minDailySpend: 300,
+  pointsPerDay: 5,
   rupeesPerPoint: 1,
   minRedeemPoints: 50,
 };
@@ -67,15 +72,16 @@ export function phoneKey(phone: string | null | undefined): string | null {
 }
 
 /**
- * Points earned for an amount spent.
+ * What a day's spending earns.
  *
- * Rounded down so the café never awards more than it intended, but a paid
- * booking always earns at least one point — earning zero for a small session
- * reads as broken.
+ * All or nothing against the threshold, and flat above it. Someone who spends
+ * ₹1200 across five visits earns the same as someone who spends ₹300 once —
+ * that is the rule the café asked for, and it is what stops a day of short
+ * sessions paying out five times over.
  */
-export function pointsForAmount(amount: number, settings: LoyaltySettings): number {
-  if (!settings.enabled || settings.pointsPerHundred <= 0 || amount <= 0) return 0;
-  return Math.max(1, Math.floor((amount / 100) * settings.pointsPerHundred));
+export function pointsForDay(daySpend: number, settings: LoyaltySettings): number {
+  if (!settings.enabled || settings.pointsPerDay <= 0) return 0;
+  return daySpend >= settings.minDailySpend ? settings.pointsPerDay : 0;
 }
 
 /** What a balance is worth in rupees. */
@@ -90,7 +96,7 @@ export async function getLoyaltySettings(
   try {
     const { data, error } = await supabase
       .from("loyalty_settings")
-      .select("enabled, points_per_hundred, rupees_per_point, min_redeem_points")
+      .select("enabled, min_daily_spend, points_per_day, rupees_per_point, min_redeem_points")
       .eq("cafe_id", cafeId)
       .maybeSingle();
 
@@ -102,7 +108,16 @@ export async function getLoyaltySettings(
 
     return {
       enabled: Boolean(data.enabled),
-      pointsPerHundred: Number(data.points_per_hundred) || 0,
+      // Falls back to the defaults when the columns are absent, so this keeps
+      // working between the deploy and the migration.
+      minDailySpend:
+        data.min_daily_spend == null
+          ? DEFAULT_LOYALTY_SETTINGS.minDailySpend
+          : Number(data.min_daily_spend),
+      pointsPerDay:
+        data.points_per_day == null
+          ? DEFAULT_LOYALTY_SETTINGS.pointsPerDay
+          : Number(data.points_per_day),
       rupeesPerPoint: Number(data.rupees_per_point) || 0,
       minRedeemPoints: Number(data.min_redeem_points) || 0,
     };
@@ -112,12 +127,18 @@ export async function getLoyaltySettings(
 }
 
 /**
- * Awards points for a completed booking.
+ * Awards a day's points once the customer has spent enough that day.
+ *
+ * The unit is the café-day, not the booking. Someone who plays five short
+ * sessions in one afternoon has had one day out, and paying them five times for
+ * it is how a scheme quietly becomes expensive. The day's spend is totalled
+ * across every completed booking, so three ₹100 visits count the same as one
+ * ₹300 visit — the customer spent ₹300 either way.
  *
  * Never throws. This runs off the back of a booking being marked complete, and
- * a loyalty problem must not fail the booking update that triggered it. A
- * duplicate award is refused by a unique index rather than checked for here, so
- * a retry cannot pay twice.
+ * a loyalty problem must not fail the booking update that triggered it. The
+ * once-per-day cap is a unique index rather than a check here, so neither a
+ * retry nor two tills ringing up together can pay twice.
  */
 export async function awardPointsForBooking(
   supabase: SupabaseClient,
@@ -127,19 +148,45 @@ export async function awardPointsForBooking(
     customer_phone: string | null;
     user_id: string | null;
     total_amount: number | null;
+    booking_date?: string | null;
   }
 ): Promise<void> {
   try {
     const key = phoneKey(booking.customer_phone);
     if (!key) return;
 
-    const amount = Number(booking.total_amount) || 0;
-    if (amount <= 0) return;
-
     const settings = await getLoyaltySettings(supabase, booking.cafe_id);
-    if (!settings.enabled) return;
+    if (!settings.enabled || settings.pointsPerDay <= 0) return;
 
-    const points = pointsForAmount(amount, settings);
+    // The café's booking date, not today's: a Friday session marked complete on
+    // Saturday morning belongs to Friday.
+    const awardDate = booking.booking_date || getIndiaDateString();
+
+    // Every completed booking that customer had at this café on that day.
+    // Fetched for the café-day and matched in JS, because customer_phone holds
+    // whatever was typed at the counter and an exact match would miss the same
+    // person saved as "+91 98765 43210".
+    const { data: dayBookings, error: dayError } = await supabase
+      .from("bookings")
+      .select("customer_phone, total_amount, status, deleted_at")
+      .eq("cafe_id", booking.cafe_id)
+      .eq("booking_date", awardDate);
+
+    if (dayError) {
+      console.error("Could not total the day's spend:", dayError.message);
+      return;
+    }
+
+    const daySpend = (dayBookings ?? [])
+      .filter(
+        (row) =>
+          !row.deleted_at &&
+          String(row.status ?? "").toLowerCase() === "completed" &&
+          phoneKey(row.customer_phone as string | null) === key
+      )
+      .reduce((sum, row) => sum + (Number(row.total_amount) || 0), 0);
+
+    const points = pointsForDay(daySpend, settings);
     if (points <= 0) return;
 
     const { error } = await supabase.from("loyalty_ledger").insert({
@@ -149,11 +196,12 @@ export async function awardPointsForBooking(
       points,
       reason: "booking",
       booking_id: booking.id,
-      note: `Earned on a ₹${amount} session`,
+      award_date: awardDate,
+      note: `Earned on a ₹${daySpend} day`,
     });
 
-    // 23505 is the unique violation from the one-award-per-booking index, which
-    // means it was already awarded. Expected, not a problem.
+    // 23505 is the once-per-day index doing its job: this customer already
+    // earned today. Expected, not a problem.
     if (error && error.code !== "23505") {
       console.error("Could not award loyalty points:", error.message);
     }

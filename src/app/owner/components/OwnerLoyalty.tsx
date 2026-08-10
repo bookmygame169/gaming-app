@@ -6,7 +6,8 @@ import { LoyaltyRewardsMenu, type Reward } from './LoyaltyRewardsMenu';
 
 type Settings = {
     enabled: boolean;
-    pointsPerHundred: number;
+    minDailySpend: number;
+    pointsPerDay: number;
     rupeesPerPoint: number;
     minRedeemPoints: number;
 };
@@ -55,7 +56,8 @@ const formatDate = (iso: string) =>
 export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
     const [settings, setSettings] = useState<Settings>({
         enabled: false,
-        pointsPerHundred: 5,
+        minDailySpend: 300,
+        pointsPerDay: 5,
         rupeesPerPoint: 1,
         minRedeemPoints: 50,
     });
@@ -199,12 +201,15 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
           )
         : members;
 
-    // Shows the owner what the current rules mean in practice, so the numbers
-    // are not abstract while they are being set.
-    const exampleSpend = 500;
-    const examplePoints = settings.pointsPerHundred > 0
-        ? Math.max(1, Math.floor((exampleSpend / 100) * settings.pointsPerHundred))
+    // The rule is easy to misread as "per visit", so it is spelled out with the
+    // owner's own numbers rather than left abstract.
+    const cheapestReward = rewards.length
+        ? Math.min(...rewards.map((reward) => reward.pointsCost))
         : 0;
+    const daysToCheapest =
+        cheapestReward > 0 && settings.pointsPerDay > 0
+            ? Math.ceil(cheapestReward / settings.pointsPerDay)
+            : 0;
 
     return (
         <div className="flex flex-col gap-4">
@@ -254,17 +259,31 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                     </div>
                 )}
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                     <div>
                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Points per ₹100 spent
+                            Spend in a day to earn ₹
                         </label>
                         <input
                             type="number"
                             min={0}
-                            value={settings.pointsPerHundred}
+                            value={settings.minDailySpend}
                             onChange={(e) =>
-                                setSettings({ ...settings, pointsPerHundred: Number(e.target.value) })
+                                setSettings({ ...settings, minDailySpend: Number(e.target.value) })
+                            }
+                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                            Points for that day
+                        </label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={settings.pointsPerDay}
+                            onChange={(e) =>
+                                setSettings({ ...settings, pointsPerDay: Number(e.target.value) })
                             }
                             className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
                         />
@@ -300,10 +319,22 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                     </div>
                 </div>
 
-                <p className="mt-3 text-[11px] text-slate-500">
-                    With these settings, a ₹{exampleSpend} session earns {examplePoints} points, worth ₹
-                    {Math.floor(examplePoints * settings.rupeesPerPoint)} off later.
-                </p>
+                <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                    <p className="text-[12px] text-slate-300">
+                        Spend ₹{settings.minDailySpend} or more in one day → <strong>{settings.pointsPerDay} points</strong>.
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                        Once per day. Five visits in one day still earns {settings.pointsPerDay} points, and the
+                        whole day&apos;s spending counts together — three ₹100 sessions reach ₹300 just like one
+                        ₹300 session does.
+                        {daysToCheapest > 0 && (
+                            <>
+                                {' '}At this rate the cheapest reward takes {daysToCheapest}{' '}
+                                {daysToCheapest === 1 ? 'day' : 'days'} of visits.
+                            </>
+                        )}
+                    </p>
+                </div>
 
                 <button
                     type="button"

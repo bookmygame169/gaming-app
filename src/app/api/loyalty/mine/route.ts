@@ -25,7 +25,8 @@ type LedgerRow = {
 type SettingsRow = {
   cafe_id: string;
   enabled: boolean;
-  points_per_hundred: number;
+  min_daily_spend: number | null;
+  points_per_day: number | null;
   rupees_per_point: number;
   min_redeem_points: number;
 };
@@ -98,14 +99,21 @@ export async function GET(request: NextRequest) {
 
     const { data: settingsRows } = await supabase
       .from("loyalty_settings")
-      .select("cafe_id, enabled, points_per_hundred, rupees_per_point, min_redeem_points")
+      .select("cafe_id, enabled, min_daily_spend, points_per_day, rupees_per_point, min_redeem_points")
       .in("cafe_id", cafeIds);
 
     const settingsByCafe = new Map<string, LoyaltySettings>();
     for (const row of (settingsRows ?? []) as unknown as SettingsRow[]) {
       settingsByCafe.set(row.cafe_id, {
         enabled: Boolean(row.enabled),
-        pointsPerHundred: Number(row.points_per_hundred) || 0,
+        minDailySpend:
+          row.min_daily_spend == null
+            ? DEFAULT_LOYALTY_SETTINGS.minDailySpend
+            : Number(row.min_daily_spend),
+        pointsPerDay:
+          row.points_per_day == null
+            ? DEFAULT_LOYALTY_SETTINGS.pointsPerDay
+            : Number(row.points_per_day),
         rupeesPerPoint: Number(row.rupees_per_point) || 0,
         minRedeemPoints: Number(row.min_redeem_points) || 0,
       });

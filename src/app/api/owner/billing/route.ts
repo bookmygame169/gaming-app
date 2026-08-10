@@ -401,7 +401,7 @@ export async function PUT(request: NextRequest) {
     if (String(safeBooking.status ?? "").toLowerCase() === "completed") {
       const { data: completed } = await supabase
         .from("bookings")
-        .select("id, cafe_id, customer_phone, user_id, total_amount")
+        .select("id, cafe_id, customer_phone, user_id, total_amount, booking_date")
         .eq("id", bookingId)
         .maybeSingle();
 

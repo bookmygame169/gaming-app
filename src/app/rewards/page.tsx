@@ -39,7 +39,7 @@ type CafePoints = {
 };
 
 const REASON_LABELS: Record<string, string> = {
-  booking: "Session played",
+  booking: "A day at the café",
   redeemed: "Redeemed at the counter",
   manual: "Adjusted by the café",
   bonus: "Bonus",
@@ -113,7 +113,8 @@ export default function RewardsPage() {
           My points
         </h1>
         <p className="mt-2 text-sm" style={{ color: colors.textSecondary }}>
-          Every session you pay for earns points. Use them for money off your next one.
+          Spend enough in a day and you earn points. Save them up for free time, drinks
+          and discounts.
         </p>
 
         {loading && (
@@ -174,7 +175,8 @@ export default function RewardsPage() {
               No points yet
             </p>
             <p className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
-              Play a session and points land here automatically.
+              Play a session and points land here automatically once you have spent
+              enough in a day.
             </p>
             <Link
               href="/"

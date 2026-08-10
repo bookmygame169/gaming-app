@@ -171,7 +171,8 @@ export async function PUT(request: NextRequest) {
   // quietly creating a huge liability.
   const settings: LoyaltySettings = {
     enabled: Boolean(body.enabled),
-    pointsPerHundred: Math.min(100, Math.max(0, Math.round(Number(body.pointsPerHundred) || 0))),
+    minDailySpend: Math.min(100000, Math.max(0, Math.round(Number(body.minDailySpend) || 0))),
+    pointsPerDay: Math.min(1000, Math.max(0, Math.round(Number(body.pointsPerDay) || 0))),
     rupeesPerPoint: Math.min(100, Math.max(0, Number(body.rupeesPerPoint) || 0)),
     minRedeemPoints: Math.min(100000, Math.max(0, Math.round(Number(body.minRedeemPoints) || 0))),
   };
@@ -180,7 +181,8 @@ export async function PUT(request: NextRequest) {
     {
       cafe_id: cafeId,
       enabled: settings.enabled,
-      points_per_hundred: settings.pointsPerHundred,
+      min_daily_spend: settings.minDailySpend,
+      points_per_day: settings.pointsPerDay,
       rupees_per_point: settings.rupeesPerPoint,
       min_redeem_points: settings.minRedeemPoints,
       updated_at: new Date().toISOString(),
