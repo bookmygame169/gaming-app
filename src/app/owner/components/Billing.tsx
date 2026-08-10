@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { getCafePayee, buildUpiPaymentUrl } from '@/lib/upi';
 import { CONSOLE_LABELS } from '@/lib/constants';
 import { getInitialOwnerBookingStatus } from '@/lib/bookingFilters';
 import { dedupeStationPricingRows, normaliseStationName } from '@/lib/stationNames';
@@ -67,8 +68,6 @@ type StationPricingRecord = {
 
 const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 const PLAYER_OPTIONS = [1, 2, 3, 4];
-const PAYTM_UPI_ID = 'paytmqr6k4kf1@ptys';
-const PAYTM_UPI_NAME = 'BookMyGame';
 
 const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
     ps5: { accent: '#06b6d4', short: 'PS5' },
@@ -189,6 +188,14 @@ export function Billing({
     const [memPaymentMode, setMemPaymentMode] = useState<'cash' | 'upi'>('cash');
     const [memSubmitting, setMemSubmitting] = useState(false);
     const [qrExpanded, setQrExpanded] = useState(false);
+
+    // The QR must pay this café, not a platform-wide account. Null until the
+    // owner sets their UPI id under Payments, in which case no QR is shown —
+    // a missing QR means "take cash", a wrong one means the money is gone.
+    const upiPayee = useMemo(() => {
+        const cafe = cafes.find((entry) => entry.id === cafeId);
+        return cafe ? getCafePayee(cafe) : null;
+    }, [cafes, cafeId]);
 
     // Shared customer state
     const [customerName, setCustomerName] = useState('');
@@ -1308,7 +1315,14 @@ export function Billing({
                                 </div>
                             )}
 
-                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && (
+                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && !upiPayee && (
+                                <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+                                    Add your UPI id under Payments to show a QR here. Until then, collect
+                                    this one by cash or your own QR.
+                                </p>
+                            )}
+
+                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && upiPayee && (
                                 <div className="space-y-3 rounded-[24px] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(34,211,238,0.7)]">
                                     <div className="flex items-center justify-between gap-3 text-left">
                                         <div>
@@ -1325,7 +1339,7 @@ export function Billing({
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
                                         <QRCodeSVG
-                                            value={`upi://pay?pa=${encodeURIComponent(PAYTM_UPI_ID)}&pn=${encodeURIComponent(PAYTM_UPI_NAME)}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Booking Payment')}`}
+                                            value={buildUpiPaymentUrl(upiPayee, totalAmount, 'walkin00', undefined)}
                                             size={qrExpanded ? 260 : 180}
                                             bgColor="#d4d4d4"
                                             fgColor="#111111"
@@ -1616,7 +1630,13 @@ export function Billing({
                                 </button>
                             </div>
 
-                            {memPaymentMode === 'upi' && memTotalAmount > 0 && (
+                            {memPaymentMode === 'upi' && memTotalAmount > 0 && !upiPayee && (
+                                <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+                                    Add your UPI id under Payments to show a QR here.
+                                </p>
+                            )}
+
+                            {memPaymentMode === 'upi' && memTotalAmount > 0 && upiPayee && (
                                 <div className="space-y-3 rounded-[24px] border border-violet-400/15 bg-[linear-gradient(180deg,rgba(168,85,247,0.09),rgba(168,85,247,0.04))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(168,85,247,0.7)]">
                                     <div className="flex items-center justify-between gap-3 text-left">
                                         <div>
@@ -1633,7 +1653,7 @@ export function Billing({
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
                                         <QRCodeSVG
-                                            value={`upi://pay?pa=${encodeURIComponent(PAYTM_UPI_ID)}&pn=${encodeURIComponent(PAYTM_UPI_NAME)}&am=${memTotalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Membership Payment')}`}
+                                            value={buildUpiPaymentUrl(upiPayee, memTotalAmount, 'membrshp', undefined)}
                                             size={qrExpanded ? 260 : 180}
                                             bgColor="#d4d4d4"
                                             fgColor="#111111"

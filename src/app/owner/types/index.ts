@@ -26,6 +26,10 @@ export type CafeRow = {
   website?: string | null;
   opening_hours?: string | null;
   status?: string | null;
+  // Where this cafe's own UPI payments land. Absent means online payment is
+  // off for them, not that a platform account collects it instead.
+  upi_id?: string | null;
+  upi_display_name?: string | null;
   hourly_price?: number | null;
   price_starts_from?: number | null;
   google_maps_url?: string | null;
@@ -89,7 +93,7 @@ export type BookingRow = {
   cafe_name?: string | null;
 };
 
-export type NavTab = 'dashboard' | 'sessions' | 'customers' | 'stations' | 'tournaments' | 'memberships' | 'loyalty' | 'reviews' | 'coupons' | 'reports' | 'settings' | 'overview' | 'live-status' | 'bookings' | 'cafe-details' | 'analytics' | 'billing' | 'inventory';
+export type NavTab = 'dashboard' | 'sessions' | 'customers' | 'stations' | 'tournaments' | 'memberships' | 'loyalty' | 'reviews' | 'payments' | 'coupons' | 'reports' | 'settings' | 'overview' | 'live-status' | 'bookings' | 'cafe-details' | 'analytics' | 'billing' | 'inventory';
 
 export type PricingTier = {
   qty1_30min: number | null;

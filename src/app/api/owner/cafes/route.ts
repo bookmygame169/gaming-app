@@ -40,6 +40,10 @@ const ALLOWED_CAFE_UPDATE_FIELDS = new Set([
   "ram_details",
   "accessories_details",
   "show_tech_specs",
+  // Where the cafe's own advance payments land. Owner-editable because it is
+  // their bank detail; the platform must never hold one shared payee.
+  "upi_id",
+  "upi_display_name",
 ]);
 
 function pickAllowedCafeUpdates(updates: Record<string, unknown>): Record<string, unknown> {

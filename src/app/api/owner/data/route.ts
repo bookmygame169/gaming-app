@@ -107,7 +107,8 @@ export async function POST(request: NextRequest) {
         google_maps_url, instagram_url, cover_url, price_starts_from,
         monitor_details, processor_details, gpu_details, ram_details, accessories_details,
         ps5_count, ps4_count, xbox_count, pc_count, pool_count, snooker_count, arcade_count, vr_count, steering_wheel_count, racing_sim_count,
-        created_at, is_active, peak_hours, popular_games, offers
+        created_at, is_active, peak_hours, popular_games, offers,
+        upi_id, upi_display_name
       `)
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });

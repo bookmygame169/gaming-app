@@ -53,6 +53,7 @@ const AddStationPc = dynamic(() => import('./components/AddStationPc').then((mod
 const OwnerTournaments = dynamic(() => import('./components/OwnerTournaments').then((mod) => mod.OwnerTournaments), { ssr: false });
 const OwnerLoyalty = dynamic(() => import('./components/OwnerLoyalty').then((mod) => mod.OwnerLoyalty), { ssr: false });
 const OwnerReviews = dynamic(() => import('./components/OwnerReviews').then((mod) => mod.OwnerReviews), { ssr: false });
+const OwnerPayments = dynamic(() => import('./components/OwnerPayments').then((mod) => mod.OwnerPayments), { ssr: false });
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
 const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
@@ -2989,6 +2990,18 @@ export default function OwnerDashboardPage() {
           {activeTab === 'reviews' && (
             <ErrorBoundary>
               <OwnerReviews cafeId={selectedCafeId || undefined} />
+            </ErrorBoundary>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === 'payments' && (
+            <ErrorBoundary>
+              <OwnerPayments
+                cafeId={selectedCafeId || undefined}
+                cafeName={currentCafe?.name ?? undefined}
+                upiId={(currentCafe as { upi_id?: string | null } | null)?.upi_id}
+                upiDisplayName={(currentCafe as { upi_display_name?: string | null } | null)?.upi_display_name}
+              />
             </ErrorBoundary>
           )}
 

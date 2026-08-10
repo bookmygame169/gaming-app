@@ -5,6 +5,12 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  getCafePayee,
+  buildUpiPaymentUrl,
+  buildAndroidUpiChooserUrl,
+  buildUpiAppOptions,
+} from "@/lib/upi";
 import { getIndiaDateString } from "@/lib/bookingFilters";
 import {
   ArrowLeft,
@@ -63,6 +69,8 @@ type CafeRow = {
   google_maps_url?: string | null;
   instagram_url?: string | null;
   address?: string | null;
+  upi_id?: string | null;
+  upi_display_name?: string | null;
 };
 
 type BookingWithRelations = BookingRow & {
@@ -70,62 +78,6 @@ type BookingWithRelations = BookingRow & {
   cafe: CafeRow | null;
 };
 
-const PAYTM_UPI_ID = "paytmqr6k4kf1@ptys";
-const PAYTM_UPI_NAME = "BookMyGame";
-
-function buildUpiQuery(amount: number, bookingId: string, cafeName?: string | null): string {
-  const params = new URLSearchParams({
-    pa: PAYTM_UPI_ID,
-    pn: PAYTM_UPI_NAME,
-    am: amount.toFixed(2),
-    cu: "INR",
-    tn: `Advance booking ${bookingId.slice(0, 8).toUpperCase()}${cafeName ? ` - ${cafeName}` : ""}`,
-  });
-
-  return params.toString();
-}
-
-function buildUpiPaymentUrl(amount: number, bookingId: string, cafeName?: string | null): string {
-  return `upi://pay?${buildUpiQuery(amount, bookingId, cafeName)}`;
-}
-
-function buildAndroidUpiChooserUrl(amount: number, bookingId: string, cafeName?: string | null): string {
-  const query = buildUpiQuery(amount, bookingId, cafeName);
-  const fallback = buildUpiPaymentUrl(amount, bookingId, cafeName);
-
-  return `intent://pay?${query}#Intent;scheme=upi;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
-}
-
-function buildUpiAppOptions(amount: number, bookingId: string, cafeName?: string | null) {
-  const query = buildUpiQuery(amount, bookingId, cafeName);
-
-  return [
-    {
-      label: "Paytm",
-      helper: "Open Paytm",
-      href: `paytmmp://pay?${query}`,
-      className: "from-sky-500 to-cyan-500 text-white",
-    },
-    {
-      label: "Google Pay",
-      helper: "Open GPay",
-      href: `tez://upi/pay?${query}`,
-      className: "from-blue-500 to-emerald-500 text-white",
-    },
-    {
-      label: "PhonePe",
-      helper: "Open PhonePe",
-      href: `phonepe://pay?${query}`,
-      className: "from-violet-500 to-purple-700 text-white",
-    },
-    {
-      label: "BHIM",
-      helper: "Open BHIM",
-      href: `bhim://upi/pay?${query}`,
-      className: "from-orange-500 to-rose-600 text-white",
-    },
-  ];
-}
 
 export default function BookingDetailsPage() {
   const params = useParams<{ bookingId: string }>();
@@ -136,6 +88,10 @@ export default function BookingDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [paymentReference, setPaymentReference] = useState("");
+  const [claimSaving, setClaimSaving] = useState(false);
+  const [claimSent, setClaimSent] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   // Load booking data
   useEffect(() => {
@@ -182,7 +138,7 @@ export default function BookingDetailsPage() {
         if (booking.cafe_id) {
           const { data: cafeRow, error: cafeError } = await supabase
             .from("cafes")
-            .select("id, name, google_maps_url, instagram_url, address")
+            .select("id, name, google_maps_url, instagram_url, address, upi_id, upi_display_name")
             .eq("id", booking.cafe_id)
             .maybeSingle<CafeRow>();
 
@@ -291,15 +247,62 @@ export default function BookingDetailsPage() {
 
   const statusInfo = getStatusInfo(data?.status);
   const isPaymentPending = (data?.status || "").toLowerCase() === "pending";
-  const paymentUrl = data && bookingId
-    ? buildUpiPaymentUrl(Number(data.total_amount || 0), bookingId, data.cafe?.name)
+
+  // Null when this café has not set its own UPI id. Everything below is hidden
+  // in that case: there is no platform-wide fallback payee any more, because
+  // one shared account meant every café's money landed in the same place.
+  const payee = data?.cafe ? getCafePayee(data.cafe) : null;
+  const amountDue = Number(data?.total_amount || 0);
+  const canPayOnline = Boolean(payee && bookingId && isPaymentPending && amountDue > 0);
+
+  const paymentUrl = payee && bookingId
+    ? buildUpiPaymentUrl(payee, amountDue, bookingId, data?.cafe?.name)
     : "";
-  const androidUpiChooserUrl = data && bookingId
-    ? buildAndroidUpiChooserUrl(Number(data.total_amount || 0), bookingId, data.cafe?.name)
+  const androidUpiChooserUrl = payee && bookingId
+    ? buildAndroidUpiChooserUrl(payee, amountDue, bookingId, data?.cafe?.name)
     : "";
-  const upiAppOptions = data && bookingId
-    ? buildUpiAppOptions(Number(data.total_amount || 0), bookingId, data.cafe?.name)
+  const upiAppOptions = payee && bookingId
+    ? buildUpiAppOptions(payee, amountDue, bookingId, data?.cafe?.name)
     : [];
+
+  // "I've paid" — records the customer's claim for the café to check.
+  const submitPaymentClaim = async () => {
+    if (!bookingId || paymentReference.trim().length < 6) {
+      setClaimError("Enter the reference number shown in your payment app.");
+      return;
+    }
+
+    setClaimSaving(true);
+    setClaimError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        setClaimError("Your session expired. Please sign in again.");
+        return;
+      }
+
+      const res = await fetch(`/api/bookings/${bookingId}/payment-claim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ reference: paymentReference.trim() }),
+      });
+
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || "Could not record your payment");
+
+      setClaimSent(true);
+    } catch (err) {
+      setClaimError(err instanceof Error ? err.message : "Could not record your payment");
+    } finally {
+      setClaimSaving(false);
+    }
+  };
 
   // Handle cancel booking
   const handleCancelBooking = async () => {
@@ -636,13 +639,19 @@ export default function BookingDetailsPage() {
                 <p className="text-4xl font-bold">
                   ₹{data.total_amount || 0}
                 </p>
-                {isPaymentPending && (
+                {isPaymentPending && canPayOnline && (
                   <p className="mt-3 text-sm text-yellow-200/80">
-                    Pay now using UPI. The venue will verify the payment in Paytm Business and confirm this booking.
+                    Pay by UPI, then tell us the reference number below. {data.cafe?.name || "The café"} will
+                    check it against their account and confirm this booking.
+                  </p>
+                )}
+                {isPaymentPending && !canPayOnline && (
+                  <p className="mt-3 text-sm text-yellow-200/80">
+                    Pay at the counter when you arrive. This café has not set up online payment yet.
                   </p>
                 )}
               </div>
-              {isPaymentPending ? (
+              {isPaymentPending && canPayOnline ? (
                 <a
                   href={androidUpiChooserUrl || paymentUrl}
                   className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl font-bold text-black hover:opacity-90 transition"
@@ -650,7 +659,7 @@ export default function BookingDetailsPage() {
                   <Smartphone className="w-5 h-5" />
                   Choose UPI App
                 </a>
-              ) : (
+              ) : isPaymentPending ? null : (
                 <div className="flex items-center gap-3 px-6 py-3 bg-green-500/20 rounded-full border border-green-500/30">
                   <ShieldCheck className="w-5 h-5 text-green-400" />
                   <span className="font-semibold text-green-400">Payment Secured</span>
@@ -658,7 +667,7 @@ export default function BookingDetailsPage() {
               )}
             </div>
 
-            {isPaymentPending && (
+            {canPayOnline && (
               <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto]">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.25em] text-yellow-200/70">
@@ -699,6 +708,54 @@ export default function BookingDetailsPage() {
                     Scan with any UPI app if buttons do not open.
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Telling the café you have paid.
+                A UPI link hands you to your bank app and never reports back, so
+                nothing here can see that the money moved. The reference number
+                is what lets the café find it on their own statement in seconds
+                instead of taking the customer's word for it. */}
+            {canPayOnline && (
+              <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
+                {claimSent ? (
+                  <div className="flex items-center gap-3 text-sm text-green-300">
+                    <ShieldCheck className="h-5 w-5 shrink-0" />
+                    <span>
+                      Thanks — {data.cafe?.name || "the café"} will confirm your payment shortly.
+                      Your booking is held until they do.
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+                      Already paid?
+                    </p>
+                    <p className="mt-1 text-sm text-gray-300">
+                      Enter the reference or UTR number from your payment app.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        value={paymentReference}
+                        onChange={(e) => setPaymentReference(e.target.value)}
+                        placeholder="e.g. 412345678901"
+                        maxLength={40}
+                        className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={submitPaymentClaim}
+                        disabled={claimSaving}
+                        className="rounded-xl bg-yellow-500 px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:opacity-50"
+                      >
+                        {claimSaving ? "Sending…" : "I've paid"}
+                      </button>
+                    </div>
+                    {claimError && (
+                      <p className="mt-2 text-xs text-red-400">{claimError}</p>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
