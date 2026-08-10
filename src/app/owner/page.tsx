@@ -30,6 +30,7 @@ import {
   TabSkeleton,
 } from './components';
 import { NeedsAttention, FeatureStats, useOwnerSummary } from './components/NeedsAttention';
+import { uploadCafeImage, deleteCafeImage } from './utils/uploads';
 import OwnerPWAInstaller from './components/OwnerPWAInstaller';
 import { calcBillingPrice } from "./utils/pricing";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
@@ -2279,30 +2280,17 @@ export default function OwnerDashboardPage() {
     if (!event.target.files || event.target.files.length === 0 || !currentCafe) return;
 
     const file = event.target.files[0];
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${currentCafeId}/profile-${Date.now()}.${fileExt}`;
+    const previousCoverUrl = currentCafe.cover_url;
 
     setUploadingProfilePhoto(true);
     try {
-      // Delete old profile photo if exists
-      if (currentCafe.cover_url) {
-        const oldPath = currentCafe.cover_url.split('/').pop();
-        if (oldPath) {
-          await supabase.storage.from('cafe_images').remove([`${currentCafeId}/${oldPath}`]);
-        }
-      }
+      // Through this origin: a direct Supabase upload is blocked on the cafés'
+      // ISP, and the server decides the storage path rather than the browser.
+      const { url: publicUrl } = await uploadCafeImage(currentCafeId, file, 'profile');
 
-      // Upload new photo
-      const { error: uploadError } = await supabase.storage
-        .from('cafe_images')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('cafe_images')
-        .getPublicUrl(fileName);
+      // Only once the new one is safely up. Removing the old photo first meant
+      // a failed upload left the café with no cover at all.
+      await deleteCafeImage(currentCafeId, previousCoverUrl);
 
       // Update database via API
       const updateRes = await fetch('/api/owner/cafes', {
@@ -2317,7 +2305,7 @@ export default function OwnerDashboardPage() {
       toast.success('Profile photo updated successfully!');
     } catch (error) {
       console.error('Error uploading profile photo:', error);
-      toast.error('Failed to upload profile photo. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload profile photo. Please try again.');
     } finally {
       setUploadingProfilePhoto(false);
       // Reset input
@@ -2330,10 +2318,7 @@ export default function OwnerDashboardPage() {
     if (!currentCafe || !currentCafe.cover_url) return;
 
     try {
-      const oldPath = currentCafe.cover_url.split('/').pop();
-      if (oldPath) {
-        await supabase.storage.from('cafe_images').remove([`${currentCafeId}/${oldPath}`]);
-      }
+      await deleteCafeImage(currentCafeId, currentCafe.cover_url);
 
       // Update database via API
       const delRes = await fetch('/api/owner/cafes', {
@@ -2357,22 +2342,10 @@ export default function OwnerDashboardPage() {
     if (!event.target.files || event.target.files.length === 0 || !currentCafeId) return;
 
     const file = event.target.files[0];
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${currentCafeId}/gallery-${Date.now()}.${fileExt}`;
 
     setUploadingGalleryPhoto(true);
     try {
-      // Upload photo
-      const { error: uploadError } = await supabase.storage
-        .from('cafe_images')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('cafe_images')
-        .getPublicUrl(fileName);
+      const { url: publicUrl } = await uploadCafeImage(currentCafeId, file, 'gallery');
 
       // Insert into gallery_images via API
       const galleryRes = await fetch('/api/owner/gallery', {
@@ -2390,7 +2363,7 @@ export default function OwnerDashboardPage() {
       toast.success('Gallery photo added successfully!');
     } catch (error) {
       console.error('Error uploading gallery photo:', error);
-      toast.error('Failed to upload gallery photo. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload gallery photo. Please try again.');
     } finally {
       setUploadingGalleryPhoto(false);
       // Reset input
@@ -2401,10 +2374,7 @@ export default function OwnerDashboardPage() {
   // Handle gallery photo delete
   const handleGalleryPhotoDelete = async (imageId: string, imageUrl: string) => {
     try {
-      const fileName = imageUrl.split('/').slice(-2).join('/');
-
-      // Delete from storage
-      await supabase.storage.from('cafe_images').remove([fileName]);
+      await deleteCafeImage(currentCafeId, imageUrl);
 
       // Delete from database via API
       const delGalleryRes = await fetch('/api/owner/gallery', {

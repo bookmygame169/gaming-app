@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { uploadCafeImage } from "../../utils/uploads";
 import { useOwnerAuth } from "@/app/owner/hooks/useOwnerAuth";
 import { colors, fonts } from "@/lib/constants";
 
@@ -304,9 +304,11 @@ export default function OwnerCafeEditPage() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image size must be less than 5MB");
+    // 4MB, matching what the upload route accepts. The old 5MB check let a
+    // file through that the server then refused, so the failure landed after
+    // the upload appeared to start.
+    if (file.size > 4 * 1024 * 1024) {
+      setError("Image size must be less than 4MB");
       return;
     }
 
@@ -314,23 +316,9 @@ export default function OwnerCafeEditPage() {
       setUploadingImage(true);
       setError(null);
 
-      // Create unique filename
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${cafeId}/${Date.now()}.${fileExt}`;
-
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from("cafe_images")
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("cafe_images")
-        .getPublicUrl(fileName);
-
-      const imageUrl = urlData.publicUrl;
+      // Through this origin rather than straight at Supabase, which the cafés'
+      // ISP blocks.
+      const { url: imageUrl } = await uploadCafeImage(cafeId, file, "gallery");
 
       // Save to database
       const response = await fetch("/api/owner/cafe-images", {
