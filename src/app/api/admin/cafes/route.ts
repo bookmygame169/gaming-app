@@ -182,3 +182,97 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }
+
+/**
+ * Fields an admin may change on a café.
+ *
+ * Allow-listed rather than passed through, so a stray key in the request body
+ * cannot reach the update. owner_id is deliberately absent: reassigning a café
+ * to a different owner is not an edit, it is a handover, and it has to go
+ * through owner_allowed_emails to be usable.
+ */
+const ALLOWED_CAFE_FIELDS = new Set([
+  "name",
+  "slug",
+  "address",
+  "city",
+  "phone",
+  "email",
+  "description",
+  "opening_hours",
+  "peak_hours",
+  "popular_games",
+  "offers",
+  "price_starts_from",
+  "hourly_price",
+  "google_maps_url",
+  "instagram_url",
+  "cover_url",
+  "is_active",
+  "is_featured",
+  "monitor_details",
+  "processor_details",
+  "gpu_details",
+  "ram_details",
+  "accessories_details",
+  "show_tech_specs",
+  "ps5_count",
+  "ps4_count",
+  "xbox_count",
+  "pc_count",
+  "pool_count",
+  "snooker_count",
+  "arcade_count",
+  "vr_count",
+  "steering_wheel_count",
+  "racing_sim_count",
+]);
+
+/**
+ * PUT /api/admin/cafes — edit a café.
+ *
+ * body: { cafeId, updates }
+ *
+ * The admin panel edited cafés with a direct Supabase update from the browser,
+ * which the cafés' ISP blocks — so saving café details failed from the one
+ * network an admin is most likely to be sitting on.
+ */
+export async function PUT(request: NextRequest) {
+  const { context, response } = await requireAdminContext(request);
+  if (response) return response;
+
+  try {
+    const supabase = context.supabase;
+    const { cafeId, updates } = await request.json().catch(() => ({}));
+
+    if (!cafeId) {
+      return NextResponse.json({ error: "cafeId is required" }, { status: 400 });
+    }
+
+    const safeUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates || {})) {
+      if (ALLOWED_CAFE_FIELDS.has(key)) safeUpdates[key] = value;
+    }
+
+    if (Object.keys(safeUpdates).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("cafes")
+      .update(safeUpdates)
+      .eq("id", cafeId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Admin café update failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, cafe: data });
+  } catch (err) {
+    console.error("Update café error:", err);
+    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+  }
+}

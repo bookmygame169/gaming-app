@@ -1648,6 +1648,24 @@ export default function AdminDashboardPage() {
     }
   }
 
+  /**
+   * Café edits go through the API rather than straight to Supabase: the direct
+   * call is blocked on the cafés' ISP, which is where an admin usually is.
+   */
+  async function updateCafeViaApi(cafeId: string, updates: Record<string, unknown>) {
+    const res = await fetch('/api/admin/cafes', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cafeId, updates }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to save');
+
+    return data.cafe;
+  }
+
   async function saveCafeInfoAdmin() {
     if (!managedCafeId) return;
     setSavingCafeInfo(true);
@@ -1668,8 +1686,7 @@ export default function AdminDashboardPage() {
         price_starts_from: editCafeForm.price_starts_from ? Number(editCafeForm.price_starts_from) : null,
         hourly_price: editCafeForm.hourly_price ? Number(editCafeForm.hourly_price) : null,
       };
-      const { error } = await supabase.from('cafes').update(updates).eq('id', managedCafeId);
-      if (error) throw error;
+      await updateCafeViaApi(managedCafeId, updates);
       setCafes(prev => prev.map(c => c.id === managedCafeId ? { ...c, ...updates, opening_hours } as CafeRow : c));
       setCafeInfoMsg({ type: 'success', text: 'Café info updated successfully' });
     } catch (err: any) {
@@ -1688,8 +1705,7 @@ export default function AdminDashboardPage() {
       const key = `${type}_count` as keyof CafeRow;
       const current = (cafe[key] as number) || 0;
       const newCount = Math.max(0, current + delta);
-      const { error } = await supabase.from('cafes').update({ [key]: newCount }).eq('id', managedCafeId);
-      if (error) throw error;
+      await updateCafeViaApi(managedCafeId, { [key]: newCount });
       setCafes(prev => prev.map(c => c.id === managedCafeId ? { ...c, [key]: newCount } : c));
     } catch (err: any) {
       alert(err.message || 'Failed to update station count');
@@ -2028,8 +2044,10 @@ export default function AdminDashboardPage() {
     setBulkActionLoading(true);
     try {
       const ids = Array.from(selectedCafeIds);
-      const { error } = await supabase.from('cafes').update({ is_active: newStatus }).in('id', ids);
-      if (error) throw error;
+      // One request each rather than a single .in(): the route edits one café,
+      // and a bulk endpoint is not worth adding for a button that acts on a
+      // handful of hand-picked rows.
+      await Promise.all(ids.map((id) => updateCafeViaApi(id, { is_active: newStatus })));
       setCafes(prev => prev.map(c => selectedCafeIds.has(c.id) ? { ...c, is_active: newStatus } : c));
       setSelectedCafeIds(new Set());
     } catch (err: any) {
