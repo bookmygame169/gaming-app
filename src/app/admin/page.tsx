@@ -285,8 +285,6 @@ export default function AdminDashboardPage() {
   const [auditEntityFilter, setAuditEntityFilter] = useState("all");
 
   // Maintenance mode
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   // Pagination
   const [cafePage, setCafePage] = useState(1);
@@ -2023,23 +2021,6 @@ export default function AdminDashboardPage() {
     a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }
-
-  async function toggleMaintenanceMode() {
-    setSavingMaintenance(true);
-    try {
-      const newVal = !maintenanceMode;
-      const { error } = await supabase
-        .from('platform_settings')
-        .upsert({ key: 'maintenance_mode', value: newVal ? 'true' : 'false' }, { onConflict: 'key' });
-      if (error) throw error;
-      setMaintenanceMode(newVal);
-      await logAdminAction({ action: newVal ? 'enable_maintenance' : 'disable_maintenance', entityType: 'settings', details: { maintenance_mode: newVal }, adminId });
-    } catch (err: any) {
-      alert(err.message || 'Failed to toggle maintenance mode');
-    } finally {
-      setSavingMaintenance(false);
-    }
   }
 
   async function bulkToggleCafeStatus(newStatus: boolean) {
@@ -4399,29 +4380,6 @@ export default function AdminDashboardPage() {
                       <p className="text-lg font-bold text-white">{loadingData ? '…' : s.value}</p>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Maintenance Mode */}
-              <div className="rounded-2xl bg-[#0d0d14] border border-white/[0.08] p-6 space-y-4">
-                <div>
-                  <h3 className="text-base font-semibold text-white">Maintenance Mode</h3>
-                  <p className="text-xs text-slate-500 mt-1">When enabled, users see a maintenance banner. Owners and admin can still access their dashboards.</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${maintenanceMode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/[0.04] border-white/[0.08]'}`}>
-                    <div className={`w-2.5 h-2.5 rounded-full ${maintenanceMode ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
-                    <span className={`text-sm font-semibold ${maintenanceMode ? 'text-amber-400' : 'text-slate-400'}`}>
-                      {maintenanceMode ? 'Maintenance ON' : 'Platform Normal'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={toggleMaintenanceMode}
-                    disabled={savingMaintenance}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${maintenanceMode ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'}`}
-                  >
-                    {savingMaintenance ? 'Saving…' : maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
-                  </button>
                 </div>
               </div>
 

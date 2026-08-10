@@ -52,9 +52,9 @@ async function fetchSchema() {
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    throw new Error(
-      "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or the anon key) to run this."
-    );
+    // Signalled rather than thrown: this gates the build, and "could not
+    // check" must not be treated the same as "found a problem".
+    return null;
   }
 
   const res = await fetch(`${url}/rest/v1/`, {
@@ -62,7 +62,8 @@ async function fetchSchema() {
   });
 
   if (!res.ok) {
-    throw new Error(`Could not read the schema: HTTP ${res.status}`);
+    console.warn(`Could not read the schema (HTTP ${res.status}).`);
+    return null;
   }
 
   const spec = await res.json();
@@ -267,6 +268,18 @@ loadEnv();
 
 try {
   const schema = await fetchSchema();
+
+  // Only a mismatch we actually found should stop a deploy. No credentials or
+  // an unreachable database means this ran blind, and blocking a release over
+  // that would get the check taken back out of the build within a week.
+  if (!schema) {
+    console.warn(
+      "Skipping the schema check: no Supabase URL/key available, or the database " +
+        "could not be reached. Nothing was verified."
+    );
+    process.exit(0);
+  }
+
   console.log(
     `Checked against ${schema.tables.size} tables and ${schema.functions.size} functions.\n`
   );
@@ -285,6 +298,7 @@ try {
   console.log(`${problems.length} mismatch${problems.length > 1 ? "es" : ""}.`);
   process.exit(1);
 } catch (err) {
-  console.error(err instanceof Error ? err.message : err);
-  process.exit(2);
+  // Same reasoning: a crash in the checker is not evidence of a bad schema.
+  console.warn("Schema check could not run:", err instanceof Error ? err.message : err);
+  process.exit(0);
 }

@@ -47,17 +47,12 @@ than no check at all.
 Needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the anon key
 works too). Reads `.env.local` if they are not already in the environment.
 
-It is **not** wired into `npm run build` yet, because there are known
-outstanding mismatches (see below) and it would block every deploy. Once those
-are cleared, adding it to the build is the point of it.
+It runs as part of `npm run build`, so a mismatch stops the deploy.
 
-### Known outstanding mismatches
+Only a mismatch it actually **found** exits non-zero. Missing credentials or an
+unreachable database exit 0 with a warning: the check ran blind, which is not
+evidence of a problem, and a release blocked over a network blip would get this
+taken back out of the build within a week.
 
-All in code paths nothing currently calls, or features that have never worked:
-
-- `platform_settings` — the admin maintenance-mode toggle writes to a table
-  that does not exist, so that button has never worked
-- `user_memberships`, `membership_tiers` — used by `/api/memberships` and
-  `/api/memberships/user/[userId]`. Nothing calls either; the live table is
-  `subscriptions`, and the customer pages use `/api/memberships/plans` and
-  `/api/memberships/mine`, which are fine
+If a legitimate change needs to ship before its migration runs, use
+`next build` directly — but the migration is the real fix.
