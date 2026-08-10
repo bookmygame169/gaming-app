@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
 
     // ----------------------------------------------------------------- coupon
 
-    let coupon: { id: string; discount: number; bonusMinutes: number } | null = null;
+    let coupon: { id: string; code: string; discount: number; bonusMinutes: number } | null = null;
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -295,6 +295,7 @@ export async function POST(request: NextRequest) {
 
       coupon = {
         id: result.coupon_id,
+        code: couponCode.trim().toUpperCase(),
         discount: Math.round(Math.min(Math.max(0, discount), serverTotal)),
         bonusMinutes: Number(result.bonus_minutes) || 0,
       };
@@ -322,16 +323,32 @@ export async function POST(request: NextRequest) {
         // booking without one silently earns nothing.
         customer_name: customerName,
         customer_phone: customerPhone,
-        coupon_id: coupon?.id ?? null,
-        coupon_discount: coupon?.discount ?? 0,
-        coupon_extra_minutes: coupon?.bonusMinutes ?? 0,
+        // The columns that actually exist on this table are coupon_code and
+        // discount_amount. Bonus minutes have no column and do not need one:
+        // they are already folded into duration above, which is what every
+        // reader — availability, auto-complete, the lock agent — goes by.
+        coupon_code: coupon?.code ?? null,
+        discount_amount: coupon?.discount ?? 0,
       })
       .select("id")
       .maybeSingle();
 
     if (bookingError || !newBooking) {
       console.error("Booking insert failed:", bookingError?.message);
-      return NextResponse.json({ error: "Could not place the booking." }, { status: 500 });
+
+      // 42703 is an unknown column: the code and the database disagree about
+      // the schema. Saying so beats "could not place the booking", which sent
+      // us looking at the booking logic when the row was simply malformed.
+      const isSchemaMismatch = bookingError?.code === "42703";
+
+      return NextResponse.json(
+        {
+          error: isSchemaMismatch
+            ? `Booking could not be saved — the database is missing a column (${bookingError?.message}). This needs a migration.`
+            : "Could not place the booking.",
+        },
+        { status: 500 }
+      );
     }
 
     const bookingId = newBooking.id;
