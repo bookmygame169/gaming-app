@@ -4,6 +4,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  uploadAdminImage,
+  addAdminCafeImage,
+  removeAdminCafeImage,
+} from "@/lib/adminUploads";
 import { CafeRow } from "@/types/database";
 
 type CafeFormProps = {
@@ -112,15 +117,18 @@ export default function CafeForm({ mode, cafe }: CafeFormProps) {
     async function loadGallery() {
       if (mode !== "edit" || !cafe?.id) return;
 
-      const { data, error } = await supabase
-        .from("cafe_images")
-        .select("id, image_url")
-        .eq("cafe_id", cafe.id)
-        .order("created_at", { ascending: true });
+      const res = await fetch(
+        `/api/admin/cafe-images?cafeId=${encodeURIComponent(cafe.id)}`,
+        { credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
 
-      if (!error && data) {
+      if (res.ok && Array.isArray(data.images)) {
         setExistingGallery(
-          data.map((row: { id: string; image_url: string }) => ({ id: row.id, url: row.image_url }))
+          data.images.map((row: { id: string; image_url: string }) => ({
+            id: row.id,
+            url: row.image_url,
+          }))
         );
       }
     }
@@ -138,26 +146,10 @@ export default function CafeForm({ mode, cafe }: CafeFormProps) {
 
     if (!coverFile) return existingUrl ?? null;
 
-    const ext = coverFile.name.split(".").pop();
-    const fileName = `${crypto.randomUUID()}.${ext}`;
-    const filePath = `covers/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("cafe_images")
-      .upload(filePath, coverFile, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw new Error(uploadError.message);
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("cafe_images").getPublicUrl(filePath);
-
-    return publicUrl;
+    // Through this origin: the direct Storage call is blocked on the cafés'
+    // ISP, which is where cafés are usually onboarded from.
+    const { url } = await uploadAdminImage(coverFile, "cover");
+    return url;
   }
 
   // ────────────────────────────────────────────────
@@ -167,32 +159,10 @@ export default function CafeForm({ mode, cafe }: CafeFormProps) {
     if (!newGalleryFiles.length) return;
 
     const uploads = newGalleryFiles.map(async (file) => {
-      const ext = file.name.split(".").pop();
-      const fileName = `${crypto.randomUUID()}.${ext}`;
-      const filePath = `gallery/${cafeId}/${fileName}`;
+      const { url } = await uploadAdminImage(file, "gallery", cafeId);
+      const image = await addAdminCafeImage(cafeId, url);
 
-      const { error: uploadError } = await supabase.storage
-        .from("cafe_images")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("cafe_images").getPublicUrl(filePath);
-
-      const { data, error } = await supabase
-        .from("cafe_images")
-        .insert({ cafe_id: cafeId, image_url: publicUrl })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return { id: data.id as string, url: publicUrl as string };
+      return { id: image.id, url };
     });
 
     const inserted = await Promise.all(uploads);
@@ -205,8 +175,7 @@ export default function CafeForm({ mode, cafe }: CafeFormProps) {
   // ────────────────────────────────────────────────
   async function handleDeleteGalleryImage(id: string) {
     try {
-      const { error } = await supabase.from("cafe_images").delete().eq("id", id);
-      if (error) throw error;
+      await removeAdminCafeImage(id);
 
       setExistingGallery((prev) => prev.filter((img) => img.id !== id));
     } catch (err) {

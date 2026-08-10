@@ -3,6 +3,12 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  uploadAdminImage,
+  deleteAdminImage,
+  addAdminCafeImage,
+  removeAdminCafeImage,
+} from "@/lib/adminUploads";
 import { colors, fonts } from "@/lib/constants";
 import useUser from "@/hooks/useUser";
 
@@ -219,15 +225,14 @@ export default function ManageCafes({ openNewCafe = false }: ManageCafesProps = 
   // Load gallery images
   async function loadGalleryImages(cafeId: string) {
     try {
-      const { data, error } = await supabase
-        .from("cafe_images")
-        .select("id, image_url")
-        .eq("cafe_id", cafeId)
-        .order("created_at", { ascending: false });
+      const res = await fetch(
+        `/api/admin/cafe-images?cafeId=${encodeURIComponent(cafeId)}`,
+        { credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not load images");
 
-      if (error) throw error;
-
-      setGalleryImages(data || []);
+      setGalleryImages(data.images || []);
     } catch (err) {
       console.error("Error loading gallery images:", err);
     }
@@ -291,45 +296,21 @@ export default function ManageCafes({ openNewCafe = false }: ManageCafesProps = 
     }
 
     // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should be less than 5MB");
+    if (file.size > 4 * 1024 * 1024) {
+      alert("Image size should be less than 4MB");
       return;
     }
 
     try {
       setUploading(true);
 
-      // Create unique file name
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${selectedCafe}/${Date.now()}.${fileExt}`;
+      // Through this origin: the direct Storage call is blocked on the cafés'
+      // ISP, which admins work from too.
+      const { url: imageUrl } = await uploadAdminImage(file, "gallery", selectedCafe);
+      const image = await addAdminCafeImage(selectedCafe, imageUrl);
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from("cafe_images")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("cafe_images")
-        .getPublicUrl(fileName);
-
-      const imageUrl = urlData.publicUrl;
-
-      // Save to database
-      const { data, error } = await supabase
-        .from("cafe_images")
-        .insert([{ cafe_id: selectedCafe, image_url: imageUrl }])
-        .select();
-
-      if (error) throw error;
-
-      if (data && data[0]) {
-        setGalleryImages([data[0], ...galleryImages]);
+      if (image) {
+        setGalleryImages([image, ...galleryImages]);
         alert("Image uploaded successfully!");
       }
 
@@ -348,12 +329,12 @@ export default function ManageCafes({ openNewCafe = false }: ManageCafesProps = 
     if (!confirm("Are you sure you want to delete this image?")) return;
 
     try {
-      const { error } = await supabase
-        .from("cafe_images")
-        .delete()
-        .eq("id", imageId);
+      const image = galleryImages.find((img) => img.id === imageId);
 
-      if (error) throw error;
+      await removeAdminCafeImage(imageId);
+      // The stored file goes after the row: an orphaned file is tidier to live
+      // with than a gallery entry pointing at a picture that is gone.
+      await deleteAdminImage(image?.image_url);
 
       setGalleryImages(galleryImages.filter(img => img.id !== imageId));
       alert("Image deleted successfully!");
