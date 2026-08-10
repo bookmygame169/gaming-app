@@ -4,7 +4,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Trophy,
   Users,
   Calendar,
@@ -15,8 +14,10 @@ import {
   Gamepad2,
   ChevronRight,
   Flame,
-  Loader2,
 } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState";
+import { SkeletonList } from "@/components/ui/Skeleton";
+import PullToRefresh from "@/components/ui/PullToRefresh";
 import { colors, fonts } from "@/lib/constants";
 
 type Tournament = {
@@ -505,14 +506,6 @@ export default function TournamentsPage() {
         <div className="tournaments-container">
           {/* Header */}
           <header className="page-header">
-            <button
-              onClick={() => router.push("/")}
-              className="back-btn"
-              title="Go back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-
             <div className="header-content">
               <h1 className="header-title">
                 <Trophy className="w-8 h-8 inline mr-2" />
@@ -525,10 +518,7 @@ export default function TournamentsPage() {
           {/* Tournaments Grid */}
           {loading ? (
             <div className="tournaments-grid">
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px" }}>
-                <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: colors.cyan }} />
-                <p style={{ marginTop: "16px", color: colors.textSecondary }}>Loading tournaments...</p>
-              </div>
+              <SkeletonList count={3} lines={3} />
             </div>
           ) : error ? (
             <div className="tournaments-grid">
@@ -537,11 +527,12 @@ export default function TournamentsPage() {
               </div>
             </div>
           ) : tournaments.length === 0 ? (
-            <div className="tournaments-grid">
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px" }}>
-                <p style={{ color: colors.textSecondary }}>No tournaments available at the moment.</p>
-              </div>
-            </div>
+            <EmptyState
+              icon={Trophy}
+              title="No tournaments right now"
+              message="Cafés run these every few weeks. Check back, or ask yours when the next one is."
+              action={{ label: "Browse cafés", href: "/" }}
+            />
           ) : (
             <div className="tournaments-grid">
               {tournaments.map((tournament) => (

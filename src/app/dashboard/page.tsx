@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatDate } from "@/lib/timeUtils";
@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import ActiveSessionTimer from "@/components/ActiveSessionTimer";
 import LeaveReviewPrompt from "@/components/LeaveReviewPrompt";
+import PullToRefresh from "@/components/ui/PullToRefresh";
 
 type BookingRow = {
   id: string;
@@ -65,6 +66,17 @@ export default function DashboardPage() {
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
+
+  // Bumped by pull-to-refresh. Re-running the existing effect keeps one
+  // loading path rather than a second copy that can drift from it.
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refresh = useCallback(async () => {
+    setRefreshKey((key) => key + 1);
+    // The effect below is what actually reloads; this gives the gesture
+    // something to wait on so the spinner is not gone before the data lands.
+    await new Promise((resolve) => setTimeout(resolve, 550));
+  }, []);
 
   // Load user + bookings
   useEffect(() => {
@@ -159,7 +171,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, refreshKey]);
 
   // Split upcoming vs past
   const { upcoming, past } = useMemo(() => {
@@ -394,7 +406,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
+    <PullToRefresh onRefresh={refresh}>
       <style jsx global>{`
         .dashboard-bg {
           background: linear-gradient(135deg, 
@@ -926,6 +938,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-    </>
+    </PullToRefresh>
   );
 }

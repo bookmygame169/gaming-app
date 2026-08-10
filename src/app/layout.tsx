@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import LoadingBar from "@/components/LoadingBar";
 import MobileTabBar from "@/components/MobileTabBar";
+import { SkeletonStyles } from "@/components/ui/Skeleton";
 import { Inter, JetBrains_Mono, Orbitron, Rajdhani } from "next/font/google";
 import "./globals.css";
 
@@ -166,6 +167,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <MobileTabBar />
+        <SkeletonStyles />
       </body>
     </html>
   );

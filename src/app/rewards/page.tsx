@@ -2,11 +2,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Loader2, AlertCircle, Sparkles, Gift, Clock } from "lucide-react";
+import { AlertCircle, Sparkles, Gift, Clock, LogIn, Phone } from "lucide-react";
 import { colors, fonts } from "@/lib/constants";
 import { supabase } from "@/lib/supabaseClient";
+import EmptyState from "@/components/ui/EmptyState";
+import { SkeletonList } from "@/components/ui/Skeleton";
+import PullToRefresh from "@/components/ui/PullToRefresh";
 
 type HistoryEntry = {
   id: string;
@@ -50,8 +51,6 @@ const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export default function RewardsPage() {
-  const router = useRouter();
-
   const [cafes, setCafes] = useState<CafePoints[]>([]);
   const [needsPhone, setNeedsPhone] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -95,17 +94,9 @@ export default function RewardsPage() {
   }, [load]);
 
   return (
-    <div style={{ background: colors.dark, minHeight: "100vh", fontFamily: fonts.body }}>
-      <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
-        <button
-          onClick={() => router.back()}
-          className="mb-6 flex items-center gap-2 text-sm transition-colors hover:text-white"
-          style={{ color: colors.textSecondary }}
-        >
-          <ArrowLeft size={16} />
-          Back
-        </button>
-
+    <PullToRefresh onRefresh={load}>
+      <div style={{ background: colors.dark, minHeight: "100vh", fontFamily: fonts.body }}>
+        <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
         <h1
           className="text-3xl font-bold sm:text-4xl"
           style={{ fontFamily: fonts.heading, color: colors.textPrimary }}
@@ -118,9 +109,8 @@ export default function RewardsPage() {
         </p>
 
         {loading && (
-          <div className="flex items-center gap-2 py-16" style={{ color: colors.textSecondary }}>
-            <Loader2 size={18} className="animate-spin" />
-            Loading…
+          <div className="mt-8">
+            <SkeletonList count={2} lines={3} />
           </div>
         )}
 
@@ -139,53 +129,33 @@ export default function RewardsPage() {
         )}
 
         {!loading && !error && !signedIn && (
-          <div
-            className="mt-8 rounded-2xl p-5 text-sm"
-            style={{ background: colors.darkCard, border: `1px solid ${colors.border}`, color: colors.textSecondary }}
-          >
-            <Link href="/login" className="font-semibold" style={{ color: colors.cyan }}>
-              Sign in
-            </Link>{" "}
-            to see the points you have earned.
-          </div>
+          <EmptyState
+            icon={LogIn}
+            title="Sign in to see your points"
+            message="Your points follow the phone number you give at the café, so they are waiting for you as soon as you sign in."
+            action={{ label: "Sign in", href: "/login" }}
+          />
         )}
 
+        {/* Points follow the phone number given at the counter, so an account
+            with no phone on it genuinely has nothing to show. */}
         {!loading && !error && signedIn && needsPhone && (
-          <div
-            className="mt-8 rounded-2xl p-5 text-sm"
-            style={{ background: "rgba(0,240,255,0.06)", border: `1px solid ${colors.border}`, color: colors.textSecondary }}
-          >
-            {/* Points follow the phone number given at the counter, so an
-                account with no phone on it genuinely has nothing to show. */}
-            Points are recorded against the phone number you give at the counter.
-            <Link href="/profile" className="ml-1 font-semibold" style={{ color: colors.cyan }}>
-              Add your phone number
-            </Link>{" "}
-            to see them here.
-          </div>
+          <EmptyState
+            icon={Phone}
+            title="Add your phone number"
+            message="Points are recorded against the number you give at the counter. Add it to your profile and everything you have already earned appears here."
+            action={{ label: "Add phone number", href: "/profile" }}
+            tone="warning"
+          />
         )}
 
         {!loading && !error && signedIn && !needsPhone && cafes.length === 0 && (
-          <div
-            className="mt-8 rounded-2xl p-6 text-center"
-            style={{ background: colors.darkCard, border: `1px solid ${colors.border}` }}
-          >
-            <Sparkles size={26} style={{ color: colors.purple }} className="mx-auto" />
-            <p className="mt-3 text-sm font-semibold" style={{ color: colors.textPrimary }}>
-              No points yet
-            </p>
-            <p className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
-              Play a session and points land here automatically once you have spent
-              enough in a day.
-            </p>
-            <Link
-              href="/"
-              className="mt-5 inline-block rounded-xl px-5 py-2.5 text-sm font-bold"
-              style={{ background: colors.cyan, color: colors.dark }}
-            >
-              Book a session
-            </Link>
-          </div>
+          <EmptyState
+            icon={Sparkles}
+            title="No points yet"
+            message="Spend enough in a day at a café and points land here on their own. Nothing to collect or scan."
+            action={{ label: "Find a café", href: "/" }}
+          />
         )}
 
         {!loading && !error && cafes.length > 0 && (
@@ -382,7 +352,8 @@ export default function RewardsPage() {
             Points are counted per café, because each one runs its own scheme.
           </p>
         )}
+        </div>
       </div>
-    </div>
+    </PullToRefresh>
   );
 }

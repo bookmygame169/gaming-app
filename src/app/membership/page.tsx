@@ -8,13 +8,14 @@ import {
   ArrowLeft,
   Clock,
   CalendarDays,
-  Loader2,
   AlertCircle,
   Ticket,
   Infinity as InfinityIcon,
 } from "lucide-react";
 import { colors, fonts } from "@/lib/constants";
 import { supabase } from "@/lib/supabaseClient";
+import EmptyState from "@/components/ui/EmptyState";
+import { SkeletonList } from "@/components/ui/Skeleton";
 
 type Membership = {
   id: string;
@@ -136,9 +137,8 @@ export default function MembershipPage() {
         </p>
 
         {loading && (
-          <div className="flex items-center gap-2 py-16" style={{ color: colors.textSecondary }}>
-            <Loader2 size={18} className="animate-spin" />
-            Loading…
+          <div className="mt-8">
+            <SkeletonList count={3} lines={2} />
           </div>
         )}
 
@@ -276,12 +276,12 @@ export default function MembershipPage() {
               </h2>
 
               {plans.length === 0 ? (
-                <div
-                  className="rounded-xl p-5 text-sm"
-                  style={{ background: colors.darkCard, border: `1px solid ${colors.border}`, color: colors.textSecondary }}
-                >
-                  No membership plans are on sale right now.
-                </div>
+                <EmptyState
+                  icon={Ticket}
+                  title="No plans on sale"
+                  message="Cafés set these up themselves. Ask yours whether they offer hour packs or a day pass."
+                  action={{ label: "Browse cafés", href: "/" }}
+                />
               ) : (
                 plansByCafe.map(([cafeKey, cafePlans]) => (
                 <div key={cafeKey} className="mb-8 last:mb-0">
