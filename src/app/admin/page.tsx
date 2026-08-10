@@ -990,12 +990,7 @@ export default function AdminDashboardPage() {
   async function toggleCafeStatus(cafeId: string, currentStatus: boolean, cafeName: string) {
     try {
       const newStatus = !currentStatus;
-      const { error } = await supabase
-        .from("cafes")
-        .update({ is_active: newStatus })
-        .eq("id", cafeId);
-
-      if (error) throw error;
+      await updateCafeViaApi(cafeId, { is_active: newStatus });
 
       setCafes(prev => prev.map(c =>
         c.id === cafeId ? { ...c, is_active: newStatus } : c
@@ -1026,76 +1021,11 @@ export default function AdminDashboardPage() {
     try {
       setLoadingData(true);
 
-      console.log("Starting deletion process for cafe:", cafeId);
-
-      // Delete related records first (cascading delete)
-      // 1. Delete booking items
-      const { data: bookings, error: bookingsError } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("cafe_id", cafeId);
-
-      if (bookingsError) {
-        console.error("Error fetching bookings:", bookingsError);
-      }
-
-      if (bookings && bookings.length > 0) {
-        console.log(`Deleting booking items for ${bookings.length} bookings`);
-        const bookingIds = bookings.map(b => b.id);
-        const { error: bookingItemsError } = await supabase
-          .from("booking_items")
-          .delete()
-          .in("booking_id", bookingIds);
-
-        if (bookingItemsError) {
-          console.error("Error deleting booking items:", bookingItemsError);
-        }
-      }
-
-      // 2. Delete bookings
-      console.log("Deleting bookings...");
-      const { error: deleteBookingsError } = await supabase
-        .from("bookings")
-        .delete()
-        .eq("cafe_id", cafeId);
-
-      if (deleteBookingsError) {
-        console.error("Error deleting bookings:", deleteBookingsError);
-      }
-
-      // 3. Delete console pricing
-      console.log("Deleting console pricing...");
-      const { error: pricingError } = await supabase
-        .from("console_pricing")
-        .delete()
-        .eq("cafe_id", cafeId);
-
-      if (pricingError) {
-        console.error("Error deleting console pricing:", pricingError);
-      }
-
-      // 4. Delete cafe images
-      console.log("Deleting cafe images...");
-      const { error: galleryError } = await supabase
-        .from("cafe_images")
-        .delete()
-        .eq("cafe_id", cafeId);
-
-      if (galleryError) {
-        console.error("Error deleting cafe images:", galleryError);
-      }
-
-      // 5. Finally, delete the café
-      console.log("Deleting café...");
-      const { error } = await supabase
-        .from("cafes")
-        .delete()
-        .eq("id", cafeId);
-
-      if (error) {
-        console.error("Error deleting cafe:", error);
-        throw error;
-      }
+      // One request: the cascade used to be five separate deletes from the
+      // browser, each able to fail on its own, and it missed subscriptions,
+      // coupons, membership plans, inventory and the owner's sign-in mapping —
+      // all left pointing at a café that no longer existed.
+      await adminApi('cafes', 'DELETE', { cafeId });
 
       console.log("Café deleted successfully");
 
@@ -1132,12 +1062,7 @@ export default function AdminDashboardPage() {
     try {
       const oldRole = users.find(u => u.id === userId)?.role;
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ role: newRole })
-        .eq("id", userId);
-
-      if (error) throw error;
+      await adminApi('users', 'PUT', { userId, role: newRole });
 
       setUsers(prev => prev.map(u =>
         u.id === userId ? { ...u, role: newRole } : u
@@ -1164,12 +1089,7 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", userId);
-
-      if (error) throw error;
+      await adminApi('users', 'DELETE', { userId });
 
       setUsers(prev => prev.filter(u => u.id !== userId));
 
@@ -1197,17 +1117,15 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      const { error } = await supabase
-        .from("platform_announcements")
-        .insert({
+      await adminApi('announcements', 'POST', {
+        announcement: {
           title: announcementForm.title,
           message: announcementForm.message,
           type: announcementForm.type,
           target_audience: announcementForm.target_audience,
           expires_at: announcementForm.expires_at || null,
-        });
-
-      if (error) throw error;
+        },
+      });
 
       // Log the action
       await logAdminAction({
@@ -1244,12 +1162,7 @@ export default function AdminDashboardPage() {
   // Toggle announcement status
   async function toggleAnnouncementStatus(id: string, currentStatus: boolean) {
     try {
-      const { error } = await supabase
-        .from("platform_announcements")
-        .update({ is_active: !currentStatus })
-        .eq("id", id);
-
-      if (error) throw error;
+      await adminApi('announcements', 'PUT', { id, updates: { is_active: !currentStatus } });
 
       setAnnouncements(prev => prev.map(a =>
         a.id === id ? { ...a, is_active: !currentStatus } : a
@@ -1267,12 +1180,7 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from("platform_announcements")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      await adminApi('announcements', 'DELETE', { id });
 
       setAnnouncements(prev => prev.filter(a => a.id !== id));
 
@@ -1304,56 +1212,14 @@ export default function AdminDashboardPage() {
       }
 
       // Get current admin credentials
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("admin_username, admin_password")
-        .eq("id", adminId)
-        .single();
-
-      if (profileError || !profile) {
-        setSettingsMessage({ type: 'error', text: 'Unable to load admin credentials' });
-        setSavingSettings(false);
-        return;
-      }
-
-      // Verify current password
-      const currentAdminPassword = profile.admin_password || 'admin123';
-      if (currentPassword !== currentAdminPassword) {
-        setSettingsMessage({ type: 'error', text: 'Current password is incorrect' });
-        setSavingSettings(false);
-        return;
-      }
-
-      // Validate new credentials
-      if (!newUsername && !newPassword) {
-        setSettingsMessage({ type: 'error', text: 'Please enter a new username or password' });
-        setSavingSettings(false);
-        return;
-      }
-
-      if (newPassword && newPassword !== confirmPassword) {
-        setSettingsMessage({ type: 'error', text: 'New passwords do not match' });
-        setSavingSettings(false);
-        return;
-      }
-
-      if (newPassword && newPassword.length < 6) {
-        setSettingsMessage({ type: 'error', text: 'Password must be at least 6 characters' });
-        setSavingSettings(false);
-        return;
-      }
-
-      // Update credentials
-      const updates: { admin_username?: string; admin_password?: string } = {};
-      if (newUsername) updates.admin_username = newUsername;
-      if (newPassword) updates.admin_password = newPassword;
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", adminId);
-
-      if (updateError) throw updateError;
+      // The password check and the write both happen server-side now. This
+      // used to fetch admin_password into the browser to compare it, which put
+      // the credential on the page for anyone with the console open.
+      await adminApi('settings', 'PUT', {
+        currentPassword,
+        newUsername: newUsername || undefined,
+        newPassword: newPassword || undefined,
+      });
 
       // Session username is managed server-side; no client update needed
 
@@ -1389,15 +1255,10 @@ export default function AdminDashboardPage() {
   async function toggleFeaturedCafe(cafeId: string, currentStatus: boolean, cafeName: string) {
     try {
       const newStatus = !currentStatus;
-      const { error } = await supabase
-        .from("cafes")
-        .update({
-          is_featured: newStatus,
-          featured_at: newStatus ? new Date().toISOString() : null
-        })
-        .eq("id", cafeId);
-
-      if (error) throw error;
+      await updateCafeViaApi(cafeId, {
+        is_featured: newStatus,
+        featured_at: newStatus ? new Date().toISOString() : null,
+      });
 
       setCafes(prev => prev.map(c =>
         c.id === cafeId ? { ...c, is_featured: newStatus } as CafeRow : c
@@ -1649,8 +1510,25 @@ export default function AdminDashboardPage() {
   }
 
   /**
-   * Café edits go through the API rather than straight to Supabase: the direct
-   * call is blocked on the cafés' ISP, which is where an admin usually is.
+   * Every admin write goes through /api/admin/*: the direct Supabase call is
+   * blocked on the cafés' ISP, which is where an admin usually is, and the
+   * routes are where the fields being written can actually be checked.
+   */
+  async function adminApi(path: string, method: 'POST' | 'PUT' | 'DELETE', body: unknown) {
+    const res = await fetch(`/api/admin/${path}`, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  /**
+   * Café edits go through the API rather than straight to Supabase.
    */
   async function updateCafeViaApi(cafeId: string, updates: Record<string, unknown>) {
     const res = await fetch('/api/admin/cafes', {
@@ -1832,8 +1710,7 @@ export default function AdminDashboardPage() {
         player_count: membershipForm.player_count,
         is_active: true,
       };
-      const { error } = await supabase.from('membership_plans').insert([payload]);
-      if (error) throw error;
+      await adminApi('membership-plans', 'POST', { cafeId, plan: payload });
       setMembershipMsg({ type: 'success', text: 'Plan added' });
       setMembershipForm({ name: '', price: '', hours: '', validity_days: '30', plan_type: 'hourly_package', console_type: 'ps5', player_count: 'single' });
       await loadCafeMemberships(cafeId);
@@ -1847,8 +1724,7 @@ export default function AdminDashboardPage() {
   async function deleteMembershipPlan(id: string, cafeId: string) {
     if (!confirm('Delete this membership plan?')) return;
     try {
-      const { error } = await supabase.from('membership_plans').delete().eq('id', id);
-      if (error) throw error;
+      await adminApi('membership-plans', 'DELETE', { id });
       await loadCafeMemberships(cafeId);
     } catch (err: any) {
       alert(err.message || 'Failed to delete plan');
@@ -1888,8 +1764,7 @@ export default function AdminDashboardPage() {
         is_active: true,
         uses_count: 0,
       };
-      const { error } = await supabase.from('coupons').insert([payload]);
-      if (error) throw error;
+      await adminApi('coupons', 'POST', { cafeId, coupon: payload });
       setCouponMsg({ type: 'success', text: 'Coupon created' });
       setCouponForm({ code: '', discount_type: 'percentage', discount_value: '', bonus_minutes: '0', max_uses: '', valid_until: '' });
       await loadCafeCoupons(cafeId);
@@ -1903,8 +1778,7 @@ export default function AdminDashboardPage() {
   async function deleteCoupon(id: string, cafeId: string) {
     if (!confirm('Delete this coupon?')) return;
     try {
-      const { error } = await supabase.from('coupons').delete().eq('id', id);
-      if (error) throw error;
+      await adminApi('coupons', 'DELETE', { id });
       await loadCafeCoupons(cafeId);
     } catch (err: any) {
       alert(err.message || 'Failed to delete coupon');
@@ -1913,8 +1787,7 @@ export default function AdminDashboardPage() {
 
   async function toggleCouponActiveInManage(id: string, currentStatus: boolean, cafeId: string) {
     try {
-      const { error } = await supabase.from('coupons').update({ is_active: !currentStatus }).eq('id', id);
-      if (error) throw error;
+      await adminApi('coupons', 'PUT', { id, updates: { is_active: !currentStatus } });
       setCafeCoupons(prev => prev.map(c => c.id === id ? { ...c, is_active: !currentStatus } : c));
     } catch (err: any) {
       alert(err.message || 'Failed to update coupon');
@@ -1939,8 +1812,7 @@ export default function AdminDashboardPage() {
         max_uses: editCouponForm.max_uses ? Number(editCouponForm.max_uses) : null,
         valid_until: editCouponForm.valid_until || null,
       };
-      const { error } = await supabase.from('coupons').update(updates).eq('id', editCouponId);
-      if (error) throw error;
+      await adminApi('coupons', 'PUT', { id: editCouponId, updates });
       setCafeCoupons(prev => prev.map(c => c.id === editCouponId ? { ...c, ...updates } : c));
       setEditCouponId(null);
     } catch (err: any) {
@@ -1952,8 +1824,7 @@ export default function AdminDashboardPage() {
 
   async function toggleMembershipActive(id: string, currentStatus: boolean, cafeId: string) {
     try {
-      const { error } = await supabase.from('membership_plans').update({ is_active: !currentStatus }).eq('id', id);
-      if (error) throw error;
+      await adminApi('membership-plans', 'PUT', { id, updates: { is_active: !currentStatus } });
       setCafeMembershipPlans(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));
     } catch (err: any) {
       alert(err.message || 'Failed to update plan');
@@ -2060,8 +1931,7 @@ export default function AdminDashboardPage() {
   // Global coupons tab handlers
   async function toggleCouponActive(id: string, currentStatus: boolean) {
     try {
-      const { error } = await supabase.from('coupons').update({ is_active: !currentStatus }).eq('id', id);
-      if (error) throw error;
+      await adminApi('coupons', 'PUT', { id, updates: { is_active: !currentStatus } });
       setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_active: !currentStatus } : c));
     } catch (err: any) {
       alert(err.message || 'Failed to update coupon');
@@ -2071,8 +1941,7 @@ export default function AdminDashboardPage() {
   async function deleteGlobalCoupon(id: string, code: string) {
     if (!confirm(`Delete coupon "${code}"?`)) return;
     try {
-      const { error } = await supabase.from('coupons').delete().eq('id', id);
-      if (error) throw error;
+      await adminApi('coupons', 'DELETE', { id });
       setCoupons(prev => prev.filter(c => c.id !== id));
     } catch (err: any) {
       alert(err.message || 'Failed to delete coupon');
@@ -2096,8 +1965,7 @@ export default function AdminDashboardPage() {
         is_active: true,
         uses_count: 0,
       };
-      const { error } = await supabase.from('coupons').insert([payload]);
-      if (error) throw error;
+      await adminApi('coupons', 'POST', { cafeId: globalCouponCafeId, coupon: payload });
       setGlobalCouponMsg({ type: 'success', text: 'Coupon created' });
       setGlobalCouponForm({ code: '', discount_type: 'percentage', discount_value: '', bonus_minutes: '0', max_uses: '', valid_until: '' });
       setGlobalCouponCafeId('');
@@ -2119,8 +1987,7 @@ export default function AdminDashboardPage() {
   // Booking status change + delete (admin)
   async function updateBookingStatus(bookingId: string, newStatus: string) {
     try {
-      const { error } = await supabase.from('bookings').update({ status: newStatus }).eq('id', bookingId);
-      if (error) throw error;
+      await adminApi('bookings', 'PUT', { bookingId, status: newStatus });
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
     } catch (err: any) {
       alert(err.message || 'Failed to update status');
@@ -2130,9 +1997,7 @@ export default function AdminDashboardPage() {
   async function deleteBookingAdmin(bookingId: string, cafeName: string) {
     if (!confirm(`Delete booking from "${cafeName}"? This cannot be undone.`)) return;
     try {
-      await supabase.from('booking_items').delete().eq('booking_id', bookingId);
-      const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
-      if (error) throw error;
+      await adminApi('bookings', 'DELETE', { bookingId });
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       await logAdminAction({ action: 'delete', entityType: 'booking', entityId: bookingId, details: { cafeName }, adminId });
     } catch (err: any) {

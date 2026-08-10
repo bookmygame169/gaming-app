@@ -210,6 +210,7 @@ const ALLOWED_CAFE_FIELDS = new Set([
   "cover_url",
   "is_active",
   "is_featured",
+  "featured_at",
   "monitor_details",
   "processor_details",
   "gpu_details",
@@ -273,6 +274,88 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, cafe: data });
   } catch (err) {
     console.error("Update café error:", err);
+    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/admin/cafes — remove a café and everything hanging off it.
+ *
+ * body: { cafeId }
+ *
+ * The panel did this as five separate deletes from the browser. Each could fail
+ * on its own and several did nothing about the rows they missed — subscriptions,
+ * loyalty, reviews and station records were all left pointing at a café that no
+ * longer existed.
+ */
+export async function DELETE(request: NextRequest) {
+  const { context, response } = await requireAdminContext(request);
+  if (response) return response;
+
+  try {
+    const supabase = context.supabase;
+    const { cafeId } = await request.json().catch(() => ({}));
+
+    if (!cafeId) {
+      return NextResponse.json({ error: "cafeId is required" }, { status: 400 });
+    }
+
+    // Children of this café's bookings first, since they are keyed on booking
+    // id rather than café id and would otherwise be unreachable once the
+    // bookings are gone.
+    const { data: bookingRows } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("cafe_id", cafeId);
+
+    const bookingIds = (bookingRows ?? []).map((row) => row.id);
+
+    if (bookingIds.length > 0) {
+      await supabase.from("booking_orders").delete().in("booking_id", bookingIds);
+      await supabase.from("booking_items").delete().in("booking_id", bookingIds);
+    }
+
+    // Everything keyed directly on the café. Tables added after this route was
+    // written will not be here, which is why the café row is deleted last: a
+    // foreign key complaining is better than a silent orphan.
+    for (const table of [
+      "bookings",
+      "console_pricing",
+      "cafe_images",
+      "gallery_images",
+      "station_pricing",
+      "subscriptions",
+      "coupons",
+      "membership_plans",
+      "inventory_items",
+      // Older tables with no cascade on the café key. Harmless to repeat for
+      // any that do cascade; leaving one out orphans its rows.
+      "cafe_consoles",
+      "cash_drawer",
+      "expenses",
+      // Without this the owner keeps a sign-in that resolves to a café which
+      // no longer exists, and the dashboard breaks rather than refusing them.
+      "owner_allowed_emails",
+    ]) {
+      const { error } = await supabase.from(table).delete().eq("cafe_id", cafeId);
+      if (error) {
+        console.error(`Café delete: could not clear ${table}:`, error.message);
+      }
+    }
+
+    const { error } = await supabase.from("cafes").delete().eq("id", cafeId);
+
+    if (error) {
+      console.error("Café delete failed:", error.message);
+      return NextResponse.json(
+        { error: `Could not delete the café: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Delete café error:", err);
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }
