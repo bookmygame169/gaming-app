@@ -61,33 +61,69 @@ export async function POST(request: NextRequest) {
     const ownerEmailLower = owner_email.trim().toLowerCase();
 
     // ── Resolve owner_id ──────────────────────────────────────────────────────
-    // Look up existing profile by email
+    //
+    // This used to look up a profile by email and, failing that, insert a
+    // "placeholder" one. Neither could ever work: profiles has no email column
+    // and no name column, and profiles.id is a foreign key to auth.users, so a
+    // profile cannot exist without a real account behind it. Onboarding any
+    // café through this route failed on that insert before the café was
+    // created, and the owner_allowed_emails row that actually governs owner
+    // login was never written.
+    //
+    // The email lives on the auth user, so that is where it is looked up. The
+    // account is created if it is new — the owner signs in with Google against
+    // the same address later, and Supabase matches them by email.
     let ownerId: string | null = null;
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", ownerEmailLower)
-      .maybeSingle();
 
-    if (existingProfile?.id) {
-      ownerId = existingProfile.id;
+    const { data: existingUsers, error: listErr } = await supabase.auth.admin.listUsers();
+    if (listErr) {
+      console.error("Could not list auth users:", listErr.message);
+      return NextResponse.json({ error: "Could not look up the owner account" }, { status: 500 });
+    }
+
+    const existingUser = existingUsers?.users?.find(
+      (user) => user.email?.toLowerCase() === ownerEmailLower
+    );
+
+    if (existingUser) {
+      ownerId = existingUser.id;
     } else {
-      // Create a placeholder profile so the auth callback can resolve owner_id
-      const { data: newProfile, error: profileErr } = await supabase
-        .from("profiles")
-        .insert({
-          name: ownerEmailLower.split("@")[0],
-          email: ownerEmailLower,
-          role: "owner",
-        })
-        .select("id")
-        .single();
+      const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+        email: ownerEmailLower,
+        // Confirmed because this address is being vouched for by an admin, and
+        // the owner will arrive through Google sign-in rather than a password.
+        email_confirm: true,
+      });
 
-      if (profileErr || !newProfile) {
-        console.error("Failed to create owner profile:", profileErr);
-        return NextResponse.json({ error: "Failed to create owner profile: " + profileErr?.message }, { status: 500 });
+      if (createErr || !created?.user) {
+        console.error("Failed to create owner account:", createErr);
+        return NextResponse.json(
+          { error: "Failed to create the owner account: " + (createErr?.message ?? "unknown error") },
+          { status: 500 }
+        );
       }
-      ownerId = newProfile.id;
+
+      ownerId = created.user.id;
+    }
+
+    // requireOwnerContext reads the role off this row, so the café is not
+    // manageable until it exists. Upserted because a trigger may have created
+    // it already when the auth user appeared.
+    const { error: profileErr } = await supabase.from("profiles").upsert(
+      {
+        id: ownerId,
+        first_name: ownerEmailLower.split("@")[0],
+        role: "owner",
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileErr) {
+      console.error("Failed to save owner profile:", profileErr);
+      return NextResponse.json(
+        { error: "Failed to set up the owner profile: " + profileErr.message },
+        { status: 500 }
+      );
     }
 
     // ── Generate unique slug ──────────────────────────────────────────────────
