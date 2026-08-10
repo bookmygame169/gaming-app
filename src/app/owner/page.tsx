@@ -52,6 +52,7 @@ const StationLiveStatus = dynamic(() => import('./components/StationLiveStatus')
 const AddStationPc = dynamic(() => import('./components/AddStationPc').then((mod) => mod.AddStationPc), { ssr: false });
 const OwnerTournaments = dynamic(() => import('./components/OwnerTournaments').then((mod) => mod.OwnerTournaments), { ssr: false });
 const OwnerLoyalty = dynamic(() => import('./components/OwnerLoyalty').then((mod) => mod.OwnerLoyalty), { ssr: false });
+const OwnerReviews = dynamic(() => import('./components/OwnerReviews').then((mod) => mod.OwnerReviews), { ssr: false });
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
 const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
@@ -2981,6 +2982,13 @@ export default function OwnerDashboardPage() {
           {activeTab === 'loyalty' && (
             <ErrorBoundary>
               <OwnerLoyalty cafeId={selectedCafeId || undefined} />
+            </ErrorBoundary>
+          )}
+
+          {/* Reviews Tab */}
+          {activeTab === 'reviews' && (
+            <ErrorBoundary>
+              <OwnerReviews cafeId={selectedCafeId || undefined} />
             </ErrorBoundary>
           )}
 

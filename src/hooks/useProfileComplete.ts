@@ -18,12 +18,17 @@ type ProfileStatus = {
 };
 
 /**
- * Hook to check if user's profile is complete (onboarding done)
- * 
- * @param redirectToOnboarding - If true, automatically redirects incomplete profiles to /onboarding
- * @returns ProfileStatus object with isComplete, isLoading, and profile data
+ * Whether the signed-in customer has filled in their details.
+ *
+ * The redirect used to point at /onboarding, which was a copy of the dashboard
+ * with no form on it — so someone sent there was never actually asked for
+ * anything. It now goes to the profile page, which already has a "phone
+ * required" mode and returns the customer to where they were.
+ *
+ * @param redirectToProfile - send incomplete profiles to /profile to finish
+ * @returns isComplete, isLoading, and the profile data
  */
-export default function useProfileComplete(redirectToOnboarding: boolean = false): ProfileStatus {
+export default function useProfileComplete(redirectToProfile: boolean = false): ProfileStatus {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   
@@ -68,13 +73,15 @@ export default function useProfileComplete(redirectToOnboarding: boolean = false
         
         setIsComplete(complete);
 
-        // Redirect to onboarding if not complete and redirect is enabled
-        if (!complete && redirectToOnboarding) {
-          // Save current path to redirect back after onboarding
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem("redirectAfterOnboarding", window.location.pathname);
-          }
-          router.push("/onboarding");
+        if (!complete && redirectToProfile) {
+          // The path travels in the query string rather than sessionStorage so
+          // the profile page can send them back without a second source of
+          // truth. It only ever accepts a same-site path.
+          const returnTo =
+            typeof window !== "undefined" ? window.location.pathname : "/";
+          router.push(
+            `/profile?required=phone&returnUrl=${encodeURIComponent(returnTo)}`
+          );
         }
 
       } catch (err) {
@@ -86,7 +93,7 @@ export default function useProfileComplete(redirectToOnboarding: boolean = false
     }
 
     checkProfile();
-  }, [user, userLoading, redirectToOnboarding, router]);
+  }, [user, userLoading, redirectToProfile, router]);
 
   return { isComplete, isLoading, profile };
 }

@@ -30,6 +30,7 @@ import {
   Crown
 } from "lucide-react";
 import ActiveSessionTimer from "@/components/ActiveSessionTimer";
+import LeaveReviewPrompt from "@/components/LeaveReviewPrompt";
 
 type BookingRow = {
   id: string;
@@ -581,6 +582,10 @@ export default function DashboardPage() {
 
             {/* Active Session Timer - Shows when user has an active session */}
             <ActiveSessionTimer />
+
+            {/* Asks about a visit that has already happened. Shows nothing when
+                there is nothing left to rate. */}
+            <LeaveReviewPrompt />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

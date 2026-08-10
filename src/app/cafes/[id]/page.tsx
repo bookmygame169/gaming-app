@@ -15,6 +15,10 @@ const CafeDetailsAccordion = dynamicImport(() => import("@/components/CafeDetail
   loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading details...</div>,
 });
 
+const CafeReviews = dynamicImport(() => import("@/components/CafeReviews"), {
+  loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading reviews...</div>,
+});
+
 type CafePageProps = {
   params: Promise<{ id: string }>;
 };
@@ -790,6 +794,12 @@ export default async function CafePage({ params }: CafePageProps) {
           accessories_details={cafe.accessories_details}
           show_tech_specs={cafe.show_tech_specs ?? true}
         />
+
+        {/* What other people thought. Sits above the gallery because a
+            stranger trusts other customers more than the owner's photos. */}
+        <section style={sectionCardStyle}>
+          <CafeReviews cafeId={cafe.id} />
+        </section>
 
         {/* Gallery Section */}
         <section style={sectionCardStyle}>
