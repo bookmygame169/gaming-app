@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/userAuth";
-import { phoneKey, pointsToRupees, DEFAULT_LOYALTY_SETTINGS, type LoyaltySettings } from "@/lib/loyalty";
+import {
+  phoneKey,
+  pointsToRupees,
+  describeReward,
+  getRewards,
+  DEFAULT_LOYALTY_SETTINGS,
+  type LoyaltySettings,
+} from "@/lib/loyalty";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +111,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // The menu for each café the customer has points at. Fetched together so
+    // one slow café does not hold up the rest of the page.
+    const rewardsByCafe = new Map(
+      await Promise.all(
+        cafeIds.map(
+          async (id) => [id, await getRewards(supabase, id)] as const
+        )
+      )
+    );
+
     const byCafe = new Map<
       string,
       { cafeId: string; cafeName: string; balance: number; history: LedgerRow[] }
@@ -139,6 +156,24 @@ export async function GET(request: NextRequest) {
             // Shown so a customer whose café has switched the scheme off is not
             // left wondering why a balance cannot be spent.
             programEnabled: settings.enabled,
+            // What the points are actually for. Sorted by what they can claim
+            // right now, so the top of the list is a reason to come in today
+            // rather than something to save towards.
+            rewards: (rewardsByCafe.get(entry.cafeId) ?? [])
+              .map((reward) => ({
+                id: reward.id,
+                name: reward.name,
+                description: reward.description,
+                pointsCost: reward.pointsCost,
+                detail: describeReward(reward),
+                affordable: entry.balance >= reward.pointsCost,
+                pointsToGo: Math.max(0, reward.pointsCost - entry.balance),
+              }))
+              .sort((a, b) =>
+                a.affordable === b.affordable
+                  ? a.pointsCost - b.pointsCost
+                  : Number(b.affordable) - Number(a.affordable)
+              ),
             history: entry.history.slice(0, 20).map((row) => ({
               id: row.id,
               points: row.points,

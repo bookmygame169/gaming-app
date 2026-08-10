@@ -16,6 +16,16 @@ type HistoryEntry = {
   createdAt: string;
 };
 
+type RewardOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  pointsCost: number;
+  detail: string;
+  affordable: boolean;
+  pointsToGo: number;
+};
+
 type CafePoints = {
   cafeId: string;
   cafeName: string;
@@ -24,6 +34,7 @@ type CafePoints = {
   minRedeemPoints: number;
   canRedeem: boolean;
   programEnabled: boolean;
+  rewards: RewardOption[];
   history: HistoryEntry[];
 };
 
@@ -203,9 +214,11 @@ export default function RewardsPage() {
                           points
                         </span>
                       </div>
-                      <p className="mt-1 text-sm" style={{ color: colors.textSecondary }}>
-                        Worth ₹{cafe.worthRupees.toLocaleString("en-IN")} off
-                      </p>
+                      {cafe.rewards.length === 0 && cafe.worthRupees > 0 && (
+                        <p className="mt-1 text-sm" style={{ color: colors.textSecondary }}>
+                          Worth ₹{cafe.worthRupees.toLocaleString("en-IN")} off
+                        </p>
+                      )}
                     </div>
 
                     <span
@@ -256,6 +269,64 @@ export default function RewardsPage() {
                         them
                       </p>
                     </>
+                  )}
+
+                  {/* The menu. This is what a balance is for — a number on its
+                      own gives nobody a reason to come back. */}
+                  {cafe.rewards.length > 0 && (
+                    <div className="mt-4">
+                      <p
+                        className="mb-2 text-[11px] font-semibold uppercase tracking-wide"
+                        style={{ color: colors.textMuted }}
+                      >
+                        What you can get
+                      </p>
+
+                      <div className="grid gap-2">
+                        {cafe.rewards.map((reward) => (
+                          <div
+                            key={reward.id}
+                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5"
+                            style={{
+                              background: reward.affordable
+                                ? "rgba(34,197,94,0.07)"
+                                : "rgba(255,255,255,0.03)",
+                              border: `1px solid ${
+                                reward.affordable ? "rgba(34,197,94,0.25)" : "transparent"
+                              }`,
+                            }}
+                          >
+                            <div className="min-w-0">
+                              <p
+                                className="truncate text-sm font-semibold"
+                                style={{ color: colors.textPrimary }}
+                              >
+                                {reward.name}
+                              </p>
+                              <p className="text-[11px]" style={{ color: colors.textMuted }}>
+                                {reward.description || reward.detail}
+                              </p>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <p
+                                className="text-sm font-bold"
+                                style={{
+                                  color: reward.affordable ? colors.green : colors.textSecondary,
+                                }}
+                              >
+                                {reward.pointsCost} pts
+                              </p>
+                              <p className="text-[10px]" style={{ color: colors.textMuted }}>
+                                {reward.affordable
+                                  ? "Ask at the counter"
+                                  : `${reward.pointsToGo} more`}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
 
                   {cafe.history.length > 0 && (

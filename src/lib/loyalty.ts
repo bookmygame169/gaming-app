@@ -7,6 +7,38 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * completion hook cannot drift apart on what a point is worth.
  */
 
+export type RewardKind = "free_minutes" | "free_item" | "discount";
+
+export type LoyaltyReward = {
+  id: string;
+  name: string;
+  description: string | null;
+  pointsCost: number;
+  kind: RewardKind;
+  value: number;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+/**
+ * How a reward reads to a customer.
+ *
+ * "50 points" means nothing on its own. What brings someone back is knowing
+ * that 50 points is a cold drink.
+ */
+export function describeReward(reward: Pick<LoyaltyReward, "kind" | "value">): string {
+  switch (reward.kind) {
+    case "free_minutes":
+      return reward.value >= 60 && reward.value % 60 === 0
+        ? `${reward.value / 60} hour${reward.value > 60 ? "s" : ""} of free play`
+        : `${reward.value} minutes of free play`;
+    case "discount":
+      return `₹${reward.value} off your bill`;
+    default:
+      return reward.value > 0 ? `Worth about ₹${reward.value}` : "On the house";
+  }
+}
+
 export type LoyaltySettings = {
   enabled: boolean;
   pointsPerHundred: number;
@@ -127,6 +159,43 @@ export async function awardPointsForBooking(
     }
   } catch (err) {
     console.error("Loyalty award failed:", err);
+  }
+}
+
+/** The café's reward menu, cheapest first within the owner's own ordering. */
+export async function getRewards(
+  supabase: SupabaseClient,
+  cafeId: string,
+  includeInactive = false
+): Promise<LoyaltyReward[]> {
+  try {
+    let query = supabase
+      .from("loyalty_rewards")
+      .select("id, name, description, points_cost, kind, value, is_active, sort_order")
+      .eq("cafe_id", cafeId);
+
+    if (!includeInactive) query = query.eq("is_active", true);
+
+    const { data, error } = await query
+      .order("sort_order", { ascending: true })
+      .order("points_cost", { ascending: true });
+
+    // An empty menu is the correct answer before the migration runs: the rest
+    // of loyalty still works, there is just nothing to spend on yet.
+    if (error || !data) return [];
+
+    return data.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      pointsCost: Number(row.points_cost) || 0,
+      kind: (row.kind as RewardKind) ?? "free_item",
+      value: Number(row.value) || 0,
+      isActive: Boolean(row.is_active),
+      sortOrder: Number(row.sort_order) || 0,
+    }));
+  } catch {
+    return [];
   }
 }
 

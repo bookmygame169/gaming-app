@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Sparkles, Loader2, AlertCircle, Gift, Save, Search, TrendingUp } from 'lucide-react';
+import { LoyaltyRewardsMenu, type Reward } from './LoyaltyRewardsMenu';
 
 type Settings = {
     enabled: boolean;
@@ -71,6 +72,8 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
 
     const [search, setSearch] = useState('');
 
+    const [rewards, setRewards] = useState<Reward[]>([]);
+    const [chosenRewardId, setChosenRewardId] = useState('');
     const [redeemPhone, setRedeemPhone] = useState('');
     const [redeemPoints, setRedeemPoints] = useState('');
     const [redeemMode, setRedeemMode] = useState<'redeemed' | 'bonus'>('redeemed');
@@ -94,6 +97,21 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
             setOutstandingRupees(Number(data.outstandingRupees) || 0);
             setMemberCount(Number(data.memberCount) || 0);
             setError(null);
+
+            // The counter needs the menu to hand anything over, so it is loaded
+            // with the rest rather than only when the menu section is opened.
+            const rewardsRes = await fetch(
+                `/api/owner/loyalty/rewards?cafeId=${encodeURIComponent(cafeId)}`,
+                { credentials: 'include' }
+            );
+            if (rewardsRes.ok) {
+                const rewardsData = await rewardsRes.json();
+                setRewards(
+                    (Array.isArray(rewardsData.rewards) ? rewardsData.rewards : []).filter(
+                        (reward: Reward) => reward.isActive
+                    )
+                );
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Could not load points');
         } finally {
@@ -143,20 +161,26 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                 body: JSON.stringify({
                     cafeId,
                     phone: redeemPhone,
-                    points: Number(redeemPoints),
-                    reason: redeemMode,
+                    // A reward carries its own price; only the free-form modes
+                    // send a number.
+                    ...(chosenRewardId
+                        ? { rewardId: chosenRewardId }
+                        : { points: Number(redeemPoints), reason: redeemMode }),
                 }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Could not apply points');
 
             setNotice(
-                redeemMode === 'redeemed'
-                    ? `Done — give ₹${data.rupeesOff} off this session.`
-                    : `Added ${redeemPoints} points.`
+                data.reward
+                    ? `Done — give them: ${data.reward}.`
+                    : redeemMode === 'redeemed'
+                      ? `Done — give ₹${data.rupeesOff} off this session.`
+                      : `Added ${redeemPoints} points.`
             );
             setRedeemPhone('');
             setRedeemPoints('');
+            setChosenRewardId('');
             setError(null);
             load();
         } catch (err) {
@@ -292,6 +316,8 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                 </button>
             </section>
 
+            <LoyaltyRewardsMenu cafeId={cafeId} onChanged={load} />
+
             {/* Outstanding points are money the café owes in free play, so they
                 sit at the top rather than being buried in the member list. */}
             <section className="grid gap-3 sm:grid-cols-3">
@@ -328,44 +354,75 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                     <input
                         value={redeemPhone}
                         onChange={(e) => setRedeemPhone(e.target.value)}
                         placeholder="Phone number"
                         className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
                     />
-                    <input
-                        type="number"
-                        min={1}
-                        value={redeemPoints}
-                        onChange={(e) => setRedeemPoints(e.target.value)}
-                        placeholder="How many points"
-                        className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                    />
+
+                    {/* Picking a reward is the normal path; the free-form boxes
+                        below are the exception, not the default. */}
                     <select
-                        value={redeemMode}
-                        onChange={(e) => setRedeemMode(e.target.value as 'redeemed' | 'bonus')}
+                        value={chosenRewardId}
+                        onChange={(e) => setChosenRewardId(e.target.value)}
                         className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
                     >
-                        <option value="redeemed">Take points off</option>
-                        <option value="bonus">Give bonus points</option>
+                        <option value="">Choose a reward…</option>
+                        {rewards.map((reward) => (
+                            <option key={reward.id} value={reward.id}>
+                                {reward.name} — {reward.pointsCost} pts
+                            </option>
+                        ))}
+                        {rewards.length === 0 && <option disabled>No rewards on the menu yet</option>}
                     </select>
+
                     <button
                         type="button"
                         onClick={submitPoints}
-                        disabled={!cafeId || redeeming || !redeemPhone || !redeemPoints}
+                        disabled={
+                            !cafeId ||
+                            redeeming ||
+                            !redeemPhone ||
+                            (!chosenRewardId && !redeemPoints)
+                        }
                         className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-[12px] font-bold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
                     >
                         {redeeming ? <Loader2 size={13} className="animate-spin" /> : <Gift size={13} />}
-                        Apply
+                        Give reward
                     </button>
                 </div>
 
-                {redeemMode === 'redeemed' && Number(redeemPoints) > 0 && (
-                    <p className="mt-2 text-[11px] text-slate-500">
-                        That is ₹{Math.floor(Number(redeemPoints) * settings.rupeesPerPoint)} off their bill.
-                    </p>
+                {!chosenRewardId && (
+                    <div className="mt-3 border-t border-white/[0.06] pt-3">
+                        <p className="mb-2 text-[11px] text-slate-500">
+                            Or move points by hand, without a reward:
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <input
+                                type="number"
+                                min={1}
+                                value={redeemPoints}
+                                onChange={(e) => setRedeemPoints(e.target.value)}
+                                placeholder="How many points"
+                                className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
+                            />
+                            <select
+                                value={redeemMode}
+                                onChange={(e) => setRedeemMode(e.target.value as 'redeemed' | 'bonus')}
+                                className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
+                            >
+                                <option value="redeemed">Take points off</option>
+                                <option value="bonus">Give bonus points</option>
+                            </select>
+                            {redeemMode === 'redeemed' && Number(redeemPoints) > 0 && (
+                                <p className="self-center text-[11px] text-slate-500">
+                                    ₹{Math.floor(Number(redeemPoints) * settings.rupeesPerPoint)} off their bill
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 )}
             </section>
 

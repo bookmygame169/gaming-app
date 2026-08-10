@@ -196,13 +196,16 @@ export async function PUT(request: NextRequest) {
 }
 
 /**
- * POST /api/owner/loyalty — redeem points, or adjust a balance by hand.
+ * POST /api/owner/loyalty — give a reward, redeem points, or adjust by hand.
  *
- * body: { cafeId, phone, points, reason: 'redeemed' | 'manual' | 'bonus', note? }
+ * body: { cafeId, phone, rewardId?, points?, reason?, note? }
  *
- * `points` is always given as a positive number; a redemption is stored
- * negative. Asking an owner to type a minus sign at the counter is how balances
- * get moved the wrong way.
+ * With a rewardId the cost comes from the reward, not the request: an owner
+ * tapping "Free Coke" should not also have to remember it is 50 points, and a
+ * price typed by hand is a price that drifts from the menu.
+ *
+ * `points` is always positive; a redemption is stored negative. Asking an owner
+ * to type a minus sign at the counter is how balances get moved the wrong way.
  */
 export async function POST(request: NextRequest) {
   const auth = await requireOwnerContext(request);
@@ -224,14 +227,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Enter a valid 10-digit phone number" }, { status: 400 });
   }
 
-  const reason = ["redeemed", "manual", "bonus"].includes(body.reason) ? body.reason : "manual";
-  const amount = Math.round(Number(body.points) || 0);
+  const settings = await getLoyaltySettings(supabase, cafeId);
+
+  let reason = ["redeemed", "manual", "bonus"].includes(body.reason) ? body.reason : "manual";
+  let amount = Math.round(Number(body.points) || 0);
+  let rewardId: string | null = null;
+  let rewardNote: string | null = null;
+
+  // A reward decides its own price and always spends points.
+  if (typeof body.rewardId === "string" && body.rewardId) {
+    const { data: reward, error: rewardError } = await supabase
+      .from("loyalty_rewards")
+      .select("id, cafe_id, name, points_cost, is_active")
+      .eq("id", body.rewardId)
+      .maybeSingle();
+
+    if (rewardError) {
+      return missingTableResponse(rewardError.message);
+    }
+
+    // Checked against the café the owner was authorised for, so a reward from
+    // another café cannot be given away here.
+    if (!reward || reward.cafe_id !== cafeId) {
+      return NextResponse.json({ error: "That reward was not found." }, { status: 404 });
+    }
+
+    if (!reward.is_active) {
+      return NextResponse.json({ error: `${reward.name} is no longer on the menu.` }, { status: 400 });
+    }
+
+    reason = "redeemed";
+    amount = Math.round(Number(reward.points_cost) || 0);
+    rewardId = reward.id;
+    rewardNote = reward.name;
+  }
 
   if (amount <= 0) {
     return NextResponse.json({ error: "Enter how many points" }, { status: 400 });
   }
-
-  const settings = await getLoyaltySettings(supabase, cafeId);
 
   // Read the balance before spending it. Without this an owner could hand out
   // free play against points the customer does not have.
@@ -255,12 +288,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const minRedeem = settings.minRedeemPoints || DEFAULT_LOYALTY_SETTINGS.minRedeemPoints;
-    if (amount < minRedeem) {
-      return NextResponse.json(
-        { error: `Points can only be used ${minRedeem} at a time or more.` },
-        { status: 400 }
-      );
+    // The minimum only governs free-form "take N points off". A reward has
+    // already had its price set by the owner, and refusing to hand over a
+    // 20-point drink because the minimum is 50 would be nonsense.
+    if (!rewardId) {
+      const minRedeem = settings.minRedeemPoints || DEFAULT_LOYALTY_SETTINGS.minRedeemPoints;
+      if (amount < minRedeem) {
+        return NextResponse.json(
+          { error: `Points can only be used ${minRedeem} at a time or more.` },
+          { status: 400 }
+        );
+      }
     }
   }
 
@@ -271,7 +309,10 @@ export async function POST(request: NextRequest) {
     customer_phone: key,
     points: signedPoints,
     reason,
-    note: typeof note === "string" && note.trim() ? note.trim().slice(0, 200) : null,
+    reward_id: rewardId,
+    note:
+      rewardNote ??
+      (typeof note === "string" && note.trim() ? note.trim().slice(0, 200) : null),
   });
 
   if (error) {
@@ -281,6 +322,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     success: true,
     points: signedPoints,
-    rupeesOff: reason === "redeemed" ? pointsToRupees(amount, settings) : 0,
+    reward: rewardNote,
+    rupeesOff: reason === "redeemed" && !rewardId ? pointsToRupees(amount, settings) : 0,
   });
 }

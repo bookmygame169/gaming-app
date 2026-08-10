@@ -82,30 +82,14 @@ COMMENT ON TABLE public.loyalty_ledger IS
   'Append-only points history. Balance is SUM(points) per cafe_id + customer_phone. Never edit a row; add an offsetting one.';
 
 -- ---------------------------------------------------------------------------
--- Backfill from bookings that already happened.
+-- No backfill.
 --
--- A loyalty scheme where every regular starts at zero gives nobody a reason to
--- care. Awarding history means someone who has spent months at the cafe opens
--- the app to a balance that reflects it.
+-- This migration originally awarded points for every past completed booking,
+-- so that regulars would open the app to a balance rather than a zero. In
+-- practice that wrote 11,522 points across 282 customers for sessions already
+-- paid for and already enjoyed — the cafe took on the liability and got nothing
+-- back for it, because the visits had already happened.
 --
--- Only completed, non-deleted bookings with a phone and an amount. The unique
--- index above makes re-running this harmless.
+-- Points start from the day the scheme is switched on. The rows that migration
+-- created are removed by 20260810000003_loyalty_rewards_and_reset.sql.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.loyalty_ledger (cafe_id, customer_phone, user_id, points, reason, booking_id, note, created_at)
-SELECT
-  b.cafe_id,
-  RIGHT(REGEXP_REPLACE(b.customer_phone, '\D', '', 'g'), 10),
-  b.user_id,
-  -- Uses the default rate: settings may not exist yet, and this runs once.
-  GREATEST(1, FLOOR(b.total_amount / 100.0 * 5)::INTEGER),
-  'booking',
-  b.id,
-  'Awarded for past visits when loyalty was switched on',
-  b.created_at
-FROM public.bookings b
-WHERE b.deleted_at IS NULL
-  AND LOWER(COALESCE(b.status, '')) = 'completed'
-  AND b.customer_phone IS NOT NULL
-  AND LENGTH(REGEXP_REPLACE(b.customer_phone, '\D', '', 'g')) >= 10
-  AND COALESCE(b.total_amount, 0) > 0
-ON CONFLICT DO NOTHING;
