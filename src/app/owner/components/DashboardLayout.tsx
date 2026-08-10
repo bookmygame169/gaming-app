@@ -2,7 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { RefreshCw, Bell, LayoutDashboard, CreditCard, CalendarCheck, Users, Package, Settings, Gamepad2, Trophy, ChevronDown, Crown, TicketPercent, LineChart, Sparkles, Star, IndianRupee, Menu as MenuIcon } from 'lucide-react';
+import { RefreshCw, Bell, LayoutDashboard, CreditCard, CalendarCheck, Users, Package, Settings, Gamepad2, Trophy, ChevronDown, Crown, TicketPercent, LineChart, Sparkles, Star, IndianRupee, Wallet, Menu as MenuIcon } from 'lucide-react';
 import { MobileMenuButton, Sidebar } from './Sidebar';
 
 interface DashboardLayoutProps {
@@ -39,6 +39,7 @@ const DESKTOP_MORE_TABS = [
     { id: 'loyalty',       label: 'Loyalty Points', icon: Sparkles },
     { id: 'reviews',       label: 'Reviews',     icon: Star },
     { id: 'payments',      label: 'Payments',    icon: IndianRupee },
+    { id: 'wallet',        label: 'Wallet',      icon: Wallet },
     { id: 'settings',      label: 'Settings',    icon: Settings },
 ];
 

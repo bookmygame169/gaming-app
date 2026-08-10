@@ -56,6 +56,7 @@ const OwnerTournaments = dynamic(() => import('./components/OwnerTournaments').t
 const OwnerLoyalty = dynamic(() => import('./components/OwnerLoyalty').then((mod) => mod.OwnerLoyalty), { ssr: false });
 const OwnerReviews = dynamic(() => import('./components/OwnerReviews').then((mod) => mod.OwnerReviews), { ssr: false });
 const OwnerPayments = dynamic(() => import('./components/OwnerPayments').then((mod) => mod.OwnerPayments), { ssr: false });
+const OwnerWallet = dynamic(() => import('./components/OwnerWallet').then((mod) => mod.OwnerWallet), { ssr: false });
 
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
@@ -2984,6 +2985,13 @@ export default function OwnerDashboardPage() {
           {activeTab === 'reviews' && (
             <ErrorBoundary>
               <OwnerReviews cafeId={selectedCafeId || undefined} />
+            </ErrorBoundary>
+          )}
+
+          {/* Wallet Tab */}
+          {activeTab === 'wallet' && (
+            <ErrorBoundary>
+              <OwnerWallet cafeId={selectedCafeId || undefined} />
             </ErrorBoundary>
           )}
 

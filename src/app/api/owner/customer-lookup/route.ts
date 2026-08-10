@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerCafeAccess, requireOwnerContext } from "@/lib/ownerAuth";
 import { phoneKey, pointsToRupees, getLoyaltySettings } from "@/lib/loyalty";
 import { getIndiaDateString } from "@/lib/bookingFilters";
+import { getWalletBalance } from "@/lib/wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -40,12 +41,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ found: false });
     }
 
-    const [loyalty, membership] = await Promise.all([
+    const [loyalty, membership, walletBalance] = await Promise.all([
       loadLoyalty(),
       loadMembership(),
+      // Money they have already paid. Staff need this in front of them before
+      // they take payment again for the same session.
+      getWalletBalance(supabase, cafeId, key),
     ]);
 
-    return NextResponse.json({ found: true, phone: key, loyalty, membership });
+    return NextResponse.json({
+      found: true,
+      phone: key,
+      loyalty,
+      membership,
+      wallet: { balance: walletBalance },
+    });
 
     async function loadLoyalty() {
       try {

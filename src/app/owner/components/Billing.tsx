@@ -451,6 +451,7 @@ export function Billing({
     const [customerInsight, setCustomerInsight] = useState<{
         loyalty: { enabled: boolean; balance: number; worthRupees: number; canRedeem: boolean } | null;
         membership: { planName: string; hoursRemaining: number } | null;
+        wallet: { balance: number } | null;
     } | null>(null);
 
     useEffect(() => {
@@ -471,7 +472,11 @@ export function Billing({
                 if (!res.ok) return;
                 const data = await res.json();
                 if (!cancelled && data.found) {
-                    setCustomerInsight({ loyalty: data.loyalty, membership: data.membership });
+                    setCustomerInsight({
+                        loyalty: data.loyalty,
+                        membership: data.membership,
+                        wallet: data.wallet ?? null,
+                    });
                 }
             } catch {
                 // A sale must never be blocked by this.
@@ -749,8 +754,19 @@ export function Billing({
 
                 {/* Points and membership, shown at the moment the bill is being
                     made rather than in a tab nobody opens mid-sale. */}
-                {(customerInsight?.loyalty?.balance || customerInsight?.membership) && (
+                {(customerInsight?.loyalty?.balance ||
+                    customerInsight?.membership ||
+                    customerInsight?.wallet?.balance) && (
                     <div className="flex flex-wrap items-center gap-2">
+                        {/* Wallet first: it is the customer's own money, and
+                            charging them again for a session they have already
+                            paid for is the mistake worth preventing. */}
+                        {customerInsight?.wallet && customerInsight.wallet.balance > 0 && (
+                            <span className="chip border-transparent bg-emerald-500/12 text-emerald-200">
+                                ₹{customerInsight.wallet.balance} in wallet
+                            </span>
+                        )}
+
                         {customerInsight?.membership && (
                             <span className="chip border-transparent bg-violet-500/12 text-violet-200">
                                 {customerInsight.membership.planName} ·{' '}

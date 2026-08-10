@@ -553,6 +553,49 @@ export default function Navbar() {
                           </svg>
                         </button>
 
+                        {/* Money the café is holding for them. Above points
+                            because it is their own money, not a reward. */}
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            router.push("/wallet");
+                          }}
+                          onTouchStart={() => setPressedItem("wallet")}
+                          onTouchEnd={() => setPressedItem(null)}
+                          onTouchCancel={() => setPressedItem(null)}
+                          className={`menu-item flex w-full items-center gap-3 px-3 py-3 rounded-xl ${pressedItem === "wallet" ? "menu-item-pressed" : ""}`}
+                        >
+                          <div className="icon-container flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200">
+                            <svg
+                              className="w-5 h-5 text-[#10b981]"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 000 4h4v-4h-4z"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div
+                              className="menu-text text-sm font-medium text-white transition-colors"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              My Wallet
+                            </div>
+                            <div className="menu-subtext text-xs text-gray-400 transition-colors">
+                              Balance at your cafés
+                            </div>
+                          </div>
+                          <svg className="menu-arrow w-4 h-4 text-gray-500 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+
                         {/* Points are earned at the counter without the
                             customer doing anything, so they need somewhere to
                             find out they have them. */}
