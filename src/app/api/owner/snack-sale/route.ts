@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext, requireOwnerCafeAccess } from "@/lib/ownerAuth";
+import { awardPointsForBooking } from "@/lib/loyalty";
 import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const { data: inventoryRows, error: inventoryError } = await supabase
       .from("inventory_items")
-      .select("id, cafe_id, name, stock_quantity, is_available")
+      .select("id, cafe_id, name, price, stock_quantity, is_available")
       .eq("cafe_id", cafeId)
       .in("id", requestedItemIds);
 
@@ -80,14 +81,30 @@ export async function POST(request: NextRequest) {
     const h12 = indiaHours % 12 || 12;
     const startTime = `${h12}:${indiaMins} ${period}`;
 
+    // Priced from the inventory row, not from the request. The browser's
+    // figure decides revenue reports and now also counts towards the day's
+    // loyalty spend, so it is recalculated here rather than trusted.
+    const pricedOrders = [...requestedQuantities].map(([itemId, quantity]) => {
+      const inventoryItem = inventoryById.get(itemId)!;
+      const unitPrice = Math.max(0, Math.round(Number(inventoryItem.price) || 0));
+
+      return {
+        inventoryItemId: itemId,
+        name: inventoryItem.name as string,
+        quantity,
+        unitPrice,
+        totalPrice: unitPrice * quantity,
+      };
+    });
+
     // Owner use: record items but set total_amount to 0 (excluded from revenue)
     const totalAmount = isOwnerUse
       ? 0
-      : items.reduce((s: number, i: { total_price: number }) => s + i.total_price, 0);
+      : pricedOrders.reduce((sum, order) => sum + order.totalPrice, 0);
 
-    const stockAdjustments = items.map((item: { inventory_item_id: string; quantity: number }) => ({
-      inventoryItemId: item.inventory_item_id,
-      quantity: item.quantity,
+    const stockAdjustments = pricedOrders.map((order) => ({
+      inventoryItemId: order.inventoryItemId,
+      quantity: order.quantity,
     }));
 
     await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
@@ -117,19 +134,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Insert booking_orders
-    const orders = items.map((item: {
-      inventory_item_id: string;
-      name: string;
-      quantity: number;
-      unit_price: number;
-      total_price: number;
-    }) => ({
+    const orders = pricedOrders.map((order) => ({
       booking_id: booking.id,
-      inventory_item_id: item.inventory_item_id,
-      item_name: item.name,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      total_price: item.total_price,
+      inventory_item_id: order.inventoryItemId,
+      item_name: order.name,
+      quantity: order.quantity,
+      unit_price: order.unitPrice,
+      total_price: order.totalPrice,
     }));
 
     const { error: ordersError } = await supabase.from("booking_orders").insert(orders);
@@ -139,6 +150,17 @@ export async function POST(request: NextRequest) {
       console.error("Orders insert error:", ordersError);
       throw new Error(ordersError.message || JSON.stringify(ordersError));
     }
+
+    // A snack sale is a completed booking with a phone on it, so it counts
+    // towards the day's spend like any other. Without this a customer who only
+    // bought drinks never earned, and their spend never reached the threshold.
+    await awardPointsForBooking(supabase, {
+      id: booking.id,
+      cafe_id: cafeId,
+      customer_phone: customerPhone || null,
+      user_id: null,
+      booking_date: bookingDate,
+    });
 
     return NextResponse.json({ success: true, bookingId: booking.id });
   } catch (err: unknown) {

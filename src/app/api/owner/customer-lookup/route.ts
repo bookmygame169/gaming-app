@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerCafeAccess, requireOwnerContext } from "@/lib/ownerAuth";
 import { phoneKey, pointsToRupees, getLoyaltySettings } from "@/lib/loyalty";
+import { getIndiaDateString } from "@/lib/bookingFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,10 @@ export async function GET(request: NextRequest) {
 
         if (error || !data || data.length === 0) return null;
 
-        const today = new Date().toISOString().slice(0, 10);
+        // India local, not UTC. Between midnight and 5:30am IST the UTC date
+        // is still yesterday, which would keep an expired membership looking
+        // valid for exactly the hours a late-night café is busiest.
+        const today = getIndiaDateString();
         const usable = data.find((row) => {
           if (phoneKey(row.customer_phone) !== key) return false;
 

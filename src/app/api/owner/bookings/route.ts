@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
 import { isSessionBooking, normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
 import { getBookingRevenueTotal, getOwnerPaymentBucket, isBillableRevenueBooking } from "@/lib/ownerRevenue";
+import { completeEndedBookings } from "@/lib/autoComplete";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -432,12 +433,12 @@ export async function GET(request: NextRequest) {
     const endedIds = [...new Set([...normalizedPageBookings.endedIds, ...normalizedSummaryBookings.endedIds])];
 
     if (endedIds.length > 0) {
+      // Completing a session also locks its machine and awards the day's
+      // points. Both used to be skipped here, so a session that ended on the
+      // clock left the PC playable and earned nothing.
       void (async () => {
         try {
-          const { error: updateError } = await supabase.from("bookings").update({ status: "completed" }).in("id", endedIds);
-          if (updateError) {
-            console.error("Auto-complete bookings failed:", updateError.message, "ids:", endedIds);
-          }
+          await completeEndedBookings(supabase, endedIds);
         } catch (updateErr: unknown) {
           console.error("Auto-complete bookings unexpected error:", updateErr);
         }

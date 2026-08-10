@@ -147,7 +147,8 @@ export async function awardPointsForBooking(
     cafe_id: string;
     customer_phone: string | null;
     user_id: string | null;
-    total_amount: number | null;
+    // No amount: the day's spend is read from the database, because one
+    // booking's total is not the figure the threshold is measured against.
     booking_date?: string | null;
   }
 ): Promise<void> {

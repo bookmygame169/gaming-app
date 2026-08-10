@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerCafeAccess, requireOwnerContext } from "@/lib/ownerAuth";
+import { awardPointsForBooking } from "@/lib/loyalty";
 import {
   encodeAssignedStationsTitle,
   loadStationReservationState,
@@ -342,6 +343,20 @@ export async function POST(request: NextRequest) {
       if (bookingItemError) {
         throw new Error(bookingItemError.message);
       }
+    }
+
+    // Buying a membership is money spent at the café on that day, so it counts
+    // towards the day's loyalty threshold like any other completed booking.
+    // Awarding is capped at once per day by the ledger's index, so several
+    // plans bought together still earn one day's points.
+    for (const createdBookingId of createdBookingIds) {
+      await awardPointsForBooking(supabase, {
+        id: createdBookingId,
+        cafe_id: cafeId,
+        customer_phone: customerPhone,
+        user_id: null,
+        booking_date: todayStr,
+      });
     }
 
     return NextResponse.json({

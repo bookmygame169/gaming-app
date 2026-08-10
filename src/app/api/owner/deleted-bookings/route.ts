@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
+import { syncStationsForBooking } from "@/lib/stationSync";
 
 export const dynamic = "force-dynamic";
 
@@ -137,6 +138,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: itemsDeleteError.message }, { status: 500 });
     }
 
+    // Lock before the row goes: once it is deleted there is nothing left to
+    // work out which machine it was holding, and a permanently deleted booking
+    // used to leave its PC unlocked with no record of why.
+    await syncStationsForBooking(supabase, bookingId, { forceLock: true });
+
     const { error } = await supabase.from("bookings").delete().eq("id", bookingId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -193,6 +199,10 @@ export async function PATCH(request: NextRequest) {
       .eq("id", bookingId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // A restored booking is live again, so its machine has to come back in
+    // line with it — unlocked if the session is running, locked otherwise.
+    await syncStationsForBooking(supabase, bookingId);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

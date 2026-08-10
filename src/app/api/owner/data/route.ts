@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
+import { completeEndedBookings } from "@/lib/autoComplete";
 import { normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
 import { buildStationPricingMap, dedupeStationPricingRows } from "@/lib/stationNames";
 
@@ -289,8 +290,10 @@ export async function POST(request: NextRequest) {
         void (async () => {
           try {
             if (endedIds.length > 0) {
-              const { error } = await supabase.from("bookings").update({ status: "completed" }).in("id", endedIds);
-              if (error) console.error('Auto-complete bookings failed:', error.message, 'ids:', endedIds);
+              // Locks the machine and awards the day's points too. This route
+              // usually gets there first, so skipping them here meant most
+              // sessions ended with the PC still unlocked and no points given.
+              await completeEndedBookings(supabase, endedIds);
             }
             if (confirmedIds.length > 0) {
               const { error } = await supabase.from("bookings").update({ status: "confirmed" }).in("id", confirmedIds);
