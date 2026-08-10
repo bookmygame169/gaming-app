@@ -57,6 +57,12 @@ interface SidebarProps {
     onLogout: () => void;
     collapsed: boolean;
     onToggleCollapsed: () => void;
+    /**
+     * Counts of work waiting inside a tab, keyed by tab id. Shown as a badge so
+     * a payment to check or a review to answer is visible from wherever the
+     * owner happens to be, instead of only after clicking in.
+     */
+    badges?: Partial<Record<string, number>>;
 }
 
 function NavItem({
@@ -64,12 +70,14 @@ function NavItem({
     isActive,
     collapsed,
     isBilling = false,
+    badge = 0,
     onClick,
 }: {
     item: { id: string; label: string; icon: LucideIcon };
     isActive: boolean;
     collapsed: boolean;
     isBilling?: boolean;
+    badge?: number;
     onClick: () => void;
 }) {
     const Icon = item.icon;
@@ -101,6 +109,24 @@ function NavItem({
             {!collapsed && (
                 <span className="font-medium text-sm truncate">{item.label}</span>
             )}
+
+            {badge > 0 && (
+                // Collapsed shows a dot rather than a number: there is no room
+                // for a count, but "something is waiting" still fits.
+                collapsed ? (
+                    <span
+                        className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
+                        style={{ background: '#fbbf24' }}
+                    />
+                ) : (
+                    <span
+                        className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{ background: 'rgba(245,158,11,0.16)', color: '#fbbf24' }}
+                    >
+                        {badge > 99 ? '99+' : badge}
+                    </span>
+                )
+            )}
         </button>
     );
 }
@@ -115,8 +141,17 @@ export function Sidebar({
     onLogout,
     collapsed,
     onToggleCollapsed,
+    badges = {},
 }: SidebarProps) {
     const isManageActive = MANAGE_NAV.some(item => item.id === activeTab);
+
+    // Reviews and Payments live inside Manage, which is collapsed by default —
+    // so their badges would be hidden exactly when they matter. The group
+    // header carries the total until it is opened.
+    const manageWaiting = MANAGE_NAV.reduce(
+        (sum, item) => sum + (badges[item.id] ?? 0),
+        0
+    );
     // Default collapsed — expands only when a manage tab is active
     const [manageOpen, setManageOpen] = useState<boolean>(isMobile || isManageActive);
 
@@ -185,6 +220,7 @@ export function Sidebar({
                             isActive={activeTab === item.id}
                             collapsed={collapsed && !isMobile}
                             isBilling={item.id === 'billing'}
+                            badge={badges[item.id] ?? 0}
                             onClick={() => handleNav(item.id)}
                         />
                     ))}
@@ -197,7 +233,17 @@ export function Sidebar({
                                 className="w-full flex items-center justify-between px-3 py-1.5 text-slate-600 hover:text-slate-400 transition-colors"
                             >
                                 <span className="text-[9px] font-bold uppercase tracking-widest">Manage</span>
-                                {manageOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                                <span className="flex items-center gap-1.5">
+                                    {!manageOpen && manageWaiting > 0 && (
+                                        <span
+                                            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                                            style={{ background: 'rgba(245,158,11,0.16)', color: '#fbbf24' }}
+                                        >
+                                            {manageWaiting > 99 ? '99+' : manageWaiting}
+                                        </span>
+                                    )}
+                                    {manageOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                                </span>
                             </button>
                         ) : (
                             <div className="flex justify-center py-1">
@@ -213,6 +259,7 @@ export function Sidebar({
                                         item={item}
                                         isActive={activeTab === item.id}
                                         collapsed={collapsed && !isMobile}
+                                        badge={badges[item.id] ?? 0}
                                         onClick={() => handleNav(item.id)}
                                     />
                                 ))}

@@ -29,6 +29,7 @@ import {
   ActiveSessions,
   TabSkeleton,
 } from './components';
+import { NeedsAttention, FeatureStats, useOwnerSummary } from './components/NeedsAttention';
 import OwnerPWAInstaller from './components/OwnerPWAInstaller';
 import { calcBillingPrice } from "./utils/pricing";
 import { useOwnerAuth } from "./hooks/useOwnerAuth";
@@ -54,6 +55,7 @@ const OwnerTournaments = dynamic(() => import('./components/OwnerTournaments').t
 const OwnerLoyalty = dynamic(() => import('./components/OwnerLoyalty').then((mod) => mod.OwnerLoyalty), { ssr: false });
 const OwnerReviews = dynamic(() => import('./components/OwnerReviews').then((mod) => mod.OwnerReviews), { ssr: false });
 const OwnerPayments = dynamic(() => import('./components/OwnerPayments').then((mod) => mod.OwnerPayments), { ssr: false });
+
 const Inventory = dynamic(() => import('./components/Inventory'), { ssr: false });
 const SettingsTab = dynamic(() => import('./components/tabs/SettingsTab'), { ssr: false });
 const CustomersTab = dynamic(() => import('./components/tabs/CustomersTab'), { ssr: false });
@@ -296,6 +298,16 @@ export default function OwnerDashboardPage() {
   const [bookingsMgmtRefreshKey, setBookingsMgmtRefreshKey] = useState(0);
   const currentCafe = cafes.find(c => c.id === selectedCafeId) || cafes[0] || null;
   const currentCafeId = currentCafe?.id || '';
+
+  // Cross-feature counts for the dashboard cards and the sidebar badges.
+  // Refetched whenever the tab changes: the mutations that move these numbers
+  // happen inside the feature tabs, so coming back from one is exactly when the
+  // count is stale.
+  const [summaryTick, setSummaryTick] = useState(0);
+  useEffect(() => {
+    setSummaryTick((tick) => tick + 1);
+  }, [activeTab]);
+  const ownerSummary = useOwnerSummary(currentCafeId || undefined, summaryTick);
 
   const hideDeletedBookingLocally = (bookingId: string) => {
     setBookings((prev) => prev.filter((booking: any) => (
@@ -2497,6 +2509,10 @@ export default function OwnerDashboardPage() {
         setMobileMenuOpen={setMobileMenuOpen}
         title="Dashboard"
         onRefresh={refreshData}
+        navBadges={{
+          payments: ownerSummary?.payments.waiting ?? 0,
+          reviews: ownerSummary?.reviews.needsReply ?? 0,
+        }}
       >
         <div className="px-4 pt-5 pb-28 md:px-8 md:pb-10">
           {error && (
@@ -2570,6 +2586,10 @@ export default function OwnerDashboardPage() {
                 );
               })()}
 
+              {/* Things from the other tabs that need a decision. Renders
+                  nothing when there is nothing waiting. */}
+              <NeedsAttention summary={ownerSummary} onNavigate={handleTabChange} />
+
               {/* KPI Stats */}
               <DashboardStats
                 bookings={bookings}
@@ -2578,6 +2598,10 @@ export default function OwnerDashboardPage() {
                 loadingData={loadingData}
                 isMobile={isMobile}
               />
+
+              {/* Standing numbers from loyalty, reviews and tournaments, each
+                  linking to its own tab. */}
+              <FeatureStats summary={ownerSummary} onNavigate={handleTabChange} />
 
 
               {/* Active Sessions */}

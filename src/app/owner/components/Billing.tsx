@@ -444,6 +444,46 @@ export function Billing({
     // Reset manual amount when items change (recalculate)
     const resetManualAmount = () => setManualAmount(null);
 
+    // What this customer already has with the café — points they could spend,
+    // a membership they have already paid for. Looked up as the number is
+    // typed, because nobody stops mid-sale to open another tab, and a balance
+    // nobody sees is a balance nobody offers.
+    const [customerInsight, setCustomerInsight] = useState<{
+        loyalty: { enabled: boolean; balance: number; worthRupees: number; canRedeem: boolean } | null;
+        membership: { planName: string; hoursRemaining: number } | null;
+    } | null>(null);
+
+    useEffect(() => {
+        const digits = normalizePhone(customerPhone);
+        if (!cafeId || digits.length < 10) {
+            setCustomerInsight(null);
+            return;
+        }
+
+        let cancelled = false;
+        // Debounced: this fires on every keystroke of the last digits.
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `/api/owner/customer-lookup?cafeId=${encodeURIComponent(cafeId)}&phone=${encodeURIComponent(digits)}`,
+                    { credentials: 'include' }
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled && data.found) {
+                    setCustomerInsight({ loyalty: data.loyalty, membership: data.membership });
+                }
+            } catch {
+                // A sale must never be blocked by this.
+            }
+        }, 350);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [customerPhone, cafeId]);
+
     const matchedCustomer = useMemo(() => {
         const phone = normalizePhone(customerPhone);
         if (!phone) return null;
@@ -702,6 +742,34 @@ export function Billing({
                         {matchedCustomer.last_visit && (
                             <span className="chip border-transparent bg-white/[0.06] text-slate-300">
                                 Last {formatLastVisit(matchedCustomer.last_visit)}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {/* Points and membership, shown at the moment the bill is being
+                    made rather than in a tab nobody opens mid-sale. */}
+                {(customerInsight?.loyalty?.balance || customerInsight?.membership) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        {customerInsight?.membership && (
+                            <span className="chip border-transparent bg-violet-500/12 text-violet-200">
+                                {customerInsight.membership.planName} ·{' '}
+                                {customerInsight.membership.hoursRemaining}h left
+                            </span>
+                        )}
+
+                        {customerInsight?.loyalty && customerInsight.loyalty.balance > 0 && (
+                            <span
+                                className={`chip border-transparent ${
+                                    customerInsight.loyalty.canRedeem
+                                        ? 'bg-emerald-500/12 text-emerald-200'
+                                        : 'bg-white/[0.06] text-slate-400'
+                                }`}
+                            >
+                                {customerInsight.loyalty.balance} points
+                                {customerInsight.loyalty.canRedeem
+                                    ? ` · can take ₹${customerInsight.loyalty.worthRupees} off`
+                                    : ' · not enough to use yet'}
                             </span>
                         )}
                     </div>

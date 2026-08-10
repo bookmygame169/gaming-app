@@ -2,7 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { RefreshCw, Bell, LayoutDashboard, CreditCard, CalendarCheck, Users, Package, Settings, Gamepad2, Trophy, ChevronDown, Crown, TicketPercent, LineChart, Menu as MenuIcon } from 'lucide-react';
+import { RefreshCw, Bell, LayoutDashboard, CreditCard, CalendarCheck, Users, Package, Settings, Gamepad2, Trophy, ChevronDown, Crown, TicketPercent, LineChart, Sparkles, Star, IndianRupee, Menu as MenuIcon } from 'lucide-react';
 import { MobileMenuButton, Sidebar } from './Sidebar';
 
 interface DashboardLayoutProps {
@@ -15,6 +15,8 @@ interface DashboardLayoutProps {
     setMobileMenuOpen: (open: boolean) => void;
     title: string;
     onRefresh?: () => void;
+    /** Work waiting inside a tab, keyed by tab id. Passed through to the sidebar. */
+    navBadges?: Partial<Record<string, number>>;
 }
 
 const DESKTOP_PRIMARY_TABS = [
@@ -28,9 +30,15 @@ const DESKTOP_PRIMARY_TABS = [
     { id: 'customers',   label: 'Customers',    icon: Users },
 ];
 
+// Loyalty, Reviews and Payments were added to the mobile sidebar but not
+// here, so on desktop — where the counter actually runs — they could only be
+// reached by typing the URL.
 const DESKTOP_MORE_TABS = [
     { id: 'stations',      label: 'Stations',    icon: Gamepad2 },
     { id: 'tournaments',   label: 'Tournaments', icon: Trophy },
+    { id: 'loyalty',       label: 'Loyalty Points', icon: Sparkles },
+    { id: 'reviews',       label: 'Reviews',     icon: Star },
+    { id: 'payments',      label: 'Payments',    icon: IndianRupee },
     { id: 'settings',      label: 'Settings',    icon: Settings },
 ];
 
@@ -52,6 +60,7 @@ export function DashboardLayout({
     mobileMenuOpen,
     setMobileMenuOpen,
     onRefresh,
+    navBadges,
 }: DashboardLayoutProps) {
     const [spinning, setSpinning] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
@@ -59,6 +68,10 @@ export function DashboardLayout({
     const moreButtonRef = useRef<HTMLButtonElement | null>(null);
     const activeMeta = ALL_TABS.find((tab) => tab.id === activeTab);
     const isMoreActive = DESKTOP_MORE_TABS.some(t => t.id === activeTab);
+    const moreWaiting = DESKTOP_MORE_TABS.reduce(
+        (sum, tab) => sum + (navBadges?.[tab.id] ?? 0),
+        0
+    );
     const isMobileMoreActive = !MOBILE_PRIMARY_TABS.some((tab) => tab.id === activeTab);
 
     const handleRefresh = () => {
@@ -227,6 +240,15 @@ export function DashboardLayout({
                                     border: `1px solid ${isMoreActive ? 'rgba(255,255,255,0.12)' : 'transparent'}`,
                                 }}>
                                 More <ChevronDown size={13} className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+                                {/* Reviews and Payments live behind this menu,
+                                    so without a count here their badges are
+                                    invisible until someone opens it. */}
+                                {moreWaiting > 0 && (
+                                    <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                                        style={{ background: 'rgba(245,158,11,0.16)', color: '#fbbf24' }}>
+                                        {moreWaiting > 99 ? '99+' : moreWaiting}
+                                    </span>
+                                )}
                                 {isMoreActive && (
                                     <span className="absolute left-3 right-3 h-0.5 rounded-full"
                                         style={{ bottom: -8, background: '#06b6d4' }} />
@@ -284,7 +306,7 @@ export function DashboardLayout({
             {/* Mobile sidebar drawer */}
             <Sidebar activeTab={activeTab} onTabChange={(tab) => onTabChange(tab)} cafeName={cafeName}
                 isMobile={true} isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}
-                onLogout={handleLogout} collapsed={false} onToggleCollapsed={() => {}} />
+                onLogout={handleLogout} collapsed={false} onToggleCollapsed={() => {}} badges={navBadges} />
 
             {/* Page Content */}
             <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
@@ -348,6 +370,12 @@ export function DashboardLayout({
                                     className={`w-full flex items-center gap-2.5 px-4 py-3 text-[14px] transition-colors
                                         ${activeTab === tab.id ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}>
                                     <Icon size={16} />{tab.label}
+                                    {(navBadges?.[tab.id] ?? 0) > 0 && (
+                                        <span className="ml-auto rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                                            style={{ background: 'rgba(245,158,11,0.16)', color: '#fbbf24' }}>
+                                            {navBadges![tab.id]}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
