@@ -57,6 +57,11 @@ export default function CheckoutPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [successBookingId, setSuccessBookingId] = useState<string | null>(null);
+  /** What the server actually settled, so the confirmation can say so. */
+  const [settled, setSettled] = useState<{ walletUsed: number; payableAtVenue: number }>({
+    walletUsed: 0,
+    payableAtVenue: 0,
+  });
 
   const removeTicket = (ticketId: string) => {
     if (!draft) return;
@@ -129,6 +134,50 @@ export default function CheckoutPage() {
   }, []);
 
 
+
+  /**
+   * Money the customer has already paid this café.
+   *
+   * Paying from it needs nobody to confirm anything — the café was paid when
+   * the wallet was topped up — so a booking covered by the wallet is live the
+   * moment it is made.
+   */
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWallet, setUseWallet] = useState(true);
+
+  useEffect(() => {
+    if (!draft?.cafeId || !user) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) return;
+
+        const res = await fetch("/api/wallet/mine", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        // Wallets are per café, so only this café's balance can pay for this
+        // booking.
+        const here = (data.cafes || []).find(
+          (entry: { cafeId: string }) => entry.cafeId === draft.cafeId
+        );
+
+        if (!cancelled) setWalletBalance(Number(here?.balance) || 0);
+      } catch {
+        // No wallet shown is the right outcome; the booking still works.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [draft?.cafeId, user]);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -243,6 +292,9 @@ export default function CheckoutPage() {
           durationMinutes: draft.durationMinutes,
           items: tickets.map((t) => ({ console: t.console, quantity: t.quantity })),
           couponCode: appliedCoupon?.code || undefined,
+          // The server decides how much the wallet actually covers; this only
+          // says whether to try.
+          useWallet: useWallet && walletBalance > 0,
         }),
       });
 
@@ -256,6 +308,10 @@ export default function CheckoutPage() {
 
       const bookingId = result.bookingId as string;
       const finalAmount = Number(result.totalAmount) || 0;
+      setSettled({
+        walletUsed: Number(result.walletUsed) || 0,
+        payableAtVenue: Number(result.payableAtVenue) || 0,
+      });
       const discount = Number(result.discount) || 0;
       const extraMinutes = Number(result.bonusMinutes) || 0;
 
@@ -326,6 +382,16 @@ export default function CheckoutPage() {
   }
 
 
+
+  // What is left after the wallet, so the bottom bar and the button agree
+  // with the breakdown above them.
+  const dueAfterCoupon = draft
+    ? Math.max(0, draft.totalAmount - (appliedCoupon?.discountAmount || 0))
+    : 0;
+  const payableNow =
+    useWallet && walletBalance > 0
+      ? Math.max(0, dueAfterCoupon - Math.min(walletBalance, dueAfterCoupon))
+      : dueAfterCoupon;
 
   if (bookingSuccess) {
     return (
@@ -400,7 +466,15 @@ export default function CheckoutPage() {
               lineHeight: 1.6,
             }}
           >
-            Your payment has been received and booking is confirmed. You will receive a confirmation email shortly.
+            {/* This used to claim the payment had been received on every
+                booking, including pay-at-venue ones where nothing had been
+                taken. It now says what actually happened. */}
+            {settled.walletUsed > 0 && settled.payableAtVenue === 0
+              ? `Paid in full from your wallet — ₹${settled.walletUsed}. Nothing to pay at the café.`
+              : settled.walletUsed > 0
+                ? `₹${settled.walletUsed} came out of your wallet. Pay the remaining ₹${settled.payableAtVenue} at the café.`
+                : `Your seat is reserved. Pay ₹${settled.payableAtVenue} at the café.`}{" "}
+            You will receive a confirmation email shortly.
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1015,6 +1089,87 @@ export default function CheckoutPage() {
                 {Math.max(0, draft.totalAmount - (appliedCoupon?.discountAmount || 0))}
               </span>
             </div>
+
+            {/* Money already paid to this café. Offered by default, because a
+                balance sitting unused is the customer paying twice. */}
+            {walletBalance > 0 && (
+              <div
+                style={{
+                  marginTop: "14px",
+                  padding: "12px 14px",
+                  borderRadius: "14px",
+                  background: useWallet ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${useWallet ? "rgba(34,197,94,0.3)" : colors.border}`,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={useWallet}
+                    onChange={(e) => setUseWallet(e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: colors.green }}
+                  />
+                  <span style={{ flex: 1 }}>
+                    <span
+                      style={{ display: "block", fontSize: "14px", fontWeight: 600, color: colors.textPrimary }}
+                    >
+                      Use my wallet
+                    </span>
+                    <span style={{ display: "block", fontSize: "12px", color: colors.textSecondary }}>
+                      ₹{walletBalance.toLocaleString("en-IN")} at {draft.cafeName}
+                    </span>
+                  </span>
+                </label>
+
+                {useWallet && (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      paddingTop: "10px",
+                      borderTop: `1px solid ${colors.border}`,
+                      fontSize: "13px",
+                    }}
+                  >
+                    {(() => {
+                      const due = Math.max(
+                        0,
+                        draft.totalAmount - (appliedCoupon?.discountAmount || 0)
+                      );
+                      const fromWallet = Math.min(walletBalance, due);
+                      const atVenue = due - fromWallet;
+
+                      return (
+                        <>
+                          <div style={{ display: "flex", justifyContent: "space-between", color: colors.green }}>
+                            <span>From wallet</span>
+                            <span style={{ fontWeight: 700 }}>−₹{fromWallet}</span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              marginTop: "6px",
+                              color: colors.textPrimary,
+                              fontWeight: 700,
+                            }}
+                          >
+                            <span>{atVenue > 0 ? "Pay at the café" : "Nothing left to pay"}</span>
+                            <span>₹{atVenue}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -1099,7 +1254,9 @@ export default function CheckoutPage() {
                 marginBottom: "2px",
               }}
             >
-              Total Amount
+              {/* What they actually hand over, not the sticker price — the
+                  wallet has already covered the rest. */}
+              {useWallet && walletBalance > 0 ? "Pay at the café" : "Total Amount"}
             </div>
             <div
               style={{
@@ -1114,7 +1271,7 @@ export default function CheckoutPage() {
               }}
             >
               <IndianRupee size={16} />
-              {Math.max(0, draft.totalAmount - (appliedCoupon?.discountAmount || 0))}
+              {payableNow}
             </div>
           </div>
 
@@ -1150,7 +1307,7 @@ export default function CheckoutPage() {
             ) : (
               <>
                 <IndianRupee size={16} />
-                Pay {Math.max(0, draft.totalAmount - (appliedCoupon?.discountAmount || 0))}
+                {payableNow === 0 ? "Confirm booking" : `Pay ${payableNow}`}
               </>
             )}
           </button>

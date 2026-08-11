@@ -15,6 +15,7 @@ import {
 } from "@/lib/ownerStationAssignments";
 import { syncStationsForBooking } from "@/lib/stationSync";
 import { getOpeningWindow, sessionFitsOpeningHours } from "@/lib/openingHours";
+import { getWalletBalance, isMissingWalletTable, toRupees } from "@/lib/wallet";
 import type { ConsoleId } from "@/lib/constants";
 import type { ConsolePricingTier } from "@/types/booking";
 
@@ -303,6 +304,25 @@ export async function POST(request: NextRequest) {
 
     const finalAmount = Math.max(0, serverTotal - (coupon?.discount ?? 0));
 
+    // ------------------------------------------------------------------ wallet
+    //
+    // Money the customer has already paid this café. Paying from it needs no
+    // verification by anyone: the café was paid when the wallet was topped up,
+    // so there is nothing left to confirm and the session can start on time.
+    //
+    // The amount is decided here, never sent by the client. A wallet that
+    // deducts whatever a browser asks for is not a wallet.
+    let walletUsed = 0;
+
+    if (body.useWallet === true && customerPhone && finalAmount > 0) {
+      const balance = await getWalletBalance(supabase, cafe.id, customerPhone);
+      // Partial is fine and common: ₹200 in the wallet against a ₹300 session
+      // pays what it can and the rest is settled at the counter.
+      walletUsed = Math.max(0, Math.min(toRupees(balance), finalAmount));
+    }
+
+    const payableAtVenue = finalAmount - walletUsed;
+
     // ------------------------------------------------------------------ write
 
     const { data: newBooking, error: bookingError } = await supabase
@@ -315,10 +335,16 @@ export async function POST(request: NextRequest) {
         // Previously left unset, so every online booking looked like 60
         // minutes to availability, auto-complete and the lock agent.
         duration: durationMinutes + (coupon?.bonusMinutes ?? 0),
+        // The session price, whatever paid for it. The wallet moving money is
+        // recorded in its own ledger; overwriting this would make the café's
+        // revenue reports disagree with what was actually charged.
         total_amount: finalAmount,
         status: "confirmed",
         source: "online",
-        payment_mode: "cash",
+        // Only "wallet" when the wallet covered all of it. A part-paid booking
+        // still has cash to collect, and calling it paid would tell staff to
+        // wave someone through.
+        payment_mode: walletUsed >= finalAmount && walletUsed > 0 ? "wallet" : "cash",
         // Loyalty and membership are matched on the phone number, so an online
         // booking without one silently earns nothing.
         customer_name: customerName,
@@ -411,6 +437,46 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ---------------------------------------------------------- take the money
+    //
+    // After the booking exists, so the ledger row can point at what it paid
+    // for — a deduction with no booking attached is money nobody can account
+    // for. If it fails the booking is removed rather than left standing as
+    // unpaid, because the customer was told it would come out of their wallet.
+    if (walletUsed > 0) {
+      const { error: walletError } = await supabase.from("wallet_ledger").insert({
+        cafe_id: cafe.id,
+        customer_phone: customerPhone,
+        user_id: userId,
+        amount: -walletUsed,
+        reason: "spend",
+        booking_id: bookingId,
+        // The booking id: a retried request for the same booking cannot deduct
+        // twice, whatever else goes wrong.
+        idempotency_key: `booking:${bookingId}`,
+        note: `Session on ${bookingDate}`,
+      });
+
+      if (walletError) {
+        // 23505 means this booking already paid — a retry, not a failure.
+        if (walletError.code !== "23505") {
+          await supabase.from("booking_items").delete().eq("booking_id", bookingId);
+          await supabase.from("bookings").delete().eq("id", bookingId);
+
+          console.error("Wallet deduction failed:", walletError.message);
+
+          return NextResponse.json(
+            {
+              error: isMissingWalletTable(walletError.message)
+                ? "Wallet payment is not set up yet. Book again without using the wallet."
+                : "Could not take the money from your wallet. Nothing was charged.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
     // Tells the lock agent about the booking. It locks rather than unlocks for
     // anything unpaid or not yet started, so this is safe to call here.
     await syncStationsForBooking(supabase, bookingId);
@@ -421,6 +487,8 @@ export async function POST(request: NextRequest) {
       totalAmount: finalAmount,
       discount: coupon?.discount ?? 0,
       bonusMinutes: coupon?.bonusMinutes ?? 0,
+      walletUsed,
+      payableAtVenue,
       stations: claimedStations,
     });
   } catch (err) {
