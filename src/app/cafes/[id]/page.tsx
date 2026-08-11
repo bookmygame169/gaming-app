@@ -15,6 +15,10 @@ const CafeDetailsAccordion = dynamicImport(() => import("@/components/CafeDetail
   loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading details...</div>,
 });
 
+const LiveAvailability = dynamicImport(() => import("@/components/LiveAvailability"), {
+  loading: () => null,
+});
+
 const CafeReviews = dynamicImport(() => import("@/components/CafeReviews"), {
   loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading reviews...</div>,
 });
@@ -678,6 +682,13 @@ export default async function CafePage({ params }: CafePageProps) {
               >
                 <Check size={12} style={{ color: "#22c55e" }} /> Free Cancellation
               </span>
+            </div>
+
+            {/* Directly above the Book button: knowing a machine is free is
+                what turns browsing into booking, and it is worth nothing three
+                screens further down. */}
+            <div style={{ marginTop: "18px" }}>
+              <LiveAvailability cafeId={cafe.id} />
             </div>
 
             {/* The only route into the booking flow. Without it the checkout

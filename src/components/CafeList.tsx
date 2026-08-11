@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import LiveAvailability from "@/components/LiveAvailability";
 import type { Cafe } from "@/types/cafe";
 import {
   MapPin,
@@ -168,6 +169,9 @@ export default function CafeList({ cafes }: Props) {
             gap: 8px;
             padding: 8px 12px;
             align-items: center;
+            /* The free-now chip is added at the end of this row and would
+               otherwise push the equipment icons off a 360px screen. */
+            flex-wrap: wrap;
           }
 
           .mobile-bottom-bar {
@@ -514,6 +518,10 @@ export default function CafeList({ cafes }: Props) {
             {/* Equipment icons moved below image to keep image area clean */}
             <div className="mobile-equipment-row">
               <EquipmentIconsMobile cafe={cafe} />
+              {/* What is free, next to what they have. Renders nothing when
+                  the café is full or has nothing to report, so a busy card
+                  does not shout about being busy. */}
+              <LiveAvailability cafeId={cafe.id} variant="compact" />
             </div>
 
             {/* Compact price + small Book button */}
