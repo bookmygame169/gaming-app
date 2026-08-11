@@ -10,17 +10,13 @@ export const dynamic = "force-dynamic";
  * blocks — and which meant the row that governs admin access was writable by
  * whatever the page happened to put in the request.
  *
- * Two things this route does not fix, both worth knowing:
+ * The password never reaches this code. Verifying the old one and writing the
+ * new one both happen inside change_admin_credentials, so the plaintext is
+ * compared where the hash lives rather than being fetched back here — which is
+ * what this route used to do, putting the current password on the page.
  *
- * 1. admin_password is stored as plain text, because verify_admin_login
- *    compares it with `p.admin_password = p_password`. Hashing it means
- *    changing that function and migrating the existing values in the same
- *    breath — get it wrong and nobody can sign in to the admin panel — so it
- *    is deliberately a separate, staged change rather than a side effect of
- *    moving this endpoint.
- *
- * 2. Only the caller's own credentials can be changed here. An admin resetting
- *    another admin's password is a different operation with different rules.
+ * Only the caller's own credentials can be changed. An admin resetting another
+ * admin's password is a different operation with different rules.
  */
 export async function PUT(request: NextRequest) {
   const { context, response } = await requireAdminContext(request);
@@ -46,35 +42,39 @@ export async function PUT(request: NextRequest) {
 
   const supabase = context.supabase;
 
-  // Re-checked here rather than only in the page. A session cookie is enough to
-  // reach this route, so without this an unattended logged-in browser is enough
-  // to take the account over.
-  const { data: current, error: readError } = await supabase
-    .from("profiles")
-    .select("admin_password")
-    .eq("id", context.adminId)
-    .maybeSingle();
-
-  if (readError) {
-    return NextResponse.json({ error: "Could not verify your password" }, { status: 500 });
-  }
-
-  if (!current?.admin_password || current.admin_password !== currentPassword) {
-    return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
-  }
-
-  const updates: Record<string, string> = {};
-  if (newUsername) updates.admin_username = String(newUsername).trim();
-  if (newPassword) updates.admin_password = String(newPassword);
-
-  const { error } = await supabase.from("profiles").update(updates).eq("id", context.adminId);
+  // The current password is still required even though a session cookie got
+  // this far: without it, an unattended logged-in browser is enough to take
+  // the account over. It is checked inside the function, against the hash.
+  const { data: changed, error } = await supabase.rpc("change_admin_credentials", {
+    p_user_id: context.adminId,
+    p_current_password: currentPassword ?? "",
+    p_new_username: newUsername ?? null,
+    p_new_password: newPassword ?? null,
+  });
 
   if (error) {
     // 23505 is the unique index on admin_username.
     if (error.code === "23505") {
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (error.message?.includes("change_admin_credentials")) {
+      return NextResponse.json(
+        {
+          error:
+            "Password changes are not set up yet. Run migration " +
+            "20260810000006_hash_dashboard_passwords.sql in Supabase.",
+        },
+        { status: 500 }
+      );
+    }
+
+    console.error("Credential change failed:", error.message);
+    return NextResponse.json({ error: "Could not update your credentials" }, { status: 500 });
+  }
+
+  if (changed !== true) {
+    return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
   }
 
   return NextResponse.json({ success: true });
