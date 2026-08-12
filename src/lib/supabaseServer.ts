@@ -1,5 +1,6 @@
 // lib/supabaseServer.ts (server-side use only)
 import { createClient } from "@supabase/supabase-js";
+import { noStoreFetch } from "@/lib/supabaseFetch";
 
 // For server-side usage, we need to create a new client instance
 export function getSupabaseServer() {
@@ -16,5 +17,6 @@ export function getSupabaseServer() {
     auth: {
       persistSession: false, // Important for server-side
     },
+    global: { fetch: noStoreFetch },
   });
 }

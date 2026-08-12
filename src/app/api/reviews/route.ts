@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { noStoreFetch } from "@/lib/supabaseFetch";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/userAuth";
 import { summarise } from "@/lib/reviews";
@@ -11,6 +12,7 @@ function getSupabaseAdmin(): SupabaseClient {
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: noStoreFetch },
   });
 }
 

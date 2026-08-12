@@ -5,6 +5,7 @@
 // `Authorization: Bearer <token>` (see supabase.auth.getSession() on the
 // client) rather than relying on request cookies.
 import { createClient } from "@supabase/supabase-js";
+import { noStoreFetch } from "@/lib/supabaseFetch";
 import { NextResponse, type NextRequest } from "next/server";
 
 type UserAuthResult =
@@ -36,6 +37,9 @@ export async function requireUser(request: NextRequest): Promise<UserAuthResult>
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Token checks must never be answered from a cache: a signed-out session
+    // would keep verifying for as long as the cached response lived.
+    global: { fetch: noStoreFetch },
   });
 
   const { data, error } = await supabase.auth.getUser(accessToken);

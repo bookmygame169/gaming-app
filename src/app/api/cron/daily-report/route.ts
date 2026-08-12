@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { noStoreFetch } from "@/lib/supabaseFetch";
 import { createClient } from '@supabase/supabase-js';
 import { sendDailyReport } from '@/lib/email';
 
@@ -6,7 +7,8 @@ import { sendDailyReport } from '@/lib/email';
 // Use service role key for cron jobs (server-side only)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  { global: { fetch: noStoreFetch } }
 );
 
 // Helper to format date as "Mon, 27 Jan 2026"

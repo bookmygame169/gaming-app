@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { noStoreFetch } from "@/lib/supabaseFetch";
 import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/userAuth";
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: noStoreFetch },
     });
 
     const { data: bookings, error } = await supabase

@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { noStoreFetch } from "@/lib/supabaseFetch";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -168,6 +169,7 @@ export function getSupabaseAdmin(): SupabaseClient {
 
   cachedSupabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: noStoreFetch },
   });
 
   return cachedSupabaseAdmin;

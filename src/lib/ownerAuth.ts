@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { noStoreFetch } from "@/lib/supabaseFetch";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -215,6 +216,9 @@ export function getSupabaseAdmin(): SupabaseClient {
       persistSession: false,
       autoRefreshToken: false,
     },
+    // See supabaseFetch: without this a GET route can serve a cached copy of
+    // the database while looking like it just read it.
+    global: { fetch: noStoreFetch },
   });
 
   return cachedSupabaseAdmin;
