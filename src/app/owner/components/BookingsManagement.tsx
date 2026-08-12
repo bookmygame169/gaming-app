@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 import { BookingsTable } from './BookingsTable';
 import { ActiveSessions } from './ActiveSessions';
 import { Card, Button } from './ui';
@@ -76,18 +77,7 @@ function getDateRange(range: string, customStart: string, customEnd: string): { 
 }
 
 function parseStartMinutes(startTime: string | null | undefined): number | null {
-    if (!startTime) return null;
-    const timeParts = startTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-    if (!timeParts) return null;
-
-    let hours = parseInt(timeParts[1], 10);
-    const minutes = parseInt(timeParts[2], 10);
-    const period = timeParts[3]?.toLowerCase();
-
-    if (period === 'pm' && hours !== 12) hours += 12;
-    else if (period === 'am' && hours === 12) hours = 0;
-
-    return hours * 60 + minutes;
+    return parseTimeToMinutes(startTime);
 }
 
 function getBookingDuration(booking: any): number {

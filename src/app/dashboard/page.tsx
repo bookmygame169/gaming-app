@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { formatDate } from "@/lib/timeUtils";
+import { formatDate, parseTimeToMinutes } from "@/lib/timeUtils";
 import { getIndiaDateString } from "@/lib/bookingFilters";
 import {
   Calendar,
@@ -216,29 +216,14 @@ export default function DashboardPage() {
     return timeStr;
   }
 
-  // Helper to parse time strings like "3:45 pm" or "15:45"
+  // Shares the one parser; the shape is only different because the callers
+  // below want hours and minutes rather than minutes from midnight.
   function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
-    if (!timeStr) return null;
-    const str = timeStr.toLowerCase().trim();
-
-    // Check for am/pm format
-    const ampmMatch = str.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
-    if (ampmMatch) {
-      let hours = parseInt(ampmMatch[1], 10);
-      const minutes = parseInt(ampmMatch[2], 10);
-      const period = ampmMatch[3].toLowerCase();
-      if (period === 'pm' && hours !== 12) hours += 12;
-      else if (period === 'am' && hours === 12) hours = 0;
-      return { hours, minutes };
-    }
-
-    // Check for 24-hour format
-    const h24Match = str.match(/^(\d{1,2}):(\d{2})$/);
-    if (h24Match) {
-      return { hours: parseInt(h24Match[1], 10), minutes: parseInt(h24Match[2], 10) };
-    }
-    return null;
+    const total = parseTimeToMinutes(timeStr);
+    if (total === null) return null;
+    return { hours: Math.floor(total / 60), minutes: total % 60 };
   }
+
 
   // Check if booking is currently active (on-going)
   function isBookingOngoing(booking: BookingWithCafe): boolean {

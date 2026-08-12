@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 import { ConsoleId, CONSOLE_ICONS, CONSOLE_COLORS, CONSOLE_LABELS } from '@/lib/constants';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
@@ -15,16 +16,7 @@ interface SessionEndedInfo {
 }
 
 function parseStartMinutes(startTime: string): number | null {
-    const timeParts = startTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-    if (!timeParts) return null;
-    let hours = parseInt(timeParts[1]);
-    const minutes = parseInt(timeParts[2]);
-    const period = timeParts[3];
-    if (period) {
-        if (period.toLowerCase() === 'pm' && hours !== 12) hours += 12;
-        else if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
-    }
-    return hours * 60 + minutes;
+    return parseTimeToMinutes(startTime);
 }
 
 function calcTimeRemaining(startMinutes: number, duration: number, currentMinutes: number): number {

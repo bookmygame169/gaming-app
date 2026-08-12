@@ -9,7 +9,7 @@ import { ConsoleId, CONSOLE_DB_KEYS, CONSOLE_LABELS } from "@/lib/constants";
 import { SelectedTicketForCheck } from "@/types/booking";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { BookingWithNestedItems, BookingItemRow } from "@/types/database";
-import { timeStringToMinutes, doTimeSlotsOverlap } from "@/lib/timeSlotUtils";
+import { timeStringToMinutes, doTimeSlotsOverlap } from "@/lib/timeUtils";
 import { logger } from "@/lib/logger";
 
 /**

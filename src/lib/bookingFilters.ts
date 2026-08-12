@@ -1,3 +1,4 @@
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 type BookingLike = {
   booking_items?: unknown[] | null;
   booking_orders?: unknown[] | null;
@@ -57,19 +58,9 @@ export function getIndiaCurrentMinutes(date: Date = new Date()): number {
 }
 
 export function parseBookingStartMinutes(startTime?: string | null): number | null {
-  if (!startTime) return null;
-
-  const timeParts = startTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-  if (!timeParts) return null;
-
-  let hours = parseInt(timeParts[1], 10);
-  const minutes = parseInt(timeParts[2], 10);
-  const period = timeParts[3]?.toLowerCase();
-
-  if (period === "pm" && hours !== 12) hours += 12;
-  else if (period === "am" && hours === 12) hours = 0;
-
-  return hours * 60 + minutes;
+  // Kept as a name because it reads well at the call sites; the parsing itself
+  // lives in one place now.
+  return parseTimeToMinutes(startTime);
 }
 
 export function getBookingItemDurationMinutes(

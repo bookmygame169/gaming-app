@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 import { Timer, Zap, ChevronRight, Gamepad2, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -9,38 +10,12 @@ import useUser from "@/hooks/useUser";
 // Demo mode allows testing the UI without a real booking
 const DEMO_MODE = false;
 
-// Helper to parse time strings like "3:45 pm" or "15:45" to { hours, minutes }
+// Shares the one parser in timeUtils; only the shape differs, because the
+// countdown below wants hours and minutes rather than minutes from midnight.
 function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
-    if (!timeStr) return null;
-
-    const str = timeStr.toLowerCase().trim();
-
-    // Check for am/pm format (e.g., "3:45 pm", "11:30 am")
-    const ampmMatch = str.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
-    if (ampmMatch) {
-        let hours = parseInt(ampmMatch[1], 10);
-        const minutes = parseInt(ampmMatch[2], 10);
-        const period = ampmMatch[3].toLowerCase();
-
-        if (period === 'pm' && hours !== 12) {
-            hours += 12;
-        } else if (period === 'am' && hours === 12) {
-            hours = 0;
-        }
-
-        return { hours, minutes };
-    }
-
-    // Check for 24-hour format (e.g., "15:45", "09:30")
-    const h24Match = str.match(/^(\d{1,2}):(\d{2})$/);
-    if (h24Match) {
-        return {
-            hours: parseInt(h24Match[1], 10),
-            minutes: parseInt(h24Match[2], 10)
-        };
-    }
-
-    return null;
+    const total = parseTimeToMinutes(timeStr);
+    if (total === null) return null;
+    return { hours: Math.floor(total / 60), minutes: total % 60 };
 }
 
 export default function ActiveSessionTimer() {

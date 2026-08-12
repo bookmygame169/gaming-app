@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 import {
   getItemDurationFromPayload,
   parseAssignedStationsFromTitle,
@@ -48,18 +49,14 @@ const CLOSED_STATUSES = new Set(["cancelled", "completed", "pending"]);
  * hours out whenever it runs in UTC, which it does on Vercel.
  */
 function parseBookingStart(bookingDate: string, startTime: string): Date | null {
-  const match = startTime.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?/i);
-  if (!match) return null;
+  const minutes = parseTimeToMinutes(startTime);
+  if (minutes === null) return null;
 
-  let hours = Number.parseInt(match[1], 10);
-  const minutes = Number.parseInt(match[2], 10);
-  const period = match[3]?.toLowerCase();
-
-  if (period === "pm" && hours !== 12) hours += 12;
-  else if (period === "am" && hours === 12) hours = 0;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
 
   const iso =
-    `${bookingDate}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00+05:30`;
+    `${bookingDate}T${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:00+05:30`;
 
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed;

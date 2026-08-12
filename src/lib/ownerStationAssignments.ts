@@ -1,3 +1,4 @@
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type CafeConsoleCounts = {
@@ -90,17 +91,7 @@ function getIndiaDateString(date: Date = new Date()): string {
 }
 
 function parseStartMinutes(startTime?: string | null): number | null {
-  const match = startTime?.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-  if (!match) return null;
-
-  let hours = Number.parseInt(match[1], 10);
-  const minutes = Number.parseInt(match[2], 10);
-  const period = match[3]?.toLowerCase();
-
-  if (period === "pm" && hours !== 12) hours += 12;
-  else if (period === "am" && hours === 12) hours = 0;
-
-  return hours * 60 + minutes;
+  return parseTimeToMinutes(startTime);
 }
 
 function getExistingBookingDuration(booking: ExistingBookingRow): number {

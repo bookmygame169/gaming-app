@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { ConsoleId } from "@/lib/constants";
 import { ConsoleAvailability } from "@/types/booking";
 import { BookingWithNestedItems } from "@/types/database";
-import { timeStringToMinutes, minutesToTimeString, doTimeSlotsOverlap } from "@/lib/timeSlotUtils";
+import { timeStringToMinutes, minutesToTimeString, doTimeSlotsOverlap } from "@/lib/timeUtils";
 import { getOccupiedUnitCountForConsole } from "@/lib/ownerStationAssignments";
 import { logger } from "@/lib/logger";
 

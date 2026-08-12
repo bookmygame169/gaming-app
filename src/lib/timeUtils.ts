@@ -5,21 +5,50 @@ import { BOOKING_DURATION_MINUTES } from "./constants";
 /**
  * Convert "10:30 pm" to minutes from midnight
  */
-export function timeStringToMinutes(timeStr: string): number {
-  const match = timeStr.toLowerCase().match(/(\d+):(\d+)\s*(am|pm)/);
-  if (!match) return 0;
+/**
+ * The one place a time string is read.
+ *
+ * Booking times are stored as text and written in two shapes: the customer
+ * booking page sends the slot label ("6:00 PM"), the owner side and any
+ * <input type="time"> send "18:00". Both are valid rows.
+ *
+ * There were five separate parsers for this — two byte-identical copies plus
+ * three near-misses — and writing a sixth is how a booking API shipped reading
+ * 6 PM as 6 AM and rejecting every evening booking as already past. One
+ * function means that class of bug cannot come back.
+ *
+ * Returns null rather than a number for anything unparseable, so a caller has
+ * to decide what a missing time means instead of silently getting midnight.
+ */
+export function parseTimeToMinutes(value?: string | null): number | null {
+  if (!value) return null;
 
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const period = match[3];
+  const match = value.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (!match) return null;
 
-  if (period === "pm" && hours !== 12) {
-    hours += 12;
-  } else if (period === "am" && hours === 12) {
-    hours = 0;
-  }
+  let hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  const period = match[3]?.toLowerCase();
+
+  if (period === "pm" && hours !== 12) hours += 12;
+  else if (period === "am" && hours === 12) hours = 0;
+
+  if (hours > 23 || minutes > 59) return null;
 
   return hours * 60 + minutes;
+}
+
+/**
+ * Minutes from midnight, with 0 for anything unreadable.
+ *
+ * Kept because callers rely on getting a number back. It used to require am/pm
+ * and returned 0 for "18:00" — midnight — which would have quietly hidden an
+ * owner-entered booking from the availability check. Every booking in the
+ * database today is 12-hour, so that never fired, but the shared parser now
+ * reads both and the hazard is gone.
+ */
+export function timeStringToMinutes(timeStr: string): number {
+  return parseTimeToMinutes(timeStr) ?? 0;
 }
 
 /**
