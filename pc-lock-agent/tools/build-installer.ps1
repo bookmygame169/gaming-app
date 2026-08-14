@@ -101,6 +101,10 @@ $publishArgs = @(
     "-r", "win-x64",
     "--self-contained", "true",
     "-p:PublishSingleFile=true",
+    # Stamped into the exe so the updater can read what is installed and compare
+    # it with what is published. Without it every build reports 1.0.0 and no
+    # update ever looks newer.
+    "-p:Version=$Version",
     "-p:IncludeNativeLibrariesForSelfExtract=true",
     "-o", $publishDir
 )

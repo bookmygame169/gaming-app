@@ -42,6 +42,7 @@ Source: "..\publish\appsettings.json";   DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\install-startup.ps1";  DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\uninstall-startup.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\check-setup.ps1";      DestDir: "{app}"; Flags: ignoreversion
+Source: "..\tools\update-agent.ps1";     DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
 ; Ticked by default: the agent needs running once to ask for the setup code, and

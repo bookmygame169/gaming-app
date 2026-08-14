@@ -84,6 +84,19 @@ internal sealed class GameMenuForm : Form
         };
     }
 
+    /// <summary>
+    /// Paints the page background instead of the flat fill.
+    /// </summary>
+    /// <remarks>
+    /// In OnPaintBackground rather than OnPaint so that child controls with a
+    /// transparent background composite against it — WinForms builds their
+    /// backdrop from the parent's background pass, not its foreground one.
+    /// </remarks>
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        Theme.PaintBackdrop(e.Graphics, ClientRectangle);
+    }
+
     private void BuildLayout()
     {
         var root = new TableLayoutPanel
@@ -226,24 +239,34 @@ internal sealed class GameMenuForm : Form
     {
         var tile = new Panel
         {
-            Width = 190,
-            Height = 200,
-            Margin = new Padding(10),
+            Width = 210,
+            Height = 232,
+            Margin = new Padding(12),
             BackColor = Palette.Surface,
             Cursor = Cursors.Hand,
         };
 
+        Theme.RoundCorners(tile, Theme.CornerRadius);
+
+        // Tracked on the tile rather than read back from BackColor, so the
+        // border and the fill can never disagree about whether it is hovered.
+        var hovered = false;
+
         tile.Paint += (_, e) =>
         {
-            using var pen = new Pen(Palette.Border, 1f);
-            e.Graphics.DrawRectangle(pen, 0, 0, tile.Width - 1, tile.Height - 1);
+            Theme.DrawBorder(
+                e.Graphics,
+                new Rectangle(0, 0, tile.Width, tile.Height),
+                hovered ? Palette.Accent : Palette.Border,
+                hovered ? 2f : 1f,
+                Theme.CornerRadius);
         };
 
         var picture = new PictureBox
         {
             Width = 96,
             Height = 96,
-            Location = new Point((tile.Width - 96) / 2, 28),
+            Location = new Point((tile.Width - 96) / 2, 34),
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = Color.Transparent,
             Image = LoadTileImage(game),
@@ -270,16 +293,25 @@ internal sealed class GameMenuForm : Form
         foreach (Control target in new Control[] { tile, picture, label })
         {
             target.Click += (_, _) => LaunchGame(game);
-            target.MouseEnter += (_, _) => tile.BackColor = Palette.SurfaceHover;
+            target.MouseEnter += (_, _) =>
+            {
+                hovered = true;
+                tile.BackColor = Palette.SurfaceHover;
+                tile.Invalidate();
+            };
             target.MouseLeave += (_, _) =>
             {
                 // Only clear the highlight once the pointer has left the tile
                 // entirely — moving from the tile onto its own label would
                 // otherwise flicker it off.
-                if (!tile.RectangleToScreen(tile.ClientRectangle).Contains(Cursor.Position))
+                if (tile.RectangleToScreen(tile.ClientRectangle).Contains(Cursor.Position))
                 {
-                    tile.BackColor = Palette.Surface;
+                    return;
                 }
+
+                hovered = false;
+                tile.BackColor = Palette.Surface;
+                tile.Invalidate();
             };
         }
 

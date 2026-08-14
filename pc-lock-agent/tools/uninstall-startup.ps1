@@ -25,6 +25,14 @@ if (-not $task) {
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 
+# The updater is a separate task under its own name, so removing only the agent
+# task would leave a SYSTEM job reinstalling the thing just uninstalled.
+$updateTaskName = "BookMyGame PC Lock Update"
+if (Get-ScheduledTask -TaskName $updateTaskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $updateTaskName -Confirm:$false
+    Write-Host "Removed '$updateTaskName'." -ForegroundColor Green
+}
+
 # The Startup shortcut is a second way the agent starts, so removing only the
 # task would leave the lock coming back at every logon with nothing left to
 # explain why.

@@ -73,6 +73,15 @@ jobs:
           Write-Host "Built installer: $exe"
           Get-Item $exe | Format-List FullName, Length
 
+      # A three-byte file a cafe PC can fetch every few hours. Reading the
+      # version from the GitHub API instead would work, but unauthenticated API
+      # calls are rate limited per IP - and every PC in one cafe shares an IP.
+      - name: Write version file
+        shell: pwsh
+        run: |
+          "${{ inputs.version }}" | Out-File -FilePath version.txt -Encoding ascii -NoNewline
+          Get-Content version.txt
+
       - name: Upload workflow artifact (backup download)
         uses: actions/upload-artifact@v4
         with:
@@ -95,7 +104,7 @@ jobs:
           tag: pc-lock-latest
           name: PC Lock Installer v${{ inputs.version }}
           body: Automated build of BookMyGame-PC-Lock-Setup.exe for café PC setup.
-          artifacts: pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe
+          artifacts: "pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe,version.txt"
           allowUpdates: true
           replacesArtifacts: true
           makeLatest: true

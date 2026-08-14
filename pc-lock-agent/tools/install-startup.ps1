@@ -120,6 +120,55 @@ Register-ScheduledTask `
     -Description "Locks this gaming PC until BookMyGame confirms a paid session. Restarts itself if closed." `
     -Force | Out-Null
 
+# --- Keep itself up to date --------------------------------------------------
+#
+# As SYSTEM, not as the customer: the install folder is deliberately read-only
+# for them, and an update has to replace the very files that protects. SYSTEM
+# also means it runs with nobody signed in, which is exactly when updating is
+# safe - update-agent.ps1 declines while the agent is running rather than pull
+# the lock out from under someone sitting at the PC.
+$updateScript = Join-Path (Split-Path $ExePath -Parent) "update-agent.ps1"
+if (Test-Path $updateScript) {
+    $updateTaskName = "BookMyGame PC Lock Update"
+
+    $updateAction = New-ScheduledTaskAction `
+        -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$updateScript`""
+
+    # At boot and every four hours. Boot is when a cafe PC is most likely to be
+    # sitting idle with nobody logged in, which is the only time an update can
+    # actually go ahead.
+    $updateTriggers = @(
+        (New-ScheduledTaskTrigger -AtStartup),
+        (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(10) `
+            -RepetitionInterval (New-TimeSpan -Hours 4) `
+            -RepetitionDuration ([TimeSpan]::MaxValue))
+    )
+
+    $updateSettings = New-ScheduledTaskSettingsSet `
+        -MultipleInstances IgnoreNew `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable `
+        -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+
+    $updatePrincipal = New-ScheduledTaskPrincipal `
+        -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+    Register-ScheduledTask `
+        -TaskName $updateTaskName `
+        -Action $updateAction `
+        -Trigger $updateTriggers `
+        -Settings $updateSettings `
+        -Principal $updatePrincipal `
+        -Description "Installs new versions of the BookMyGame PC lock when the PC is idle." `
+        -Force | Out-Null
+
+    Write-Host "Auto-update is on - checks at startup and every 4 hours." -ForegroundColor Green
+} else {
+    Write-Host "update-agent.ps1 not found, so auto-update was not set up." -ForegroundColor Yellow
+}
+
 # --- Second way in, in case the task does not fire ---------------------------
 #
 # A shortcut in that account's Startup folder is the oldest and least clever way

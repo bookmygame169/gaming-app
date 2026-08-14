@@ -174,6 +174,21 @@ if (Test-Path $startupLnk) {
     Write-Warn "No backup Startup shortcut for '$GamingUser'" "Re-run install-startup.ps1 after that account has signed in once."
 }
 
+$updateTask = Get-ScheduledTask -TaskName "BookMyGame PC Lock Update" -ErrorAction SilentlyContinue
+if ($updateTask) {
+    Write-Good "Auto-update is set up" "Runs as SYSTEM at startup and every 4 hours."
+    $uInfo = Get-ScheduledTaskInfo -TaskName "BookMyGame PC Lock Update" -ErrorAction SilentlyContinue
+    if ($uInfo -and $uInfo.LastRunTime -and $uInfo.LastRunTime.Year -gt 1999) {
+        Write-Host "         Last checked $($uInfo.LastRunTime)" -ForegroundColor DarkGray
+    }
+    $updateLog = "C:\ProgramData\BookMyGame\update.log"
+    if (Test-Path $updateLog) {
+        Get-Content $updateLog -Tail 3 | ForEach-Object { Write-Host "         $_" -ForegroundColor DarkGray }
+    }
+} else {
+    Write-Warn "Auto-update is not set up" "Re-run install-startup.ps1 to add it."
+}
+
 # ---------------------------------------------------------------------------
 Write-Head "5. Is it running right now"
 

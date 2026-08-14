@@ -7,6 +7,15 @@ namespace PcLockAgent;
 internal static class Palette
 {
     public static readonly Color Background = Color.FromArgb(0x0A, 0x0E, 0x17);
+
+    /// <summary>Top of the page gradient — a shade lighter than the bottom.</summary>
+    public static readonly Color BackgroundTop = Color.FromArgb(0x12, 0x18, 0x28);
+
+    /// <summary>
+    /// The accent glow behind the heading. Alpha is most of the point: at full
+    /// strength this brand pink would fight everything on the screen.
+    /// </summary>
+    public static readonly Color Glow = Color.FromArgb(38, 0xE1, 0x1D, 0x48);
     public static readonly Color Surface = Color.FromArgb(0x11, 0x18, 0x27);
     public static readonly Color SurfaceHover = Color.FromArgb(0x1B, 0x24, 0x37);
     public static readonly Color Accent = Color.FromArgb(0xE1, 0x1D, 0x48);

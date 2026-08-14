@@ -105,6 +105,12 @@ internal sealed class LockedScreenForm : Form
         KeyDown += OnKeyDown;
     }
 
+    /// <summary>Paints the page background instead of the flat fill.</summary>
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        Theme.PaintBackdrop(e.Graphics, ClientRectangle);
+    }
+
     private void BuildLayout()
     {
         // Three rows at 50% / auto / 50% vertically centres the middle row's
