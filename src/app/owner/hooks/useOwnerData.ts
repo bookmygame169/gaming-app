@@ -130,6 +130,13 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
           cache: 'no-store',
         });
 
+        if (res.status === 401) {
+          if (!cancelled && typeof window !== 'undefined') {
+            window.location.href = '/owner/login';
+          }
+          return;
+        }
+
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Failed to load data');

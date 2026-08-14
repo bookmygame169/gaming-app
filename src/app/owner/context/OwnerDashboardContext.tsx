@@ -61,7 +61,7 @@ export function OwnerDashboardProvider({
 
   const { allowed, checkingRole } = useOwnerAuth();
   const { toasts, toast, removeToast } = useToast();
-  const canFetchOwnerData = checkingRole || allowed;
+  const canFetchOwnerData = allowed && !checkingRole;
   const canAutoRefreshOwnerData = allowed && !checkingRole;
 
   const {
@@ -2260,24 +2260,6 @@ export function OwnerDashboardProvider({
       setDeletingStation(false);
     }
   };
-
-  // Loading state
-  if (checkingRole && !hasLoadedData) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#020617",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#f8fafc",
-        }}
-      >
-        Loading...
-      </div>
-    );
-  }
 
   const value = useMemo(
     () => ({

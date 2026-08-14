@@ -19,11 +19,29 @@ function OwnerDashboardView() {
     refreshData,
     ownerSummary,
     allowed,
+    checkingRole,
     hasLoadedData,
     error,
   } = useOwnerDashboard();
 
-  if (!allowed && !hasLoadedData) {
+  if (checkingRole && !hasLoadedData) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#f8fafc",
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
+  if (!allowed) {
     return null;
   }
 
