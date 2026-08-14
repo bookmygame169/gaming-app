@@ -197,7 +197,8 @@ internal sealed class GameMenuForm : Form
         {
             flow.Controls.Add(new Label
             {
-                Text = "No games configured.\nAdd them to the \"games\" list in appsettings.json.",
+                Text = "No games available on this PC.\n"
+                     + "Add them in the dashboard, then check they are installed here.",
                 Font = new Font("Segoe UI", 13f, FontStyle.Regular),
                 ForeColor = Palette.TextMuted,
                 AutoSize = true,

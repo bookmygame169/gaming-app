@@ -54,4 +54,26 @@ internal sealed class GameEntry
     /// </summary>
     [JsonPropertyName("workingDirectory")]
     public string? WorkingDirectory { get; init; }
+
+    /// <summary>
+    /// A copy of this entry pointing at where the game really is on this PC.
+    /// </summary>
+    /// <remarks>
+    /// Used when the café's list and the machine disagree about the path,
+    /// which happens whenever Steam put the library on a different drive.
+    /// <para>
+    /// The working directory is dropped if it no longer exists, because a
+    /// stale one is worse than none: the default is the executable's own
+    /// folder, which is what most games need anyway.
+    /// </para>
+    /// </remarks>
+    public GameEntry WithResolvedExePath(string exePath) => new()
+    {
+        Name = Name,
+        ExePath = exePath,
+        IconPath = IconPath,
+        ProcessName = ProcessName,
+        Arguments = Arguments,
+        WorkingDirectory = Directory.Exists(WorkingDirectory) ? WorkingDirectory : null,
+    };
 }

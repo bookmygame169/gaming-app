@@ -35,6 +35,11 @@ internal static class Program
 
         config = await GameCatalogSync.TryRefreshAsync(config);
 
+        // After the sync, never before: the café's full list is what gets
+        // cached to disk, so a PC that is offline at boot still has everything
+        // to filter against instead of yesterday's filtered subset.
+        config = InstalledGames.FilterToInstalled(config);
+
         Application.Run(new AgentShell(config));
 
         AgentLog.Info("=== PcLockAgent stopped ===");

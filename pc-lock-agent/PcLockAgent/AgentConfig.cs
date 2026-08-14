@@ -85,10 +85,26 @@ internal sealed class AgentConfig
     [JsonPropertyName("games")]
     public List<GameEntry> Games { get; init; } = [];
 
+    /// <summary>
+    /// Hide games this PC does not have installed. On by default.
+    /// </summary>
+    /// <remarks>
+    /// The dashboard's list is café-wide, so a PC without a given game still
+    /// received a tile for it, and clicking that tile produced an error rather
+    /// than a game. See <see cref="InstalledGames"/>.
+    /// <para>
+    /// Set to false on a machine where detection gets it wrong; the full list
+    /// comes back and a bad tile fails at launch, as it did before.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("showOnlyInstalledGames")]
+    public bool ShowOnlyInstalledGames { get; init; } = true;
+
     public AgentConfig WithGames(List<GameEntry> games) => new()
     {
         StationId = StationId,
         Games = games,
+        ShowOnlyInstalledGames = ShowOnlyInstalledGames,
         EnrollUrl = EnrollUrl,
         IsEnrolled = IsEnrolled,
         Heartbeat = Heartbeat,
@@ -299,6 +315,11 @@ internal sealed class AgentConfig
             {
                 StationId = overrides.StationId ?? config.StationId,
                 Games = overrides.Games ?? config.Games,
+                // Carried explicitly. This initializer names every field, so a
+                // setting left out here is not inherited — it silently reverts
+                // to its default on exactly the machines that have a local
+                // override file, which is every enrolled café PC.
+                ShowOnlyInstalledGames = config.ShowOnlyInstalledGames,
                 EnrollUrl = config.EnrollUrl,
                 IsEnrolled = config.IsEnrolled,
                 Heartbeat = new HeartbeatConfig
