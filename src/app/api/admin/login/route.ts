@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, applyAdminSessionCookie, clearAdminSessionCookie, createAdminSession } from "@/lib/adminAuth";
+import {
+  applyAdminSessionCookie,
+  clearAdminSessionCookie,
+  createAdminSession,
+  getSupabaseAdmin,
+} from "@/lib/adminAuth";
+import {
+  ensureAdminProfileForEmail,
+  HARDCODED_ADMIN_EMAIL,
+  isHardcodedAdminLogin,
+} from "@/lib/adminLoginAccount";
 import { authRateLimiter, enforceRateLimit } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -14,34 +24,35 @@ export async function POST(request: NextRequest) {
     );
     if (rateLimitResponse) return rateLimitResponse;
 
-    const { username, password } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const email = String(body?.email || body?.username || "")
+      .trim()
+      .toLowerCase();
+    const password = String(body?.password || "");
 
-    if (!username || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: "Email and password are required" },
         { status: 400 }
       );
     }
 
+    if (!isHardcodedAdminLogin(email, password)) {
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    }
+
     const supabase = getSupabaseAdmin();
+    const userId = await ensureAdminProfileForEmail(supabase, HARDCODED_ADMIN_EMAIL);
 
-    const { data, error } = await supabase.rpc("verify_admin_login", {
-      p_username: username.trim(),
-      p_password: password,
-    });
-
-    if (error) {
-      console.error("Admin login verification error:", error);
-      return NextResponse.json({ error: "Login failed" }, { status: 500 });
+    if (!userId) {
+      return NextResponse.json({ error: "Could not set up admin session" }, { status: 500 });
     }
 
-    if (!data || data.length === 0 || !data[0].is_valid) {
-      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
-    }
-
-    const finalUsername = data[0].username || username.trim();
-    const response = NextResponse.json({ userId: data[0].user_id, username: finalUsername });
-    applyAdminSessionCookie(response, createAdminSession(data[0].user_id, finalUsername));
+    const response = NextResponse.json({ userId, email: HARDCODED_ADMIN_EMAIL });
+    applyAdminSessionCookie(
+      response,
+      createAdminSession(userId, HARDCODED_ADMIN_EMAIL)
+    );
     return response;
   } catch (err) {
     console.error("Admin login error:", err);
