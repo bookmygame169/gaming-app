@@ -24,12 +24,11 @@ internal sealed class LockedScreenForm : Form
     private Label? _devBadge;
     private Panel? _stationBadge;
 
-    private const int QrSize = 230;
+    private const int PlateWidth = 300;
+    private const int PlateHeight = 150;
+    private const int PlateTop = 150;
     private const int CardWidth = 560;
-    // 560, not the 620 first written. Laid out in a browser at the same
-    // numbers, that left a 98px gap under the last line against 46px above the
-    // first - a card that looked like something had been deleted from it.
-    private const int CardHeight = 560;
+    private const int CardHeight = 482;
 
     public LockedScreenForm(AgentConfig config)
     {
@@ -185,42 +184,54 @@ internal sealed class LockedScreenForm : Form
 
             using var brandFont = new Font("Segoe UI", 30f, FontStyle.Bold);
             using var kickerFont = new Font("Segoe UI", 9f, FontStyle.Regular);
-            using var stationFont = new Font("Segoe UI", 17f, FontStyle.Bold);
             using var callFont = new Font("Segoe UI", 11f, FontStyle.Regular);
-            using var helpFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+            using var lineFont = new Font("Segoe UI", 12f, FontStyle.Bold);
+            using var noteFont = new Font("Segoe UI", 9f, FontStyle.Regular);
 
             Theme.DrawTrackedCentred(g, "PLAYTIME", brandFont, Palette.TextPrimary, card.Width, 46f, 10f);
             Theme.DrawTrackedCentred(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, card.Width, 100f, 6f);
 
-            Theme.DrawDivider(g, card.Width, 132f, 320, Palette.Divider);
+            Theme.DrawDivider(g, card.Width, 130f, 320, Palette.Divider);
 
-            DrawQrPlaceholder(g, card.Width, 158);
+            DrawStationPlate(g, card.Width);
 
-            Theme.DrawTrackedCentred(g, "SCAN TO PAY AND START PLAYING", callFont, Palette.TextMuted,
-                card.Width, 158f + QrSize + 26f, 2f);
+            const float below = PlateTop + PlateHeight;
 
-            Theme.DrawDivider(g, card.Width, 158f + QrSize + 62f, 320, Palette.Divider);
+            Theme.DrawTrackedCentred(g, "ASK AT THE COUNTER TO START", callFont, Palette.TextMuted,
+                card.Width, below + 30f, 2f);
 
-            // Upper-cased for display only - the id itself stays lower case to
-            // match the MQTT topic the website publishes to.
-            Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont, Palette.Accent,
-                card.Width, 158f + QrSize + 80f, 5f);
+            Theme.DrawDivider(g, card.Width, below + 66f, 320, Palette.Divider);
 
-            Theme.DrawTrackedCentred(g, "Need help? Ask at the counter.", helpFont, Palette.TextFaint,
-                card.Width, 158f + QrSize + 118f, 0.4f);
+            Theme.DrawTrackedCentred(g, "Tell them this PC number", lineFont, Palette.TextPrimary,
+                card.Width, below + 84f, 0.6f);
+
+            Theme.DrawTrackedCentred(g, "Your time starts when they unlock it.", noteFont, Palette.TextFaint,
+                card.Width, below + 122f, 0.4f);
         };
 
         return card;
     }
 
     /// <summary>
-    /// Stand-in for the real QR code, sized to what the live one will occupy so
-    /// the layout does not shift when it is dropped in.
+    /// The station's number, large, with the fact that it is locked.
     /// </summary>
-    private static void DrawQrPlaceholder(Graphics graphics, int containerWidth, int top)
+    /// <remarks>
+    /// This space used to hold a QR code placeholder under the words "SCAN TO
+    /// PAY AND START PLAYING". There is no payment code anywhere in the agent,
+    /// so the screen was asking a customer to scan a grey box - and reserving
+    /// room for a feature with no timetable is how it came to say that in the
+    /// first place.
+    /// <para>
+    /// Until paying from the screen exists, the useful thing to show is which
+    /// PC this is: a customer walks to the counter and says the number, and
+    /// staff unlock it from the dashboard. That is how a session actually
+    /// starts today, so that is what the screen now describes.
+    /// </para>
+    /// </remarks>
+    private void DrawStationPlate(Graphics graphics, int containerWidth)
     {
-        var left = (containerWidth - QrSize) / 2;
-        var area = new Rectangle(left, top, QrSize, QrSize);
+        var left = (containerWidth - PlateWidth) / 2;
+        var area = new Rectangle(left, PlateTop, PlateWidth, PlateHeight);
 
         using (var fill = new SolidBrush(Palette.Surface))
         using (var path = Theme.RoundedRect(area, 12))
@@ -230,10 +241,19 @@ internal sealed class LockedScreenForm : Form
 
         Theme.DrawBorder(graphics, area, Palette.CardBorder, 1f, 12);
 
-        using var font = new Font("Segoe UI", 10f, FontStyle.Bold);
-        var width = Theme.MeasureTracked(graphics, "QR CODE", font, 3f);
-        Theme.DrawTracked(graphics, "QR CODE", font, Palette.TextFaint,
-            left + (QrSize - width) / 2f, top + QrSize / 2f - 10f, 3f);
+        using var labelFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+        using var idFont = new Font("Segoe UI", 34f, FontStyle.Bold);
+
+        var labelWidth = Theme.MeasureTracked(graphics, "LOCKED", labelFont, 5f);
+        Theme.DrawTracked(graphics, "LOCKED", labelFont, Palette.TextMuted,
+            left + (PlateWidth - labelWidth) / 2f, PlateTop + 34f, 5f);
+
+        // Upper-cased for display only - the id itself stays lower case to match
+        // the MQTT topic the website publishes to.
+        var id = _config.StationId.ToUpperInvariant();
+        var idWidth = Theme.MeasureTracked(graphics, id, idFont, 4f);
+        Theme.DrawTracked(graphics, id, idFont, Palette.Accent,
+            left + (PlateWidth - idWidth) / 2f, PlateTop + 62f, 4f);
     }
 
     /// <summary>

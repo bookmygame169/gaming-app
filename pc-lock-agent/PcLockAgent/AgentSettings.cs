@@ -23,11 +23,23 @@ internal static class AgentSettings
     /// this chord in a shipped build walks straight to the desktop.
     /// </para>
     /// <para>
+    /// <b>How to get out of a locked machine now that this is false.</b>
+    /// Ctrl+Alt+Del still works — Windows reserves it at the kernel level and no
+    /// application can trap it — and only the Task Manager entry on that screen
+    /// is disabled. Sign out from there and you are back at the logon screen,
+    /// from which your own administrator account is reachable as normal. The
+    /// startup task runs only for the customer account, so an administrator
+    /// signing in gets an ordinary Windows with no lock at all.
+    /// <para>
+    /// Set it back to true only on a machine you are developing on, and never
+    /// ship that build.
+    /// </para>
+    /// <para>
     /// <c>static readonly</c> rather than <c>const</c> on purpose: a const would
     /// be folded at compile time, making one side of every <c>if</c> that tests
     /// it unreachable and producing CS0162 warnings — which would flip to the
     /// other branch the moment this is set to false.
     /// </para>
     /// </remarks>
-    public static readonly bool AllowDevExit = true;
+    public static readonly bool AllowDevExit = false;
 }
