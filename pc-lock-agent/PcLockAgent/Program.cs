@@ -40,6 +40,10 @@ internal static class Program
         // to filter against instead of yesterday's filtered subset.
         config = InstalledGames.FilterToInstalled(config);
 
+        // After the filter, or the browser tile would be judged against the
+        // cafe's game list and dropped for not being one of them.
+        config = BrowserAccess.AddBrowserTile(config);
+
         Application.Run(new AgentShell(config));
 
         AgentLog.Info("=== PcLockAgent stopped ===");

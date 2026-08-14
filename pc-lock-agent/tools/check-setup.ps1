@@ -167,6 +167,13 @@ if ($null -eq $task) {
     }
 }
 
+$startupLnk = "C:\Users\$GamingUser\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\BookMyGame PC Lock.lnk"
+if (Test-Path $startupLnk) {
+    Write-Good "Backup Startup shortcut is in place"
+} else {
+    Write-Warn "No backup Startup shortcut for '$GamingUser'" "Re-run install-startup.ps1 after that account has signed in once."
+}
+
 # ---------------------------------------------------------------------------
 Write-Head "5. Is it running right now"
 

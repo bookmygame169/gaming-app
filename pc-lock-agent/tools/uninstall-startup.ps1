@@ -25,6 +25,17 @@ if (-not $task) {
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 
+# The Startup shortcut is a second way the agent starts, so removing only the
+# task would leave the lock coming back at every logon with nothing left to
+# explain why.
+Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $lnk = Join-Path $_.FullName "AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\BookMyGame PC Lock.lnk"
+    if (Test-Path $lnk) {
+        Remove-Item $lnk -Force -ErrorAction SilentlyContinue
+        Write-Host "Removed the Startup shortcut for $($_.Name)." -ForegroundColor Green
+    }
+}
+
 Write-Host "Removed '$TaskName'." -ForegroundColor Green
 Write-Host ""
 Write-Host "If a lock screen is still on screen, close it with Ctrl+Shift+Alt+Q" -ForegroundColor Cyan

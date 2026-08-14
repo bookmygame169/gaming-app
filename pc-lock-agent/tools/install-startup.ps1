@@ -89,8 +89,13 @@ $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $GamingUser
 
 # A "run once, then repeat forever" trigger is the standard way to express a
 # watchdog in Task Scheduler; there is no native "keep this running" option.
+# RepetitionDuration is given explicitly. Left out, some Windows and PowerShell
+# combinations register the task with no repetition at all - it runs once at
+# registration and never again, so the watchdog silently is not one. MaxValue is
+# how "forever" is spelled here.
 $watchdogTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 1)
+    -RepetitionInterval (New-TimeSpan -Minutes 1) `
+    -RepetitionDuration ([TimeSpan]::MaxValue)
 
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
@@ -114,6 +119,37 @@ Register-ScheduledTask `
     -Principal $principal `
     -Description "Locks this gaming PC until BookMyGame confirms a paid session. Restarts itself if closed." `
     -Force | Out-Null
+
+# --- Second way in, in case the task does not fire ---------------------------
+#
+# A shortcut in that account's Startup folder is the oldest and least clever way
+# to start something at logon, and it does not depend on Task Scheduler being
+# willing to run a task for another user. The task is still the important one -
+# it is what restarts a killed agent - but if it is the part that is broken, this
+# is what puts the lock on screen anyway.
+#
+# The folder only exists once the account has logged in at least once, since
+# that is when Windows creates the profile.
+$startupDir = "C:\Users\$GamingUser\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+if (Test-Path $startupDir) {
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut((Join-Path $startupDir "BookMyGame PC Lock.lnk"))
+        $shortcut.TargetPath = $ExePath
+        $shortcut.WorkingDirectory = Split-Path $ExePath -Parent
+        $shortcut.Description = "Locks this gaming PC until BookMyGame confirms a paid session."
+        $shortcut.Save()
+        Write-Host "Also added a Startup shortcut for '$GamingUser'." -ForegroundColor Green
+    } catch {
+        Write-Host "Could not add the Startup shortcut: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "Not fatal - the scheduled task is the main mechanism." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host ""
+    Write-Host "'$GamingUser' has never signed in, so there is no Startup folder yet." -ForegroundColor Yellow
+    Write-Host "Sign in as them once, then run this script again to add the backup" -ForegroundColor Yellow
+    Write-Host "shortcut. The scheduled task is already set up either way." -ForegroundColor Yellow
+}
 
 Write-Host ""
 Write-Host "Done. The agent starts when '$GamingUser' logs on, and restarts within" -ForegroundColor Green

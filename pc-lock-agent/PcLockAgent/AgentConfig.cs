@@ -100,11 +100,23 @@ internal sealed class AgentConfig
     [JsonPropertyName("showOnlyInstalledGames")]
     public bool ShowOnlyInstalledGames { get; init; } = true;
 
+    /// <summary>
+    /// Offer a browser on the game menu. On by default.
+    /// </summary>
+    /// <remarks>
+    /// Customers who came in to browse rather than play would otherwise need a
+    /// desktop, which is the thing the lock exists to prevent. See
+    /// <see cref="BrowserAccess"/>.
+    /// </remarks>
+    [JsonPropertyName("allowBrowsing")]
+    public bool AllowBrowsing { get; init; } = true;
+
     public AgentConfig WithGames(List<GameEntry> games) => new()
     {
         StationId = StationId,
         Games = games,
         ShowOnlyInstalledGames = ShowOnlyInstalledGames,
+        AllowBrowsing = AllowBrowsing,
         EnrollUrl = EnrollUrl,
         IsEnrolled = IsEnrolled,
         Heartbeat = Heartbeat,
@@ -320,6 +332,7 @@ internal sealed class AgentConfig
                 // to its default on exactly the machines that have a local
                 // override file, which is every enrolled café PC.
                 ShowOnlyInstalledGames = config.ShowOnlyInstalledGames,
+                AllowBrowsing = config.AllowBrowsing,
                 EnrollUrl = config.EnrollUrl,
                 IsEnrolled = config.IsEnrolled,
                 Heartbeat = new HeartbeatConfig
