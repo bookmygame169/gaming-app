@@ -1,16 +1,27 @@
--- Script to manually update admin credentials
--- Run this using: supabase db remote exec < update_admin_credentials.sql
+-- Reset BookMyGame PLATFORM admin login (not café owner login).
+-- Run in Supabase → SQL Editor → New query → paste → Run.
+--
+-- BEFORE RUNNING: change admin_username and new_password below.
 
--- Update admin credentials for all admin users
--- CHANGE THE VALUES BELOW:
-UPDATE profiles
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+UPDATE public.profiles
 SET
-    admin_username = 'your_new_username',  -- Change this
-    admin_password = 'your_new_password'    -- Change this
-WHERE
-    (role IN ('admin', 'super_admin') OR is_admin = true);
+  admin_username = 'admin',
+  admin_password = crypt('CHANGE_THIS_PASSWORD', gen_salt('bf')),
+  role = CASE WHEN role = 'owner' THEN role ELSE 'admin' END,
+  is_admin = true
+WHERE role IN ('admin', 'super_admin') OR is_admin = true;
 
--- Verify the update
+-- If no admin row exists yet, uncomment and edit the INSERT below instead of UPDATE:
+-- INSERT INTO public.profiles (
+--   id, first_name, last_name, role, is_admin, admin_username, admin_password, created_at, updated_at
+-- ) VALUES (
+--   gen_random_uuid(), 'BookMyGame', 'Admin', 'admin', true, 'admin',
+--   crypt('CHANGE_THIS_PASSWORD', gen_salt('bf')), NOW(), NOW()
+-- );
+
+-- Check username (password is hashed — you cannot read it back)
 SELECT id, first_name, last_name, admin_username, role, is_admin
-FROM profiles
-WHERE (role IN ('admin', 'super_admin') OR is_admin = true);
+FROM public.profiles
+WHERE role IN ('admin', 'super_admin') OR is_admin = true;

@@ -1,6 +1,7 @@
 "use client";
 // @ts-nocheck
 
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { theme } from "../../../utils/theme";
 import { ErrorBoundary } from "../../ErrorBoundary";
@@ -8,8 +9,23 @@ import { useOwnerDashboard } from "../../../context/OwnerDashboardContext";
 
 const StationsTab = dynamic(() => import("../../StationsTab").then((mod) => mod.StationsTab), { ssr: false });
 const StationLiveStatus = dynamic(() => import("../../StationLiveStatus").then((mod) => mod.StationLiveStatus), { ssr: false });
-const AddStationPc = dynamic(() => import("../../AddStationPc").then((mod) => mod.AddStationPc), { ssr: false });
+const StationLockSetupModal = dynamic(
+  () => import("../../StationLockSetupModal").then((mod) => mod.StationLockSetupModal),
+  { ssr: false }
+);
 const UnlockHistory = dynamic(() => import("../../UnlockHistory").then((mod) => mod.UnlockHistory), { ssr: false });
+
+type LiveStationRow = {
+  station_name: string;
+  status: string;
+  seconds_since_seen: number;
+  online: boolean;
+};
+
+type SetupStation = {
+  name: string;
+  displayName: string;
+};
 
 export function StationsTabRoute() {
   const {
@@ -30,6 +46,35 @@ export function StationsTabRoute() {
     selectedCafeId,
   } = useOwnerDashboard();
 
+  const [setupStation, setSetupStation] = useState<SetupStation | null>(null);
+  const [liveStations, setLiveStations] = useState<LiveStationRow[]>([]);
+
+  const loadLiveStatus = useCallback(async () => {
+    if (!selectedCafeId) return;
+
+    try {
+      const res = await fetch(
+        `/api/owner/stations/status?cafeId=${encodeURIComponent(selectedCafeId)}`,
+        { credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      setLiveStations(Array.isArray(data.stations) ? data.stations : []);
+    } catch {
+      // Live status is optional during setup.
+    }
+  }, [selectedCafeId]);
+
+  useEffect(() => {
+    loadLiveStatus();
+    const timer = setInterval(loadLiveStatus, 20000);
+    return () => clearInterval(timer);
+  }, [loadLiveStatus]);
+
+  const liveInfoForSetup = setupStation
+    ? liveStations.find((row) => row.station_name === setupStation.name)
+    : null;
+
   if (cafes.length === 0) return null;
 
   return (
@@ -45,6 +90,9 @@ export function StationsTabRoute() {
         onToggleMaintenance={handleToggleMaintenance}
         onEditPricing={(station) => setEditingStation(station)}
         onDeleteStation={(station) => setStationToDelete(station)}
+        onSetupLock={(station) =>
+          setSetupStation({ name: station.name, displayName: station.displayName })
+        }
         onAddStation={() => {
           setNewStationType("ps5");
           setNewStationCount(1);
@@ -54,12 +102,19 @@ export function StationsTabRoute() {
       />
       <div className="mt-4 flex flex-col gap-4">
         <StationLiveStatus cafeId={selectedCafeId || undefined} />
-        <AddStationPc
-          cafeId={selectedCafeId || undefined}
-          downloadUrl={process.env.NEXT_PUBLIC_AGENT_DOWNLOAD_URL}
-        />
         <UnlockHistory cafeId={selectedCafeId || undefined} />
       </div>
+
+      {setupStation && selectedCafeId && (
+        <StationLockSetupModal
+          cafeId={selectedCafeId}
+          stationName={setupStation.name}
+          displayName={setupStation.displayName}
+          liveInfo={liveInfoForSetup}
+          onLiveRefresh={loadLiveStatus}
+          onClose={() => setSetupStation(null)}
+        />
+      )}
     </ErrorBoundary>
   );
 }

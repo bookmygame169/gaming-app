@@ -17,6 +17,7 @@ interface StationsTabProps {
     onEditPricing: (station: any) => void;
     onDeleteStation: (station: { name: string; displayName: string; type: string }) => void;
     onAddStation: () => void;
+    onSetupLock?: (station: { name: string; displayName: string; type: string }) => void;
     theme: any;
 }
 
@@ -71,6 +72,7 @@ export function StationsTab({
     onEditPricing,
     onDeleteStation,
     onAddStation,
+    onSetupLock,
     theme,
 }: StationsTabProps) {
     const [stationSearch, setStationSearch] = useState('');
@@ -366,6 +368,24 @@ export function StationsTab({
                                     </div>
 
                                     <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                                        {station.type === 'PC' && onSetupLock && (
+                                            <button
+                                                style={{
+                                                    padding: '9px 10px',
+                                                    background: 'rgba(59, 130, 246, 0.12)',
+                                                    border: '1px solid rgba(59, 130, 246, 0.35)',
+                                                    borderRadius: 10,
+                                                    cursor: 'pointer',
+                                                    color: '#60a5fa',
+                                                    fontSize: 12,
+                                                    fontWeight: 700,
+                                                    gridColumn: '1 / -1',
+                                                }}
+                                                onClick={() => onSetupLock({ name: station.name, displayName: station.displayName, type: station.type })}
+                                            >
+                                                🔒 Install lock app
+                                            </button>
+                                        )}
                                         <button style={{ padding: '9px 10px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 10, cursor: 'pointer', color: theme.textPrimary, fontSize: 12, fontWeight: 600 }} onClick={() => onEditPricing(station)}>✏️ Edit</button>
                                         {onToggleMaintenance ? (
                                             <button
@@ -482,6 +502,24 @@ export function StationsTab({
                                         {/* Actions */}
                                         <td style={{ padding: '16px 20px' }}>
                                             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                                {station.type === 'PC' && onSetupLock && (
+                                                    <button
+                                                        style={{
+                                                            padding: '8px 10px',
+                                                            background: 'rgba(59, 130, 246, 0.12)',
+                                                            border: '1px solid rgba(59, 130, 246, 0.35)',
+                                                            borderRadius: 6,
+                                                            cursor: 'pointer',
+                                                            color: '#60a5fa',
+                                                            fontSize: 11,
+                                                            fontWeight: 700,
+                                                        }}
+                                                        onClick={() => onSetupLock({ name: station.name, displayName: station.displayName, type: station.type })}
+                                                        title="Download and link the lock app for this PC"
+                                                    >
+                                                        🔒 Setup
+                                                    </button>
+                                                )}
                                                 <button style={{ padding: '8px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 6, cursor: 'pointer' }} onClick={() => onEditPricing(station)} title="Edit Pricing">✏️</button>
                                                 {onToggleMaintenance && (
                                                     <button
