@@ -85,6 +85,16 @@ internal sealed class AgentConfig
     [JsonPropertyName("games")]
     public List<GameEntry> Games { get; init; } = [];
 
+    public AgentConfig WithGames(List<GameEntry> games) => new()
+    {
+        StationId = StationId,
+        Games = games,
+        EnrollUrl = EnrollUrl,
+        IsEnrolled = IsEnrolled,
+        Heartbeat = Heartbeat,
+        Mqtt = Mqtt,
+    };
+
     internal sealed class MqttConfig
     {
         [JsonPropertyName("host")]
@@ -135,6 +145,9 @@ internal sealed class AgentConfig
 
         [JsonPropertyName("heartbeat")]
         public HeartbeatOverride? Heartbeat { get; init; }
+
+        [JsonPropertyName("games")]
+        public List<GameEntry>? Games { get; init; }
 
         internal sealed class HeartbeatOverride
         {
@@ -285,7 +298,7 @@ internal sealed class AgentConfig
             return new AgentConfig
             {
                 StationId = overrides.StationId ?? config.StationId,
-                Games = config.Games,
+                Games = overrides.Games ?? config.Games,
                 EnrollUrl = config.EnrollUrl,
                 IsEnrolled = config.IsEnrolled,
                 Heartbeat = new HeartbeatConfig

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DEFAULT_CAFE_PC_GAMES, mapGameRowToAgentJson } from "@/lib/cafePcGames";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +129,28 @@ export async function POST(request: NextRequest) {
 
     const origin = new URL(request.url).origin;
 
+    const { data: gameRows } = await supabase
+      .from("cafe_pc_games")
+      .select("name, exe_path, arguments, process_name, icon_path, working_directory, sort_order")
+      .eq("cafe_id", enrollment.cafe_id)
+      .eq("active", true)
+      .order("sort_order", { ascending: true });
+
+    const games =
+      gameRows && gameRows.length > 0
+        ? gameRows.map((row) =>
+            mapGameRowToAgentJson({
+              name: String(row.name),
+              exe_path: String(row.exe_path),
+              arguments: row.arguments ? String(row.arguments) : null,
+              process_name: row.process_name ? String(row.process_name) : null,
+              icon_path: row.icon_path ? String(row.icon_path) : null,
+              working_directory: row.working_directory ? String(row.working_directory) : null,
+              sort_order: Number(row.sort_order) || 0,
+            })
+          )
+        : DEFAULT_CAFE_PC_GAMES.map(mapGameRowToAgentJson);
+
     return NextResponse.json({
       stationId: enrollment.station_name,
       mqtt: {
@@ -144,6 +167,7 @@ export async function POST(request: NextRequest) {
             cafeId: enrollment.cafe_id,
           }
         : null,
+      games,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to enroll";

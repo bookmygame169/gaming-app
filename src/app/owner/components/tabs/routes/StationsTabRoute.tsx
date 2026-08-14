@@ -14,6 +14,10 @@ const StationLockSetupModal = dynamic(
   { ssr: false }
 );
 const UnlockHistory = dynamic(() => import("../../UnlockHistory").then((mod) => mod.UnlockHistory), { ssr: false });
+const CafePcGamesEditor = dynamic(
+  () => import("../../CafePcGamesEditor").then((mod) => mod.CafePcGamesEditor),
+  { ssr: false }
+);
 
 type LiveStationRow = {
   station_name: string;
@@ -102,6 +106,7 @@ export function StationsTabRoute() {
       />
       <div className="mt-4 flex flex-col gap-4">
         <StationLiveStatus cafeId={selectedCafeId || undefined} />
+        <CafePcGamesEditor cafeId={selectedCafeId || undefined} />
         <UnlockHistory cafeId={selectedCafeId || undefined} />
       </div>
 
