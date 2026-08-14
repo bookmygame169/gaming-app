@@ -141,10 +141,14 @@ begin
   { Routed through cmd so the script's own output lands in the log. Running
     powershell.exe directly would discard it, which is what made an earlier
     failure impossible to diagnose. }
-  { {sysnative} rather than plain powershell.exe: this installer is a 32-bit
-    process, so an unqualified name resolves to the 32-bit PowerShell, which is
-    missing modules the script needs. On 32-bit Windows {sysnative} is simply
-    {sys}, so this is safe either way. }
+  // Written with // rather than { }: Pascal brace comments do not nest, so the
+  // closing brace of a constant like {sysnative} ends the comment early and the
+  // prose after it is compiled as code. That is what broke this build once.
+  //
+  // {sysnative} rather than plain powershell.exe: this installer is a 32-bit
+  // process, so an unqualified name resolves to the 32-bit PowerShell, which is
+  // missing modules the script needs. On 32-bit Windows {sysnative} is simply
+  // {sys}, so this is safe either way.
   if not RunHidden(ExpandConstant('{cmd}'),
     '/C "' + ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe') +
     '" -ExecutionPolicy Bypass -NoProfile -File "' +
