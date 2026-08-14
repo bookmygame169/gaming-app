@@ -22,6 +22,14 @@ internal sealed class LockedScreenForm : Form
 
     private Label _connectionLabel = null!;
     private Label? _devBadge;
+    private Panel? _stationBadge;
+
+    private const int QrSize = 230;
+    private const int CardWidth = 560;
+    // 560, not the 620 first written. Laid out in a browser at the same
+    // numbers, that left a 98px gap under the last line against 46px above the
+    // first - a card that looked like something had been deleted from it.
+    private const int CardHeight = 560;
 
     public LockedScreenForm(AgentConfig config)
     {
@@ -127,26 +135,14 @@ internal sealed class LockedScreenForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
-        // Anchor.None on an auto-sized panel is the WinForms idiom for "centre
-        // me in my cell" — it stops the panel stretching to the cell's edges.
-        var content = new TableLayoutPanel
-        {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            ColumnCount = 1,
-            RowCount = 5,
-            Anchor = AnchorStyles.None,
-            BackColor = Color.Transparent,
-        };
-
-        content.Controls.Add(BuildHeading(), 0, 0);
-        content.Controls.Add(BuildSubtitle(), 0, 1);
-        content.Controls.Add(BuildQrPlaceholder(), 0, 2);
-        content.Controls.Add(BuildStationLabel(), 0, 3);
-        content.Controls.Add(BuildFooterHint(), 0, 4);
-
-        root.Controls.Add(content, 0, 1);
+        // Anchor.None on a fixed-size panel is the WinForms idiom for "centre me
+        // in my cell" - it stops the panel stretching to the cell's edges.
+        root.Controls.Add(BuildCard(), 0, 1);
         Controls.Add(root);
+
+        _stationBadge = BuildStationBadge();
+        Controls.Add(_stationBadge);
+        _stationBadge.BringToFront();
 
         _connectionLabel = BuildConnectionLabel();
         Controls.Add(_connectionLabel);
@@ -160,84 +156,124 @@ internal sealed class LockedScreenForm : Form
         }
     }
 
-    private static Label BuildHeading() => new()
+    /// <summary>
+    /// The one card the whole screen is about.
+    /// </summary>
+    /// <remarks>
+    /// Drawn in a single Paint handler rather than assembled from a dozen
+    /// labels. Labels cannot letter-space their text, which is most of what
+    /// makes a heading look designed, and a stack of auto-sized controls gives
+    /// no straightforward way to place a divider or leave a measured gap.
+    /// Painting it also means the layout cannot be pulled apart by a long
+    /// station name.
+    /// </remarks>
+    private Panel BuildCard()
     {
-        Text = "LOCKED",
-        Font = new Font("Segoe UI", 46f, FontStyle.Bold),
-        ForeColor = Palette.Accent,
-        AutoSize = true,
-        Anchor = AnchorStyles.None,
-        Margin = new Padding(0, 0, 0, 4),
-    };
+        var card = new Panel
+        {
+            Width = CardWidth,
+            Height = CardHeight,
+            Anchor = AnchorStyles.None,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0),
+        };
 
-    private static Label BuildSubtitle() => new()
-    {
-        Text = "Scan the QR code to pay and start your session",
-        Font = new Font("Segoe UI", 15f, FontStyle.Regular),
-        ForeColor = Palette.TextPrimary,
-        AutoSize = true,
-        Anchor = AnchorStyles.None,
-        Margin = new Padding(0, 0, 0, 28),
-    };
+        card.Paint += (_, e) =>
+        {
+            var g = e.Graphics;
+            Theme.PaintCard(g, new Rectangle(0, 0, card.Width - 1, card.Height - 1));
+
+            using var brandFont = new Font("Segoe UI", 30f, FontStyle.Bold);
+            using var kickerFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+            using var stationFont = new Font("Segoe UI", 17f, FontStyle.Bold);
+            using var callFont = new Font("Segoe UI", 11f, FontStyle.Regular);
+            using var helpFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+
+            Theme.DrawTrackedCentred(g, "PLAYTIME", brandFont, Palette.TextPrimary, card.Width, 46f, 10f);
+            Theme.DrawTrackedCentred(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, card.Width, 100f, 6f);
+
+            Theme.DrawDivider(g, card.Width, 132f, 320, Palette.Divider);
+
+            DrawQrPlaceholder(g, card.Width, 158);
+
+            Theme.DrawTrackedCentred(g, "SCAN TO PAY AND START PLAYING", callFont, Palette.TextMuted,
+                card.Width, 158f + QrSize + 26f, 2f);
+
+            Theme.DrawDivider(g, card.Width, 158f + QrSize + 62f, 320, Palette.Divider);
+
+            // Upper-cased for display only - the id itself stays lower case to
+            // match the MQTT topic the website publishes to.
+            Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont, Palette.Accent,
+                card.Width, 158f + QrSize + 80f, 5f);
+
+            Theme.DrawTrackedCentred(g, "Need help? Ask at the counter.", helpFont, Palette.TextFaint,
+                card.Width, 158f + QrSize + 118f, 0.4f);
+        };
+
+        return card;
+    }
 
     /// <summary>
     /// Stand-in for the real QR code, sized to what the live one will occupy so
     /// the layout does not shift when it is dropped in.
     /// </summary>
-    private static Panel BuildQrPlaceholder()
+    private static void DrawQrPlaceholder(Graphics graphics, int containerWidth, int top)
     {
-        var panel = new Panel
+        var left = (containerWidth - QrSize) / 2;
+        var area = new Rectangle(left, top, QrSize, QrSize);
+
+        using (var fill = new SolidBrush(Palette.Surface))
+        using (var path = Theme.RoundedRect(area, 12))
         {
-            Width = 260,
-            Height = 260,
-            Anchor = AnchorStyles.None,
-            BackColor = Palette.Surface,
-            Margin = new Padding(0, 0, 0, 24),
-        };
+            graphics.FillPath(fill, path);
+        }
 
-        // Painting the border by hand (rather than BorderStyle.FixedSingle) lets
-        // it use the palette colour instead of the Windows system grey.
-        panel.Paint += (_, e) =>
-        {
-            using var borderPen = new Pen(Palette.Border, 2f);
-            e.Graphics.DrawRectangle(borderPen, 1, 1, panel.Width - 3, panel.Height - 3);
+        Theme.DrawBorder(graphics, area, Palette.CardBorder, 1f, 12);
 
-            const string placeholder = "QR CODE";
-            using var font = new Font("Segoe UI", 13f, FontStyle.Bold);
-            using var brush = new SolidBrush(Palette.TextMuted);
-            var size = e.Graphics.MeasureString(placeholder, font);
-            e.Graphics.DrawString(
-                placeholder,
-                font,
-                brush,
-                (panel.Width - size.Width) / 2f,
-                (panel.Height - size.Height) / 2f);
-        };
-
-        return panel;
+        using var font = new Font("Segoe UI", 10f, FontStyle.Bold);
+        var width = Theme.MeasureTracked(graphics, "QR CODE", font, 3f);
+        Theme.DrawTracked(graphics, "QR CODE", font, Palette.TextFaint,
+            left + (QrSize - width) / 2f, top + QrSize / 2f - 10f, 3f);
     }
 
-    private Label BuildStationLabel() => new()
+    /// <summary>
+    /// Which machine this is, in the corner, readable from across the room.
+    /// </summary>
+    /// <remarks>
+    /// Staff read this one far more than customers do - it is how someone at the
+    /// counter matches a booking to a seat without walking over and reading the
+    /// middle of the screen.
+    /// </remarks>
+    private Panel BuildStationBadge()
     {
-        // Upper-cased for display only — the id itself stays lower case to match
-        // the MQTT topic the website publishes to.
-        Text = $"Station  {_config.StationId.ToUpperInvariant()}",
-        Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-        ForeColor = Palette.TextPrimary,
-        AutoSize = true,
-        Anchor = AnchorStyles.None,
-        Margin = new Padding(0, 0, 0, 6),
-    };
+        var badge = new Panel
+        {
+            Width = 132,
+            Height = 44,
+            BackColor = Color.Transparent,
+            Location = new Point(Bounds.Width - 156, 24),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+        };
 
-    private static Label BuildFooterHint() => new()
-    {
-        Text = "Need help? Ask at the counter.",
-        Font = new Font("Segoe UI", 10f, FontStyle.Regular),
-        ForeColor = Palette.TextMuted,
-        AutoSize = true,
-        Anchor = AnchorStyles.None,
-        Margin = new Padding(0),
-    };
+        badge.Paint += (_, e) =>
+        {
+            var area = new Rectangle(0, 0, badge.Width - 1, badge.Height - 1);
+
+            using (var fill = new SolidBrush(Palette.CardFill))
+            using (var path = Theme.RoundedRect(area, 10))
+            {
+                e.Graphics.FillPath(fill, path);
+            }
+
+            Theme.DrawBorder(e.Graphics, area, Palette.CardBorder, 1f, 10);
+
+            using var font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            Theme.DrawTrackedCentred(e.Graphics, _config.StationId.ToUpperInvariant(), font,
+                Palette.TextPrimary, badge.Width, 12f, 3f);
+        };
+
+        return badge;
+    }
 
     /// <summary>
     /// Broker connection state, bottom-left. Useful while testing, and lets

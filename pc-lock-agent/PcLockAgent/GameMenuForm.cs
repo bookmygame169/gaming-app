@@ -127,23 +127,21 @@ internal sealed class GameMenuForm : Form
             BackColor = Color.Transparent,
         };
 
-        header.Controls.Add(new Label
+        // Painted, not labelled: a Label cannot letter-space its text, and the
+        // wide capitals are what tie this screen to the lock screen in front of
+        // it. Both are drawn from the same left edge as the tiles below.
+        header.Paint += (_, e) =>
         {
-            Text = "CHOOSE A GAME",
-            Font = new Font("Segoe UI", 26f, FontStyle.Bold),
-            ForeColor = Palette.TextPrimary,
-            AutoSize = true,
-            Location = new Point(48, 34),
-        });
+            using var titleFont = new Font("Segoe UI", 24f, FontStyle.Bold);
+            using var kickerFont = new Font("Segoe UI", 9f, FontStyle.Regular);
 
-        header.Controls.Add(new Label
-        {
-            Text = $"Station {_config.StationId.ToUpperInvariant()}",
-            Font = new Font("Segoe UI", 11f, FontStyle.Regular),
-            ForeColor = Palette.TextMuted,
-            AutoSize = true,
-            Location = new Point(52, 76),
-        });
+            Theme.DrawTracked(e.Graphics, "CHOOSE A GAME", titleFont, Palette.TextPrimary, 48f, 30f, 7f);
+            Theme.DrawTracked(e.Graphics, $"PLAYTIME  ·  STATION {_config.StationId.ToUpperInvariant()}",
+                kickerFont, Palette.AccentSoft, 50f, 76f, 4f);
+
+            using var rule = new SolidBrush(Palette.Accent);
+            e.Graphics.FillRectangle(rule, 50, 98, 54, 2);
+        };
 
         // Right-aligned countdown. Anchored so it stays pinned to the right edge
         // rather than drifting when the header is laid out.
@@ -242,7 +240,7 @@ internal sealed class GameMenuForm : Form
             Width = 210,
             Height = 232,
             Margin = new Padding(12),
-            BackColor = Palette.Surface,
+            BackColor = Palette.CardFillOpaque,
             Cursor = Cursors.Hand,
         };
 
@@ -257,7 +255,7 @@ internal sealed class GameMenuForm : Form
             Theme.DrawBorder(
                 e.Graphics,
                 new Rectangle(0, 0, tile.Width, tile.Height),
-                hovered ? Palette.Accent : Palette.Border,
+                hovered ? Palette.Accent : Palette.CardBorder,
                 hovered ? 2f : 1f,
                 Theme.CornerRadius);
         };
@@ -275,8 +273,8 @@ internal sealed class GameMenuForm : Form
 
         var label = new Label
         {
-            Text = game.Name,
-            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            Text = game.Name.ToUpperInvariant(),
+            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             TextAlign = ContentAlignment.MiddleCenter,
             Dock = DockStyle.Bottom,
@@ -310,7 +308,7 @@ internal sealed class GameMenuForm : Form
                 }
 
                 hovered = false;
-                tile.BackColor = Palette.Surface;
+                tile.BackColor = Palette.CardFillOpaque;
                 tile.Invalidate();
             };
         }
