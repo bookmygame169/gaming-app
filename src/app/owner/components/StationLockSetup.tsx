@@ -43,6 +43,7 @@ export function StationLockSetup({
 }: StationLockSetupProps) {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [publishHelp, setPublishHelp] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [codeLoading, setCodeLoading] = useState(false);
@@ -59,11 +60,13 @@ export function StationLockSetup({
       if (!res.ok) {
         setDownloadUrl(null);
         setDownloadError(data.error || 'Could not load the download link');
+        setPublishHelp(data.publishHelp || null);
         return;
       }
 
       setDownloadUrl(data.url || null);
       setDownloadError(data.url ? null : 'No download link is configured on the server.');
+      setPublishHelp(data.url ? null : data.publishHelp || null);
     } catch {
       setDownloadUrl(null);
       setDownloadError('Could not load the download link');
@@ -199,9 +202,12 @@ export function StationLockSetup({
                   Download for {displayName}
                 </a>
               ) : (
-                <p className="text-[11px] text-amber-400/90">
-                  {downloadError || 'Download is not available yet.'}
-                </p>
+                <div className="text-[11px] text-amber-400/90 space-y-1.5">
+                  <p>{downloadError || 'Download is not available yet.'}</p>
+                  {publishHelp && (
+                    <p className="text-amber-300/80 leading-relaxed">{publishHelp}</p>
+                  )}
+                </div>
               )}
             </div>
             <p className="mt-1.5 text-[11px] text-slate-500">

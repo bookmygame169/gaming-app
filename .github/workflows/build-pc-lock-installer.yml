@@ -1,0 +1,44 @@
+name: Build PC Lock Installer
+
+# Builds BookMyGame-PC-Lock-Setup.exe and publishes it to GitHub Releases so the
+# owner dashboard download button works (NEXT_PUBLIC_AGENT_DOWNLOAD_URL).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Installer version label (e.g. 1.0.0)"
+        required: false
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        working-directory: pc-lock-agent/tools
+        run: ./build-installer.ps1 -Version "${{ inputs.version }}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pc-lock-v${{ inputs.version }}
+          name: PC Lock Installer v${{ inputs.version }}
+          files: pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe
+          make_latest: true
+          generate_release_notes: true
