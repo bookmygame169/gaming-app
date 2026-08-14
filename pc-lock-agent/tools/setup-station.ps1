@@ -171,5 +171,5 @@ Write-Host "Start it now without rebooting:" -ForegroundColor Cyan
 Write-Host "  Start-ScheduledTask -TaskName 'BookMyGame PC Lock Agent'"
 Write-Host ""
 Write-Host "Check it worked:" -ForegroundColor Cyan
-Write-Host "  Get-Content '$InstallPath\agent.log' -Tail 10"
+Write-Host "  Get-Content \"$env:LOCALAPPDATA\BookMyGame\agent.log\" -Tail 10"
 Write-Host ""

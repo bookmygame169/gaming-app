@@ -29,7 +29,7 @@ internal sealed class SessionManager : IDisposable
 
     private const string StateFileName = "session.json";
 
-    private readonly string _statePath = Path.Combine(AppContext.BaseDirectory, StateFileName);
+    private readonly string _statePath = AgentPaths.SessionStateFile;
     private readonly System.Windows.Forms.Timer _timer;
     private readonly HashSet<int> _firedWarnings = [];
 

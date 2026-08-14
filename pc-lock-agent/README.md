@@ -463,7 +463,8 @@ the publisher is built.
 paint over the warning banner. Borderless-windowed mode, which most modern titles
 default to, shows it correctly.
 
-Diagnostics are written to `agent.log` beside the exe (and to the debugger
+Diagnostics are written to `agent.log` in the running account's own data
+folder, `%LOCALAPPDATA%\BookMyGame` (and to the debugger
 output window). That file is the first place to look when something misbehaves
 on a real café PC.
 

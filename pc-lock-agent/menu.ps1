@@ -77,6 +77,7 @@ function Show-Menu {
     Write-Host "  4  Show the app's log"
     Write-Host "  5  Show the install log"
     Write-Host "  6  Get the latest code"
+    Write-Host "  7  Check the customer account is set up  (admin)"
     Write-Host ""
     Write-Host "  Q  Quit"
     Write-Host ""
@@ -137,6 +138,7 @@ function Show-Log {
     param([string]$FileName, [string]$Description)
 
     $candidates = @(
+        (Join-Path $env:LOCALAPPDATA "BookMyGame\$FileName"),
         (Join-Path $installDir $FileName),
         (Join-Path $agentRoot "PcLockAgent\bin\Debug\net8.0-windows\$FileName")
     ) | Where-Object { Test-Path $_ }
@@ -145,6 +147,7 @@ function Show-Log {
         Write-Host ""
         Write-Host "  No $Description found yet." -ForegroundColor Yellow
         Write-Host "  Looked in:" -ForegroundColor DarkGray
+        Write-Host "    $env:LOCALAPPDATA\BookMyGame" -ForegroundColor DarkGray
         Write-Host "    $installDir" -ForegroundColor DarkGray
         Write-Host "    $agentRoot\PcLockAgent\bin\Debug\net8.0-windows" -ForegroundColor DarkGray
         Wait-ForKey
@@ -157,6 +160,26 @@ function Show-Log {
     Write-Host "  $newest" -ForegroundColor DarkGray
     Write-Host ""
     Get-Content $newest -Tail 40
+    Wait-ForKey
+}
+
+function Invoke-CheckSetup {
+    Write-Host ""
+    $script = Join-Path $agentRoot "tools\check-setup.ps1"
+    if (-not (Test-Path $script)) {
+        $script = Join-Path $installDir "check-setup.ps1"
+    }
+
+    if (-not (Test-Path $script)) {
+        Write-Host "  Could not find check-setup.ps1." -ForegroundColor Yellow
+        Wait-ForKey
+        return
+    }
+
+    $user = Read-Host "  Customer Windows account [GamingUser]"
+    if ([string]::IsNullOrWhiteSpace($user)) { $user = "GamingUser" }
+
+    & $script -GamingUser $user
     Wait-ForKey
 }
 
@@ -183,6 +206,7 @@ while ($true) {
         "4" { Show-Log -FileName "agent.log" -Description "app log" }
         "5" { Show-Log -FileName "install-log.txt" -Description "install log" }
         "6" { Invoke-Update }
+        "7" { Invoke-CheckSetup }
         "Q" { Write-Host ""; return }
         default {
             Write-Host "  Not an option." -ForegroundColor Yellow

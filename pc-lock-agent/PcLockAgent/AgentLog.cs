@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace PcLockAgent;
 
 /// <summary>
-/// Append-only log file beside the executable.
+/// Append-only log file in the per-user data folder.
 /// </summary>
 /// <remarks>
 /// This is a WinExe with no console, running unattended on a kiosk — when
@@ -18,7 +18,7 @@ namespace PcLockAgent;
 internal static class AgentLog
 {
     private static readonly object Gate = new();
-    private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, "agent.log");
+    private static readonly string LogPath = AgentPaths.LogFile;
 
     public static void Info(string message) => Write("INFO", message);
 

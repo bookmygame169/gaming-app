@@ -80,7 +80,7 @@ internal static class GameCatalogSync
 
     private static List<GameEntry> LoadCachedGames(List<GameEntry> fallback)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, GamesCacheFileName);
+        var path = AgentPaths.GamesCacheFile;
 
         try
         {
@@ -109,7 +109,7 @@ internal static class GameCatalogSync
     {
         try
         {
-            var path = Path.Combine(AppContext.BaseDirectory, GamesCacheFileName);
+            var path = AgentPaths.GamesCacheFile;
             var json = JsonSerializer.Serialize(games, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, json);
         }
