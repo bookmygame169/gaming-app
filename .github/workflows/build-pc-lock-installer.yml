@@ -73,6 +73,24 @@ jobs:
           Write-Host "Built installer: $exe"
           Get-Item $exe | Format-List FullName, Length
 
+      # An unstamped exe reports 1.0.0 forever. Every update check would then
+      # see something newer, install it, read 1.0.0 again, and do it all again
+      # four hours later - a cafe PC reinstalling itself in a loop. Cheap to
+      # assert here, miserable to notice in the field.
+      - name: Check the version was stamped into the exe
+        shell: pwsh
+        run: |
+          $exe = "pc-lock-agent/publish/PcLockAgent.exe"
+          if (-not (Test-Path $exe)) { throw "No published exe at $exe" }
+          $stamped = (Get-Item $exe).VersionInfo.FileVersion
+          $want = "${{ inputs.version }}"
+          Write-Host "exe reports '$stamped', release is '$want'"
+          if (-not $stamped.StartsWith($want)) {
+            Write-Host "::error::Version not stamped - exe says '$stamped', expected '$want'"
+            exit 1
+          }
+          Write-Host "ok - auto-update will compare these correctly"
+
       # A three-byte file a cafe PC can fetch every few hours. Reading the
       # version from the GitHub API instead would work, but unauthenticated API
       # calls are rate limited per IP - and every PC in one cafe shares an IP.

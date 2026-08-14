@@ -92,6 +92,23 @@ try {
 
     Write-Log "Update available: $installedVersion -> $latestText"
 
+    # Belt and braces against a build whose version was not stamped. Such an exe
+    # reports an old version however many times it is installed, so every check
+    # would download and reinstall it - forever, on every PC. If this exact
+    # version has already been installed once and the exe still reads older,
+    # stop and say so rather than loop.
+    $attemptFile = Join-Path $logDir "last-update-attempt.txt"
+    if (Test-Path $attemptFile) {
+        $lastAttempt = (Get-Content $attemptFile -Raw).Trim()
+        if ($lastAttempt -eq $latestText) {
+            Write-Log ("Already installed $latestText once and the agent still reports " +
+                       "$installedVersion. Not trying again - that build's version was " +
+                       "probably not stamped. Fix the build, publish a new version.") "ERROR"
+            exit 1
+        }
+    }
+    Set-Content -Path $attemptFile -Value $latestText -ErrorAction SilentlyContinue
+
     $running = Get-Process -Name "PcLockAgent" -ErrorAction SilentlyContinue
     if ($running -and -not $Force) {
         Write-Log "Agent is running, so somebody may be at this PC. Leaving it for now." "WARN"
@@ -133,6 +150,12 @@ try {
 
     $nowInstalled = (Get-Item $exe).VersionInfo.FileVersion
     Write-Log "Updated to $nowInstalled."
+
+    if ([version]$nowInstalled -ge $latestVersion) {
+        # Clean slate: the next new version starts without an attempt recorded
+        # against it.
+        Remove-Item $attemptFile -Force -ErrorAction SilentlyContinue
+    }
 
     Remove-Item $temp -Force -ErrorAction SilentlyContinue
 
