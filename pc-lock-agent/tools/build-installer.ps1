@@ -95,11 +95,21 @@ if (Test-Path $publishDir) {
     Remove-Item $publishDir -Recurse -Force
 }
 
-dotnet publish $projectDir -c Release -r win-x64 `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -o $publishDir | Out-Null
+$publishArgs = @(
+    "publish", $projectDir,
+    "-c", "Release",
+    "-r", "win-x64",
+    "--self-contained", "true",
+    "-p:PublishSingleFile=true",
+    "-p:IncludeNativeLibrariesForSelfExtract=true",
+    "-o", $publishDir
+)
+
+if ($env:GITHUB_ACTIONS) {
+    dotnet @publishArgs
+} else {
+    dotnet @publishArgs | Out-Null
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed. Fix the errors above and run again." -ForegroundColor Red
@@ -112,7 +122,12 @@ Write-Host "  Published." -ForegroundColor Green
 
 Write-Host "  Compiling ..." -ForegroundColor Cyan
 
-& $InnoSetupPath "/DAppVersion=$Version" (Join-Path $installerIn "PcLockAgent.iss") | Out-Null
+$issFile = Join-Path $installerIn "PcLockAgent.iss"
+if ($env:GITHUB_ACTIONS) {
+    & $InnoSetupPath "/DAppVersion=$Version" $issFile
+} else {
+    & $InnoSetupPath "/DAppVersion=$Version" $issFile | Out-Null
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Inno Setup failed. See the output above." -ForegroundColor Red
