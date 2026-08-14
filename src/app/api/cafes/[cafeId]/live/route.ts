@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   getOccupiedUnitCountForConsole,
   loadStationReservationState,
@@ -52,20 +52,7 @@ export async function GET(
       return NextResponse.json({ error: "cafeId is required" }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const key =
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: {
-        // Next caches fetch responses inside route handlers, and the Supabase
-        // client goes through fetch — so this endpoint was happily serving
-        // three-day-old station state while the database had the current row.
-        // "force-dynamic" governs the route, not the client's own requests.
-        // Freshness is the entire point here, so opt out explicitly.
-        fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
-      },
-    });
+    const supabase = getSupabaseAdmin();
 
     const today = getIndiaDateString();
     const nowMinutes = getIndiaCurrentMinutes();

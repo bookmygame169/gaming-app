@@ -1,15 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { noStoreFetch } from "@/lib/supabaseFetch";
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendDailyReport } from '@/lib/email';
 
-// Daily Report Cron Job - Sends analytics email at cafe closing time
-// Use service role key for cron jobs (server-side only)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  { global: { fetch: noStoreFetch } }
-);
+const supabase = getSupabaseAdmin();
 
 // Helper to format date as "Mon, 27 Jan 2026"
 function formatReportDate(date: Date): string {
@@ -219,12 +212,15 @@ async function generateReportForCafe(cafeId: string, cafeName: string, cafeEmail
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security (Vercel sends this header)
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  if (!cronSecret) {
+    console.error("[Daily Report Cron] CRON_SECRET is not set; rejecting request.");
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 503 });
+  }
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

@@ -9,6 +9,8 @@ import {
   BookingCancellationParams,
   WelcomeEmailParams,
 } from '@/lib/email';
+import { requireInternalApiSecret } from '@/lib/internalApiAuth';
+import { emailRateLimiter, enforceRateLimit } from '@/lib/ratelimit';
 
 type EmailType = 'login_alert' | 'booking_confirmation' | 'booking_cancellation' | 'welcome';
 
@@ -18,6 +20,12 @@ interface EmailRequestBody {
 }
 
 export async function POST(request: NextRequest) {
+  const authResponse = requireInternalApiSecret(request);
+  if (authResponse) return authResponse;
+
+  const rateLimitResponse = await enforceRateLimit(request, emailRateLimiter, 10, 10 * 60 * 1000);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body: EmailRequestBody = await request.json();
     const { type, data } = body;

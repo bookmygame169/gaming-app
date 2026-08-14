@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { noStoreFetch } from "@/lib/supabaseFetch";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+
+export { getSupabaseAdmin };
 
 const OWNER_SESSION_COOKIE = "owner_session";
 const OWNER_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -25,8 +27,6 @@ type OwnerContext = {
 type OwnerAuthResult =
   | { context: OwnerContext; response: null }
   | { context: null; response: NextResponse };
-
-let cachedSupabaseAdmin: SupabaseClient | null = null;
 
 function getOwnerCookieDomain(): string | undefined {
   const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -195,33 +195,6 @@ export function clearOwnerSessionCookie(response: NextResponse): void {
     expires: new Date(0),
     domain: getOwnerCookieDomain(),
   });
-}
-
-export function getSupabaseAdmin(): SupabaseClient {
-  if (cachedSupabaseAdmin) {
-    return cachedSupabaseAdmin;
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = getSupabaseServerKey();
-
-  if (!supabaseUrl) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL."
-    );
-  }
-
-  cachedSupabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-    // See supabaseFetch: without this a GET route can serve a cached copy of
-    // the database while looking like it just read it.
-    global: { fetch: noStoreFetch },
-  });
-
-  return cachedSupabaseAdmin;
 }
 
 function unauthorizedResponse(message = "Unauthorized"): NextResponse {

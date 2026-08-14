@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/userAuth";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { sendBookingConfirmation } from "@/lib/email";
+import { CONSOLE_LABELS } from "@/lib/constants";
+import { bookingRateLimiter, enforceRateLimit } from "@/lib/ratelimit";
 import {
   getIndiaDateString,
   getIndiaCurrentMinutes,
@@ -48,15 +51,6 @@ type CafeRow = {
   opening_hours: string | null;
 } & Record<string, unknown>;
 
-function getSupabaseAdmin(): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
 const COUNT_FIELD: Record<string, string> = {
   ps5: "ps5_count",
   ps4: "ps4_count",
@@ -72,6 +66,14 @@ const COUNT_FIELD: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await enforceRateLimit(
+      request,
+      bookingRateLimiter,
+      10,
+      10 * 60 * 1000
+    );
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { userId, response: authResponse } = await requireUser(request);
     if (authResponse) return authResponse;
 
@@ -480,6 +482,28 @@ export async function POST(request: NextRequest) {
     // Tells the lock agent about the booking. It locks rather than unlocks for
     // anything unpaid or not yet started, so this is safe to call here.
     await syncStationsForBooking(supabase, bookingId);
+
+    const { data: userData } = await supabase.auth.admin.getUserById(userId);
+    const authUser = userData?.user;
+    const userEmail = authUser?.email;
+    if (userEmail) {
+      const bonusMinutes = coupon?.bonusMinutes ?? 0;
+      sendBookingConfirmation({
+        email: userEmail,
+        name: customerName || authUser?.user_metadata?.full_name || authUser?.user_metadata?.name,
+        bookingId,
+        cafeName: cafe.name,
+        bookingDate: new Date(bookingDate).toLocaleDateString("en-IN", { dateStyle: "long" }),
+        startTime: startTime,
+        duration: durationMinutes + bonusMinutes,
+        tickets: itemsWithStations.map((item) => ({
+          console: CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        totalAmount: finalAmount,
+      }).catch((err) => console.error("Booking confirmation email failed:", err));
+    }
 
     return NextResponse.json({
       success: true,

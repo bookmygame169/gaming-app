@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { noStoreFetch } from "@/lib/supabaseFetch";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+
+export { getSupabaseAdmin };
 
 const ADMIN_SESSION_COOKIE = "admin_session";
 const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -22,8 +24,6 @@ type AdminContext = {
 type AdminAuthResult =
   | { context: AdminContext; response: null }
   | { context: null; response: NextResponse };
-
-let cachedSupabaseAdmin: SupabaseClient | null = null;
 
 function getAdminCookieDomain(): string | undefined {
   const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -155,24 +155,6 @@ export function clearAdminSessionCookie(response: NextResponse): void {
     expires: new Date(0),
     domain: getAdminCookieDomain(),
   });
-}
-
-export function getSupabaseAdmin(): SupabaseClient {
-  if (cachedSupabaseAdmin) return cachedSupabaseAdmin;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = getSupabaseServerKey();
-
-  if (!supabaseUrl) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL.");
-  }
-
-  cachedSupabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { fetch: noStoreFetch },
-  });
-
-  return cachedSupabaseAdmin;
 }
 
 function unauthorizedResponse(message = "Unauthorized"): NextResponse {

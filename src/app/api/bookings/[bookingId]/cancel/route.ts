@@ -1,23 +1,15 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/userAuth";
 import { getIndiaDateString } from "@/lib/bookingFilters";
 import { syncStationsForBooking } from "@/lib/stationSync";
+import { sendBookingCancellation } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ bookingId: string }>;
 };
-
-function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
@@ -33,7 +25,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     const { data: booking, error: fetchError } = await supabase
       .from("bookings")
-      .select("id, user_id, status, booking_date")
+      .select(`
+        id,
+        user_id,
+        status,
+        booking_date,
+        start_time,
+        total_amount,
+        cafes ( name )
+      `)
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -68,6 +68,27 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     // Re-locks the machine this booking was holding. Without it a cancelled
     // session leaves a PC unlocked and free to walk up to.
     await syncStationsForBooking(supabase, bookingId);
+
+    const { data: userData } = await supabase.auth.admin.getUserById(userId);
+    const authUser = userData?.user;
+    const userEmail = authUser?.email;
+    if (userEmail) {
+      const cafe = booking.cafes as { name?: string } | null;
+      sendBookingCancellation({
+        email: userEmail,
+        name:
+          authUser?.user_metadata?.full_name ||
+          authUser?.user_metadata?.name ||
+          undefined,
+        bookingId,
+        cafeName: cafe?.name || "Gaming Cafe",
+        bookingDate: booking.booking_date
+          ? new Date(booking.booking_date).toLocaleDateString("en-IN", { dateStyle: "long" })
+          : "",
+        startTime: booking.start_time || "",
+        totalAmount: booking.total_amount || 0,
+      }).catch((err) => console.error("Cancellation email failed:", err));
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

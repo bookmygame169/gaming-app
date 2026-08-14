@@ -319,34 +319,6 @@ export default function CheckoutPage() {
         window.sessionStorage.removeItem("checkoutDraft");
       }
 
-      // Send booking confirmation email
-      if (user.email) {
-        fetch('/api/email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'booking_confirmation',
-            data: {
-              email: user.email,
-              name: user.user_metadata?.full_name || user.user_metadata?.name,
-              bookingId,
-              cafeName: draft.cafeName,
-              bookingDate: new Date(bookingDate).toLocaleDateString('en-IN', { dateStyle: 'long' }),
-              startTime: timeSlot,
-              duration: draft.durationMinutes + extraMinutes, // Include bonus time in email
-              tickets: tickets.map(t => ({
-                console: CONSOLE_LABELS[t.console] || t.console,
-                quantity: t.quantity,
-                price: t.price,
-              })),
-              totalAmount: finalAmount,
-              discountApplied: discount > 0 ? discount : undefined,
-              extraMinutes: extraMinutes > 0 ? extraMinutes : undefined
-            },
-          }),
-        }).catch(console.error);
-      }
-
       setSuccessBookingId(bookingId);
       setBookingSuccess(true);
       setPlacing(false);

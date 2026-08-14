@@ -1,6 +1,7 @@
 // lib/ratelimit.ts - Rate limiting utility using Upstash Redis
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { NextResponse } from "next/server";
 
 // Create Redis client
 // Note: You need to set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in .env.local
@@ -65,6 +66,16 @@ export const authRateLimiter = redis
     })
   : null;
 
+// Rate limiter for email sends (10 requests per 10 minutes per IP)
+export const emailRateLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "10 m"),
+      analytics: true,
+      prefix: "ratelimit:email",
+    })
+  : null;
+
 // Helper function to get client IP from request
 export function getClientIp(request: Request): string {
   // Try to get IP from headers (for proxied requests)
@@ -120,4 +131,23 @@ export async function rateLimit(
     remaining: result.remaining,
     error: result.success ? undefined : "Rate limit exceeded. Please try again later.",
   };
+}
+
+/** Returns a 429 response when the limit is exceeded, otherwise null. */
+export async function enforceRateLimit(
+  request: Request,
+  limiter: Ratelimit | null,
+  fallbackLimit: number = 100,
+  fallbackWindowMs: number = 60000
+): Promise<NextResponse | null> {
+  const result = await rateLimit(request, limiter, fallbackLimit, fallbackWindowMs);
+
+  if (!result.success) {
+    return NextResponse.json(
+      { error: result.error ?? "Rate limit exceeded. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  return null;
 }

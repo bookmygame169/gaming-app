@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
+import { ownerPathForTab } from '../navigation';
 import {
     LayoutDashboard,
     CreditCard,
@@ -73,20 +75,23 @@ function NavItem({
     collapsed,
     isBilling = false,
     badge = 0,
-    onClick,
+    href,
+    onNavigate,
 }: {
     item: { id: string; label: string; icon: LucideIcon };
     isActive: boolean;
     collapsed: boolean;
     isBilling?: boolean;
     badge?: number;
-    onClick: () => void;
+    href: string;
+    onNavigate?: () => void;
 }) {
     const Icon = item.icon;
 
     return (
-        <button
-            onClick={onClick}
+        <Link
+            href={href}
+            onClick={onNavigate}
             title={collapsed ? item.label : undefined}
             className={`
                 relative w-full flex items-center gap-3 rounded-xl transition-all duration-200 group
@@ -129,7 +134,7 @@ function NavItem({
                     </span>
                 )
             )}
-        </button>
+        </Link>
     );
 }
 
@@ -161,6 +166,8 @@ export function Sidebar({
         onTabChange(id);
         if (isMobile) onClose();
     };
+
+    const tabHref = (id: string) => ownerPathForTab(id);
 
     const sidebarWidth = isMobile ? 'w-[86vw] max-w-[320px]' : collapsed ? 'w-16' : 'w-64';
 
@@ -223,7 +230,8 @@ export function Sidebar({
                             collapsed={collapsed && !isMobile}
                             isBilling={item.id === 'billing'}
                             badge={badges[item.id] ?? 0}
-                            onClick={() => handleNav(item.id)}
+                            href={tabHref(item.id)}
+                            onNavigate={() => handleNav(item.id)}
                         />
                     ))}
 
@@ -262,7 +270,8 @@ export function Sidebar({
                                         isActive={activeTab === item.id}
                                         collapsed={collapsed && !isMobile}
                                         badge={badges[item.id] ?? 0}
-                                        onClick={() => handleNav(item.id)}
+                                        href={tabHref(item.id)}
+                                        onNavigate={() => handleNav(item.id)}
                                     />
                                 ))}
                             </div>

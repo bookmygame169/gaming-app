@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, applyAdminSessionCookie, clearAdminSessionCookie, createAdminSession } from "@/lib/adminAuth";
+import { authRateLimiter, enforceRateLimit } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await enforceRateLimit(
+      request,
+      authRateLimiter,
+      5,
+      5 * 60 * 1000
+    );
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { username, password } = await request.json();
 
     if (!username || !password) {

@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { noStoreFetch } from "@/lib/supabaseFetch";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/userAuth";
 import { summarise } from "@/lib/reviews";
 
 export const dynamic = "force-dynamic";
-
-function getSupabaseAdmin(): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { fetch: noStoreFetch },
-  });
-}
 
 function missingTableMessage(message: string): string {
   return message.includes("cafe_reviews")

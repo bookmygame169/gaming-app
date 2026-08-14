@@ -325,27 +325,6 @@ export default function BookingDetailsPage() {
         throw new Error(body.error || "Failed to cancel booking");
       }
 
-      // Send cancellation email
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.email) {
-        fetch('/api/email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'booking_cancellation',
-            data: {
-              email: userData.user.email,
-              name: userData.user.user_metadata?.full_name || userData.user.user_metadata?.name,
-              bookingId,
-              cafeName: data.cafe?.name || 'Gaming Cafe',
-              bookingDate: data.booking_date ? new Date(data.booking_date).toLocaleDateString('en-IN', { dateStyle: 'long' }) : '',
-              startTime: data.start_time || '',
-              totalAmount: data.total_amount || 0,
-            },
-          }),
-        }).catch(console.error);
-      }
-
       setData(prev => prev ? { ...prev, status: "cancelled" } : prev);
     } catch (err) {
       console.error("Cancel error:", err);
