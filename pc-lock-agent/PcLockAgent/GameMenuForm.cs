@@ -44,6 +44,11 @@ internal sealed class GameMenuForm : Form
     private DateTime _watchStartedUtc;
     private bool _watchedProcessSeen;
 
+    // What was last started, for the "is it really running?" check and so the
+    // customer is told which game is in the way rather than just "a game".
+    private string? _currentGameName;
+    private string? _launchedExeName;
+
     public GameMenuForm(AgentConfig config)
     {
         _config = config;
@@ -354,9 +359,40 @@ internal sealed class GameMenuForm : Form
 
     private void LaunchGame(GameEntry game)
     {
+        // Check, rather than trust, that a game really is still running.
+        //
+        // "A game is running" used to be believed on the strength of a flag,
+        // and a click was dropped on the floor when it was set — no message, no
+        // log line, nothing on screen changing. Every way of getting that flag
+        // stuck therefore turned into the same report: the menu says a game is
+        // running, the game is plainly not on screen, and nothing happens when
+        // you click anything.
+        //
+        // The one that bites is a launcher-based game the customer backs out
+        // of. Starting Valorant runs VALORANT.exe, which hands off to the Riot
+        // Client and exits; the real process only appears once the game itself
+        // loads. Close the launcher before then and it never appears, so the
+        // watcher waits out its full two-minute grace period — and for those
+        // two minutes every tile on the menu is dead, not just that one.
+        //
+        // Asking the operating system what is actually running costs a few
+        // milliseconds on a click and makes the stuck state unreachable
+        // regardless of which path put it there.
         if (IsGameRunning)
         {
-            return;
+            if (AnyGameProcessAlive())
+            {
+                var stillRunning = _currentGameName ?? "A game";
+                AgentLog.Info($"'{game.Name}' not started: {stillRunning} is still running.");
+                _statusLabel.Text = $"{stillRunning} is still open. Close it first, then pick a game.";
+                _statusLabel.ForeColor = Palette.Accent;
+                return;
+            }
+
+            AgentLog.Warn(
+                $"Menu still thought '{_currentGameName ?? "a game"}' was running, but no process " +
+                "of its is alive. Clearing that and starting the game the customer asked for.");
+            ClearRunningState();
         }
 
         if (!File.Exists(game.ExePath))
@@ -388,6 +424,12 @@ internal sealed class GameMenuForm : Form
                 return;
             }
 
+            _currentGameName = game.Name;
+            // The exe we started, which for a launcher-based game is not the
+            // process the game ends up running as - both are worth checking
+            // before declaring nothing alive.
+            _launchedExeName = Path.GetFileNameWithoutExtension(game.ExePath);
+
             if (string.IsNullOrWhiteSpace(game.ProcessName))
             {
                 // The launched process is the game. Required for Exited to fire.
@@ -406,7 +448,11 @@ internal sealed class GameMenuForm : Form
                 StartWatchingByName(game.Name, game.ProcessName.Trim());
             }
 
-            EnterBackgroundMode(game.Name);
+            // A launcher-based game is not running yet, whatever the flag says,
+            // so it does not claim to be. Telling a customer their game is
+            // running while the screen shows them the menu is how "it says
+            // Valorant is running but it is not there" starts.
+            EnterBackgroundMode(game.Name, confirmedRunning: string.IsNullOrWhiteSpace(game.ProcessName));
             GameStarted?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
@@ -458,6 +504,8 @@ internal sealed class GameMenuForm : Form
                 {
                     _watchedProcessSeen = true;
                     AgentLog.Info($"'{gameName}' is now running.");
+                    _statusLabel.Text = $"{gameName} is running — close it to come back here.";
+                    _statusLabel.ForeColor = Palette.TextMuted;
                 }
 
                 return;
@@ -515,6 +563,78 @@ internal sealed class GameMenuForm : Form
         _watchTimer = null;
         _watchedProcessName = null;
         _watchedProcessSeen = false;
+        _currentGameName = null;
+        _launchedExeName = null;
+    }
+
+    /// <summary>
+    /// Forgets whatever was last launched, without touching the game itself.
+    /// </summary>
+    /// <remarks>
+    /// Only for the case where the processes are already gone and the menu is
+    /// the last thing that has not noticed.
+    /// </remarks>
+    private void ClearRunningState()
+    {
+        var process = Interlocked.Exchange(ref _runningProcess, null);
+        if (process is not null)
+        {
+            process.Exited -= OnGameProcessExited;
+            process.Dispose();
+        }
+
+        StopWatching();
+    }
+
+    /// <summary>
+    /// Whether any process belonging to the last launched game is still alive.
+    /// </summary>
+    /// <remarks>
+    /// Both names are checked because a launcher-based game has two, and which
+    /// one is alive changes over the life of a session: the started exe while
+    /// it is loading, the real process once it is playing. Treating either as
+    /// "still running" avoids yanking a customer back to the menu mid-load.
+    /// </remarks>
+    private bool AnyGameProcessAlive()
+    {
+        var process = _runningProcess;
+        if (process is not null)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // No process associated any more - treat as gone.
+            }
+        }
+
+        return IsProcessRunning(_watchedProcessName) || IsProcessRunning(_launchedExeName);
+    }
+
+    private static bool IsProcessRunning(string? processName)
+    {
+        if (string.IsNullOrWhiteSpace(processName))
+        {
+            return false;
+        }
+
+        var found = Process.GetProcessesByName(processName);
+        try
+        {
+            return found.Length > 0;
+        }
+        finally
+        {
+            foreach (var p in found)
+            {
+                p.Dispose();
+            }
+        }
     }
 
     /// <summary>
@@ -522,6 +642,23 @@ internal sealed class GameMenuForm : Form
     /// </summary>
     private void OnGameProcessExited(object? sender, EventArgs e)
     {
+        // Cleared here and not inside BeginInvoke on purpose. This used to
+        // return early when the form had no window handle, leaving the process
+        // reference in place - and since that reference is what "a game is
+        // running" means, the menu stayed blocked for the rest of the session
+        // with no way back short of restarting the agent.
+        var process = Interlocked.Exchange(ref _runningProcess, null);
+        if (process is not null)
+        {
+            process.Exited -= OnGameProcessExited;
+            process.Dispose();
+        }
+
+        _currentGameName = null;
+        _launchedExeName = null;
+
+        AgentLog.Info("Game exited. Returning to menu.");
+
         if (IsDisposed || !IsHandleCreated)
         {
             return;
@@ -529,19 +666,7 @@ internal sealed class GameMenuForm : Form
 
         try
         {
-            BeginInvoke(new Action(() =>
-            {
-                var process = Interlocked.Exchange(ref _runningProcess, null);
-
-                if (process is not null)
-                {
-                    process.Exited -= OnGameProcessExited;
-                    process.Dispose();
-                }
-
-                AgentLog.Info("Game exited. Returning to menu.");
-                GameExited?.Invoke(this, EventArgs.Empty);
-            }));
+            BeginInvoke(new Action(() => GameExited?.Invoke(this, EventArgs.Empty)));
         }
         catch (ObjectDisposedException)
         {
@@ -621,11 +746,13 @@ internal sealed class GameMenuForm : Form
     /// still loading. Only <see cref="Form.TopMost"/> is dropped, so the game
     /// can sit above this while this covers everything below it.
     /// </remarks>
-    private void EnterBackgroundMode(string gameName)
+    private void EnterBackgroundMode(string gameName, bool confirmedRunning)
     {
         TopMost = false;
 
-        _statusLabel.Text = $"{gameName} is running — close it to come back here.";
+        _statusLabel.Text = confirmedRunning
+            ? $"{gameName} is running — close it to come back here."
+            : $"Starting {gameName}… this can take a minute.";
         _statusLabel.ForeColor = Palette.TextMuted;
     }
 
