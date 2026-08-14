@@ -63,6 +63,40 @@ jobs:
           }
           if ($failed) { exit 1 }
 
+      # Parsing proves the script is valid PowerShell; it does not prove Task
+      # Scheduler will accept what the script builds. It would not - a duration
+      # of [TimeSpan]::MaxValue is rejected, Register-ScheduledTask threw, and
+      # since that script stops on error it exited before registering anything,
+      # so every PC installed from that build ended up with no lock on it.
+      #
+      # Registering the real trigger shapes here catches that, and also settles
+      # the question that caused it: whether a repetition with no duration
+      # survives registration. It does - which is why none is given.
+      - name: Check the scheduled-task triggers are valid
+        shell: pwsh
+        run: |
+          $name = "BookMyGame CI Trigger Check"
+          try {
+            $action   = New-ScheduledTaskAction -Execute "cmd.exe"
+            $logon    = New-ScheduledTaskTrigger -AtLogOn
+            $watchdog = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+                          -RepetitionInterval (New-TimeSpan -Minutes 1)
+            $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable
+
+            Register-ScheduledTask -TaskName $name -Action $action `
+              -Trigger $logon, $watchdog -Settings $settings -Force | Out-Null
+
+            $registered = Get-ScheduledTask -TaskName $name
+            $repeating = $registered.Triggers | Where-Object { $_.Repetition.Interval }
+            if (-not $repeating) {
+              Write-Host "::error::The watchdog repetition was dropped on registration"
+              exit 1
+            }
+            Write-Host "ok - triggers register, repetition survives as $($repeating.Repetition.Interval)"
+          } finally {
+            Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+          }
+
       - name: Build installer
         shell: pwsh
         run: |

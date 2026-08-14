@@ -89,13 +89,17 @@ $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $GamingUser
 
 # A "run once, then repeat forever" trigger is the standard way to express a
 # watchdog in Task Scheduler; there is no native "keep this running" option.
-# RepetitionDuration is given explicitly. Left out, some Windows and PowerShell
-# combinations register the task with no repetition at all - it runs once at
-# registration and never again, so the watchdog silently is not one. MaxValue is
-# how "forever" is spelled here.
+# No RepetitionDuration on purpose. A task with a repetition interval and no
+# duration repeats indefinitely - that is what the absent <Duration> means in
+# the task XML, and it is the form that works.
+#
+# It was briefly given [TimeSpan]::MaxValue instead, on the theory that
+# "forever" ought to be stated rather than implied. Task Scheduler rejects that
+# value outright, Register-ScheduledTask threw, and because this script stops on
+# error the whole thing exited before registering anything - so the installer
+# reported a failure and the lock never started at all. Do not spell it out.
 $watchdogTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 1) `
-    -RepetitionDuration ([TimeSpan]::MaxValue)
+    -RepetitionInterval (New-TimeSpan -Minutes 1)
 
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
@@ -111,14 +115,26 @@ $settings = New-ScheduledTaskSettingsSet `
 # elevated would add a UAC prompt for no benefit.
 $principal = New-ScheduledTaskPrincipal -UserId $GamingUser -LogonType Interactive -RunLevel Limited
 
-Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $action `
-    -Trigger $logonTrigger, $watchdogTrigger `
-    -Settings $settings `
-    -Principal $principal `
-    -Description "Locks this gaming PC until BookMyGame confirms a paid session. Restarts itself if closed." `
-    -Force | Out-Null
+try {
+    Register-ScheduledTask `
+        -TaskName $TaskName `
+        -Action $action `
+        -Trigger $logonTrigger, $watchdogTrigger `
+        -Settings $settings `
+        -Principal $principal `
+        -Description "Locks this gaming PC until BookMyGame confirms a paid session. Restarts itself if closed." `
+        -Force | Out-Null
+} catch {
+    # Written out in full because the installer only shows an exit code, and an
+    # exit code alone sent the last failure of this line unexplained for days.
+    Write-Host ""
+    Write-Host "Could not register the startup task." -ForegroundColor Red
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "The agent is installed but will not start on its own." -ForegroundColor Yellow
+    Write-Host "Run check-setup.ps1 for a full report." -ForegroundColor Yellow
+    exit 1
+}
 
 # --- Keep itself up to date --------------------------------------------------
 #
@@ -141,8 +157,7 @@ if (Test-Path $updateScript) {
     $updateTriggers = @(
         (New-ScheduledTaskTrigger -AtStartup),
         (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(10) `
-            -RepetitionInterval (New-TimeSpan -Hours 4) `
-            -RepetitionDuration ([TimeSpan]::MaxValue))
+            -RepetitionInterval (New-TimeSpan -Hours 4))
     )
 
     $updateSettings = New-ScheduledTaskSettingsSet `
@@ -155,16 +170,24 @@ if (Test-Path $updateScript) {
     $updatePrincipal = New-ScheduledTaskPrincipal `
         -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 
-    Register-ScheduledTask `
-        -TaskName $updateTaskName `
-        -Action $updateAction `
-        -Trigger $updateTriggers `
-        -Settings $updateSettings `
-        -Principal $updatePrincipal `
-        -Description "Installs new versions of the BookMyGame PC lock when the PC is idle." `
-        -Force | Out-Null
+    # Wrapped so that auto-update - a convenience - can never be the reason a PC
+    # ends up with no lock on it. That is precisely how this script last failed:
+    # one bad value in an optional extra took the whole install down with it.
+    try {
+        Register-ScheduledTask `
+            -TaskName $updateTaskName `
+            -Action $updateAction `
+            -Trigger $updateTriggers `
+            -Settings $updateSettings `
+            -Principal $updatePrincipal `
+            -Description "Installs new versions of the BookMyGame PC lock when the PC is idle." `
+            -Force | Out-Null
 
-    Write-Host "Auto-update is on - checks at startup and every 4 hours." -ForegroundColor Green
+        Write-Host "Auto-update is on - checks at startup and every 4 hours." -ForegroundColor Green
+    } catch {
+        Write-Host "Could not set up auto-update: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "Not fatal - the lock itself is set up. Updates will need installing by hand." -ForegroundColor Yellow
+    }
 } else {
     Write-Host "update-agent.ps1 not found, so auto-update was not set up." -ForegroundColor Yellow
 }
