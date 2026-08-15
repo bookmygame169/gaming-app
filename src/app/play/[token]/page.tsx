@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, Check, Clock, Loader2, Lock, Wallet } from 'lucide-react';
+import { AlertCircle, Check, Clock, Loader2, Lock, ScanLine, Wallet } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 type PlayOption = { durationMinutes: number; price: number };
 
@@ -35,19 +36,56 @@ export default function PlayPage() {
     const [starting, setStarting] = useState<number | null>(null);
     const [done, setDone] = useState<{ minutes: number; station: string } | null>(null);
 
+    /**
+     * The signed-in customer's access token.
+     *
+     * Sent as a bearer header, not as a cookie. The browser client keeps its
+     * session in localStorage, so `credentials: "include"` sends nothing the
+     * server can identify anyone by - which is why every scan came back
+     * unauthorised and bounced to the login page. It is stated at the top of
+     * lib/userAuth.ts; I did not read it.
+     */
+    const accessToken = useCallback(async () => {
+        const { data } = await supabase.auth.getSession();
+        return data?.session?.access_token ?? null;
+    }, []);
+
+    /**
+     * Sends the customer to sign in, and arranges for them to come back here.
+     *
+     * Through sessionStorage rather than a query parameter: the login page
+     * ignores ?redirect and the auth callback reads "redirectAfterLogin", which
+     * until now nothing ever wrote - so every sign-in landed on the home page.
+     * Someone standing at a machine would have had to find their own way back.
+     */
+    const signIn = useCallback(() => {
+        try {
+            sessionStorage.setItem('redirectAfterLogin', `/play/${token}`);
+        } catch {
+            // Private mode, or storage full. Losing the return trip is worth
+            // less than blocking the sign-in.
+        }
+
+        router.replace('/login');
+    }, [router, token]);
+
     const load = useCallback(async () => {
         if (!token) return;
 
         try {
+            const bearer = await accessToken();
+
+            if (!bearer) {
+                signIn();
+                return;
+            }
+
             const res = await fetch(`/api/play/${encodeURIComponent(token)}`, {
-                credentials: 'include',
+                headers: { Authorization: `Bearer ${bearer}` },
             });
 
             if (res.status === 401) {
-                // Sent back here afterwards, because arriving at a sign-in page
-                // with no way back to the machine you are standing at is where
-                // most people would give up and find staff.
-                router.replace(`/login?redirect=${encodeURIComponent(`/play/${token}`)}`);
+                signIn();
                 return;
             }
 
@@ -61,7 +99,7 @@ export default function PlayPage() {
         } finally {
             setLoading(false);
         }
-    }, [token, router]);
+    }, [token, accessToken, signIn]);
 
     useEffect(() => {
         load();
@@ -74,10 +112,19 @@ export default function PlayPage() {
         setError(null);
 
         try {
+            const bearer = await accessToken();
+
+            if (!bearer) {
+                signIn();
+                return;
+            }
+
             const res = await fetch(`/api/play/${encodeURIComponent(token)}`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${bearer}`,
+                },
                 body: JSON.stringify({ durationMinutes: option.durationMinutes }),
             });
 
@@ -126,8 +173,16 @@ export default function PlayPage() {
             <Shell>
                 <Problem message={error || 'Could not read that code'} />
                 <p className="mt-4 text-center text-xs text-slate-500">
-                    Codes last a couple of minutes. Scan the screen again.
+                    Codes last a couple of minutes.
                 </p>
+                <button
+                    type="button"
+                    onClick={() => router.replace('/scan')}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-rose-400"
+                >
+                    <ScanLine size={16} />
+                    Scan again
+                </button>
             </Shell>
         );
     }
