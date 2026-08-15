@@ -107,6 +107,10 @@ if (-not $accountExists) {
     Write-Host ""
     Write-Host "There is no Windows account called '$GamingUser' on this PC." -ForegroundColor Red
     Write-Host ""
+    Write-Host "If the installer said it created one, it did not: 'net user /add'" -ForegroundColor Yellow
+    Write-Host "makes an account with a blank password, and a PC with a minimum" -ForegroundColor Yellow
+    Write-Host "password length policy refuses that outright." -ForegroundColor Yellow
+    Write-Host ""
     Write-Host "Create a standard (non-admin) account for customers first:" -ForegroundColor Yellow
     Write-Host "  net user $GamingUser /add"
     Write-Host "  net localgroup Users $GamingUser /add"

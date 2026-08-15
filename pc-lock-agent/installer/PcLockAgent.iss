@@ -173,6 +173,33 @@ begin
       Result := Result + Lines[I] + #13#10;
 end;
 
+function PowerShellPath: String;
+begin
+  Result := ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe');
+end;
+
+{ Whether a local account of this name exists. }
+function AccountExists(const Name: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := RunViaCmd('net user "' + Name + '" >nul 2>&1', ResultCode) and (ResultCode = 0);
+end;
+
+{ Creates the customer account, and makes sure it worked.
+
+  The result of net user used to be discarded, on the reasoning that "already
+  exists" is a failure code worth ignoring. It is - but it is not the only one,
+  and throwing the result away threw away the others with it.
+
+  The one that matters: net user X /add makes an account with a blank password,
+  and a PC whose policy sets a minimum password length refuses it outright.
+  Nothing was created, nothing was reported, and the next step - which cannot
+  bind a task to an account that does not exist - failed with the exit code the
+  person installing has been staring at for several releases.
+
+  So the account is verified rather than assumed, tried a second way if the
+  first is refused, and the reason is put on screen if both fail. }
 procedure EnsureGamingAccount;
 var
   ResultCode: Integer;
@@ -180,10 +207,29 @@ begin
   if not CreateAccountCheck.Values[0] then
     Exit;
 
-  { net user fails harmlessly if the account already exists, so this is safe to
-    run either way. Output is appended rather than checked, because "already
-    exists" is a failure code we deliberately ignore. }
+  if AccountExists(GamingUser) then
+    Exit;
+
   RunViaCmd('net user "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
+
+  if not AccountExists(GamingUser) then
+    { New-LocalUser -NoPassword marks the account as not requiring one, which
+      some policies accept where a blank password is refused. A different
+      route, not a retry of the same one. }
+    RunViaCmd('"' + PowerShellPath + '" -ExecutionPolicy Bypass -NoProfile -Command ' +
+              '"New-LocalUser -Name '''' + GamingUser + '''' -NoPassword -AccountNeverExpires | Out-Null" ' +
+              '>> "' + SetupLogPath + '" 2>&1', ResultCode);
+
+  if not AccountExists(GamingUser) then
+  begin
+    MsgBox('Could not create the Windows account "' + GamingUser + '".' + #13#10 + #13#10 +
+           'This is usually the PC''s password policy refusing an account that' + #13#10 +
+           'has no password. Create the account yourself, then run the installer' + #13#10 +
+           'again and untick "Create the account if missing".' + #13#10 + #13#10 +
+           'What Windows said:' + #13#10 + #13#10 +
+           TailOfSetupLog(8), mbError, MB_OK);
+    Exit;
+  end;
 
   RunViaCmd('net localgroup Users "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
 end;
