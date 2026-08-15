@@ -66,6 +66,10 @@ export default function PlayPage() {
     // complete, and a customer who banks with something not on it would
     // reasonably conclude they cannot pay.
     const [chooserFailed, setChooserFailed] = useState(false);
+
+    // True when the session on screen was already waiting before this scan.
+    // Worth saying out loud - otherwise resuming looks like the tap did nothing.
+    const [resumed, setResumed] = useState(false);
     const [rejected, setRejected] = useState<string | null>(null);
     const [givenUp, setGivenUp] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -167,6 +171,10 @@ export default function PlayPage() {
 
             if (data.pending) {
                 setPending(data as PendingUpi);
+                setResumed(Boolean(data.resumed));
+                // A resumed session has already been told to the café, so it
+                // goes straight to waiting rather than asking them to pay twice.
+                setClaimed(Boolean(data.resumed));
                 return;
             }
 
@@ -253,6 +261,32 @@ export default function PlayPage() {
             setSubmitting(false);
         }
     }, [accessToken]);
+
+    const abandon = async () => {
+        if (!pending || submitting) return;
+
+        setSubmitting(true);
+
+        try {
+            const bearer = await accessToken();
+            if (!bearer) return;
+
+            await fetch(`/api/play/session/${pending.bookingId}/cancel`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${bearer}` },
+            });
+
+            setPending(null);
+            setClaimed(false);
+            setResumed(false);
+            setChosen(null);
+            load();
+        } catch {
+            setError('Could not cancel that. Please ask at the counter.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     /**
      * Notices the customer coming back from their payment app.
@@ -458,6 +492,26 @@ export default function PlayPage() {
                             {pending.station.toUpperCase()} unlocks by itself the moment they do.
                             Keep this screen open.
                         </p>
+
+                        {resumed && (
+                            <p className="mt-4 text-xs text-slate-500">
+                                You already had a payment waiting for this PC, so this is
+                                that one — you have not been charged twice.
+                            </p>
+                        )}
+
+                        {/* The way out of a payment that never happened. Without
+                            it a failed attempt blocks the machine for ten minutes
+                            and scanning again just hands the same dead session
+                            back. */}
+                        <button
+                            type="button"
+                            onClick={abandon}
+                            disabled={submitting}
+                            className="mt-6 text-xs font-semibold text-slate-500 underline hover:text-slate-300 disabled:opacity-40"
+                        >
+                            {submitting ? 'Cancelling…' : "Cancel this and start again"}
+                        </button>
 
                         {givenUp && (
                             <div className="mt-6 text-left">

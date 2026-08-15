@@ -77,6 +77,47 @@ async function planHoursFor(
 }
 
 /**
+ * A payment already waiting on this machine, if there is one.
+ *
+ * Found through the code that was scanned, which is the only thing tying a
+ * booking to a station: nobody chose a seat from a list, so there is no station
+ * on the booking itself.
+ */
+async function findPendingSession(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  cafeId: string,
+  stationName: string
+) {
+  const { data: tokens } = await supabase
+    .from("station_unlock_tokens")
+    .select("booking_id, duration_minutes, created_at")
+    .eq("cafe_id", cafeId)
+    .eq("station_name", stationName)
+    .not("booking_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  for (const row of tokens || []) {
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, user_id, status, total_amount")
+      .eq("id", row.booking_id)
+      .maybeSingle();
+
+    if (booking && (booking.status || "").toLowerCase() === "pending") {
+      return {
+        bookingId: booking.id as string,
+        userId: booking.user_id as string,
+        amount: toRupees(booking.total_amount),
+        durationMinutes: Number(row.duration_minutes) || 0,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * GET — what the customer's phone shows after scanning.
  */
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -215,13 +256,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const cafeForPayee = method === "upi"
-      ? (await supabase
+    const cafeForPayee = (await supabase
           .from("cafes")
           .select("name, upi_id, upi_display_name")
           .eq("id", station.cafe_id)
-          .maybeSingle()).data
-      : null;
+          .maybeSingle()).data;
 
     if (method === "upi") {
       const payee = cafeForPayee ? getCafePayee(cafeForPayee) : null;
@@ -257,6 +296,51 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           planHours: plan.hours,
         },
         { status: 402 }
+      );
+    }
+
+    // 3b. Is somebody already part-way through paying for this machine?
+    //
+    //     A failed UPI payment used to leave a pending booking behind, and the
+    //     natural response - scan again, try again - made a second one. One
+    //     customer ended up with three pending bookings for the same PC inside
+    //     a quarter of an hour, and the owner with three payments to reconcile
+    //     against one seat.
+    //
+    //     Their own is handed back rather than refused. Refusing would be
+    //     correct and useless: the payment they are retrying is the one that
+    //     failed, and telling them they already have one is telling them to
+    //     give up.
+    const existing = await findPendingSession(supabase, station.cafe_id, station.station_name);
+
+    if (existing && existing.userId === userId) {
+      const payee = cafeForPayee ? getCafePayee(cafeForPayee) : null;
+
+      return NextResponse.json({
+        pending: true,
+        resumed: true,
+        bookingId: existing.bookingId,
+        station: station.station_name,
+        durationMinutes: existing.durationMinutes || durationMinutes,
+        amount: existing.amount,
+        upi: payee
+          ? {
+              payeeName: payee.displayName,
+              payeeUpiId: payee.upiId,
+              url: buildUpiPaymentUrl(payee, existing.amount, existing.bookingId, cafeForPayee?.name),
+              chooserUrl: buildAndroidUpiChooserUrl(payee, existing.amount, existing.bookingId, cafeForPayee?.name),
+              apps: buildUpiAppOptions(payee, existing.amount, existing.bookingId, cafeForPayee?.name),
+            }
+          : null,
+      });
+    }
+
+    if (existing) {
+      // Someone else's. Two people paying for one seat is worse than one of
+      // them waiting a few minutes for the other to be confirmed or rejected.
+      return NextResponse.json(
+        { error: "Someone is already paying for this PC. Please ask at the counter." },
+        { status: 409 }
       );
     }
 
