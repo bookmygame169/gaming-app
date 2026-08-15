@@ -5,6 +5,7 @@ import { phoneKey } from "@/lib/loyalty";
 import { getWalletBalance, toRupees } from "@/lib/wallet";
 import { sendStationCommands } from "@/lib/stationCommands";
 import { getIndiaDateString } from "@/lib/bookingFilters";
+import { buildUpiAppOptions, buildUpiPaymentUrl, getCafePayee } from "@/lib/upi";
 import { getIndiaCurrentMinutes } from "@/lib/bookingFilters";
 import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
 
@@ -152,6 +153,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     const body = await request.json().catch(() => ({}));
     const durationMinutes = Number(body.durationMinutes);
+    const method = body.method === "upi" ? "upi" : "wallet";
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
       return NextResponse.json({ error: "Choose how long you want to play" }, { status: 400 });
     }
@@ -213,6 +215,24 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
+    const cafeForPayee = method === "upi"
+      ? (await supabase
+          .from("cafes")
+          .select("name, upi_id, upi_display_name")
+          .eq("id", station.cafe_id)
+          .maybeSingle()).data
+      : null;
+
+    if (method === "upi") {
+      const payee = cafeForPayee ? getCafePayee(cafeForPayee) : null;
+      if (!payee) {
+        return NextResponse.json(
+          { error: "This café has not set up UPI payments. Please ask at the counter." },
+          { status: 409 }
+        );
+      }
+    }
+
     const plan = await planHoursFor(supabase, station.cafe_id, phone);
     const hoursWanted = durationMinutes / 60;
 
@@ -228,7 +248,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     const walletBalance = await getWalletBalance(supabase, station.cafe_id, phone);
 
-    if (cashNeeded > walletBalance) {
+    if (method === "wallet" && cashNeeded > walletBalance) {
       return NextResponse.json(
         {
           error: "Not enough balance",
@@ -280,8 +300,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         // format would sort and display wrongly everywhere it appears.
         start_time: convertTo12Hour(minutesToTimeString(getIndiaCurrentMinutes())),
         total_amount: price,
-        status: "confirmed",
-        payment_mode: "wallet",
+        // A UPI session is not a session yet. Nothing has been received, and
+        // marking it confirmed would put an unpaid booking into takings and the
+        // active-sessions view until somebody noticed.
+        status: method === "upi" ? "pending" : "confirmed",
+        payment_mode: method,
         source: "qr",
       })
       .select("id")
@@ -290,6 +313,49 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     if (bookingError) {
       console.error("Could not record the QR booking:", bookingError.message);
       return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
+    }
+
+    // Record what this session was for. The request that takes a UPI payment is
+    // long gone by the time the owner confirms it, so the station, the booking
+    // and the length have to survive without it.
+    if (tokenId) {
+      await supabase
+        .from("station_unlock_tokens")
+        .update({ booking_id: booking.id, duration_minutes: durationMinutes })
+        .eq("id", tokenId);
+    }
+
+    if (method === "upi") {
+      const payee = getCafePayee(cafeForPayee!)!;
+
+      await supabase.from("station_unlock_log").insert({
+        cafe_id: station.cafe_id,
+        station_name: station.station_name,
+        action: "unlock",
+        trigger_source: "qr-upi-pending",
+        booking_id: booking.id,
+        booking_amount: price,
+        booking_status: "pending",
+        duration_seconds: Math.round(durationMinutes * 60),
+        payment_mode: "upi",
+      });
+
+      // Nothing is unlocked here. The customer pays their bank, the owner sees
+      // it arrive and confirms, and that confirmation is what starts the
+      // session - see PUT /api/owner/payments.
+      return NextResponse.json({
+        pending: true,
+        bookingId: booking.id,
+        station: station.station_name,
+        durationMinutes,
+        amount: price,
+        upi: {
+          payeeName: payee.displayName,
+          payeeUpiId: payee.upiId,
+          url: buildUpiPaymentUrl(payee, price, booking.id, cafeForPayee?.name),
+          apps: buildUpiAppOptions(payee, price, booking.id, cafeForPayee?.name),
+        },
+      });
     }
 
     // 6. Take the payment, wallet first.
@@ -379,13 +445,6 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { error: "Could not reach that PC. Nothing has been charged — please ask at the counter." },
         { status: 502 }
       );
-    }
-
-    if (tokenId) {
-      await supabase
-        .from("station_unlock_tokens")
-        .update({ booking_id: booking.id })
-        .eq("id", tokenId);
     }
 
     await supabase.from("station_unlock_log").insert({

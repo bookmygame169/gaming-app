@@ -92,8 +92,34 @@ export async function syncStationsForBooking(
       parseAssignedStationsFromTitle(item.title)
     );
 
+    /**
+     * A session started by scanning the code on a machine.
+     *
+     * It has no booking items, because nobody chose a seat from a list — they
+     * were already sitting at one. The station is recorded against the code they
+     * scanned instead, along with how long they paid for.
+     *
+     * Found here rather than handled by the caller so that every path which
+     * already syncs a booking covers these too: confirming a UPI payment starts
+     * the session, and cancelling or refunding it locks the machine again.
+     */
+    let scannedDurationMinutes = 0;
+
     if (stationNames.length === 0) {
-      return;
+      const { data: scanned } = await supabase
+        .from("station_unlock_tokens")
+        .select("station_name, duration_minutes")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!scanned?.station_name) {
+        return;
+      }
+
+      stationNames.push(scanned.station_name);
+      scannedDurationMinutes = Number(scanned.duration_minutes) || 0;
     }
 
     const status = (booking.status || "").toLowerCase();
@@ -126,7 +152,12 @@ export async function syncStationsForBooking(
     );
 
     const durationMinutes =
-      Math.max(0, ...perItemMinutes, Number(booking.duration) || 0) || 60;
+      Math.max(
+        0,
+        ...perItemMinutes,
+        Number(booking.duration) || 0,
+        scannedDurationMinutes
+      ) || 60;
 
     const now = Date.now();
 

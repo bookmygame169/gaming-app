@@ -2,10 +2,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, Check, Clock, Loader2, Lock, ScanLine, Wallet } from 'lucide-react';
+import { AlertCircle, Check, Clock, Loader2, Lock, ScanLine, Smartphone, Wallet } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 type PlayOption = { durationMinutes: number; price: number };
+
+type PendingUpi = {
+    bookingId: string;
+    station: string;
+    durationMinutes: number;
+    amount: number;
+    upi: {
+        payeeName: string;
+        payeeUpiId: string;
+        url: string;
+        apps: { label: string; url: string }[];
+    };
+};
 
 type PlayInfo = {
     station: string;
@@ -35,6 +48,15 @@ export default function PlayPage() {
     const [error, setError] = useState<string | null>(null);
     const [starting, setStarting] = useState<number | null>(null);
     const [done, setDone] = useState<{ minutes: number; station: string } | null>(null);
+
+    // The UPI half. Once a session is pending the page stops being a price list
+    // and becomes one thing: get this payment confirmed.
+    const [pending, setPending] = useState<PendingUpi | null>(null);
+    const [reference, setReference] = useState('');
+    const [claimed, setClaimed] = useState(false);
+    const [rejected, setRejected] = useState<string | null>(null);
+    const [givenUp, setGivenUp] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     /**
      * The signed-in customer's access token.
@@ -105,7 +127,7 @@ export default function PlayPage() {
         load();
     }, [load]);
 
-    const start = async (option: PlayOption) => {
+    const start = async (option: PlayOption, method: 'wallet' | 'upi') => {
         if (!token || starting !== null) return;
 
         setStarting(option.durationMinutes);
@@ -125,11 +147,16 @@ export default function PlayPage() {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${bearer}`,
                 },
-                body: JSON.stringify({ durationMinutes: option.durationMinutes }),
+                body: JSON.stringify({ durationMinutes: option.durationMinutes, method }),
             });
 
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Could not start the session');
+
+            if (data.pending) {
+                setPending(data as PendingUpi);
+                return;
+            }
 
             setDone({ minutes: option.durationMinutes, station: data.station });
         } catch (err) {
@@ -138,6 +165,84 @@ export default function PlayPage() {
             setStarting(null);
         }
     };
+
+    const submitReference = async () => {
+        if (!pending || submitting) return;
+
+        setSubmitting(true);
+        setError(null);
+
+        try {
+            const bearer = await accessToken();
+            if (!bearer) {
+                signIn();
+                return;
+            }
+
+            const res = await fetch(`/api/bookings/${pending.bookingId}/payment-claim`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${bearer}`,
+                },
+                body: JSON.stringify({ reference: reference.trim() }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Could not send that reference');
+
+            setClaimed(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not send that reference');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    /**
+     * Watches for the café confirming the payment.
+     *
+     * Polled rather than pushed: this runs for a few minutes at most, on one
+     * phone at a time, and a socket held open for that would be more moving
+     * parts than the problem deserves.
+     */
+    useEffect(() => {
+        if (!pending || done || rejected) return;
+
+        let cancelled = false;
+
+        const check = async () => {
+            const bearer = await accessToken();
+            if (!bearer || cancelled) return;
+
+            try {
+                const res = await fetch(`/api/play/session/${pending.bookingId}`, {
+                    headers: { Authorization: `Bearer ${bearer}` },
+                });
+                const data = await res.json().catch(() => ({}));
+                if (cancelled || !res.ok) return;
+
+                if (data.state === 'started') {
+                    setDone({ minutes: pending.durationMinutes, station: pending.station });
+                } else if (data.state === 'rejected') {
+                    setRejected(data.note || null);
+                } else {
+                    setGivenUp(Boolean(data.givenUp));
+                }
+            } catch {
+                // A dropped poll is not worth showing anyone. The next one is
+                // four seconds away.
+            }
+        };
+
+        check();
+        const timer = setInterval(check, 4000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, [pending, done, rejected, accessToken]);
 
     if (loading) {
         return (
@@ -164,6 +269,112 @@ export default function PlayPage() {
                         {done.minutes} minutes, starting now. Pick a game on the screen.
                     </p>
                 </div>
+            </Shell>
+        );
+    }
+
+    if (rejected) {
+        return (
+            <Shell>
+                <div className="py-10 text-center">
+                    <h1 className="text-xl font-bold text-white">Payment not confirmed</h1>
+                    <p className="mt-2 text-sm text-slate-400">
+                        {rejected || 'The café could not find that payment.'}
+                    </p>
+                    <p className="mt-4 text-sm text-slate-400">
+                        Please show your payment at the counter — they can start your session there.
+                    </p>
+                </div>
+            </Shell>
+        );
+    }
+
+    if (pending) {
+        return (
+            <Shell>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-400">
+                    {pending.station.toUpperCase()} · {pending.durationMinutes} min
+                </p>
+                <h1 className="mt-1 text-3xl font-black text-white">₹{pending.amount}</h1>
+
+                {!claimed ? (
+                    <>
+                        <p className="mt-4 text-sm text-slate-400">
+                            Pay <span className="font-bold text-slate-200">{pending.upi.payeeName}</span>,
+                            then enter the reference number your app shows.
+                        </p>
+
+                        {/* One button per app rather than a single upi:// link.
+                            Android hands that to a chooser, but iOS silently does
+                            nothing when no app claims the scheme, and a customer
+                            tapping a dead button concludes the whole thing is
+                            broken. */}
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            {pending.upi.apps.map((app) => (
+                                <a
+                                    key={app.label}
+                                    href={app.url}
+                                    className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 text-sm font-bold text-slate-200"
+                                >
+                                    <Smartphone size={14} />
+                                    {app.label}
+                                </a>
+                            ))}
+                        </div>
+
+                        <p className="mt-3 text-center text-[11px] text-slate-500">
+                            or pay to {pending.upi.payeeUpiId}
+                        </p>
+
+                        <div className="mt-6">
+                            <label htmlFor="ref" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Reference / UTR number
+                            </label>
+                            <input
+                                id="ref"
+                                value={reference}
+                                onChange={(event) => setReference(event.target.value)}
+                                inputMode="numeric"
+                                autoComplete="off"
+                                placeholder="e.g. 412345678901"
+                                className="mt-2 w-full rounded-xl border border-white/[0.10] bg-white/[0.04] px-4 py-3 text-base text-white placeholder:text-slate-600"
+                            />
+                            <p className="mt-2 text-[11px] text-slate-500">
+                                This is how the café finds your payment. It is in your
+                                payment app next to the amount.
+                            </p>
+                        </div>
+
+                        {error && <div className="mt-4"><Problem message={error} /></div>}
+
+                        <button
+                            type="button"
+                            onClick={submitReference}
+                            disabled={reference.trim().length < 6 || submitting}
+                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-bold text-emerald-950 disabled:opacity-40"
+                        >
+                            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                            I have paid
+                        </button>
+                    </>
+                ) : (
+                    <div className="mt-8 text-center">
+                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-slate-500" />
+                        <p className="mt-4 text-base font-bold text-white">
+                            Waiting for the café to confirm
+                        </p>
+                        <p className="mt-2 text-sm text-slate-400">
+                            {pending.station.toUpperCase()} unlocks by itself the moment they do.
+                            You can keep this screen open.
+                        </p>
+
+                        {givenUp && (
+                            <div className="mt-6 text-left">
+                                <Problem message="This is taking longer than usual. Please ask at the counter — your payment is safe and they can start your session." />
+                            </div>
+                        )}
+                    </div>
+                )}
             </Shell>
         );
     }
@@ -252,46 +463,75 @@ export default function PlayPage() {
                             const busy = starting === option.durationMinutes;
 
                             return (
-                                <button
+                                <div
                                     key={option.durationMinutes}
-                                    type="button"
-                                    onClick={() => start(option)}
-                                    disabled={starting !== null || !affordable}
-                                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/[0.10] bg-white/[0.03] px-5 py-4 text-left transition-colors hover:bg-white/[0.06] disabled:opacity-50"
+                                    className="rounded-2xl border border-white/[0.10] bg-white/[0.03] px-5 py-4"
                                 >
-                                    <span>
-                                        <span className="block text-lg font-bold text-white">
-                                            {option.durationMinutes} minutes
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span>
+                                            <span className="block text-lg font-bold text-white">
+                                                {option.durationMinutes} minutes
+                                            </span>
+                                            {partlyCovered && (
+                                                <span className="mt-0.5 block text-[11px] text-emerald-400">
+                                                    {fromPlan}h from your plan, rest from wallet
+                                                </span>
+                                            )}
                                         </span>
-                                        {partlyCovered && (
-                                            <span className="mt-0.5 block text-[11px] text-emerald-400">
-                                                {fromPlan}h from your plan, rest from wallet
-                                            </span>
+                                        <span className="flex shrink-0 items-center gap-2">
+                                            {coveredByPlan ? (
+                                                <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300">
+                                                    On your plan
+                                                </span>
+                                            ) : (
+                                                <span className="text-lg font-bold text-slate-200">₹{option.price}</span>
+                                            )}
+                                            {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+                                        </span>
+                                    </div>
+
+                                    {/* Wallet first and filled, because it is the
+                                        one that starts the session immediately.
+                                        UPI means paying the bank and then waiting
+                                        for someone at the café to confirm it, so
+                                        it is offered rather than encouraged. */}
+                                    <div className="mt-3 flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => start(option, 'wallet')}
+                                            disabled={starting !== null || !affordable}
+                                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2.5 text-[13px] font-bold text-emerald-950 transition-colors hover:bg-emerald-400 disabled:opacity-40"
+                                        >
+                                            <Wallet size={14} />
+                                            {coveredByPlan ? 'Start now' : `Wallet ₹${cash}`}
+                                        </button>
+
+                                        {!coveredByPlan && (
+                                            <button
+                                                type="button"
+                                                onClick={() => start(option, 'upi')}
+                                                disabled={starting !== null}
+                                                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/[0.12] px-3 py-2.5 text-[13px] font-bold text-slate-200 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
+                                            >
+                                                <Smartphone size={14} />
+                                                UPI ₹{option.price}
+                                            </button>
                                         )}
-                                        {!affordable && (
-                                            <span className="mt-0.5 block text-[11px] text-amber-400">
-                                                ₹{cash - info.walletBalance} short — top up at the counter
-                                            </span>
-                                        )}
-                                    </span>
-                                    <span className="flex shrink-0 items-center gap-2">
-                                        {coveredByPlan ? (
-                                            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300">
-                                                On your plan
-                                            </span>
-                                        ) : (
-                                            <span className="text-lg font-bold text-slate-200">₹{cash}</span>
-                                        )}
-                                        {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
-                                    </span>
-                                </button>
+                                    </div>
+
+                                    {!affordable && (
+                                        <p className="mt-2 text-[11px] text-amber-400">
+                                            ₹{cash - info.walletBalance} short in your wallet — pay by UPI instead.
+                                        </p>
+                                    )}
+                                </div>
                             );
                         })}
                     </div>
 
                     <p className="mt-5 text-center text-[11px] text-slate-500">
-                        Paid from your plan first, then your wallet. Nothing is charged
-                        if the PC does not unlock.
+                        Wallet starts straight away. UPI needs the café to confirm your
+                        payment first. Nothing is charged if the PC does not unlock.
                     </p>
                 </>
             )}

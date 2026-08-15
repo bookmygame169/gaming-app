@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     IndianRupee,
     Star,
@@ -44,8 +44,62 @@ export type OwnerSummary = {
  * Fetches the cross-feature summary. Shared so the sidebar badges and the
  * dashboard cards cannot disagree about how many payments are waiting.
  */
+/**
+ * How often the counts refresh.
+ *
+ * They used to load once and never again, which was survivable when everything
+ * they counted was hours old. It stopped being survivable when a customer
+ * started paying by UPI at a locked PC: they are stood there until the payment
+ * is confirmed, and a badge that only appears on a manual refresh means nobody
+ * ever learns they are waiting.
+ */
+const SUMMARY_POLL_MS = 20000;
+
+/**
+ * A short chime, generated rather than fetched.
+ *
+ * No audio file to ship, cache or 404. Browsers refuse to play anything before
+ * the page has been interacted with, which is why this fails quietly - by the
+ * time an owner has a customer waiting they have long since clicked something,
+ * and on the off chance they have not, the badge is still there.
+ */
+function playChime() {
+    try {
+        type WindowWithAudio = Window & { webkitAudioContext?: typeof AudioContext };
+        const Ctor = window.AudioContext || (window as WindowWithAudio).webkitAudioContext;
+        if (!Ctor) return;
+
+        const context = new Ctor();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+
+        // Two notes rather than a beep. A single tone reads as an error; a rising
+        // pair reads as "something arrived", which is what this is.
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(660, context.currentTime);
+        oscillator.frequency.setValueAtTime(880, context.currentTime + 0.12);
+
+        gain.gain.setValueAtTime(0.0001, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.2, context.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.32);
+
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.34);
+        oscillator.onended = () => context.close();
+    } catch {
+        // Audio is a courtesy. Never let it break the dashboard.
+    }
+}
+
 export function useOwnerSummary(cafeId?: string, refreshKey = 0) {
     const [summary, setSummary] = useState<OwnerSummary | null>(null);
+
+    // What the count was last time, so a chime marks an arrival rather than
+    // sounding on every poll while one sits unattended.
+    const lastWaitingRef = useRef<number | null>(null);
 
     const load = useCallback(async () => {
         if (!cafeId) return;
@@ -55,7 +109,19 @@ export function useOwnerSummary(cafeId?: string, refreshKey = 0) {
                 credentials: 'include',
             });
             if (!res.ok) return;
-            setSummary(await res.json());
+
+            const next = (await res.json()) as OwnerSummary;
+            const waiting = next?.payments?.waiting ?? 0;
+            const previous = lastWaitingRef.current;
+
+            // Not on the first load. Opening the dashboard to a payment that has
+            // been waiting since yesterday should not sound like it just landed.
+            if (previous !== null && waiting > previous) {
+                playChime();
+            }
+
+            lastWaitingRef.current = waiting;
+            setSummary(next);
         } catch {
             // The dashboard is useful without this; a failure shows no cards
             // rather than an error the owner cannot act on.
@@ -65,6 +131,13 @@ export function useOwnerSummary(cafeId?: string, refreshKey = 0) {
     useEffect(() => {
         load();
     }, [load, refreshKey]);
+
+    useEffect(() => {
+        if (!cafeId) return;
+
+        const timer = setInterval(load, SUMMARY_POLL_MS);
+        return () => clearInterval(timer);
+    }, [cafeId, load]);
 
     return summary;
 }
