@@ -29,8 +29,25 @@ internal sealed class LockedScreenForm : Form
     private const int PlateWidth = 300;
     private const int PlateHeight = 150;
     private const int PlateTop = 150;
+
+    // The code gets its own size and position rather than the plate's inflated
+    // by twenty. Borrowing them put its top edge exactly on the divider above,
+    // and made the card bottom-heavy because everything below still measured
+    // from where the plate would have ended.
+    private const int CodeSize = 220;
+    private const int CodeTop = 146;
     private const int CardWidth = 560;
-    private const int CardHeight = 512;
+    /// <summary>
+    /// Card height for whichever of the two blocks is showing.
+    /// </summary>
+    /// <remarks>
+    /// The code is taller than the plate it replaces, so one fixed height suits
+    /// exactly one of them and leaves the other with a stretch of empty card
+    /// underneath. Measured instead: the last line ends 138 below the block, and
+    /// 46 of margin under it matches the 46 above the heading.
+    /// </remarks>
+    private static int CardHeightFor(bool withCode) =>
+        (withCode ? CodeTop + CodeSize : PlateTop + PlateHeight) + 138 + 46;
 
     public LockedScreenForm(AgentConfig config)
     {
@@ -63,7 +80,15 @@ internal sealed class LockedScreenForm : Form
 
         _scanCode?.Dispose();
         _scanCode = code;
-        _card?.Invalidate();
+
+        if (_card is not null)
+        {
+            // Resized as well as repainted. The card is centred by its layout
+            // cell, so changing the height moves it back to the middle on its
+            // own rather than growing downwards off the bottom.
+            _card.Height = CardHeightFor(withCode: code is not null);
+            _card.Invalidate();
+        }
     }
 
     /// <summary>Shows the lock screen and brings it back to the front.</summary>
@@ -211,7 +236,7 @@ internal sealed class LockedScreenForm : Form
         var card = new Panel
         {
             Width = CardWidth,
-            Height = CardHeight,
+            Height = CardHeightFor(withCode: false),
             Anchor = AnchorStyles.None,
             BackColor = Color.Transparent,
             Margin = new Padding(0),
@@ -244,7 +269,11 @@ internal sealed class LockedScreenForm : Form
                 DrawStationPlate(g, card.Width);
             }
 
-            const float below = PlateTop + PlateHeight;
+            // Whichever is on screen decides where the rest of the card sits,
+            // so the code showing or not never leaves a gap or an overlap.
+            var below = _scanCode is not null
+                ? (float)(CodeTop + CodeSize)
+                : (float)(PlateTop + PlateHeight);
 
             Theme.DrawTrackedCentred(
                 g,
@@ -282,9 +311,8 @@ internal sealed class LockedScreenForm : Form
             return;
         }
 
-        var size = PlateHeight + 40;
-        var left = (containerWidth - size) / 2;
-        var area = new Rectangle(left, PlateTop - 20, size, size);
+        var left = (containerWidth - CodeSize) / 2;
+        var area = new Rectangle(left, CodeTop, CodeSize, CodeSize);
 
         using (var backing = new SolidBrush(Color.White))
         using (var path = Theme.RoundedRect(area, 10))

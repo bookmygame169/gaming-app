@@ -5,6 +5,8 @@ import { phoneKey } from "@/lib/loyalty";
 import { getWalletBalance, toRupees } from "@/lib/wallet";
 import { sendStationCommands } from "@/lib/stationCommands";
 import { getIndiaDateString } from "@/lib/bookingFilters";
+import { getIndiaCurrentMinutes } from "@/lib/bookingFilters";
+import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -273,6 +275,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         customer_name: customerName,
         customer_phone: phone,
         booking_date: getIndiaDateString(),
+        // NOT NULL, and stored as 12-hour text ("1:34 pm") like every other
+        // booking - the shared parser reads that shape, and a row in some other
+        // format would sort and display wrongly everywhere it appears.
+        start_time: convertTo12Hour(minutesToTimeString(getIndiaCurrentMinutes())),
         total_amount: price,
         status: "confirmed",
         payment_mode: "wallet",
@@ -286,23 +292,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
     }
 
-    // 6. Take the payment.
-    let hoursLeftToTake = hoursFromPlan;
-    for (const row of plan.rows) {
-      if (hoursLeftToTake <= 0) break;
-      const take = Math.min(row.hours_remaining, hoursLeftToTake);
-      await supabase
-        .from("subscriptions")
-        .update({ hours_remaining: Math.round((row.hours_remaining - take) * 100) / 100 })
-        .eq("id", row.id);
-      hoursLeftToTake -= take;
-    }
-
+    // 6. Take the payment, wallet first.
+    //
+    //    Order matters here and it used to be the other way round. Plan hours
+    //    were deducted, then the wallet spend was attempted - and the wallet is
+    //    the one that can be refused, by a database trigger, even after the
+    //    balance was checked a moment earlier. A member who was short then lost
+    //    plan hours and got no session for them. Taking the refusable thing
+    //    first means the only way to lose is one nobody notices: the café
+    //    honouring a discount whose hours were never taken.
     if (cashNeeded > 0) {
-      // The table refuses an overdraw in a trigger, so this can fail even
-      // though the balance was checked above - two sessions started in the same
-      // second would both have passed that check. Treated as the customer being
-      // short rather than as a server fault, because that is what it is.
       const { error: spendError } = await supabase.from("wallet_ledger").insert({
         cafe_id: station.cafe_id,
         customer_phone: phoneKey(phone),
@@ -321,6 +320,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           { status: 402 }
         );
       }
+    }
+
+    let hoursLeftToTake = hoursFromPlan;
+    for (const row of plan.rows) {
+      if (hoursLeftToTake <= 0) break;
+      const take = Math.min(row.hours_remaining, hoursLeftToTake);
+      await supabase
+        .from("subscriptions")
+        .update({ hours_remaining: Math.round((row.hours_remaining - take) * 100) / 100 })
+        .eq("id", row.id);
+      hoursLeftToTake -= take;
     }
 
     // 7. Unlock. If this is the step that fails, the money goes back — the
