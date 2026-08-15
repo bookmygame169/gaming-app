@@ -71,7 +71,11 @@ jobs:
         shell: pwsh
         run: |
           $user = "citestlock"
-          $pass = [System.Guid]::NewGuid().ToString() + "aA1!"
+          # Under 15 characters on purpose. A longer one makes net user stop and
+          # ask about pre-2000 compatibility, and with nothing to answer it the
+          # account is never created - which is a smaller cousin of the bug this
+          # step exists to catch.
+          $pass = "Ci!" + (Get-Random -Minimum 100000 -Maximum 999999) + "aZ"
           $fakeExe = Join-Path $env:RUNNER_TEMP "PcLockAgent.exe"
           Copy-Item "$env:SystemRoot\System32\cmd.exe" $fakeExe -Force
           Copy-Item pc-lock-agent/tools/update-agent.ps1 (Split-Path $fakeExe -Parent) -Force
