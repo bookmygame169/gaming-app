@@ -24,6 +24,14 @@
 
   <ItemGroup>
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
+
+    <!--
+      Draws the QR on the lock screen. Pure managed code with no native
+      dependency, so the self-contained single-file publish is unaffected.
+      Generating locally rather than downloading an image means the screen can
+      still draw a code it already holds if the next fetch fails.
+    -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
   <ItemGroup>

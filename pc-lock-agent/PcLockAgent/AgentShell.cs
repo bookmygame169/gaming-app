@@ -27,6 +27,7 @@ internal sealed class AgentShell : ApplicationContext
     private readonly GameMenuForm _gameMenu;
     private readonly WarningOverlayForm _warningOverlay;
     private readonly ScreenBlanker _screenBlanker;
+    private readonly UnlockQrProvider _unlockQr;
 
     private bool _exiting;
 
@@ -51,6 +52,12 @@ internal sealed class AgentShell : ApplicationContext
         _lockService.DevSimulateUnlockRequested += (_, _) => SimulateUnlock();
         _lockService.DevSimulateShortSessionRequested += (_, _) => SimulateShortSession();
         _lockService.DevSimulateLockRequested += (_, _) => SimulateLock();
+
+        // Codes are fetched only while the station is locked. One left on
+        // screen during somebody's paid session would sell time on a machine
+        // already in use.
+        _unlockQr = new UnlockQrProvider(config);
+        _unlockQr.CodeChanged += (_, image) => _lockedScreen.SetScanCode(image);
 
         _lockedScreen.DevChordPressed += OnDevChordPressed;
         _gameMenu.DevChordPressed += OnDevChordPressed;
@@ -117,6 +124,11 @@ internal sealed class AgentShell : ApplicationContext
 
     private void EnterUnlockedState(string? sessionId)
     {
+        // Stops asking, and clears whatever was drawn. Both matter: a code left
+        // on a machine somebody has just paid for is one another customer could
+        // scan to buy time on a PC already in use.
+        _unlockQr.Stop();
+
         // Menu up before the lock screen goes down. The other order leaves a
         // frame or two with neither on screen, which shows the desktop.
         _gameMenu.ShowMenu();
@@ -153,6 +165,10 @@ internal sealed class AgentShell : ApplicationContext
         // Lock screen up before the menu goes down, for the same reason.
         _lockedScreen.ShowLocked(reassertTopMost: !_lockService.Passthrough);
         _gameMenu.Hide();
+
+        // The screen is the only place the code is ever shown, so it starts and
+        // stops with the screen rather than on a schedule of its own.
+        _unlockQr.Start();
 
         ReportState(locked: true, sessionId: null);
     }
@@ -306,6 +322,7 @@ internal sealed class AgentShell : ApplicationContext
         // dropped TCP connection regardless.
         _ = _mqttService.DisposeAsync().AsTask();
 
+        _unlockQr.Dispose();
         _screenBlanker.Dispose();
         _warningOverlay.Close();
         _gameMenu.Close();

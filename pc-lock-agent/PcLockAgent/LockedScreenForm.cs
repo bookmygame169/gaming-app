@@ -23,18 +23,47 @@ internal sealed class LockedScreenForm : Form
     private Label _connectionLabel = null!;
     private Label? _devBadge;
     private Panel? _stationBadge;
+    private Panel? _card;
+    private Image? _scanCode;
 
     private const int PlateWidth = 300;
     private const int PlateHeight = 150;
     private const int PlateTop = 150;
     private const int CardWidth = 560;
-    private const int CardHeight = 482;
+    private const int CardHeight = 512;
 
     public LockedScreenForm(AgentConfig config)
     {
         _config = config;
         InitializeWindowBehaviour();
         BuildLayout();
+    }
+
+    /// <summary>
+    /// The code a customer scans to pay for a session, or null for none.
+    /// </summary>
+    /// <remarks>
+    /// Null is a normal state, not a failure: a PC that cannot reach the website
+    /// shows the station number and the line about asking at the counter, which
+    /// is how the café worked before any of this existed.
+    /// </remarks>
+    public void SetScanCode(Image? code)
+    {
+        if (IsDisposed)
+        {
+            code?.Dispose();
+            return;
+        }
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => SetScanCode(code)));
+            return;
+        }
+
+        _scanCode?.Dispose();
+        _scanCode = code;
+        _card?.Invalidate();
     }
 
     /// <summary>Shows the lock screen and brings it back to the front.</summary>
@@ -118,6 +147,17 @@ internal sealed class LockedScreenForm : Form
         Theme.PaintBackdrop(e.Graphics, ClientRectangle);
     }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _scanCode?.Dispose();
+            _scanCode = null;
+        }
+
+        base.Dispose(disposing);
+    }
+
     private void BuildLayout()
     {
         // Three rows at 50% / auto / 50% vertically centres the middle row's
@@ -177,6 +217,8 @@ internal sealed class LockedScreenForm : Form
             Margin = new Padding(0),
         };
 
+        _card = card;
+
         card.Paint += (_, e) =>
         {
             var g = e.Graphics;
@@ -185,7 +227,7 @@ internal sealed class LockedScreenForm : Form
             using var brandFont = new Font("Segoe UI", 30f, FontStyle.Bold);
             using var kickerFont = new Font("Segoe UI", 9f, FontStyle.Regular);
             using var callFont = new Font("Segoe UI", 11f, FontStyle.Regular);
-            using var lineFont = new Font("Segoe UI", 12f, FontStyle.Bold);
+            using var stationFont = new Font("Segoe UI", 17f, FontStyle.Bold);
             using var noteFont = new Font("Segoe UI", 9f, FontStyle.Regular);
 
             Theme.DrawTrackedCentred(g, "PLAYTIME", brandFont, Palette.TextPrimary, card.Width, 46f, 10f);
@@ -193,23 +235,65 @@ internal sealed class LockedScreenForm : Form
 
             Theme.DrawDivider(g, card.Width, 130f, 320, Palette.Divider);
 
-            DrawStationPlate(g, card.Width);
+            if (_scanCode is not null)
+            {
+                DrawScanCode(g, card.Width);
+            }
+            else
+            {
+                DrawStationPlate(g, card.Width);
+            }
 
             const float below = PlateTop + PlateHeight;
 
-            Theme.DrawTrackedCentred(g, "ASK AT THE COUNTER TO START", callFont, Palette.TextMuted,
-                card.Width, below + 30f, 2f);
+            Theme.DrawTrackedCentred(
+                g,
+                _scanCode is not null ? "SCAN TO PAY FROM YOUR APP" : "ASK AT THE COUNTER TO START",
+                callFont, Palette.TextMuted, card.Width, below + 30f, 2f);
 
             Theme.DrawDivider(g, card.Width, below + 66f, 320, Palette.Divider);
 
-            Theme.DrawTrackedCentred(g, "Tell them this PC number", lineFont, Palette.TextPrimary,
-                card.Width, below + 84f, 0.6f);
+            // The counter is always offered, whether or not a code is showing.
+            // A customer with no app, no balance or no phone must still have a
+            // way to start playing, and the station number is what staff need.
+            Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont, Palette.Accent,
+                card.Width, below + 78f, 5f);
 
-            Theme.DrawTrackedCentred(g, "Your time starts when they unlock it.", noteFont, Palette.TextFaint,
-                card.Width, below + 122f, 0.4f);
+            Theme.DrawTrackedCentred(g, "Or ask at the counter and tell them this number.",
+                noteFont, Palette.TextFaint, card.Width, below + 122f, 0.4f);
         };
 
         return card;
+    }
+
+    /// <summary>
+    /// Draws the scannable code, on white.
+    /// </summary>
+    /// <remarks>
+    /// White, and with a margin, on a screen that is otherwise deliberately
+    /// dark. A QR is read by contrast and the pale border around it is part of
+    /// the specification rather than decoration — a tastefully dark one that
+    /// nobody's phone can read would be a support call per customer.
+    /// </remarks>
+    private void DrawScanCode(Graphics graphics, int containerWidth)
+    {
+        if (_scanCode is null)
+        {
+            return;
+        }
+
+        var size = PlateHeight + 40;
+        var left = (containerWidth - size) / 2;
+        var area = new Rectangle(left, PlateTop - 20, size, size);
+
+        using (var backing = new SolidBrush(Color.White))
+        using (var path = Theme.RoundedRect(area, 10))
+        {
+            graphics.FillPath(backing, path);
+        }
+
+        var inner = Rectangle.Inflate(area, -10, -10);
+        graphics.DrawImage(_scanCode, inner);
     }
 
     /// <summary>
