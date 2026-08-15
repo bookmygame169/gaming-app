@@ -63,39 +63,6 @@ jobs:
           }
           if ($failed) { exit 1 }
 
-      # The installer starts install-startup.ps1 through cmd, and cmd only
-      # preserves quotes when there are exactly two of them - that line has ten.
-      # It happens to survive today because none of the real paths contain a
-      # space, which was worth finding out rather than assuming: an earlier
-      # version of this step asserted the unwrapped form was broken, and it is
-      # not. It would break the moment anyone installed to a path with a space
-      # in it, so the wrapped form is used and this proves the script is reached
-      # and the redirect lands.
-      - name: Check the installer's cmd quoting
-        shell: pwsh
-        run: |
-          $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-          $probe = Join-Path $env:RUNNER_TEMP "quoting probe.ps1"   # space on purpose
-          $log = Join-Path $env:RUNNER_TEMP "quoting probe.log"
-          'param([string]$ExePath, [string]$GamingUser)' | Set-Content $probe
-          'Write-Host "probe ran: $ExePath / $GamingUser"'  | Add-Content $probe
-          'exit 0'                                          | Add-Content $probe
-
-          $inner = '"' + $ps + '" -ExecutionPolicy Bypass -NoProfile -File "' + $probe +
-                   '" -ExePath "C:\BookMyGame\PcLockAgent\PcLockAgent.exe"' +
-                   ' -GamingUser "GamingUser" >> "' + $log + '" 2>&1'
-
-          & cmd.exe /C ('"' + $inner + '"')
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::cmd returned $LASTEXITCODE - the quoting is wrong"
-            exit 1
-          }
-          if (-not (Test-Path $log) -or -not ((Get-Content $log -Raw) -match 'probe ran')) {
-            Write-Host "::error::cmd exited 0 but the script never ran or never logged"
-            exit 1
-          }
-          Write-Host "ok - reaches the script and the redirect lands, even with a space in the path"
-
       # The decisive one: run the real script, against a real account, on real
       # Windows. Everything before this tested a simplified stand-in, and the
       # installer has been failing with a bare exit code for several releases
@@ -133,6 +100,43 @@ jobs:
             }
             & net user $user /delete 2>&1 | Out-Null
           }
+
+      # The installer starts install-startup.ps1 through cmd, and cmd only
+      # preserves quotes when there are exactly two of them - that line has ten.
+      # It happens to survive today because none of the real paths contain a
+      # space, which was worth finding out rather than assuming: an earlier
+      # version of this step asserted the unwrapped form was broken, and it is
+      # not. It would break the moment anyone installed to a path with a space
+      # in it. The wrapped form is used because it is the documented one, and
+      # this proves the script is reached and the redirect lands.
+      #
+      # Known and deliberately not chased here: with a space in the path even the
+      # wrapped form returns 1. No path the installer uses has one, and finding
+      # out why is a different question from the one being chased.
+      - name: Check the installer's cmd quoting
+        shell: pwsh
+        run: |
+          $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+          $probe = Join-Path $env:RUNNER_TEMP "quoting-probe.ps1"
+          $log = Join-Path $env:RUNNER_TEMP "quoting-probe.log"
+          'param([string]$ExePath, [string]$GamingUser)' | Set-Content $probe
+          'Write-Host "probe ran: $ExePath / $GamingUser"'  | Add-Content $probe
+          'exit 0'                                          | Add-Content $probe
+
+          $inner = '"' + $ps + '" -ExecutionPolicy Bypass -NoProfile -File "' + $probe +
+                   '" -ExePath "C:\BookMyGame\PcLockAgent\PcLockAgent.exe"' +
+                   ' -GamingUser "GamingUser" >> "' + $log + '" 2>&1'
+
+          & cmd.exe /C ('"' + $inner + '"')
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::cmd returned $LASTEXITCODE - the quoting is wrong"
+            exit 1
+          }
+          if (-not (Test-Path $log) -or -not ((Get-Content $log -Raw) -match 'probe ran')) {
+            Write-Host "::error::cmd exited 0 but the script never ran or never logged"
+            exit 1
+          }
+          Write-Host "ok - reaches the script and the redirect lands"
 
       - name: Check the scheduled-task triggers are valid
         shell: pwsh
