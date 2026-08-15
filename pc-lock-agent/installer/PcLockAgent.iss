@@ -119,6 +119,32 @@ begin
   Result := ExpandConstant('{app}\install-log.txt');
 end;
 
+{ The last few lines of the install log, for putting in the failure message.
+
+  Pointing at a file was not enough. Three releases were spent guessing at a
+  cause because the only thing anyone ever saw - and the only thing that ever
+  reached me - was "code 1" and the path to a file nobody opened. The error
+  belongs on the screen the person is already looking at. }
+function TailOfSetupLog(HowMany: Integer): String;
+var
+  Lines: TArrayOfString;
+  Total, First, I: Integer;
+begin
+  Result := '';
+
+  if not LoadStringsFromFile(SetupLogPath, Lines) then
+    Exit;
+
+  Total := GetArrayLength(Lines);
+  First := Total - HowMany;
+  if First < 0 then
+    First := 0;
+
+  for I := First to Total - 1 do
+    if Trim(Lines[I]) <> '' then
+      Result := Result + Lines[I] + #13#10;
+end;
+
 procedure EnsureGamingAccount;
 var
   ResultCode: Integer;
@@ -166,9 +192,10 @@ begin
 
   if ResultCode <> 0 then
     MsgBox('The startup setup reported a problem (code ' + IntToStr(ResultCode) + ').' + #13#10 +
-           'The lock will not start on its own until that is fixed.' + #13#10 + #13#10 +
-           'What went wrong is written to:' + #13#10 +
-           SetupLogPath, mbError, MB_OK);
+           'The lock may not start on its own until that is fixed.' + #13#10 + #13#10 +
+           'What went wrong:' + #13#10 + #13#10 +
+           TailOfSetupLog(14) + #13#10 +
+           'Full log: ' + SetupLogPath, mbError, MB_OK);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

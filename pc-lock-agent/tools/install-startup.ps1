@@ -27,6 +27,10 @@ param(
     [string]$ExePath = "C:\BookMyGame\PcLockAgent\PcLockAgent.exe",
     [string]$TaskName = "BookMyGame PC Lock Agent",
 
+    # Only used by the schtasks.exe fallback, which cannot put two triggers on
+    # one task.
+    [string]$WatchdogTaskName = "BookMyGame PC Lock Watchdog",
+
     # The Windows account customers use. The task runs ONLY for this account, so
     # signing in as an administrator gives a normal, unlocked Windows - which is
     # how the machine stays administrable once the dev exit chord is disabled.
@@ -161,14 +165,55 @@ try {
         -Force | Out-Null
 } catch {
     # Written out in full because the installer only shows an exit code, and an
-    # exit code alone sent the last failure of this line unexplained for days.
+    # exit code alone sent three releases' worth of failures unexplained.
     Write-Host ""
-    Write-Host "Could not register the startup task." -ForegroundColor Red
+    Write-Host "Register-ScheduledTask failed:" -ForegroundColor Red
     Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
-    Write-Host "Carrying on to the Startup shortcut, which does not need Task" -ForegroundColor Yellow
-    Write-Host "Scheduler - so the lock can still come up at logon." -ForegroundColor Yellow
-    $script:TaskFailed = $true
+    Write-Host "Trying schtasks.exe instead..." -ForegroundColor Yellow
+
+    # A genuinely different mechanism, not a retry.
+    #
+    # The cmdlets build a task as XML and hand the whole document to the
+    # scheduler, which rejects the lot if any one value displeases it - and says
+    # so in terms that name neither the value nor the setting. schtasks.exe takes
+    # plain arguments, has shipped with every Windows since XP, and accepts the
+    # things this task actually needs. It cannot express two triggers on one
+    # task, so the watchdog becomes a task of its own; two simple tasks that
+    # exist beat one elegant one that does not.
+    $agentOk = $false
+    $watchdogOk = $false
+
+    try {
+        $quotedExe = '"' + $ExePath + '"'
+
+        & schtasks.exe /Create /TN $TaskName /TR $quotedExe /SC ONLOGON `
+            /RU $qualifiedUser /RL LIMITED /F 2>&1 | ForEach-Object { Write-Host "  $_" }
+        $agentOk = ($LASTEXITCODE -eq 0)
+
+        & schtasks.exe /Create /TN $WatchdogTaskName /TR $quotedExe /SC MINUTE /MO 1 `
+            /RU $qualifiedUser /RL LIMITED /F 2>&1 | ForEach-Object { Write-Host "  $_" }
+        $watchdogOk = ($LASTEXITCODE -eq 0)
+    } catch {
+        Write-Host "  schtasks.exe also failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    if ($agentOk) {
+        Write-Host ""
+        Write-Host "Registered with schtasks.exe instead." -ForegroundColor Green
+        if ($watchdogOk) {
+            Write-Host "Watchdog registered as '$WatchdogTaskName'." -ForegroundColor Green
+        } else {
+            Write-Host "The watchdog did not register - a closed agent will stay closed" -ForegroundColor Yellow
+            Write-Host "until the next logon." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host ""
+        Write-Host "Both ways of registering the task failed." -ForegroundColor Red
+        Write-Host "Carrying on to the Startup shortcut, which needs no Task Scheduler" -ForegroundColor Yellow
+        Write-Host "at all - so the lock can still come up at logon." -ForegroundColor Yellow
+        $script:TaskFailed = $true
+    }
 }
 
 # --- Keep itself up to date --------------------------------------------------

@@ -150,6 +150,14 @@ if ($null -eq $task) {
     foreach ($t in $task.Triggers) {
         if ($t.Repetition -and $t.Repetition.Interval) { $hasWatchdog = $true }
     }
+
+    # The schtasks.exe fallback cannot put two triggers on one task, so on a
+    # machine that took that route the watchdog is a task of its own.
+    if (-not $hasWatchdog -and
+        (Get-ScheduledTask -TaskName "BookMyGame PC Lock Watchdog" -ErrorAction SilentlyContinue)) {
+        $hasWatchdog = $true
+        Write-Host "         (as a separate 'BookMyGame PC Lock Watchdog' task)" -ForegroundColor DarkGray
+    }
     if ($hasWatchdog) {
         Write-Good "Watchdog is on - restarts within a minute if closed"
     } else {

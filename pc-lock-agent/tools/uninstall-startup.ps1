@@ -27,6 +27,15 @@ Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 
 # The updater is a separate task under its own name, so removing only the agent
 # task would leave a SYSTEM job reinstalling the thing just uninstalled.
+# Registered only when the PowerShell cmdlets refused and schtasks.exe was used
+# instead. Removing the agent task but not this would leave a job relaunching
+# the agent every minute with nothing left to explain it.
+$watchdogTaskName = "BookMyGame PC Lock Watchdog"
+if (Get-ScheduledTask -TaskName $watchdogTaskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $watchdogTaskName -Confirm:$false
+    Write-Host "Removed '$watchdogTaskName'." -ForegroundColor Green
+}
+
 $updateTaskName = "BookMyGame PC Lock Update"
 if (Get-ScheduledTask -TaskName $updateTaskName -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $updateTaskName -Confirm:$false
