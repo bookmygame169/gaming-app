@@ -1,0 +1,80 @@
+name: Build PS5 Lock APK
+
+# Builds the Android TV app that locks a PS5, and publishes it to Releases so
+# it can be sideloaded onto a café TV with adb.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version label (shown in the release name)"
+        required: false
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # No wrapper is committed. Generating one needs Gradle in the first place,
+      # and a wrapper jar is a binary in a public repository that nobody would
+      # ever review - the action provides a pinned Gradle instead.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build the APK
+        working-directory: ps5-lock-agent
+        env:
+          VERSION_NAME: ${{ inputs.version }}
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle --no-daemon assembleRelease
+
+      - name: Check the APK came out
+        shell: bash
+        run: |
+          apk=ps5-lock-agent/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$apk" ]; then
+            echo "::error::No APK at $apk"
+            find ps5-lock-agent/app/build/outputs -type f 2>/dev/null || true
+            exit 1
+          fi
+          size=$(stat -c%s "$apk")
+          echo "APK is $((size / 1024)) KB"
+          # A few KB would mean a build that produced a shell with no code in it.
+          if [ "$size" -lt 500000 ]; then
+            echo "::error::APK is suspiciously small"
+            exit 1
+          fi
+          cp "$apk" BookMyGame-PS5-Lock.apk
+
+      - name: Upload workflow artifact (backup download)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BookMyGame-PS5-Lock
+          path: BookMyGame-PS5-Lock.apk
+          retention-days: 90
+
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ps5-lock-latest
+          name: PS5 Lock v${{ inputs.version }}
+          body: Android TV app that locks a PS5 until BookMyGame confirms a paid session.
+          artifacts: BookMyGame-PS5-Lock.apk
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: false

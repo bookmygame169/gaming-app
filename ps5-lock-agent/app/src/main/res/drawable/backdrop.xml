@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The page behind everything. A gradient rather than a flat fill, for the same
+    reason the Windows screen has one: this is the whole of what a customer sees
+    while they wait, and a single dark colour reads as a TV that has lost signal.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:startColor="@color/backgroundTop"
+        android:endColor="@color/background"
+        android:angle="315" />
+</shape>

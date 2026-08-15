@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BookMyGame PS5 Lock</string>
+    <string name="brand">PLAYTIME</string>
+    <string name="kicker">GAMING CAFE</string>
+    <string name="scan_to_pay">SCAN TO PAY FROM YOUR APP</string>
+    <string name="ask_at_counter">ASK AT THE COUNTER TO START</string>
+    <string name="counter_hint">Or ask at the counter and tell them this number.</string>
+</resources>

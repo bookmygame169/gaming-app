@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/backdrop">
+
+    <!-- Which console this is, readable from across the room. Staff read this
+         far more than customers do: it is how someone at the counter matches a
+         booking to a seat. -->
+    <TextView
+        android:id="@+id/stationBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="28dp"
+        android:background="@drawable/badge"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:letterSpacing="0.2"
+        android:textColor="@color/textPrimary"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/card"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="36dp"
+        android:paddingBottom="36dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/brand"
+            android:letterSpacing="0.28"
+            android:textColor="@color/textPrimary"
+            android:textSize="34sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/kicker"
+            android:letterSpacing="0.42"
+            android:textColor="@color/accentSoft"
+            android:textSize="12sp" />
+
+        <View
+            android:layout_width="300dp"
+            android:layout_height="1dp"
+            android:layout_marginTop="18dp"
+            android:background="@color/cardBorder" />
+
+        <!-- White backing, always. The QR needs its quiet zone whatever the
+             screen around it looks like. -->
+        <ImageView
+            android:id="@+id/qr"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_marginTop="20dp"
+            android:background="#FFFFFFFF"
+            android:padding="10dp"
+            android:contentDescription="@string/scan_to_pay"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/qrCaption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/ask_at_counter"
+            android:letterSpacing="0.12"
+            android:textColor="@color/textMuted"
+            android:textSize="14sp" />
+
+        <View
+            android:layout_width="300dp"
+            android:layout_height="1dp"
+            android:layout_marginTop="18dp"
+            android:background="@color/cardBorder" />
+
+        <TextView
+            android:id="@+id/station"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:letterSpacing="0.24"
+            android:textColor="@color/accent"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/counter_hint"
+            android:textColor="@color/textFaint"
+            android:textSize="12sp" />
+    </LinearLayout>
+</FrameLayout>
