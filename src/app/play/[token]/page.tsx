@@ -16,7 +16,7 @@ type PendingUpi = {
         payeeName: string;
         payeeUpiId: string;
         url: string;
-        apps: { label: string; url: string }[];
+        apps: { label: string; helper: string; href: string; className: string }[];
     };
 };
 
@@ -159,14 +159,7 @@ export default function PlayPage() {
             if (!res.ok) throw new Error(data.error || 'Could not start the session');
 
             if (data.pending) {
-                const session = data as PendingUpi;
-                setPending(session);
-
-                // Straight into their payment app with the amount already filled
-                // in. Nothing to read, nothing to type, and no chance of paying
-                // the wrong amount to the wrong place.
-                setHandedOff(true);
-                window.location.href = session.upi.url;
+                setPending(data as PendingUpi);
                 return;
             }
 
@@ -337,37 +330,51 @@ export default function PlayPage() {
                 <h1 className="mt-1 text-3xl font-black text-white">₹{pending.amount}</h1>
 
                 {!claimed ? (
-                    <div className="mt-8 text-center">
-                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-slate-500" />
-                        <p className="mt-4 text-base font-bold text-white">Opening your UPI app…</p>
-                        <p className="mt-2 text-sm text-slate-400">
-                            Pay {pending.upi.payeeName}, then come back here.
+                    <div className="mt-6">
+                        <p className="text-sm text-slate-400">
+                            Paying <span className="font-bold text-slate-200">{pending.upi.payeeName}</span>.
+                            Choose your app — the amount is already filled in.
                         </p>
 
-                        {/* Shown after a moment, not immediately. On Android the
-                            handoff above opens a chooser and this is never seen;
-                            on a phone where nothing claims upi:// the tap appears
-                            to do nothing at all, and without these the customer
-                            would be stuck on a spinner deciding the app is
-                            broken. */}
-                        <div className="mt-8 border-t border-white/[0.08] pt-6">
-                            <p className="text-xs text-slate-500">Nothing opened?</p>
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                                {pending.upi.apps.map((app) => (
-                                    <a
-                                        key={app.label}
-                                        href={app.url}
-                                        className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.10] bg-white/[0.04] px-3 py-3 text-sm font-bold text-slate-200"
-                                    >
-                                        <Smartphone size={14} />
+                        {/* Each button opens one named app directly, rather than
+                            handing the generic upi:// link to Android. That link
+                            goes to whichever app has claimed it as the default,
+                            which on a lot of phones is WhatsApp - so tapping Pay
+                            opened WhatsApp and the customer never got near their
+                            bank. Choosing the app is the customer's decision, and
+                            these schemes make it one. */}
+                        <div className="mt-4 space-y-2.5">
+                            {pending.upi.apps.map((app) => (
+                                <a
+                                    key={app.label}
+                                    href={app.href}
+                                    onClick={() => setHandedOff(true)}
+                                    className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-5 py-4 ${app.className}`}
+                                >
+                                    <span className="flex items-center gap-2.5 text-base font-bold">
+                                        <Smartphone size={17} />
                                         {app.label}
-                                    </a>
-                                ))}
-                            </div>
-                            <p className="mt-3 text-[11px] text-slate-500">
-                                or pay {pending.upi.payeeUpiId} manually
-                            </p>
+                                    </span>
+                                    <span className="text-lg font-black">₹{pending.amount}</span>
+                                </a>
+                            ))}
+
+                            {/* Last, and plainly labelled. This is the generic
+                                link, so it lands wherever the phone has been told
+                                to send them - which is fine when that is what they
+                                want and confusing when it is not. */}
+                            <a
+                                href={pending.upi.url}
+                                onClick={() => setHandedOff(true)}
+                                className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-5 py-3.5 text-sm font-bold text-slate-300"
+                            >
+                                Another UPI app
+                            </a>
                         </div>
+
+                        <p className="mt-4 text-center text-[11px] text-slate-500">
+                            or pay {pending.upi.payeeUpiId} yourself
+                        </p>
 
                         <button
                             type="button"
@@ -375,7 +382,7 @@ export default function PlayPage() {
                             disabled={submitting}
                             className="mt-6 w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-bold text-emerald-950 disabled:opacity-40"
                         >
-                            I have paid
+                            {submitting ? 'Sending…' : 'I have paid'}
                         </button>
                     </div>
                 ) : (
