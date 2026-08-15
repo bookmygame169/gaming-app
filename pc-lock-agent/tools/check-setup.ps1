@@ -201,6 +201,14 @@ if ($updateTask) {
 Write-Head "5. Is it running right now"
 
 $running = Get-Process -Name "PcLockAgent" -ErrorAction SilentlyContinue
+
+# More than one is the thing to shout about. Two agents share a broker client
+# id, MQTT requires that to be unique, so they knock each other offline every
+# few seconds and the lock screen flickers between connected and offline.
+if ($running -and @($running).Count -gt 1) {
+    Write-Bad "$(@($running).Count) copies of the agent are running" "They will fight over the broker. Newer builds refuse to start a second copy - update, then reboot."
+}
+
 if ($running) {
     foreach ($p in $running) {
         $owner = "unknown"
