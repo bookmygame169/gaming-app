@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Home, CalendarCheck, Sparkles, Trophy, User } from "lucide-react";
+import { Home, CalendarCheck, ScanLine, Sparkles, User } from "lucide-react";
 import { colors } from "@/lib/constants";
 
 /**
@@ -19,10 +19,24 @@ import { colors } from "@/lib/constants";
 const TABS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/dashboard", label: "Bookings", icon: CalendarCheck },
+  { href: "/scan", label: "Scan", icon: ScanLine },
   { href: "/rewards", label: "Points", icon: Sparkles },
-  { href: "/tournaments", label: "Events", icon: Trophy },
   { href: "/profile", label: "Profile", icon: User },
 ] as const;
+
+/**
+ * Scan took the slot Events used to have, and tournaments moved to the home
+ * page.
+ *
+ * Not because tournaments matter less, but because of when each is wanted.
+ * Scanning happens standing at a machine, wanting to sit down, and anything
+ * beyond one tap there sends the customer to the counter instead. Events is
+ * something people browse when they have a minute, which is exactly the
+ * situation where an extra tap costs nothing.
+ *
+ * It is the middle slot deliberately: the easiest place on the bar to hit with
+ * a thumb, on the one action that is done in a hurry.
+ */
 
 /**
  * Routes that own the whole screen. A tab bar over a checkout or a booking
@@ -31,6 +45,9 @@ const TABS = [
  */
 const HIDDEN_ON = [
   "/checkout",
+  // The scanner is a fullscreen camera. A tab bar across the bottom of it both
+  // covers the picture and offers a way out of a screen that already has one.
+  "/scan",
   "/login",
   "/onboarding",
   "/offline",
