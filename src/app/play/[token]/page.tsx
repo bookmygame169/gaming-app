@@ -254,7 +254,10 @@ export default function PlayPage() {
 
         try {
             const bearer = await accessToken();
-            if (!bearer) return;
+            if (!bearer) {
+                setError('Please sign in again, then tap I have paid.');
+                return;
+            }
 
             const res = await fetch(`/api/bookings/${session.bookingId}/payment-claim`, {
                 method: 'POST',
@@ -267,14 +270,19 @@ export default function PlayPage() {
                 }),
             });
 
+            const data = await res.json().catch(() => ({}));
+
             // Already claimed is not a failure. Coming back to the app twice is
             // an ordinary thing to do.
             if (res.ok || res.status === 409) {
                 setClaimed(true);
+                setError(null);
+                return;
             }
+
+            setError(typeof data.error === 'string' ? data.error : 'Could not tell the café you paid. Try again.');
         } catch {
-            // The poll below carries on regardless, and the owner can still
-            // confirm from the payment itself.
+            setError('Could not tell the café you paid. Check your connection and try again.');
         } finally {
             setSubmitting(false);
         }
@@ -423,6 +431,8 @@ export default function PlayPage() {
                     {pending.station.toUpperCase()} · {pending.durationMinutes} min
                 </p>
                 <h1 className="mt-1 text-3xl font-black text-white">₹{pending.amount}</h1>
+
+                {error && <div className="mt-4"><Problem message={error} /></div>}
 
                 {!claimed ? (
                     <div className="mt-6">

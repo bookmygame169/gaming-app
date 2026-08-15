@@ -8,6 +8,7 @@ import { getIndiaDateString } from "@/lib/bookingFilters";
 import { buildAndroidUpiChooserUrl, buildUpiAppOptions, buildUpiPaymentUrl, getCafePayee } from "@/lib/upi";
 import { getIndiaCurrentMinutes } from "@/lib/bookingFilters";
 import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
+import { encodeAssignedStationsTitle } from "@/lib/ownerStationAssignments";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,52 @@ const ONLINE_WITHIN_SECONDS = 90;
 function consoleTypeOf(stationName: string): string {
   const prefix = stationName.split("-")[0]?.toLowerCase() || "";
   return prefix === "ps5" ? "ps5" : "pc";
+}
+
+type PricingRow = {
+  duration_minutes: number;
+  price: number | string | null;
+  quantity: number | string | null;
+};
+
+/**
+ * One seat on a lock-screen PC is quantity 1. Owner prices are stored per
+ * player-count as well as duration, so reading every row and calling
+ * maybeSingle() on a duration blows up the moment a café has a 2-player price.
+ *
+ * Prefer quantity 1; if that row is missing, take the lowest quantity that
+ * exists for that duration so the phone still has something to charge.
+ */
+function priceForSingleStation(rows: PricingRow[], durationMinutes?: number): number | null {
+  const matching = rows.filter((row) =>
+    durationMinutes === undefined ? true : Number(row.duration_minutes) === durationMinutes
+  );
+  if (matching.length === 0) return null;
+
+  const qtyOne = matching.find((row) => Number(row.quantity) === 1);
+  const chosen = qtyOne || [...matching].sort((a, b) => Number(a.quantity) - Number(b.quantity))[0];
+  return toRupees(chosen.price);
+}
+
+function durationOptions(rows: PricingRow[]): { durationMinutes: number; price: number }[] {
+  const byDuration = new Map<number, number>();
+
+  const ordered = [...rows].sort((a, b) => {
+    const qtyDiff = Number(a.quantity || 99) - Number(b.quantity || 99);
+    if (qtyDiff !== 0) return qtyDiff;
+    return Number(a.duration_minutes) - Number(b.duration_minutes);
+  });
+
+  for (const row of ordered) {
+    const duration = Number(row.duration_minutes);
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    if (byDuration.has(duration)) continue;
+    byDuration.set(duration, toRupees(row.price));
+  }
+
+  return [...byDuration.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([durationMinutes, price]) => ({ durationMinutes, price }));
 }
 
 /**
@@ -178,9 +225,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
           .maybeSingle(),
         supabase
           .from("console_pricing")
-          .select("duration_minutes, price")
+          .select("duration_minutes, price, quantity")
           .eq("cafe_id", station.cafe_id)
           .eq("console_type", consoleTypeOf(station.station_name))
+          .order("quantity", { ascending: true })
           .order("duration_minutes", { ascending: true }),
       ]);
 
@@ -201,10 +249,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       alreadyUnlocked: (live?.status || "").toLowerCase() === "unlocked",
       walletBalance,
       planHours: Number(plan.hours.toFixed(2)),
-      options: (prices || []).map((p) => ({
-        durationMinutes: p.duration_minutes as number,
-        price: toRupees(p.price),
-      })),
+      options: durationOptions((prices || []) as PricingRow[]),
     });
   } catch (err) {
     console.error("Unexpected error reading play token:", err);
@@ -217,8 +262,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
  *
  * The order of what follows is the whole point of this route, so it is worth
  * stating: everything that can refuse is checked before anything is spent, the
- * code is claimed before money moves, and the money is only kept if the machine
- * confirms it can be told to unlock.
+ * booking is written before the QR is claimed (so a failed save does not burn
+ * the code), and the money is only kept if the machine confirms it can be told
+ * to unlock.
  */
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
@@ -261,19 +307,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     // 2. What does this cost? Read from the café's own price list rather than
     //    anything the phone sent, so a edited request cannot set its own price.
-    const { data: priceRow } = await supabase
+    //    Quantity 1 only: this is one physical station, not a multi-player row.
+    const { data: priceRows, error: priceError } = await supabase
       .from("console_pricing")
-      .select("price")
+      .select("price, quantity, duration_minutes")
       .eq("cafe_id", station.cafe_id)
       .eq("console_type", consoleTypeOf(station.station_name))
-      .eq("duration_minutes", durationMinutes)
-      .maybeSingle();
+      .eq("duration_minutes", durationMinutes);
 
-    if (!priceRow) {
-      return NextResponse.json({ error: "That length is not available here" }, { status: 400 });
+    if (priceError) {
+      console.error("Could not read station price:", priceError.message);
+      return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
     }
 
-    const price = toRupees(priceRow.price);
+    const price = priceForSingleStation((priceRows || []) as PricingRow[], durationMinutes);
+    if (price === null) {
+      return NextResponse.json({ error: "That length is not available here" }, { status: 400 });
+    }
 
     // 3. Can they afford it, and with what?
     const { data: profile } = await supabase
@@ -378,33 +428,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // 4. Claim the code. One statement in the database, so two scans of the
-    //    same screen cannot both get through — and it happens before any money
-    //    moves, so the loser of that race is charged nothing.
-    const { data: claimed, error: claimError } = await supabase.rpc("claim_unlock_token", {
-      p_token: token,
-      p_user_id: userId,
-    });
-
-    if (claimError) {
-      console.error("claim_unlock_token failed:", claimError.message);
-      return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
-    }
-
-    if (!claimed || (Array.isArray(claimed) && claimed.length === 0)) {
-      return NextResponse.json(
-        { error: "This code has just been used. Scan the screen again." },
-        { status: 410 }
-      );
-    }
-
-    const tokenId = Array.isArray(claimed) ? claimed[0].token_id : null;
+    // 4. Record the session first, then claim the code.
+    //
+    //    Claiming first burned the QR even when the booking insert failed
+    //    (missing duration, price lookup error, etc.), so a customer who
+    //    tapped Pay was told "this code has already been used" and still had
+    //    no session. The booking is unpaid until later, so a failed claim
+    //    just cancels it.
     const sessionId = `qr-${userId.slice(0, 8)}-${Date.now()}`;
     const customerName =
       [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() || null;
+    const startTime = convertTo12Hour(minutesToTimeString(getIndiaCurrentMinutes()));
+    const stationTitle = encodeAssignedStationsTitle(durationMinutes, [station.station_name]);
 
-    // 5. Record the session as a booking, so takings, history and the active
-    //    sessions view all keep working through the one path they already use.
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .insert({
@@ -413,14 +449,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         customer_name: customerName,
         customer_phone: phone,
         booking_date: getIndiaDateString(),
-        // NOT NULL, and stored as 12-hour text ("1:34 pm") like every other
-        // booking - the shared parser reads that shape, and a row in some other
-        // format would sort and display wrongly everywhere it appears.
-        start_time: convertTo12Hour(minutesToTimeString(getIndiaCurrentMinutes())),
+        start_time: startTime,
+        duration: durationMinutes,
         total_amount: price,
-        // A UPI session is not a session yet. Nothing has been received, and
-        // marking it confirmed would put an unpaid booking into takings and the
-        // active-sessions view until somebody noticed.
         status: method === "upi" ? "pending" : "confirmed",
         payment_mode: method,
         source: "qr",
@@ -428,10 +459,50 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       .select("id")
       .single();
 
-    if (bookingError) {
-      console.error("Could not record the QR booking:", bookingError.message);
+    if (bookingError || !booking?.id) {
+      console.error("Could not record the QR booking:", bookingError?.message);
       return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
     }
+
+    const { error: itemError } = await supabase.from("booking_items").insert({
+      booking_id: booking.id,
+      console: consoleTypeOf(station.station_name),
+      quantity: 1,
+      price,
+      title: stationTitle,
+    });
+
+    if (itemError) {
+      console.error("Could not record the QR booking item:", itemError.message);
+      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+      return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
+    }
+
+    // One statement in the database, so two scans of the same screen cannot
+    // both get through. Happens after the booking exists so a failed save
+    // does not spend the code.
+    const { data: claimed, error: claimError } = await supabase.rpc("claim_unlock_token", {
+      p_token: token,
+      p_user_id: userId,
+    });
+
+    if (claimError) {
+      console.error("claim_unlock_token failed:", claimError.message);
+      await supabase.from("booking_items").delete().eq("booking_id", booking.id);
+      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+      return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
+    }
+
+    if (!claimed || (Array.isArray(claimed) && claimed.length === 0)) {
+      await supabase.from("booking_items").delete().eq("booking_id", booking.id);
+      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+      return NextResponse.json(
+        { error: "This code has just been used. Scan the screen again." },
+        { status: 410 }
+      );
+    }
+
+    const tokenId = Array.isArray(claimed) ? claimed[0].token_id : null;
 
     // Record what this session was for. The request that takes a UPI payment is
     // long gone by the time the owner confirms it, so the station, the booking
