@@ -70,6 +70,7 @@ export default function PlayPage() {
     // True when the session on screen was already waiting before this scan.
     // Worth saying out loud - otherwise resuming looks like the tap did nothing.
     const [resumed, setResumed] = useState(false);
+    const [copied, setCopied] = useState<string | null>(null);
     const [rejected, setRejected] = useState<string | null>(null);
     const [givenUp, setGivenUp] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -204,22 +205,39 @@ export default function PlayPage() {
 
         const isAndroid = /android/i.test(navigator.userAgent);
 
-        if (!isAndroid) {
-            setChooserFailed(true);
-            return;
-        }
+        // Android gets the intent, which is what makes it show its own list of
+        // every UPI app installed. iPhone has no such thing, so it gets the
+        // plain upi:// link - some UPI apps do claim that scheme on iOS, and
+        // when one does this opens it.
+        window.location.href = isAndroid ? session.upi.chooserUrl : session.upi.url;
 
-        // If the sheet opens, this page is hidden by it and the timer below
-        // never gets to run. Still being visible means nothing took the intent.
-        const check = window.setTimeout(() => {
+        // Whatever opened will have hidden this page, so this timer never runs.
+        // Still being visible means nothing took the link, which on an iPhone is
+        // the normal outcome rather than the exception.
+        window.setTimeout(() => {
             if (document.visibilityState === 'visible') {
                 setChooserFailed(true);
             }
-        }, 2000);
+        }, 1500);
+    }, []);
 
-        window.location.href = session.upi.chooserUrl;
-
-        return () => window.clearTimeout(check);
+    /**
+     * Copies the payee or the amount, for paying by hand.
+     *
+     * The way out when nothing opens. On iPhone that is a real possibility
+     * rather than an edge case: UPI apps there register their schemes
+     * inconsistently, and several of the ones offered here do not register any,
+     * so tapping them does nothing at all and the customer is left with a
+     * screen full of dead buttons.
+     */
+    const copy = useCallback(async (value: string, what: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(what);
+            window.setTimeout(() => setCopied(null), 1600);
+        } catch {
+            setCopied(null);
+        }
     }, []);
 
     /**
@@ -432,12 +450,65 @@ export default function PlayPage() {
                             </button>
                         ) : (
                             <>
-                                {/* Only after the phone's own sheet failed to
-                                    appear. This list cannot be complete - there
-                                    are more UPI apps than anyone can name - so it
-                                    is a fallback rather than the offer. */}
+                                {/* Nothing opened. On an iPhone that is the usual
+                                    outcome rather than a fault: UPI apps there
+                                    register their url schemes inconsistently and
+                                    several register none, so a list of app
+                                    buttons is a list of things that may quietly
+                                    do nothing.
+
+                                    So paying by hand comes first here, and it is
+                                    the one route that cannot fail - open the app
+                                    you already use, paste, send. */}
+                                <div className="mt-5 rounded-2xl border border-white/[0.10] bg-white/[0.03] p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        Pay from your UPI app
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => copy(pending.upi.payeeUpiId, 'upi')}
+                                        className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
+                                    >
+                                        <span className="min-w-0">
+                                            <span className="block text-[10px] uppercase tracking-wide text-slate-500">
+                                                Pay this UPI ID
+                                            </span>
+                                            <span className="block truncate text-sm font-bold text-white">
+                                                {pending.upi.payeeUpiId}
+                                            </span>
+                                        </span>
+                                        <span className="shrink-0 text-xs font-bold text-emerald-400">
+                                            {copied === 'upi' ? 'Copied' : 'Copy'}
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => copy(String(pending.amount), 'amount')}
+                                        className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
+                                    >
+                                        <span>
+                                            <span className="block text-[10px] uppercase tracking-wide text-slate-500">
+                                                Exact amount
+                                            </span>
+                                            <span className="block text-sm font-bold text-white">
+                                                ₹{pending.amount}
+                                            </span>
+                                        </span>
+                                        <span className="shrink-0 text-xs font-bold text-emerald-400">
+                                            {copied === 'amount' ? 'Copied' : 'Copy'}
+                                        </span>
+                                    </button>
+
+                                    <p className="mt-3 text-[11px] text-slate-500">
+                                        Send exactly ₹{pending.amount} — the café matches your
+                                        payment by the amount and your name.
+                                    </p>
+                                </div>
+
                                 <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Open your payment app
+                                    Or try opening an app
                                 </p>
 
                                 <div className="mt-3 space-y-2.5">
@@ -455,21 +526,9 @@ export default function PlayPage() {
                                             <span className="text-lg font-black">₹{pending.amount}</span>
                                         </a>
                                     ))}
-
-                                    <a
-                                        href={pending.upi.url}
-                                        onClick={() => setHandedOff(true)}
-                                        className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-5 py-3.5 text-sm font-bold text-slate-300"
-                                    >
-                                        Another UPI app
-                                    </a>
                                 </div>
                             </>
                         )}
-
-                        <p className="mt-4 text-center text-[11px] text-slate-500">
-                            or pay {pending.upi.payeeUpiId} yourself
-                        </p>
 
                         <button
                             type="button"
