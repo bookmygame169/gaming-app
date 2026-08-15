@@ -72,6 +72,54 @@ jobs:
       # Registering the real trigger shapes here catches that, and also settles
       # the question that caused it: whether a repetition with no duration
       # survives registration. It does - which is why none is given.
+      # The installer runs install-startup.ps1 through cmd, and cmd's quoting
+      # rule silently ate the command: quotes survive only when there are
+      # exactly two of them, and that line has ten. cmd stripped the first and
+      # last, the program name became nonsense, and it exited 1 without ever
+      # starting PowerShell. The script had never run on any machine.
+      #
+      # Reproduced here with the same shape of command, because the failure is
+      # invisible by inspection and reads as a problem in the script it never
+      # reached.
+      - name: Check the installer's cmd quoting
+        shell: pwsh
+        run: |
+          $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+          $probe = Join-Path $env:RUNNER_TEMP "quoting-probe.ps1"
+          $log = Join-Path $env:RUNNER_TEMP "quoting-probe.log"
+          'param([string]$ExePath, [string]$GamingUser)' | Set-Content $probe
+          'Write-Host "probe ran: $ExePath / $GamingUser"'  | Add-Content $probe
+          'exit 0'                                          | Add-Content $probe
+
+          # Exactly the shape the .iss builds: quoted program, quoted args, a
+          # quoted redirect target - and the outer pair that makes cmd behave.
+          $inner = '"' + $ps + '" -ExecutionPolicy Bypass -NoProfile -File "' + $probe +
+                   '" -ExePath "C:\BookMyGame\PcLockAgent\PcLockAgent.exe"' +
+                   ' -GamingUser "GamingUser" >> "' + $log + '" 2>&1'
+
+          & cmd.exe /C ('"' + $inner + '"')
+          $code = $LASTEXITCODE
+
+          if ($code -ne 0) {
+            Write-Host "::error::cmd returned $code - the quoting is wrong again"
+            exit 1
+          }
+          if (-not (Test-Path $log) -or -not ((Get-Content $log -Raw) -match 'probe ran')) {
+            Write-Host "::error::cmd exited 0 but the script never ran or never logged"
+            exit 1
+          }
+          Write-Host "ok - cmd starts PowerShell and the redirect lands:"
+          Get-Content $log | ForEach-Object { Write-Host "  $_" }
+
+          # And prove the unwrapped form really is broken, so this test is
+          # testing something rather than passing by accident.
+          & cmd.exe /C $inner 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "::error::the unwrapped form succeeded - this test proves nothing"
+            exit 1
+          }
+          Write-Host "ok - the unwrapped form fails with $LASTEXITCODE, as it did in the field"
+
       - name: Check the scheduled-task triggers are valid
         shell: pwsh
         run: |

@@ -111,6 +111,34 @@ begin
   Result := Exec(FileName, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+{ Runs a command line through cmd, with the quoting cmd actually requires.
+
+  cmd /? spells out the rule, and it is a trap: quotes on the command line are
+  preserved only when there are EXACTLY TWO of them. With more than two, cmd
+  strips the leading quote and the last quote and runs whatever is left.
+
+  This command has ten. Stripping the first and last turned the program name
+  into
+
+    C:\...\powershell.exe -ExecutionPolicy Bypass -NoProfile -File
+
+  - everything up to the next quote, taken as one filename - which does not
+  exist, so cmd exited 1 without ever starting PowerShell. install-startup.ps1
+  had never run on any machine; the "startup setup reported a problem" dialog
+  was cmd failing to find a program, and several rounds of fixes went into a
+  script that was never being executed.
+
+  The documented workaround is one extra pair of quotes around the whole thing.
+  cmd removes exactly that pair and the real command survives.
+
+  The net user calls above never hit this, because their command line starts
+  with a letter rather than a quote - which is precisely why creating the
+  account worked while registering the task never did. }
+function RunViaCmd(const CommandLine: String; var ResultCode: Integer): Boolean;
+begin
+  Result := RunHidden(ExpandConstant('{cmd}'), '/C "' + CommandLine + '"', ResultCode);
+end;
+
 { Everything the post-install steps do is written here. Without it a failure
   surfaces as a bare exit code with no way to tell what went wrong, since these
   run hidden. }
@@ -155,11 +183,9 @@ begin
   { net user fails harmlessly if the account already exists, so this is safe to
     run either way. Output is appended rather than checked, because "already
     exists" is a failure code we deliberately ignore. }
-  RunHidden(ExpandConstant('{cmd}'),
-    '/C net user "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
+  RunViaCmd('net user "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
 
-  RunHidden(ExpandConstant('{cmd}'),
-    '/C net localgroup Users "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
+  RunViaCmd('net localgroup Users "' + GamingUser + '" /add >> "' + SetupLogPath + '" 2>&1', ResultCode);
 end;
 
 procedure InstallStartupTask;
@@ -177,8 +203,8 @@ begin
   // process, so an unqualified name resolves to the 32-bit PowerShell, which is
   // missing modules the script needs. On 32-bit Windows {sysnative} is simply
   // {sys}, so this is safe either way.
-  if not RunHidden(ExpandConstant('{cmd}'),
-    '/C "' + ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe') +
+  if not RunViaCmd(
+    '"' + ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe') +
     '" -ExecutionPolicy Bypass -NoProfile -File "' +
     ExpandConstant('{app}\install-startup.ps1') +
     '" -ExePath "' + ExpandConstant('{app}\{#AppExeName}') +
