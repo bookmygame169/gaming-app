@@ -17,7 +17,7 @@ type PendingUpi = {
         payeeUpiId: string;
         url: string;
         chooserUrl: string;
-        apps: { label: string; helper: string; href: string; className: string }[];
+        apps: { label: string; helper: string; href: string; androidHref: string; className: string }[];
     };
 };
 
@@ -60,12 +60,6 @@ export default function PlayPage() {
     const [pending, setPending] = useState<PendingUpi | null>(null);
     const [claimed, setClaimed] = useState(false);
     const [handedOff, setHandedOff] = useState(false);
-
-    // Set when asking the phone to show its own app chooser produced nothing.
-    // Only then is a list of named apps worth showing - it can never be
-    // complete, and a customer who banks with something not on it would
-    // reasonably conclude they cannot pay.
-    const [chooserFailed, setChooserFailed] = useState(false);
 
     // True when the session on screen was already waiting before this scan.
     // Worth saying out loud - otherwise resuming looks like the tap did nothing.
@@ -187,39 +181,19 @@ export default function PlayPage() {
         }
     };
 
+    const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+
     /**
-     * Hands the payment to the phone.
+     * Opens the UPI app the customer tapped.
      *
-     * Android is given an intent rather than a upi:// link, which is what makes
-     * it show its own "open with" sheet listing every UPI app installed -
-     * FamPay, Cred, a bank's own app, whatever this customer actually uses. A
-     * plain upi:// link skips that and goes to the default handler, which is how
-     * tapping Pay ended up opening WhatsApp.
-     *
-     * iOS has no equivalent. Nothing happens there, so the named list appears
-     * instead once it is clear nothing opened.
+     * Never a generic upi:// link: that goes to whichever app they once set as
+     * default, which on a lot of phones is WhatsApp, with no chance to pick
+     * Paytm or FamPay. Each button uses that app's own address.
      */
-    const openPaymentApp = useCallback((session: PendingUpi) => {
+    const openNamedApp = useCallback((app: PendingUpi['upi']['apps'][number]) => {
         setHandedOff(true);
-        setChooserFailed(false);
-
-        const isAndroid = /android/i.test(navigator.userAgent);
-
-        // Android gets the intent, which is what makes it show its own list of
-        // every UPI app installed. iPhone has no such thing, so it gets the
-        // plain upi:// link - some UPI apps do claim that scheme on iOS, and
-        // when one does this opens it.
-        window.location.href = isAndroid ? session.upi.chooserUrl : session.upi.url;
-
-        // Whatever opened will have hidden this page, so this timer never runs.
-        // Still being visible means nothing took the link, which on an iPhone is
-        // the normal outcome rather than the exception.
-        window.setTimeout(() => {
-            if (document.visibilityState === 'visible') {
-                setChooserFailed(true);
-            }
-        }, 1500);
-    }, []);
+        window.location.href = isAndroid ? app.androidHref : app.href;
+    }, [isAndroid]);
 
     /**
      * Copies the payee or the amount, for paying by hand.
@@ -438,107 +412,71 @@ export default function PlayPage() {
                     <div className="mt-6">
                         <p className="text-sm text-slate-400">
                             Paying <span className="font-bold text-slate-200">{pending.upi.payeeName}</span>.
-                            The amount is already filled in.
+                            Pick the app you actually use — this will not open WhatsApp unless you tap it.
                         </p>
 
-                        {!chooserFailed ? (
+                        <div className="mt-5 grid grid-cols-2 gap-2.5">
+                            {pending.upi.apps.map((app) => (
+                                <button
+                                    key={app.label}
+                                    type="button"
+                                    onClick={() => openNamedApp(app)}
+                                    className={`rounded-2xl bg-gradient-to-br px-4 py-4 text-left font-bold shadow-lg transition hover:-translate-y-0.5 hover:opacity-90 ${app.className}`}
+                                >
+                                    <span className="block text-sm">{app.label}</span>
+                                    <span className="mt-1 block text-[11px] font-semibold opacity-80">
+                                        ₹{pending.amount}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="mt-5 rounded-2xl border border-white/[0.10] bg-white/[0.03] p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Or pay by hand from any app
+                            </p>
+
                             <button
                                 type="button"
-                                onClick={() => openPaymentApp(pending)}
-                                className="mt-5 flex w-full items-center justify-between gap-3 rounded-2xl bg-emerald-500 px-5 py-4 text-left text-emerald-950 transition-colors hover:bg-emerald-400"
+                                onClick={() => copy(pending.upi.payeeUpiId, 'upi')}
+                                className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
                             >
-                                <span>
-                                    <span className="flex items-center gap-2 text-base font-bold">
-                                        <Smartphone size={17} />
-                                        Pay now
+                                <span className="min-w-0">
+                                    <span className="block text-[10px] uppercase tracking-wide text-slate-500">
+                                        Pay this UPI ID
                                     </span>
-                                    <span className="mt-0.5 block text-xs font-semibold opacity-80">
-                                        Choose your app on the next screen
+                                    <span className="block truncate text-sm font-bold text-white">
+                                        {pending.upi.payeeUpiId}
                                     </span>
                                 </span>
-                                <span className="text-lg font-black">₹{pending.amount}</span>
+                                <span className="shrink-0 text-xs font-bold text-emerald-400">
+                                    {copied === 'upi' ? 'Copied' : 'Copy'}
+                                </span>
                             </button>
-                        ) : (
-                            <>
-                                {/* Nothing opened. On an iPhone that is the usual
-                                    outcome rather than a fault: UPI apps there
-                                    register their url schemes inconsistently and
-                                    several register none, so a list of app
-                                    buttons is a list of things that may quietly
-                                    do nothing.
 
-                                    So paying by hand comes first here, and it is
-                                    the one route that cannot fail - open the app
-                                    you already use, paste, send. */}
-                                <div className="mt-5 rounded-2xl border border-white/[0.10] bg-white/[0.03] p-4">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                        Pay from your UPI app
-                                    </p>
+                            <button
+                                type="button"
+                                onClick={() => copy(String(pending.amount), 'amount')}
+                                className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
+                            >
+                                <span>
+                                    <span className="block text-[10px] uppercase tracking-wide text-slate-500">
+                                        Exact amount
+                                    </span>
+                                    <span className="block text-sm font-bold text-white">
+                                        ₹{pending.amount}
+                                    </span>
+                                </span>
+                                <span className="shrink-0 text-xs font-bold text-emerald-400">
+                                    {copied === 'amount' ? 'Copied' : 'Copy'}
+                                </span>
+                            </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => copy(pending.upi.payeeUpiId, 'upi')}
-                                        className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
-                                    >
-                                        <span className="min-w-0">
-                                            <span className="block text-[10px] uppercase tracking-wide text-slate-500">
-                                                Pay this UPI ID
-                                            </span>
-                                            <span className="block truncate text-sm font-bold text-white">
-                                                {pending.upi.payeeUpiId}
-                                            </span>
-                                        </span>
-                                        <span className="shrink-0 text-xs font-bold text-emerald-400">
-                                            {copied === 'upi' ? 'Copied' : 'Copy'}
-                                        </span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => copy(String(pending.amount), 'amount')}
-                                        className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
-                                    >
-                                        <span>
-                                            <span className="block text-[10px] uppercase tracking-wide text-slate-500">
-                                                Exact amount
-                                            </span>
-                                            <span className="block text-sm font-bold text-white">
-                                                ₹{pending.amount}
-                                            </span>
-                                        </span>
-                                        <span className="shrink-0 text-xs font-bold text-emerald-400">
-                                            {copied === 'amount' ? 'Copied' : 'Copy'}
-                                        </span>
-                                    </button>
-
-                                    <p className="mt-3 text-[11px] text-slate-500">
-                                        Send exactly ₹{pending.amount} — the café matches your
-                                        payment by the amount and your name.
-                                    </p>
-                                </div>
-
-                                <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Or try opening an app
-                                </p>
-
-                                <div className="mt-3 space-y-2.5">
-                                    {pending.upi.apps.map((app) => (
-                                        <a
-                                            key={app.label}
-                                            href={app.href}
-                                            onClick={() => setHandedOff(true)}
-                                            className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-5 py-4 ${app.className}`}
-                                        >
-                                            <span className="flex items-center gap-2.5 text-base font-bold">
-                                                <Smartphone size={17} />
-                                                {app.label}
-                                            </span>
-                                            <span className="text-lg font-black">₹{pending.amount}</span>
-                                        </a>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                            <p className="mt-3 text-[11px] text-slate-500">
+                                If your app is not in the list, open it yourself, paste the UPI ID,
+                                send exactly ₹{pending.amount}.
+                            </p>
+                        </div>
 
                         <button
                             type="button"

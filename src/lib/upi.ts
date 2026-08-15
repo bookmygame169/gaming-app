@@ -8,11 +8,30 @@
  * with no UPI id set shows no Pay button at all, which is the correct outcome —
  * a missing button loses one advance payment, a wrong one takes another café's
  * money.
+ *
+ * A generic upi:// link is not used as the primary action. On a lot of Indian
+ * phones WhatsApp (or whichever app the customer once set as default) swallows
+ * that link and never shows a chooser. Each app is opened by its own scheme,
+ * and on Android by a package-targeted intent, so the customer picks FamPay,
+ * Paytm, GPay, or anything else from a list rather than being hijacked.
  */
 
 export type UpiPayee = {
   upiId: string;
   displayName: string;
+};
+
+export type UpiAppOption = {
+  label: string;
+  helper: string;
+  /** Custom URL scheme. What iOS and fallbacks use. */
+  href: string;
+  /**
+   * Android Chrome intent aimed at one app's package. That is what actually
+   * bypasses the default handler (WhatsApp, etc.).
+   */
+  androidHref: string;
+  className: string;
 };
 
 /**
@@ -68,6 +87,16 @@ export function buildUpiPaymentUrl(
   return `upi://pay?${buildUpiQuery(payee, amount, bookingId, cafeName)}`;
 }
 
+/**
+ * Android intent aimed at one installed UPI app.
+ *
+ * package= is the important part. Without it Chrome uses the default handler,
+ * which is how Pay now kept opening WhatsApp.
+ */
+function androidPackagePay(packageName: string, query: string): string {
+  return `intent://pay?${query}#Intent;scheme=upi;package=${packageName};end`;
+}
+
 export function buildAndroidUpiChooserUrl(
   payee: UpiPayee,
   amount: number,
@@ -75,11 +104,11 @@ export function buildAndroidUpiChooserUrl(
   cafeName?: string | null
 ): string {
   const query = buildUpiQuery(payee, amount, bookingId, cafeName);
-  const fallback = buildUpiPaymentUrl(payee, amount, bookingId, cafeName);
-
-  return `intent://pay?${query}#Intent;scheme=upi;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(
-    fallback
-  )};end`;
+  // No package and no browser_fallback_url: the closest a website can get to
+  // Android's own "Open with" sheet. Phones that already have a default UPI
+  // app will still skip the sheet — which is why the named list is the real
+  // chooser.
+  return `intent://pay?${query}#Intent;scheme=upi;action=android.intent.action.VIEW;end`;
 }
 
 export function buildUpiAppOptions(
@@ -87,33 +116,93 @@ export function buildUpiAppOptions(
   amount: number,
   bookingId: string,
   cafeName?: string | null
-) {
+): UpiAppOption[] {
   const query = buildUpiQuery(payee, amount, bookingId, cafeName);
 
-  return [
+  const apps: Array<{
+    label: string;
+    helper: string;
+    scheme: string;
+    packageName: string;
+    className: string;
+  }> = [
     {
       label: "Paytm",
-      helper: "Open Paytm",
-      href: `paytmmp://pay?${query}`,
+      helper: "Paytm",
+      scheme: `paytmmp://pay?${query}`,
+      packageName: "net.one97.paytm",
       className: "from-sky-500 to-cyan-500 text-white",
     },
     {
       label: "Google Pay",
-      helper: "Open GPay",
-      href: `tez://upi/pay?${query}`,
+      helper: "GPay",
+      scheme: `tez://upi/pay?${query}`,
+      packageName: "com.google.android.apps.nbu.paisa.user",
       className: "from-blue-500 to-emerald-500 text-white",
     },
     {
       label: "PhonePe",
-      helper: "Open PhonePe",
-      href: `phonepe://pay?${query}`,
+      helper: "PhonePe",
+      scheme: `phonepe://pay?${query}`,
+      packageName: "com.phonepe.app",
       className: "from-violet-500 to-purple-700 text-white",
     },
     {
+      label: "FamPay",
+      helper: "FamPay",
+      scheme: `fampay://upi/pay?${query}`,
+      packageName: "com.fampay.app",
+      className: "from-orange-400 to-amber-500 text-white",
+    },
+    {
+      label: "WhatsApp",
+      helper: "WhatsApp Pay",
+      scheme: `upi://pay?${query}`,
+      packageName: "com.whatsapp",
+      className: "from-emerald-500 to-green-700 text-white",
+    },
+    {
       label: "BHIM",
-      helper: "Open BHIM",
-      href: `bhim://upi/pay?${query}`,
+      helper: "BHIM UPI",
+      scheme: `bhim://upi/pay?${query}`,
+      packageName: "in.org.npci.upiapp",
       className: "from-orange-500 to-rose-600 text-white",
     },
+    {
+      label: "Amazon Pay",
+      helper: "Amazon",
+      scheme: `amazonpay://upi/pay?${query}`,
+      packageName: "in.amazon.mShop.android.shopping",
+      className: "from-slate-600 to-slate-800 text-white",
+    },
+    {
+      label: "CRED",
+      helper: "CRED",
+      scheme: `cred://upi/pay?${query}`,
+      packageName: "com.dreamplug.androidapp",
+      className: "from-neutral-700 to-black text-white",
+    },
+    {
+      label: "MobiKwik",
+      helper: "MobiKwik",
+      scheme: `mobikwik://upi/pay?${query}`,
+      packageName: "com.mobikwik_new",
+      className: "from-blue-600 to-indigo-700 text-white",
+    },
+    {
+      label: "Navi",
+      helper: "Navi UPI",
+      scheme: `navi://upi/pay?${query}`,
+      packageName: "com.naviapp",
+      className: "from-yellow-400 to-yellow-600 text-black",
+    },
   ];
+
+  return apps.map((app) => ({
+    label: app.label,
+    helper: app.helper,
+    href: app.scheme,
+    androidHref: androidPackagePay(app.packageName, query),
+    className: app.className,
+  }));
 }

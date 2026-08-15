@@ -8,7 +8,6 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   getCafePayee,
   buildUpiPaymentUrl,
-  buildAndroidUpiChooserUrl,
   buildUpiAppOptions,
 } from "@/lib/upi";
 import { getIndiaDateString } from "@/lib/bookingFilters";
@@ -34,7 +33,6 @@ import {
   Sparkles,
   ShieldCheck,
   Share2,
-  Smartphone,
   QrCode
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -92,6 +90,7 @@ export default function BookingDetailsPage() {
   const [claimSaving, setClaimSaving] = useState(false);
   const [claimSent, setClaimSent] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Load booking data
   useEffect(() => {
@@ -258,12 +257,10 @@ export default function BookingDetailsPage() {
   const paymentUrl = payee && bookingId
     ? buildUpiPaymentUrl(payee, amountDue, bookingId, data?.cafe?.name)
     : "";
-  const androidUpiChooserUrl = payee && bookingId
-    ? buildAndroidUpiChooserUrl(payee, amountDue, bookingId, data?.cafe?.name)
-    : "";
   const upiAppOptions = payee && bookingId
     ? buildUpiAppOptions(payee, amountDue, bookingId, data?.cafe?.name)
     : [];
+  const isAndroid = typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
 
   // "I've paid" — records the customer's claim for the café to check.
   const submitPaymentClaim = async () => {
@@ -630,15 +627,7 @@ export default function BookingDetailsPage() {
                   </p>
                 )}
               </div>
-              {isPaymentPending && canPayOnline ? (
-                <a
-                  href={androidUpiChooserUrl || paymentUrl}
-                  className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl font-bold text-black hover:opacity-90 transition"
-                >
-                  <Smartphone className="w-5 h-5" />
-                  Choose UPI App
-                </a>
-              ) : isPaymentPending ? null : (
+              {isPaymentPending && canPayOnline ? null : isPaymentPending ? null : (
                 <div className="flex items-center gap-3 px-6 py-3 bg-green-500/20 rounded-full border border-green-500/30">
                   <ShieldCheck className="w-5 h-5 text-green-400" />
                   <span className="font-semibold text-green-400">Payment Secured</span>
@@ -656,7 +645,7 @@ export default function BookingDetailsPage() {
                     {upiAppOptions.map((option) => (
                       <a
                         key={option.label}
-                        href={option.href}
+                        href={isAndroid ? option.androidHref : option.href}
                         className={`rounded-2xl bg-gradient-to-br px-4 py-3 text-center font-bold shadow-lg transition hover:-translate-y-0.5 hover:opacity-90 ${option.className}`}
                       >
                         <span className="block text-sm">{option.label}</span>
@@ -664,13 +653,25 @@ export default function BookingDetailsPage() {
                       </a>
                     ))}
                   </div>
-                  <a
-                    href={paymentUrl}
-                    className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-100 transition hover:bg-yellow-500/20"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!payee) return;
+                      try {
+                        await navigator.clipboard.writeText(payee.upiId);
+                        setCopiedUpi(true);
+                        window.setTimeout(() => setCopiedUpi(false), 1600);
+                      } catch {
+                        setCopiedUpi(false);
+                      }
+                    }}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-100 transition hover:bg-yellow-500/20"
                   >
-                    <ExternalLink className="h-4 w-4" />
-                    Other UPI apps
-                  </a>
+                    {copiedUpi ? "Copied UPI ID" : `Copy UPI ID · ${payee?.upiId ?? ""}`}
+                  </button>
+                  <p className="mt-2 text-xs text-gray-400">
+                    If your app is not listed, open it yourself, paste this UPI ID, and pay the exact amount.
+                  </p>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-black/40 p-4 text-center">
