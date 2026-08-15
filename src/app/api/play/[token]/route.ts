@@ -77,6 +77,21 @@ async function planHoursFor(
 }
 
 /**
+ * How long a pending session counts for.
+ *
+ * The same ten minutes the phone waits before telling the customer to go and
+ * ask, and for the same reason: past that they have given up, walked off, or
+ * been served at the counter. Anything older is abandoned.
+ *
+ * Without this the guard against duplicate bookings became a lock on the
+ * machine. A session left pending from an hour earlier was still "a payment in
+ * progress", so scanning returned that dead session instead of the duration
+ * options, and there was no way to start a new one - the fix for double
+ * booking stopped anybody booking at all.
+ */
+const PENDING_COUNTS_FOR_MINUTES = 10;
+
+/**
  * A payment already waiting on this machine, if there is one.
  *
  * Found through the code that was scanned, which is the only thing tying a
@@ -97,21 +112,40 @@ async function findPendingSession(
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const cutoff = Date.now() - PENDING_COUNTS_FOR_MINUTES * 60_000;
+
   for (const row of tokens || []) {
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, user_id, status, total_amount")
+      .select("id, user_id, status, total_amount, created_at")
       .eq("id", row.booking_id)
       .maybeSingle();
 
-    if (booking && (booking.status || "").toLowerCase() === "pending") {
-      return {
-        bookingId: booking.id as string,
-        userId: booking.user_id as string,
-        amount: toRupees(booking.total_amount),
-        durationMinutes: Number(row.duration_minutes) || 0,
-      };
+    if (!booking || (booking.status || "").toLowerCase() !== "pending") {
+      continue;
     }
+
+    const startedAt = booking.created_at ? new Date(booking.created_at).getTime() : 0;
+
+    if (startedAt < cutoff) {
+      // Long abandoned. Closed here rather than left, so it stops holding the
+      // machine and stops appearing on the owner's list of payments to check
+      // for money that never arrived.
+      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+      await supabase
+        .from("booking_payment_claims")
+        .update({ status: "rejected", note: "Abandoned — no payment confirmed" })
+        .eq("booking_id", booking.id)
+        .eq("status", "claimed");
+      continue;
+    }
+
+    return {
+      bookingId: booking.id as string,
+      userId: booking.user_id as string,
+      amount: toRupees(booking.total_amount),
+      durationMinutes: Number(row.duration_minutes) || 0,
+    };
   }
 
   return null;
