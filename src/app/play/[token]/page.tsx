@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, Check, Clock, Loader2, Lock, ScanLine, Smartphone, Wallet } from 'lucide-react';
+import { AlertCircle, Check, ChevronLeft, Clock, Loader2, Lock, ScanLine, Smartphone, Wallet } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { UpiAppGrid, UpiManualPay } from '@/components/UpiPayPanel';
+import type { UpiAppOption } from '@/lib/upi';
 
 type PlayOption = { durationMinutes: number; price: number };
 
@@ -17,7 +19,7 @@ type PendingUpi = {
         payeeUpiId: string;
         url: string;
         chooserUrl: string;
-        apps: { label: string; helper: string; href: string; androidHref: string; className: string }[];
+        apps: UpiAppOption[];
     };
 };
 
@@ -64,7 +66,6 @@ export default function PlayPage() {
     // True when the session on screen was already waiting before this scan.
     // Worth saying out loud - otherwise resuming looks like the tap did nothing.
     const [resumed, setResumed] = useState(false);
-    const [copied, setCopied] = useState<string | null>(null);
     const [rejected, setRejected] = useState<string | null>(null);
     const [givenUp, setGivenUp] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -190,29 +191,10 @@ export default function PlayPage() {
      * default, which on a lot of phones is WhatsApp, with no chance to pick
      * Paytm or FamPay. Each button uses that app's own address.
      */
-    const openNamedApp = useCallback((app: PendingUpi['upi']['apps'][number]) => {
+    const openNamedApp = useCallback((app: UpiAppOption) => {
         setHandedOff(true);
         window.location.href = isAndroid ? app.androidHref : app.href;
     }, [isAndroid]);
-
-    /**
-     * Copies the payee or the amount, for paying by hand.
-     *
-     * The way out when nothing opens. On iPhone that is a real possibility
-     * rather than an edge case: UPI apps there register their schemes
-     * inconsistently, and several of the ones offered here do not register any,
-     * so tapping them does nothing at all and the customer is left with a
-     * screen full of dead buttons.
-     */
-    const copy = useCallback(async (value: string, what: string) => {
-        try {
-            await navigator.clipboard.writeText(value);
-            setCopied(what);
-            window.setTimeout(() => setCopied(null), 1600);
-        } catch {
-            setCopied(null);
-        }
-    }, []);
 
     /**
      * Tells the café a payment is on its way.
@@ -356,8 +338,8 @@ export default function PlayPage() {
     if (loading) {
         return (
             <Shell>
-                <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex flex-col items-center gap-3 py-20 text-slate-400">
+                    <Loader2 className="h-7 w-7 animate-spin text-rose-400" />
                     <p className="text-sm">Reading the code…</p>
                 </div>
             </Shell>
@@ -367,15 +349,16 @@ export default function PlayPage() {
     if (done) {
         return (
             <Shell>
-                <div className="flex flex-col items-center gap-4 py-12 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
-                        <Check className="h-8 w-8 text-emerald-400" />
+                <div className="relative overflow-hidden rounded-[28px] border border-emerald-400/20 bg-gradient-to-b from-emerald-500/15 to-white/[0.03] px-6 py-12 text-center">
+                    <div className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-emerald-400/20 blur-3xl" />
+                    <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-emerald-950 shadow-[0_0_40px_rgba(16,185,129,0.45)]">
+                        <Check className="h-10 w-10" strokeWidth={3} />
                     </div>
-                    <h1 className="text-2xl font-bold text-white">
-                        {done.station.toUpperCase()} is unlocked
+                    <h1 className="relative mt-6 text-3xl font-black tracking-tight text-white">
+                        {done.station.toUpperCase()} unlocked
                     </h1>
-                    <p className="text-sm text-slate-400">
-                        {done.minutes} minutes, starting now. Pick a game on the screen.
+                    <p className="relative mt-2 text-sm text-emerald-100/70">
+                        {done.minutes} minutes, starting now. Sit down and pick a game.
                     </p>
                 </div>
             </Shell>
@@ -385,13 +368,13 @@ export default function PlayPage() {
     if (rejected) {
         return (
             <Shell>
-                <div className="py-10 text-center">
-                    <h1 className="text-xl font-bold text-white">Payment not confirmed</h1>
-                    <p className="mt-2 text-sm text-slate-400">
+                <div className="rounded-[28px] border border-rose-500/20 bg-rose-500/[0.08] px-6 py-10 text-center">
+                    <h1 className="text-2xl font-black text-white">Payment not confirmed</h1>
+                    <p className="mt-2 text-sm text-rose-100/70">
                         {rejected || 'The café could not find that payment.'}
                     </p>
-                    <p className="mt-4 text-sm text-slate-400">
-                        Please show your payment at the counter — they can start your session there.
+                    <p className="mt-5 text-sm text-slate-400">
+                        Show the payment at the counter — they can start your session there.
                     </p>
                 </div>
             </Shell>
@@ -401,123 +384,85 @@ export default function PlayPage() {
     if (pending) {
         return (
             <Shell>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-400">
-                    {pending.station.toUpperCase()} · {pending.durationMinutes} min
-                </p>
-                <h1 className="mt-1 text-3xl font-black text-white">₹{pending.amount}</h1>
+                <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-transparent p-5">
+                    <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-rose-500/20 blur-3xl" />
+                    <div className="pointer-events-none absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl" />
+                    <p className="relative text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-300">
+                        {pending.station.toUpperCase()} · {pending.durationMinutes} min
+                    </p>
+                    <p className="relative mt-3 text-5xl font-black tracking-tight text-white">
+                        ₹{pending.amount}
+                    </p>
+                    <p className="relative mt-2 text-sm font-semibold text-slate-200">
+                        {pending.upi.payeeName}
+                    </p>
+                    <p className="relative mt-0.5 truncate text-xs text-slate-500">
+                        {pending.upi.payeeUpiId}
+                    </p>
+                </div>
 
                 {error && <div className="mt-4"><Problem message={error} /></div>}
 
                 {!claimed ? (
                     <div className="mt-6">
-                        <p className="text-sm text-slate-400">
-                            Paying <span className="font-bold text-slate-200">{pending.upi.payeeName}</span>.
-                            Pick the app you actually use — this will not open WhatsApp unless you tap it.
-                        </p>
-
-                        <div className="mt-5 grid grid-cols-2 gap-2.5">
-                            {pending.upi.apps.map((app) => (
-                                <button
-                                    key={app.label}
-                                    type="button"
-                                    onClick={() => openNamedApp(app)}
-                                    className={`rounded-2xl bg-gradient-to-br px-4 py-4 text-left font-bold shadow-lg transition hover:-translate-y-0.5 hover:opacity-90 ${app.className}`}
-                                >
-                                    <span className="block text-sm">{app.label}</span>
-                                    <span className="mt-1 block text-[11px] font-semibold opacity-80">
-                                        ₹{pending.amount}
-                                    </span>
-                                </button>
-                            ))}
+                        <div className="mb-3 flex items-end justify-between">
+                            <p className="text-sm font-bold text-white">Choose your UPI app</p>
+                            <p className="text-[11px] text-slate-500">Opens that app only</p>
                         </div>
 
-                        <div className="mt-5 rounded-2xl border border-white/[0.10] bg-white/[0.03] p-4">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Or pay by hand from any app
-                            </p>
+                        <UpiAppGrid apps={pending.upi.apps} isAndroid={isAndroid} onOpen={openNamedApp} />
 
-                            <button
-                                type="button"
-                                onClick={() => copy(pending.upi.payeeUpiId, 'upi')}
-                                className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
-                            >
-                                <span className="min-w-0">
-                                    <span className="block text-[10px] uppercase tracking-wide text-slate-500">
-                                        Pay this UPI ID
-                                    </span>
-                                    <span className="block truncate text-sm font-bold text-white">
-                                        {pending.upi.payeeUpiId}
-                                    </span>
-                                </span>
-                                <span className="shrink-0 text-xs font-bold text-emerald-400">
-                                    {copied === 'upi' ? 'Copied' : 'Copy'}
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => copy(String(pending.amount), 'amount')}
-                                className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-white/[0.05] px-4 py-3 text-left"
-                            >
-                                <span>
-                                    <span className="block text-[10px] uppercase tracking-wide text-slate-500">
-                                        Exact amount
-                                    </span>
-                                    <span className="block text-sm font-bold text-white">
-                                        ₹{pending.amount}
-                                    </span>
-                                </span>
-                                <span className="shrink-0 text-xs font-bold text-emerald-400">
-                                    {copied === 'amount' ? 'Copied' : 'Copy'}
-                                </span>
-                            </button>
-
-                            <p className="mt-3 text-[11px] text-slate-500">
-                                If your app is not in the list, open it yourself, paste the UPI ID,
-                                send exactly ₹{pending.amount}.
-                            </p>
+                        <div className="mt-4">
+                            <UpiManualPay
+                                payeeUpiId={pending.upi.payeeUpiId}
+                                amount={pending.amount}
+                                paymentUrl={pending.upi.url}
+                            />
                         </div>
 
                         <button
                             type="button"
                             onClick={() => raiseClaim(pending)}
                             disabled={submitting}
-                            className="mt-6 w-full rounded-2xl border border-white/[0.12] px-5 py-4 text-sm font-bold text-slate-200 disabled:opacity-40"
+                            className="mt-5 w-full rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 px-5 py-4 text-sm font-black text-white shadow-[0_12px_30px_-12px_rgba(244,63,94,0.8)] disabled:opacity-40"
                         >
-                            {submitting ? 'Sending…' : 'I have paid'}
+                            {submitting ? 'Telling the café…' : 'I have paid'}
                         </button>
+                        <p className="mt-2 text-center text-[11px] text-slate-500">
+                            Pay first, then tap this. The PC unlocks when the café confirms.
+                        </p>
                     </div>
                 ) : (
                     <div className="mt-8 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15">
-                            <Clock className="h-8 w-8 text-amber-400" />
+                        <div className="relative mx-auto h-20 w-20">
+                            <span className="absolute inset-0 animate-ping rounded-full bg-amber-400/20" />
+                            <span className="absolute inset-2 animate-pulse rounded-full bg-amber-400/10" />
+                            <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/15">
+                                <Clock className="h-8 w-8 text-amber-300" />
+                            </div>
                         </div>
-                        <p className="mt-4 text-base font-bold text-white">
-                            Waiting for the café to confirm
-                        </p>
-                        <p className="mt-2 text-sm text-slate-400">
-                            {pending.station.toUpperCase()} unlocks by itself the moment they do.
+                        <p className="mt-5 text-xl font-black text-white">Waiting for the café</p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                            {pending.station.toUpperCase()} unlocks by itself the moment they confirm.
                             Keep this screen open.
                         </p>
+                        <div className="mx-auto mt-5 h-1.5 w-40 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full w-1/2 animate-[pulse_1.4s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-amber-400 to-rose-400" />
+                        </div>
 
                         {resumed && (
-                            <p className="mt-4 text-xs text-slate-500">
-                                You already had a payment waiting for this PC, so this is
-                                that one — you have not been charged twice.
+                            <p className="mt-5 text-xs text-slate-500">
+                                You already had a payment waiting for this PC — you have not been charged twice.
                             </p>
                         )}
 
-                        {/* The way out of a payment that never happened. Without
-                            it a failed attempt blocks the machine for ten minutes
-                            and scanning again just hands the same dead session
-                            back. */}
                         <button
                             type="button"
                             onClick={abandon}
                             disabled={submitting}
-                            className="mt-6 text-xs font-semibold text-slate-500 underline hover:text-slate-300 disabled:opacity-40"
+                            className="mt-8 text-xs font-semibold text-slate-500 underline decoration-slate-700 underline-offset-4 hover:text-slate-300 disabled:opacity-40"
                         >
-                            {submitting ? 'Cancelling…' : "Cancel this and start again"}
+                            {submitting ? 'Cancelling…' : 'Cancel and start again'}
                         </button>
 
                         {givenUp && (
@@ -554,27 +499,26 @@ export default function PlayPage() {
 
     return (
         <Shell>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-400">
-                {info.cafeName}
-            </p>
-            <h1 className="mt-1 text-3xl font-black tracking-wide text-white">
-                {info.station.toUpperCase()}
-            </h1>
-
-            {/* What they have to spend, before what it costs. Someone who cannot
-                afford any of it should find that out without reading a price
-                list first. */}
-            <div className="mt-4 flex flex-wrap gap-2">
-                {info.planHours > 0 && (
-                    <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300">
-                        <Clock size={13} />
-                        {info.planHours}h on your plan
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-transparent p-5">
+                <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-rose-500/25 blur-3xl" />
+                <p className="relative text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-300">
+                    {info.cafeName}
+                </p>
+                <h1 className="relative mt-2 text-4xl font-black tracking-tight text-white">
+                    {info.station.toUpperCase()}
+                </h1>
+                <div className="relative mt-4 flex flex-wrap gap-2">
+                    {info.planHours > 0 && (
+                        <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300">
+                            <Clock size={13} />
+                            {info.planHours}h on plan
+                        </span>
+                    )}
+                    <span className="flex items-center gap-1.5 rounded-full border border-white/[0.10] bg-black/30 px-3 py-1.5 text-xs font-bold text-slate-200">
+                        <Wallet size={13} />
+                        ₹{info.walletBalance} wallet
                     </span>
-                )}
-                <span className="flex items-center gap-1.5 rounded-full border border-white/[0.10] bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-slate-300">
-                    <Wallet size={13} />
-                    ₹{info.walletBalance} in wallet
-                </span>
+                </div>
             </div>
 
             {error && <div className="mt-4"><Problem message={error} /></div>}
@@ -593,11 +537,8 @@ export default function PlayPage() {
 
             {canPlay && !chosen && (
                 <>
-                    <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        How long do you want to play?
-                    </p>
-
-                    <div className="mt-3 space-y-2.5">
+                    <p className="mt-7 text-sm font-bold text-white">How long?</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2.5">
                         {info.options.map((option) => {
                             const hoursWanted = option.durationMinutes / 60;
                             const fromPlan = Math.min(info.planHours, hoursWanted);
@@ -609,17 +550,18 @@ export default function PlayPage() {
                                     key={option.durationMinutes}
                                     type="button"
                                     onClick={() => setChosen(option)}
-                                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/[0.10] bg-white/[0.03] px-5 py-4 text-left transition-colors hover:bg-white/[0.06]"
+                                    className="rounded-[22px] border border-white/[0.08] bg-white/[0.04] p-4 text-left transition hover:border-rose-400/40 hover:bg-white/[0.07] active:scale-[0.98]"
                                 >
-                                    <span className="text-lg font-bold text-white">
-                                        {option.durationMinutes} minutes
+                                    <span className="block text-2xl font-black text-white">
+                                        {option.durationMinutes}
+                                        <span className="ml-1 text-sm font-semibold text-slate-500">min</span>
                                     </span>
                                     {coveredByPlan ? (
-                                        <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300">
+                                        <span className="mt-2 inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
                                             On your plan
                                         </span>
                                     ) : (
-                                        <span className="text-lg font-bold text-slate-200">₹{option.price}</span>
+                                        <span className="mt-2 block text-base font-bold text-rose-300">₹{option.price}</span>
                                     )}
                                 </button>
                             );
@@ -629,8 +571,6 @@ export default function PlayPage() {
             )}
 
             {canPlay && chosen && (() => {
-                // Recomputed here so the second screen shows the same numbers the
-                // server will charge, rather than the list price from the first.
                 const hoursWanted = chosen.durationMinutes / 60;
                 const fromPlan = Math.min(info.planHours, hoursWanted);
                 const cash = Math.round(chosen.price * ((hoursWanted - fromPlan) / hoursWanted));
@@ -643,45 +583,39 @@ export default function PlayPage() {
                         <button
                             type="button"
                             onClick={() => setChosen(null)}
-                            className="mt-6 text-xs font-semibold text-slate-500 hover:text-slate-300"
+                            className="mt-6 flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-300"
                         >
-                            ← {chosen.durationMinutes} minutes · change
+                            <ChevronLeft size={14} />
+                            {chosen.durationMinutes} min · change
                         </button>
 
-                        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            How do you want to pay?
-                        </p>
+                        <p className="mt-4 text-sm font-bold text-white">Pay and start</p>
 
                         <div className="mt-3 space-y-2.5">
-                            {/* Wallet leads while it can pay, because it starts
-                                the session there and then. The moment it cannot,
-                                the emphasis moves to UPI: a big green button that
-                                refuses to be pressed is worse than no button, and
-                                the eye goes to it before it reads why. */}
                             <button
                                 type="button"
                                 onClick={() => start(chosen, 'wallet')}
                                 disabled={busy || !affordable}
-                                className={`flex w-full items-center justify-between gap-3 rounded-2xl px-5 py-4 text-left transition-colors disabled:opacity-50 ${
+                                className={`flex w-full items-center justify-between gap-3 rounded-[22px] px-5 py-4 text-left transition disabled:opacity-50 ${
                                     affordable
-                                        ? 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                                        ? 'bg-emerald-500 text-emerald-950 shadow-[0_12px_30px_-12px_rgba(16,185,129,0.85)]'
                                         : 'border border-white/[0.10] text-slate-400'
                                 }`}
                             >
                                 <span>
-                                    <span className="flex items-center gap-2 text-base font-bold">
+                                    <span className="flex items-center gap-2 text-base font-black">
                                         <Wallet size={16} />
-                                        {coveredByPlan ? 'Start on my plan' : 'Pay from wallet'}
+                                        {coveredByPlan ? 'Start on my plan' : 'Wallet'}
                                     </span>
                                     <span className="mt-0.5 block text-xs font-semibold opacity-80">
                                         {coveredByPlan
-                                            ? 'Starts straight away'
+                                            ? 'Unlocks immediately'
                                             : affordable
-                                                ? `₹${cash} of ₹${info.walletBalance} · starts straight away`
-                                                : `Not enough — ₹${info.walletBalance} of ₹${cash}`}
+                                                ? `₹${cash} of ₹${info.walletBalance} · unlocks immediately`
+                                                : `Need ₹${cash} · you have ₹${info.walletBalance}`}
                                     </span>
                                 </span>
-                                <span className="text-lg font-black">
+                                <span className="text-xl font-black">
                                     {coveredByPlan ? '' : `₹${cash}`}
                                 </span>
                             </button>
@@ -691,22 +625,22 @@ export default function PlayPage() {
                                     type="button"
                                     onClick={() => start(chosen, 'upi')}
                                     disabled={busy}
-                                    className={`flex w-full items-center justify-between gap-3 rounded-2xl px-5 py-4 text-left transition-colors disabled:opacity-40 ${
+                                    className={`flex w-full items-center justify-between gap-3 rounded-[22px] px-5 py-4 text-left transition disabled:opacity-40 ${
                                         affordable
-                                            ? 'border border-white/[0.12] hover:bg-white/[0.06]'
-                                            : 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                                            ? 'border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.07]'
+                                            : 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-[0_12px_30px_-12px_rgba(244,63,94,0.8)]'
                                     }`}
                                 >
                                     <span>
-                                        <span className={`flex items-center gap-2 text-base font-bold ${affordable ? 'text-white' : ''}`}>
+                                        <span className={`flex items-center gap-2 text-base font-black ${affordable ? 'text-white' : ''}`}>
                                             <Smartphone size={16} />
-                                            Pay by UPI
+                                            UPI
                                         </span>
-                                        <span className={`mt-0.5 block text-xs ${affordable ? 'text-slate-500' : 'font-semibold opacity-80'}`}>
-                                            Opens your payment app · café confirms before you start
+                                        <span className={`mt-0.5 block text-xs ${affordable ? 'text-slate-500' : 'font-semibold opacity-90'}`}>
+                                            Pick Paytm, GPay, FamPay and more
                                         </span>
                                     </span>
-                                    <span className={`text-lg font-black ${affordable ? 'text-slate-200' : ''}`}>₹{chosen.price}</span>
+                                    <span className={`text-xl font-black ${affordable ? 'text-white' : ''}`}>₹{chosen.price}</span>
                                 </button>
                             )}
                         </div>
@@ -727,11 +661,12 @@ export default function PlayPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
     return (
-        <main className="min-h-screen bg-[#0a0a0f] px-5 py-10">
-            <div className="mx-auto w-full max-w-md">
+        <main className="relative min-h-screen overflow-hidden bg-[#08080c] px-5 py-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,7,58,0.18),transparent_42%),radial-gradient(circle_at_80%_20%,rgba(0,240,255,0.08),transparent_30%)]" />
+            <div className="relative mx-auto w-full max-w-md">
                 <div className="mb-6 flex items-center gap-2 text-slate-500">
                     <Lock size={14} />
-                    <span className="text-xs font-semibold uppercase tracking-wide">Start a session</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em]">Start a session</span>
                 </div>
                 {children}
             </div>

@@ -22,8 +22,12 @@ export type UpiPayee = {
 };
 
 export type UpiAppOption = {
+  id: string;
   label: string;
   helper: string;
+  /** Letters shown on the app tile. */
+  mark: string;
+  markClassName: string;
   /** Custom URL scheme. What iOS and fallbacks use. */
   href: string;
   /**
@@ -31,7 +35,6 @@ export type UpiAppOption = {
    * bypasses the default handler (WhatsApp, etc.).
    */
   androidHref: string;
-  className: string;
 };
 
 /**
@@ -120,89 +123,113 @@ export function buildUpiAppOptions(
   const query = buildUpiQuery(payee, amount, bookingId, cafeName);
 
   const apps: Array<{
+    id: string;
     label: string;
     helper: string;
+    mark: string;
+    markClassName: string;
     scheme: string;
     packageName: string;
-    className: string;
   }> = [
     {
+      id: "paytm",
       label: "Paytm",
       helper: "Paytm",
+      mark: "Pay",
+      markClassName: "bg-[#00BAF2] text-white",
       scheme: `paytmmp://pay?${query}`,
       packageName: "net.one97.paytm",
-      className: "from-sky-500 to-cyan-500 text-white",
     },
     {
-      label: "Google Pay",
-      helper: "GPay",
+      id: "gpay",
+      label: "GPay",
+      helper: "Google Pay",
+      mark: "G",
+      markClassName: "bg-white text-[#1a73e8]",
       scheme: `tez://upi/pay?${query}`,
       packageName: "com.google.android.apps.nbu.paisa.user",
-      className: "from-blue-500 to-emerald-500 text-white",
     },
     {
+      id: "phonepe",
       label: "PhonePe",
       helper: "PhonePe",
+      mark: "Pe",
+      markClassName: "bg-[#5f259f] text-white",
       scheme: `phonepe://pay?${query}`,
       packageName: "com.phonepe.app",
-      className: "from-violet-500 to-purple-700 text-white",
     },
     {
+      id: "fampay",
       label: "FamPay",
       helper: "FamPay",
+      mark: "Fam",
+      markClassName: "bg-[#ff6a00] text-white",
       scheme: `fampay://upi/pay?${query}`,
       packageName: "com.fampay.app",
-      className: "from-orange-400 to-amber-500 text-white",
     },
     {
+      id: "whatsapp",
       label: "WhatsApp",
       helper: "WhatsApp Pay",
+      mark: "WA",
+      markClassName: "bg-[#25D366] text-white",
       scheme: `upi://pay?${query}`,
       packageName: "com.whatsapp",
-      className: "from-emerald-500 to-green-700 text-white",
     },
     {
+      id: "bhim",
       label: "BHIM",
       helper: "BHIM UPI",
+      mark: "BH",
+      markClassName: "bg-[#F7941D] text-white",
       scheme: `bhim://upi/pay?${query}`,
       packageName: "in.org.npci.upiapp",
-      className: "from-orange-500 to-rose-600 text-white",
     },
     {
-      label: "Amazon Pay",
-      helper: "Amazon",
+      id: "amazon",
+      label: "Amazon",
+      helper: "Amazon Pay",
+      mark: "a",
+      markClassName: "bg-[#131921] text-[#FF9900]",
       scheme: `amazonpay://upi/pay?${query}`,
       packageName: "in.amazon.mShop.android.shopping",
-      className: "from-slate-600 to-slate-800 text-white",
     },
     {
+      id: "cred",
       label: "CRED",
       helper: "CRED",
+      mark: "C",
+      markClassName: "bg-black text-white",
       scheme: `cred://upi/pay?${query}`,
       packageName: "com.dreamplug.androidapp",
-      className: "from-neutral-700 to-black text-white",
     },
     {
+      id: "mobikwik",
       label: "MobiKwik",
       helper: "MobiKwik",
+      mark: "Mk",
+      markClassName: "bg-[#0047BB] text-white",
       scheme: `mobikwik://upi/pay?${query}`,
       packageName: "com.mobikwik_new",
-      className: "from-blue-600 to-indigo-700 text-white",
     },
     {
+      id: "navi",
       label: "Navi",
       helper: "Navi UPI",
+      mark: "N",
+      markClassName: "bg-[#FFE14D] text-black",
       scheme: `navi://upi/pay?${query}`,
       packageName: "com.naviapp",
-      className: "from-yellow-400 to-yellow-600 text-black",
     },
   ];
 
   return apps.map((app) => ({
+    id: app.id,
     label: app.label,
     helper: app.helper,
+    mark: app.mark,
+    markClassName: app.markClassName,
     href: app.scheme,
     androidHref: androidPackagePay(app.packageName, query),
-    className: app.className,
   }));
 }

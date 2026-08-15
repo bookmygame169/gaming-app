@@ -10,6 +10,7 @@ import {
   buildUpiPaymentUrl,
   buildUpiAppOptions,
 } from "@/lib/upi";
+import { UpiAppGrid, UpiManualPay } from "@/components/UpiPayPanel";
 import { getIndiaDateString } from "@/lib/bookingFilters";
 import {
   ArrowLeft,
@@ -32,10 +33,8 @@ import {
   History,
   Sparkles,
   ShieldCheck,
-  Share2,
-  QrCode
+  Share2
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 
 type BookingRow = {
   id: string;
@@ -90,7 +89,6 @@ export default function BookingDetailsPage() {
   const [claimSaving, setClaimSaving] = useState(false);
   const [claimSent, setClaimSent] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
-  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Load booking data
   useEffect(() => {
@@ -635,59 +633,20 @@ export default function BookingDetailsPage() {
               )}
             </div>
 
-            {canPayOnline && (
-              <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto]">
+            {canPayOnline && payee && (
+              <div className="mt-6 space-y-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-yellow-200/70">
-                    Pay with any UPI app
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                    {upiAppOptions.map((option) => (
-                      <a
-                        key={option.label}
-                        href={isAndroid ? option.androidHref : option.href}
-                        className={`rounded-2xl bg-gradient-to-br px-4 py-3 text-center font-bold shadow-lg transition hover:-translate-y-0.5 hover:opacity-90 ${option.className}`}
-                      >
-                        <span className="block text-sm">{option.label}</span>
-                        <span className="mt-1 block text-[11px] font-semibold opacity-80">{option.helper}</span>
-                      </a>
-                    ))}
+                  <div className="mb-3 flex items-end justify-between">
+                    <p className="text-sm font-bold text-white">Choose your UPI app</p>
+                    <p className="text-[11px] text-yellow-200/60">Opens that app only</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!payee) return;
-                      try {
-                        await navigator.clipboard.writeText(payee.upiId);
-                        setCopiedUpi(true);
-                        window.setTimeout(() => setCopiedUpi(false), 1600);
-                      } catch {
-                        setCopiedUpi(false);
-                      }
-                    }}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-100 transition hover:bg-yellow-500/20"
-                  >
-                    {copiedUpi ? "Copied UPI ID" : `Copy UPI ID · ${payee?.upiId ?? ""}`}
-                  </button>
-                  <p className="mt-2 text-xs text-gray-400">
-                    If your app is not listed, open it yourself, paste this UPI ID, and pay the exact amount.
-                  </p>
+                  <UpiAppGrid apps={upiAppOptions} isAndroid={isAndroid} />
                 </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/40 p-4 text-center">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-yellow-200">
-                    <QrCode className="h-5 w-5" />
-                  </div>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
-                    Scan QR
-                  </p>
-                  <div className="mt-3 rounded-2xl bg-white p-3">
-                    <QRCodeSVG value={paymentUrl} size={132} level="M" includeMargin />
-                  </div>
-                  <p className="mt-3 max-w-[160px] text-xs text-gray-400">
-                    Scan with any UPI app if buttons do not open.
-                  </p>
-                </div>
+                <UpiManualPay
+                  payeeUpiId={payee.upiId}
+                  amount={amountDue}
+                  paymentUrl={paymentUrl}
+                />
               </div>
             )}
 
