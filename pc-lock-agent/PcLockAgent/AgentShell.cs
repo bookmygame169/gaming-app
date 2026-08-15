@@ -106,6 +106,17 @@ internal sealed class AgentShell : ApplicationContext
         }
         else
         {
+            // Starting the codes here as well as in ApplyLocked, because this is
+            // the other way a station ends up locked and it is by far the more
+            // common one: every boot, every watchdog restart, every reinstall.
+            //
+            // ApplyLocked runs on a lock command or a session expiring, so an
+            // agent that started clean and was simply never told anything sat
+            // there heartbeating happily and never once asked for a code. The
+            // lock screen showed its no-code fallback and looked like the
+            // feature had been removed.
+            _unlockQr.Start();
+
             ReportState(locked: true, sessionId: null);
         }
     }

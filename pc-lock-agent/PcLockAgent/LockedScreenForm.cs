@@ -47,7 +47,11 @@ internal sealed class LockedScreenForm : Form
     /// 46 of margin under it matches the 46 above the heading.
     /// </remarks>
     private static int CardHeightFor(bool withCode) =>
-        (withCode ? CodeTop + CodeSize : PlateTop + PlateHeight) + 138 + 46;
+        withCode
+            ? CodeTop + CodeSize + 138 + 46
+            // Shorter without a code: the station number is not repeated below
+            // the plate, so there are two fewer lines to leave room for.
+            : PlateTop + PlateHeight + 100 + 46;
 
     public LockedScreenForm(AgentConfig config)
     {
@@ -285,11 +289,25 @@ internal sealed class LockedScreenForm : Form
             // The counter is always offered, whether or not a code is showing.
             // A customer with no app, no balance or no phone must still have a
             // way to start playing, and the station number is what staff need.
-            Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont, Palette.Accent,
-                card.Width, below + 78f, 5f);
+            //
+            // Repeated only when the code is showing. Without a code the plate
+            // above already carries the number in the largest type on the
+            // screen, and printing it again eight lines lower - which is what
+            // the fallback did - reads as two different numbers to check rather
+            // than one to say out loud.
+            if (_scanCode is not null)
+            {
+                Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont,
+                    Palette.Accent, card.Width, below + 78f, 5f);
 
-            Theme.DrawTrackedCentred(g, "Or ask at the counter and tell them this number.",
-                noteFont, Palette.TextFaint, card.Width, below + 122f, 0.4f);
+                Theme.DrawTrackedCentred(g, "Or ask at the counter and tell them this number.",
+                    noteFont, Palette.TextFaint, card.Width, below + 122f, 0.4f);
+            }
+            else
+            {
+                Theme.DrawTrackedCentred(g, "Tell them the number above.",
+                    noteFont, Palette.TextFaint, card.Width, below + 84f, 0.4f);
+            }
         };
 
         return card;
