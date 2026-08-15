@@ -16,6 +16,7 @@ type PendingUpi = {
         payeeName: string;
         payeeUpiId: string;
         url: string;
+        chooserUrl: string;
         apps: { label: string; helper: string; href: string; className: string }[];
     };
 };
@@ -59,6 +60,12 @@ export default function PlayPage() {
     const [pending, setPending] = useState<PendingUpi | null>(null);
     const [claimed, setClaimed] = useState(false);
     const [handedOff, setHandedOff] = useState(false);
+
+    // Set when asking the phone to show its own app chooser produced nothing.
+    // Only then is a list of named apps worth showing - it can never be
+    // complete, and a customer who banks with something not on it would
+    // reasonably conclude they cannot pay.
+    const [chooserFailed, setChooserFailed] = useState(false);
     const [rejected, setRejected] = useState<string | null>(null);
     const [givenUp, setGivenUp] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -170,6 +177,42 @@ export default function PlayPage() {
             setStarting(null);
         }
     };
+
+    /**
+     * Hands the payment to the phone.
+     *
+     * Android is given an intent rather than a upi:// link, which is what makes
+     * it show its own "open with" sheet listing every UPI app installed -
+     * FamPay, Cred, a bank's own app, whatever this customer actually uses. A
+     * plain upi:// link skips that and goes to the default handler, which is how
+     * tapping Pay ended up opening WhatsApp.
+     *
+     * iOS has no equivalent. Nothing happens there, so the named list appears
+     * instead once it is clear nothing opened.
+     */
+    const openPaymentApp = useCallback((session: PendingUpi) => {
+        setHandedOff(true);
+        setChooserFailed(false);
+
+        const isAndroid = /android/i.test(navigator.userAgent);
+
+        if (!isAndroid) {
+            setChooserFailed(true);
+            return;
+        }
+
+        // If the sheet opens, this page is hidden by it and the timer below
+        // never gets to run. Still being visible means nothing took the intent.
+        const check = window.setTimeout(() => {
+            if (document.visibilityState === 'visible') {
+                setChooserFailed(true);
+            }
+        }, 2000);
+
+        window.location.href = session.upi.chooserUrl;
+
+        return () => window.clearTimeout(check);
+    }, []);
 
     /**
      * Tells the café a payment is on its way.
@@ -333,44 +376,62 @@ export default function PlayPage() {
                     <div className="mt-6">
                         <p className="text-sm text-slate-400">
                             Paying <span className="font-bold text-slate-200">{pending.upi.payeeName}</span>.
-                            Choose your app — the amount is already filled in.
+                            The amount is already filled in.
                         </p>
 
-                        {/* Each button opens one named app directly, rather than
-                            handing the generic upi:// link to Android. That link
-                            goes to whichever app has claimed it as the default,
-                            which on a lot of phones is WhatsApp - so tapping Pay
-                            opened WhatsApp and the customer never got near their
-                            bank. Choosing the app is the customer's decision, and
-                            these schemes make it one. */}
-                        <div className="mt-4 space-y-2.5">
-                            {pending.upi.apps.map((app) => (
-                                <a
-                                    key={app.label}
-                                    href={app.href}
-                                    onClick={() => setHandedOff(true)}
-                                    className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-5 py-4 ${app.className}`}
-                                >
-                                    <span className="flex items-center gap-2.5 text-base font-bold">
-                                        <Smartphone size={17} />
-                                        {app.label}
-                                    </span>
-                                    <span className="text-lg font-black">₹{pending.amount}</span>
-                                </a>
-                            ))}
-
-                            {/* Last, and plainly labelled. This is the generic
-                                link, so it lands wherever the phone has been told
-                                to send them - which is fine when that is what they
-                                want and confusing when it is not. */}
-                            <a
-                                href={pending.upi.url}
-                                onClick={() => setHandedOff(true)}
-                                className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-5 py-3.5 text-sm font-bold text-slate-300"
+                        {!chooserFailed ? (
+                            <button
+                                type="button"
+                                onClick={() => openPaymentApp(pending)}
+                                className="mt-5 flex w-full items-center justify-between gap-3 rounded-2xl bg-emerald-500 px-5 py-4 text-left text-emerald-950 transition-colors hover:bg-emerald-400"
                             >
-                                Another UPI app
-                            </a>
-                        </div>
+                                <span>
+                                    <span className="flex items-center gap-2 text-base font-bold">
+                                        <Smartphone size={17} />
+                                        Pay now
+                                    </span>
+                                    <span className="mt-0.5 block text-xs font-semibold opacity-80">
+                                        Choose your app on the next screen
+                                    </span>
+                                </span>
+                                <span className="text-lg font-black">₹{pending.amount}</span>
+                            </button>
+                        ) : (
+                            <>
+                                {/* Only after the phone's own sheet failed to
+                                    appear. This list cannot be complete - there
+                                    are more UPI apps than anyone can name - so it
+                                    is a fallback rather than the offer. */}
+                                <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Open your payment app
+                                </p>
+
+                                <div className="mt-3 space-y-2.5">
+                                    {pending.upi.apps.map((app) => (
+                                        <a
+                                            key={app.label}
+                                            href={app.href}
+                                            onClick={() => setHandedOff(true)}
+                                            className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-5 py-4 ${app.className}`}
+                                        >
+                                            <span className="flex items-center gap-2.5 text-base font-bold">
+                                                <Smartphone size={17} />
+                                                {app.label}
+                                            </span>
+                                            <span className="text-lg font-black">₹{pending.amount}</span>
+                                        </a>
+                                    ))}
+
+                                    <a
+                                        href={pending.upi.url}
+                                        onClick={() => setHandedOff(true)}
+                                        className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] px-5 py-3.5 text-sm font-bold text-slate-300"
+                                    >
+                                        Another UPI app
+                                    </a>
+                                </div>
+                            </>
+                        )}
 
                         <p className="mt-4 text-center text-[11px] text-slate-500">
                             or pay {pending.upi.payeeUpiId} yourself
@@ -380,7 +441,7 @@ export default function PlayPage() {
                             type="button"
                             onClick={() => raiseClaim(pending)}
                             disabled={submitting}
-                            className="mt-6 w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-bold text-emerald-950 disabled:opacity-40"
+                            className="mt-6 w-full rounded-2xl border border-white/[0.12] px-5 py-4 text-sm font-bold text-slate-200 disabled:opacity-40"
                         >
                             {submitting ? 'Sending…' : 'I have paid'}
                         </button>

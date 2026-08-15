@@ -5,7 +5,7 @@ import { phoneKey } from "@/lib/loyalty";
 import { getWalletBalance, toRupees } from "@/lib/wallet";
 import { sendStationCommands } from "@/lib/stationCommands";
 import { getIndiaDateString } from "@/lib/bookingFilters";
-import { buildUpiAppOptions, buildUpiPaymentUrl, getCafePayee } from "@/lib/upi";
+import { buildAndroidUpiChooserUrl, buildUpiAppOptions, buildUpiPaymentUrl, getCafePayee } from "@/lib/upi";
 import { getIndiaCurrentMinutes } from "@/lib/bookingFilters";
 import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
 
@@ -353,6 +353,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           payeeName: payee.displayName,
           payeeUpiId: payee.upiId,
           url: buildUpiPaymentUrl(payee, price, booking.id, cafeForPayee?.name),
+          // Android's own "open with" sheet, listing every UPI app on the phone.
+          // The plain upi:// link above goes straight to whichever app claimed
+          // it as the default - WhatsApp, on a lot of handsets - and a
+          // hand-written list of four can never include whatever the customer
+          // actually banks with.
+          chooserUrl: buildAndroidUpiChooserUrl(payee, price, booking.id, cafeForPayee?.name),
           apps: buildUpiAppOptions(payee, price, booking.id, cafeForPayee?.name),
         },
       });
