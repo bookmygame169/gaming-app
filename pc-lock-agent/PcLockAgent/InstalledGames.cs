@@ -485,7 +485,12 @@ internal static class InstalledGames
             .ToList();
     }
 
-    private static string? FindSteamRoot()
+    /// <summary>Where Steam is installed, or null if it is not.</summary>
+    /// <remarks>
+    /// Shared with <see cref="GameArtwork"/>, which needs the same folder to
+    /// find the pictures Steam caches for its own library screen.
+    /// </remarks>
+    public static string? FindSteamRoot()
     {
         // Steam records where it put itself. Far more reliable than guessing,
         // because a café that installed Steam on a games drive has nothing in

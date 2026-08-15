@@ -260,14 +260,24 @@ internal sealed class GameMenuForm : Form
                 Theme.CornerRadius);
         };
 
+        var image = LoadTileImage(game);
+
+        // Real cover art is wide; an extracted program icon is square. They want
+        // different room, so the tile asks the picture which it got rather than
+        // forcing both into one box - a header squeezed into a 96px square is
+        // unreadable, and an icon stretched across the tile is a blur.
+        var isArtwork = image is not null && image.Width > image.Height * 1.4;
+
         var picture = new PictureBox
         {
-            Width = 96,
-            Height = 96,
-            Location = new Point((tile.Width - 96) / 2, 34),
+            Width = isArtwork ? tile.Width - 28 : 96,
+            Height = isArtwork ? 104 : 96,
+            Location = isArtwork
+                ? new Point(14, 22)
+                : new Point((tile.Width - 96) / 2, 34),
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = Color.Transparent,
-            Image = LoadTileImage(game),
+            Image = image,
             Cursor = Cursors.Hand,
         };
 
@@ -367,6 +377,15 @@ internal sealed class GameMenuForm : Form
             if (!string.IsNullOrWhiteSpace(game.IconPath) && File.Exists(game.IconPath))
             {
                 return Image.FromFile(game.IconPath);
+            }
+
+            // Before the executable's own icon, because for a Steam game that
+            // executable is steam.exe - so every Steam title on the menu came
+            // out wearing the same Steam logo.
+            var steamArt = GameArtwork.TryLoadSteamArt(game);
+            if (steamArt is not null)
+            {
+                return steamArt;
             }
 
             if (File.Exists(game.ExePath))

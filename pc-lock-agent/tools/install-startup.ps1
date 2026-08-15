@@ -35,6 +35,20 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:TaskFailed = $false
+
+# Anything this script throws is reported with the line it came from. Every
+# failure here so far has reached the person installing as a bare "code 1", with
+# the actual reason discarded - which is worth more than the tidiness of letting
+# an exception escape.
+trap {
+    Write-Host ""
+    Write-Host "install-startup.ps1 failed." -ForegroundColor Red
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  at line $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor Red
+    Write-Host ""
+    exit 1
+}
 
 if (-not (Test-Path $ExePath)) {
     Write-Host ""
@@ -69,6 +83,20 @@ try {
     $accountExists = ($LASTEXITCODE -eq 0)
 } finally {
     $ErrorActionPreference = "Stop"
+$script:TaskFailed = $false
+
+# Anything this script throws is reported with the line it came from. Every
+# failure here so far has reached the person installing as a bare "code 1", with
+# the actual reason discarded - which is worth more than the tidiness of letting
+# an exception escape.
+trap {
+    Write-Host ""
+    Write-Host "install-startup.ps1 failed." -ForegroundColor Red
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  at line $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor Red
+    Write-Host ""
+    exit 1
+}
 }
 
 if (-not $accountExists) {
@@ -85,7 +113,14 @@ if (-not $accountExists) {
     exit 1
 }
 
-$logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $GamingUser
+# Fully qualified as COMPUTERNAME\User. A bare name usually resolves, but when
+# it does not - a machine joined to a domain, or a local name that collides with
+# one - New-ScheduledTaskTrigger and New-ScheduledTaskPrincipal throw before
+# anything is registered, and the installer showed only "code 1" for it.
+$qualifiedUser = "$env:COMPUTERNAME\$GamingUser"
+Write-Host "Registering the task for: $qualifiedUser" -ForegroundColor DarkGray
+
+$logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $qualifiedUser
 
 # A "run once, then repeat forever" trigger is the standard way to express a
 # watchdog in Task Scheduler; there is no native "keep this running" option.
@@ -113,7 +148,7 @@ $settings = New-ScheduledTaskSettingsSet `
 # Bound to the gaming account only, at normal privilege. The agent does not need
 # admin - it writes only to HKCU and hooks its own session - and running it
 # elevated would add a UAC prompt for no benefit.
-$principal = New-ScheduledTaskPrincipal -UserId $GamingUser -LogonType Interactive -RunLevel Limited
+$principal = New-ScheduledTaskPrincipal -UserId $qualifiedUser -LogonType Interactive -RunLevel Limited
 
 try {
     Register-ScheduledTask `
@@ -131,9 +166,9 @@ try {
     Write-Host "Could not register the startup task." -ForegroundColor Red
     Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
-    Write-Host "The agent is installed but will not start on its own." -ForegroundColor Yellow
-    Write-Host "Run check-setup.ps1 for a full report." -ForegroundColor Yellow
-    exit 1
+    Write-Host "Carrying on to the Startup shortcut, which does not need Task" -ForegroundColor Yellow
+    Write-Host "Scheduler - so the lock can still come up at logon." -ForegroundColor Yellow
+    $script:TaskFailed = $true
 }
 
 # --- Keep itself up to date --------------------------------------------------
@@ -221,6 +256,13 @@ if (Test-Path $startupDir) {
     Write-Host "'$GamingUser' has never signed in, so there is no Startup folder yet." -ForegroundColor Yellow
     Write-Host "Sign in as them once, then run this script again to add the backup" -ForegroundColor Yellow
     Write-Host "shortcut. The scheduled task is already set up either way." -ForegroundColor Yellow
+}
+
+if ($script:TaskFailed) {
+    Write-Host ""
+    Write-Host "Finished, but the scheduled task did not register - see above." -ForegroundColor Yellow
+    Write-Host "Run check-setup.ps1 for a full report." -ForegroundColor Yellow
+    exit 1
 }
 
 Write-Host ""
