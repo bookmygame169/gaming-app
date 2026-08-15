@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, AlertCircle, Lock, RefreshCw, Unlock } from 'lucide-react';
+import { Activity, AlertCircle, Lock, RefreshCw, Unlock, WifiOff } from 'lucide-react';
 
 type StationStatus = {
     station_name: string;
@@ -103,12 +103,60 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
     };
 
     const describeLastSeen = (seconds: number) => {
+        // "just now" rather than "3s ago": at a glance the number reads as
+        // something to act on, when it only means the heartbeat is current.
+        if (seconds < 15) return 'just now';
         if (seconds < 60) return `${seconds}s ago`;
         if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
         return `${Math.floor(seconds / 3600)}h ago`;
     };
 
     const isPcStation = (name: string) => name.toLowerCase().startsWith('pc-');
+
+    /**
+     * Everything the look of a card depends on, decided once.
+     *
+     * The state was previously a line of grey text - the least visible thing on
+     * a card whose entire purpose is to convey it. Someone glancing at a wall of
+     * these should be able to pick out the one that needs attention without
+     * reading any of them.
+     */
+    const describeState = (station: StationStatus) => {
+        if (!station.online) {
+            return {
+                label: 'Offline',
+                note: 'Not reporting in',
+                bar: 'bg-red-500',
+                pill: 'border-red-500/30 bg-red-500/10 text-red-300',
+                dot: 'bg-red-500',
+                card: 'border-red-500/20 bg-red-500/[0.04]',
+            };
+        }
+
+        if (station.status === 'unlocked') {
+            return {
+                label: 'Unlocked',
+                note: 'A customer can use this PC',
+                bar: 'bg-emerald-400',
+                pill: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+                dot: 'bg-emerald-400',
+                card: 'border-emerald-500/20 bg-emerald-500/[0.03]',
+            };
+        }
+
+        return {
+            label: 'Locked',
+            note: 'Waiting for payment',
+            bar: 'bg-slate-500',
+            pill: 'border-white/[0.10] bg-white/[0.04] text-slate-300',
+            dot: 'bg-emerald-400',
+            card: 'border-white/[0.08] bg-white/[0.02]',
+        };
+    };
+
+    const online = stations.filter((s) => s.online);
+    const unlocked = online.filter((s) => s.status === 'unlocked');
+    const offline = stations.filter((s) => !s.online);
 
     return (
         <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
@@ -157,77 +205,124 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
             )}
 
             {stations.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    {stations.map((station) => {
-                        const isUnlocked = station.status === 'unlocked';
-                        const showControls = isPcStation(station.station_name);
-                        const lockBusy = commanding === `${station.station_name}:lock`;
-                        const unlockBusy = commanding === `${station.station_name}:unlock`;
+                <>
+                    {/* A one-line answer to "is everything alright?", so the
+                        grid below only has to be read when it is not. */}
+                    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
+                        <span className="font-semibold text-slate-300">
+                            {online.length} of {stations.length} online
+                        </span>
+                        {unlocked.length > 0 && (
+                            <span className="flex items-center gap-1.5 text-emerald-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                {unlocked.length} unlocked
+                            </span>
+                        )}
+                        {offline.length > 0 && (
+                            <span className="flex items-center gap-1.5 text-red-400">
+                                <WifiOff size={11} />
+                                {offline.length} not reporting
+                            </span>
+                        )}
+                    </div>
 
-                        return (
-                            <div
-                                key={station.station_name}
-                                className={`rounded-xl border p-3 ${
-                                    station.online
-                                        ? 'border-white/[0.08] bg-white/[0.03]'
-                                        : 'border-red-500/25 bg-red-500/[0.05]'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[13px] font-bold uppercase text-slate-200">
-                                        {station.station_name}
-                                    </span>
-                                    <span
-                                        className={`h-2 w-2 shrink-0 rounded-full ${
-                                            station.online ? 'bg-emerald-400' : 'bg-red-500'
-                                        }`}
-                                        title={station.online ? 'Reporting in' : 'Not reporting'}
-                                    />
-                                </div>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                        {stations.map((station) => {
+                            const isUnlocked = station.status === 'unlocked';
+                            const showControls = isPcStation(station.station_name);
+                            const lockBusy = commanding === `${station.station_name}:lock`;
+                            const unlockBusy = commanding === `${station.station_name}:unlock`;
+                            const busy = lockBusy || unlockBusy;
+                            const state = describeState(station);
 
-                                <p
-                                    className={`mt-1.5 text-[11px] font-semibold ${
-                                        !station.online
-                                            ? 'text-red-400'
-                                            : isUnlocked
-                                                ? 'text-emerald-400'
-                                                : 'text-slate-400'
-                                    }`}
+                            return (
+                                <div
+                                    key={station.station_name}
+                                    className={`relative overflow-hidden rounded-xl border pl-4 pr-3 py-3 transition-colors ${state.card}`}
                                 >
-                                    {!station.online ? 'Offline' : isUnlocked ? 'Unlocked' : 'Locked'}
-                                </p>
+                                    {/* Colour down the edge: the grid becomes
+                                        scannable without reading any of it. */}
+                                    <span className={`absolute inset-y-0 left-0 w-1 ${state.bar}`} />
 
-                                <p className="mt-0.5 text-[10px] text-slate-500">
-                                    Seen {describeLastSeen(station.seconds_since_seen)}
-                                </p>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-[15px] font-bold uppercase tracking-wide text-slate-100">
+                                                {station.station_name}
+                                            </p>
+                                            <p className="mt-0.5 text-[10px] text-slate-500">
+                                                Seen {describeLastSeen(station.seconds_since_seen)}
+                                            </p>
+                                        </div>
 
-                                {showControls && (
-                                    <div className="mt-2.5 flex gap-1.5">
-                                        <button
-                                            type="button"
-                                            disabled={!station.online || lockBusy || unlockBusy}
-                                            onClick={() => sendCommand(station.station_name, 'unlock')}
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[10px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
+                                        <span
+                                            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${state.pill}`}
                                         >
-                                            <Unlock size={11} />
-                                            {unlockBusy ? '…' : 'Unlock'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={!station.online || lockBusy || unlockBusy}
-                                            onClick={() => sendCommand(station.station_name, 'lock')}
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-500/30 bg-white/[0.04] px-2 py-1.5 text-[10px] font-bold text-slate-300 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
-                                        >
-                                            <Lock size={11} />
-                                            {lockBusy ? '…' : 'Lock'}
-                                        </button>
+                                            <span className="relative flex h-1.5 w-1.5">
+                                                {station.online && (
+                                                    <span
+                                                        className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${state.dot}`}
+                                                    />
+                                                )}
+                                                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${state.dot}`} />
+                                            </span>
+                                            {state.label}
+                                        </span>
                                     </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+
+                                    <p className="mt-1.5 text-[11px] text-slate-500">{state.note}</p>
+
+                                    {showControls && (
+                                        <div className="mt-3 flex gap-2">
+                                            {/* The action that changes something
+                                                is filled; the other is quiet.
+                                                Two buttons of equal weight make
+                                                the reader work out which one
+                                                they want.
+                                                An offline machine has no useful
+                                                action, so neither is filled -
+                                                a bright disabled button reads as
+                                                the thing to press. */}
+                                            <button
+                                                type="button"
+                                                disabled={!station.online || busy}
+                                                onClick={() => sendCommand(station.station_name, 'unlock')}
+                                                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                                                    !station.online || isUnlocked
+                                                        ? 'border border-white/[0.08] text-slate-400 hover:bg-white/[0.05]'
+                                                        : 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                                                }`}
+                                            >
+                                                <Unlock size={12} />
+                                                {unlockBusy ? 'Unlocking…' : 'Unlock'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={!station.online || busy}
+                                                onClick={() => sendCommand(station.station_name, 'lock')}
+                                                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                                                    isUnlocked && station.online
+                                                        ? 'bg-slate-200 text-slate-900 hover:bg-white'
+                                                        : 'border border-white/[0.08] text-slate-400 hover:bg-white/[0.05]'
+                                                }`}
+                                            >
+                                                <Lock size={12} />
+                                                {lockBusy ? 'Locking…' : 'Lock'}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {!station.online && (
+                                        <p className="mt-3 rounded-lg bg-black/20 px-2 py-1.5 text-[10px] text-red-300/80">
+                                            Check the PC is on and the lock app is running.
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </>
             )}
+
         </section>
     );
 }
