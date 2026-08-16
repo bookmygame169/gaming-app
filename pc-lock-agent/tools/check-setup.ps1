@@ -197,6 +197,23 @@ if ($updateTask) {
     Write-Warn "Auto-update is not set up" "Re-run install-startup.ps1 to add it."
 }
 
+$refreshTask = Get-ScheduledTask -TaskName "BookMyGame Game List" -ErrorAction SilentlyContinue
+$gamesFile = "C:\ProgramData\BookMyGame\installed-games.json"
+
+if (-not $refreshTask) {
+    Write-Warn "The game list scan is not set up" "Re-run install-startup.ps1. Without it the menu shows only games shared between accounts."
+} elseif (Test-Path $gamesFile) {
+    try {
+        $found = @(Get-Content $gamesFile -Raw | ConvertFrom-Json)
+        $age = [int]((Get-Date) - (Get-Item $gamesFile).LastWriteTime).TotalMinutes
+        Write-Good "Game list scan found $($found.Count) game(s)" "Updated $age minute(s) ago"
+    } catch {
+        Write-Warn "installed-games.json is not readable as JSON" $_.Exception.Message
+    }
+} else {
+    Write-Warn "The scan has not written a game list yet" "Run: Start-ScheduledTask -TaskName 'BookMyGame Game List'"
+}
+
 # ---------------------------------------------------------------------------
 Write-Head "5. Is it running right now"
 

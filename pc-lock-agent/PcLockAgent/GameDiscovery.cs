@@ -157,6 +157,10 @@ internal static class GameDiscovery
             found = new List<GameEntry>();
             found.AddRange(FromSteam());
             found.AddRange(FromEpic());
+            // First, because it is the only source that saw the whole machine.
+            // The two below add what this account can reach on its own, which
+            // matters when the scan has not run yet.
+            found.AddRange(FromSharedList());
             found.AddRange(FromDesktopShortcuts());
             found.AddRange(FromStartMenu());
 
@@ -529,6 +533,84 @@ internal static class GameDiscovery
                     yield return entry;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// The list SYSTEM wrote of what is installed for every account.
+    /// </summary>
+    /// <remarks>
+    /// The one source that sees the whole machine. Games are installed by
+    /// whoever sets the PC up, and most installers default to "just for me" —
+    /// so the shortcuts sit on the administrator's own desktop and in their own
+    /// Start Menu. Windows keeps one user's profile from another, and this agent
+    /// runs as the unprivileged customer account on purpose, so it is refused
+    /// both. Everything it can reach itself is the shared folders, which on a
+    /// real machine is a fraction of what is there.
+    /// <para>
+    /// refresh-games.ps1 runs as SYSTEM, which can read every profile, and
+    /// leaves its findings in ProgramData where any account may read them.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromSharedList()
+    {
+        var path = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "BookMyGame",
+            "installed-games.json");
+
+        if (!File.Exists(path))
+        {
+            AgentLog.Info(
+                "No installed-games.json yet. Only games this account can see itself " +
+                "will be listed - re-run install-startup.ps1 to set up the scan.");
+            yield break;
+        }
+
+        List<GameEntry> entries;
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            entries = new List<GameEntry>();
+
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                var name = element.TryGetProperty("name", out var n) ? n.GetString() : null;
+                var exe = element.TryGetProperty("exePath", out var e) ? e.GetString() : null;
+
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(exe))
+                {
+                    continue;
+                }
+
+                // Checked here as well as when it was written. The list can be
+                // hours old, and a game uninstalled since would be a tile that
+                // fails when a customer presses it.
+                if (!File.Exists(exe))
+                {
+                    continue;
+                }
+
+                entries.Add(new GameEntry
+                {
+                    Name = name,
+                    ExePath = exe,
+                    ProcessName = Path.GetFileNameWithoutExtension(exe),
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not read installed-games.json: {ex.Message}");
+            yield break;
+        }
+
+        AgentLog.Info($"Read {entries.Count} game(s) from the machine-wide list.");
+
+        foreach (var entry in entries)
+        {
+            yield return entry;
         }
     }
 

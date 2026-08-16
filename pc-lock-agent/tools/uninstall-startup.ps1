@@ -36,6 +36,12 @@ if (Get-ScheduledTask -TaskName $watchdogTaskName -ErrorAction SilentlyContinue)
     Write-Host "Removed '$watchdogTaskName'." -ForegroundColor Green
 }
 
+$refreshTaskName = "BookMyGame Game List"
+if (Get-ScheduledTask -TaskName $refreshTaskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $refreshTaskName -Confirm:$false
+    Write-Host "Removed '$refreshTaskName'." -ForegroundColor Green
+}
+
 $updateTaskName = "BookMyGame PC Lock Update"
 if (Get-ScheduledTask -TaskName $updateTaskName -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $updateTaskName -Confirm:$false

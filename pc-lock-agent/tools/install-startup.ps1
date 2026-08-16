@@ -276,6 +276,56 @@ if (Test-Path $updateScript) {
     Write-Host "update-agent.ps1 not found, so auto-update was not set up." -ForegroundColor Yellow
 }
 
+# --- Find the games, as an account that can see them all ---------------------
+#
+# Also SYSTEM, and for a reason worth stating: the agent runs as the customer,
+# and Windows refuses one user sight of another's profile. Games installed "just
+# for me" by whoever set the PC up therefore sit on the administrator's desktop
+# where the agent cannot look. SYSTEM can, so it does the looking and leaves the
+# answer in ProgramData.
+$refreshScript = Join-Path (Split-Path $ExePath -Parent) "refresh-games.ps1"
+if (Test-Path $refreshScript) {
+    $refreshTaskName = "BookMyGame Game List"
+
+    try {
+        $refreshAction = New-ScheduledTaskAction `
+            -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+            -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$refreshScript`""
+
+        # At startup and twice an hour. A game installed during the day should
+        # appear on the menu the same day, without anyone restarting anything.
+        $refreshTriggers = @(
+            (New-ScheduledTaskTrigger -AtStartup),
+            (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) `
+                -RepetitionInterval (New-TimeSpan -Minutes 30))
+        )
+
+        $refreshSettings = New-ScheduledTaskSettingsSet `
+            -MultipleInstances IgnoreNew `
+            -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries `
+            -StartWhenAvailable `
+            -ExecutionTimeLimit (New-TimeSpan -Minutes 15)
+
+        Register-ScheduledTask `
+            -TaskName $refreshTaskName `
+            -Action $refreshAction `
+            -Trigger $refreshTriggers `
+            -Settings $refreshSettings `
+            -Principal (New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest) `
+            -Description "Lists the games installed on this PC for the BookMyGame lock screen." `
+            -Force | Out-Null
+
+        Write-Host "Game list scan is on - at startup and every 30 minutes." -ForegroundColor Green
+
+        # Once now, so the first customer does not wait half an hour for a menu.
+        Start-ScheduledTask -TaskName $refreshTaskName -ErrorAction SilentlyContinue
+    } catch {
+        Write-Host "Could not set up the game list scan: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "Not fatal - the menu will show only games this PC shares between accounts." -ForegroundColor Yellow
+    }
+}
+
 # --- Second way in, in case the task does not fire ---------------------------
 #
 # A shortcut in that account's Startup folder is the oldest and least clever way
