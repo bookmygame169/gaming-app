@@ -55,7 +55,13 @@ internal static class Program
 
             config = InstalledGames.FilterToInstalled(config);
             config = GameDiscovery.AddInstalledGames(config);
-            config = GameDiscovery.KeepGamesOnly(config);
+
+            // The other half of this feature — clearing the profile between
+            // customers — has been running all along, but nothing ever added
+            // the tile, so browsing was switched on and unreachable.
+            config = BrowserAccess.AddBrowserTile(config);
+
+            config = GameDiscovery.KeepMenuItemsOnly(config);
 
             Application.Run(new AgentShell(config));
         }

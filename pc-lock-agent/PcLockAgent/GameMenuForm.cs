@@ -64,6 +64,16 @@ internal sealed class GameMenuForm : Form
     // What was last started, for the "is it really running?" check and so the
     // customer is told which game is in the way rather than just "a game".
     private string? _currentGameName;
+
+    /// <summary>
+    /// Exe names of applications the customer opened from the menu.
+    /// </summary>
+    /// <remarks>
+    /// Not tracked to wait on — an app is never "the running game". Kept only
+    /// so that time running out closes Steam and the browser too; otherwise a
+    /// paid session could end with a usable browser still on screen.
+    /// </remarks>
+    private readonly List<string> _openedApps = new();
     private string? _launchedExeName;
     private bool _waitingOnLauncher;
 
@@ -226,16 +236,51 @@ internal sealed class GameMenuForm : Form
             BackColor = Color.Transparent,
         };
 
+        // Section headings are full-width, so the flow wraps them onto their own
+        // row; the flow break after each one starts its tiles on a fresh line.
+        var headings = new List<Control>();
+
         void SizeFlow()
         {
             var width = Math.Max(scrollHost.ClientSize.Width - 72, 400);
             flow.MaximumSize = new Size(width, 0);
             flow.Width = width;
+
+            foreach (var heading in headings)
+            {
+                heading.Width = width - 24;
+            }
         }
 
-        var games = _config.Games.Where(GameDiscovery.IsPlayableGame).ToList();
+        var onMenu = _config.Games.Where(GameDiscovery.IsMenuItem).ToList();
+        var games = onMenu.Where(game => !GameDiscovery.IsApp(game)).ToList();
+        var apps = onMenu.Where(GameDiscovery.IsApp).ToList();
 
-        if (games.Count == 0)
+        void AddSection(string title, string subtitle, List<GameEntry> items, bool isFirst)
+        {
+            // A heading over nothing reads as a section that failed to load.
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            // Only worth labelling when there is something to tell apart. One
+            // group on its own already has the screen's own title above it.
+            if (games.Count > 0 && apps.Count > 0)
+            {
+                var heading = BuildSectionHeading(title, subtitle, isFirst);
+                headings.Add(heading);
+                flow.Controls.Add(heading);
+                flow.SetFlowBreak(heading, true);
+            }
+
+            foreach (var item in items)
+            {
+                flow.Controls.Add(BuildTile(item));
+            }
+        }
+
+        if (onMenu.Count == 0)
         {
             flow.Controls.Add(new Label
             {
@@ -249,16 +294,63 @@ internal sealed class GameMenuForm : Form
         }
         else
         {
-            foreach (var game in games)
-            {
-                flow.Controls.Add(BuildTile(game));
-            }
+            AddSection("GAMES", "Pick one to start playing", games, isFirst: true);
+            AddSection("APPS", "Launchers and the browser", apps, isFirst: games.Count == 0);
         }
 
         scrollHost.Controls.Add(flow);
         scrollHost.Resize += (_, _) => SizeFlow();
         SizeFlow();
         return scrollHost;
+    }
+
+    /// <summary>
+    /// A "GAMES" / "APPS" heading spanning the width of the tile area.
+    /// </summary>
+    /// <remarks>
+    /// Full width on purpose: the flow panel wraps anything that will not fit
+    /// beside a tile, which is what puts the heading on a row of its own.
+    /// </remarks>
+    private static Control BuildSectionHeading(string title, string subtitle, bool isFirst)
+    {
+        var heading = new Panel
+        {
+            Height = 54,
+            // The first heading sits just under the screen title, so it needs
+            // far less air above it than one following a row of tiles.
+            Margin = new Padding(12, isFirst ? 4 : 30, 12, 10),
+            BackColor = Color.Transparent,
+        };
+
+        heading.Paint += (_, e) =>
+        {
+            using var titleFont = new Font("Segoe UI", 12f, FontStyle.Bold);
+            using var subtitleFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+
+            Theme.DrawTracked(e.Graphics, title, titleFont, Palette.TextPrimary, 0f, 4f, 4f);
+
+            var width = Theme.MeasureTracked(e.Graphics, title, titleFont, 4f);
+
+            // A short accent rule under the word, then a hairline carrying on to
+            // the far edge — the eye reads that as one band, so the tiles below
+            // group under it instead of floating.
+            using var accent = new SolidBrush(Palette.Accent);
+            e.Graphics.FillRectangle(accent, 0f, 27f, Math.Max(width, 28f), 2f);
+
+            using var divider = new Pen(Palette.Border, 1f);
+            var lineStart = Math.Max(width, 28f) + 14f;
+            if (heading.Width > lineStart)
+            {
+                e.Graphics.DrawLine(divider, lineStart, 28f, heading.Width, 28f);
+            }
+
+            Theme.DrawTracked(e.Graphics, subtitle, subtitleFont, Palette.TextFaint, 0f, 36f, 1.5f);
+        };
+
+        // Repaint on resize or the rule keeps the width it was first drawn at.
+        heading.Resize += (_, _) => heading.Invalidate();
+
+        return heading;
     }
 
     private Control BuildTile(GameEntry game)
@@ -491,8 +583,78 @@ internal sealed class GameMenuForm : Form
     // Launching
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// Opens an application without claiming the machine the way a game does.
+    /// </summary>
+    /// <remarks>
+    /// Apps are deliberately not exclusive. Steam is how a good half of these
+    /// games start, so treating it like a game — "Steam is still open, close it
+    /// first" — would block the customer from the exact thing they opened it
+    /// for. The menu stands aside and stays usable.
+    /// </remarks>
+    private void LaunchApp(GameEntry app)
+    {
+        if (!LooksLikeShortcut(app.ExePath) && !File.Exists(app.ExePath))
+        {
+            AgentLog.Error($"Cannot open '{app.Name}': {app.ExePath} does not exist.");
+            _statusLabel.Text = $"{app.Name} is not installed on this PC.";
+            _statusLabel.ForeColor = Palette.Accent;
+            return;
+        }
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = app.ExePath,
+                Arguments = LooksLikeShortcut(app.ExePath) ? string.Empty : app.Arguments ?? string.Empty,
+                WorkingDirectory = app.WorkingDirectory
+                                   ?? (LooksLikeShortcut(app.ExePath)
+                                       ? string.Empty
+                                       : Path.GetDirectoryName(app.ExePath) ?? string.Empty),
+                UseShellExecute = true,
+            };
+
+            var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                AgentLog.Error($"Process.Start returned null for '{app.Name}'.");
+                _statusLabel.Text = $"Could not open {app.Name}.";
+                _statusLabel.ForeColor = Palette.Accent;
+                return;
+            }
+
+            // Remembered only so time running out can close it. It is not the
+            // running game, and nothing here waits on it.
+            var exeName = Path.GetFileNameWithoutExtension(app.ExePath);
+            if (!string.IsNullOrWhiteSpace(exeName) && !_openedApps.Contains(exeName))
+            {
+                _openedApps.Add(exeName);
+            }
+
+            process.Dispose();
+            AgentLog.Info($"Opened '{app.Name}'. The menu stays available.");
+
+            TopMost = false;
+            _statusLabel.Text = $"{app.Name} is open. Come back here to start a game.";
+            _statusLabel.ForeColor = Palette.TextMuted;
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Error($"Failed to open '{app.Name}': {ex.Message}");
+            _statusLabel.Text = $"Could not open {app.Name}.";
+            _statusLabel.ForeColor = Palette.Accent;
+        }
+    }
+
     private void LaunchGame(GameEntry game)
     {
+        if (GameDiscovery.IsApp(game))
+        {
+            LaunchApp(game);
+            return;
+        }
+
         // Check, rather than trust, that a game really is still running.
         //
         // "A game is running" used to be believed on the strength of a flag,
@@ -862,6 +1024,15 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     public void TerminateRunningGame()
     {
+        // Apps first, and before either return below: the session is over, so
+        // anything the customer opened from the menu closes with it.
+        foreach (var app in _openedApps.ToArray())
+        {
+            TerminateByName(app);
+        }
+
+        _openedApps.Clear();
+
         // A game being watched by name has no Process object here, so it is
         // ended by looking its processes up first.
         var watchedName = _watchedProcessName;

@@ -123,15 +123,35 @@ internal static class GameDiscovery
     {
         "steam", "epic games", "epic games launcher", "xbox", "riot client",
         "battle.net", "ubisoft connect", "ea app", "origin", "gog galaxy",
-        "rockstar games launcher", "google play games", "play games",
+        "rockstar games launcher", "social club", "rockstar games social club",
+        "google play games", "play games",
         "google chrome", "microsoft edge", "firefox", "opera",
         "discord", "spotify", "browse the internet",
     };
+
+    /// <summary>Whether this tile belongs in the applications group.</summary>
+    /// <remarks>
+    /// Asks the name as well as the stored category, because the café's own
+    /// dashboard entries arrive with no category at all — without the name
+    /// check, a hand-typed "Steam" row lands among the games.
+    /// </remarks>
+    public static bool IsApp(GameEntry game) =>
+        string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(CategoryFor(game.Name ?? string.Empty), "app", StringComparison.Ordinal);
 
     /// <summary>Whether a name should never appear on the menu at all.</summary>
     private static bool IsJunk(string name)
     {
         var lower = name.ToLowerInvariant().Trim();
+
+        // Launchers and the browser are apps, not junk. The deny lists below
+        // still name them, because they were written when the menu was games
+        // only and anything else had to go. Now that applications have their
+        // own group, being one is a reason to keep the tile.
+        if (string.Equals(CategoryFor(lower), "app", StringComparison.Ordinal))
+        {
+            return false;
+        }
 
         if (lower.EndsWith(" - chrome") || lower.EndsWith(" - edge"))
         {
@@ -368,9 +388,7 @@ internal static class GameDiscovery
                 continue;
             }
 
-            if (string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
-                || IsJunk(game.Name)
-                || LooksLikeWindowsTool(game.Name, game.ExePath))
+            if (IsJunk(game.Name) || LooksLikeWindowsTool(game.Name, game.ExePath))
             {
                 continue;
             }
@@ -384,17 +402,18 @@ internal static class GameDiscovery
             return config;
         }
 
-        AgentLog.Info($"Games: {string.Join(", ", added.Where(g => g.Category != "app").Select(g => g.Name))}");
-        AgentLog.Info($"Apps: {string.Join(", ", added.Where(g => g.Category == "app").Select(g => g.Name))}");
+        AgentLog.Info($"Games: {string.Join(", ", added.Where(g => !IsApp(g)).Select(g => g.Name))}");
+        AgentLog.Info($"Apps: {string.Join(", ", added.Where(IsApp).Select(g => g.Name))}");
 
         var games = new List<GameEntry>(config.Games);
         games.AddRange(added.OrderBy(game => game.Name, StringComparer.OrdinalIgnoreCase));
 
-        return KeepGamesOnly(config.WithGames(games));
+        return KeepMenuItemsOnly(config.WithGames(games));
     }
 
     /// <summary>
-    /// Last pass: the menu is games, and only games.
+    /// Last pass: the menu is games and the handful of applications worth
+    /// offering, and nothing else.
     /// </summary>
     /// <remarks>
     /// Discovery, the café catalog, a leftover installed-games.json, and the
@@ -402,18 +421,48 @@ internal static class GameDiscovery
     /// enough — Computer Management still arrived via a Start Menu dump that
     /// never went through those checks. Everything that reaches the lock
     /// screen has to survive this gate.
+    /// <para>
+    /// This used to keep games alone, which is why Steam, Epic, Xbox and the
+    /// browser tile were built and then silently thrown away. Launchers are
+    /// how several of the games are started, so removing them removed the way
+    /// in as well as the tile.
+    /// </para>
     /// </remarks>
-    public static AgentConfig KeepGamesOnly(AgentConfig config)
+    public static AgentConfig KeepMenuItemsOnly(AgentConfig config)
     {
-        var kept = config.Games.Where(IsPlayableGame).ToList();
+        var kept = config.Games.Where(IsMenuItem).ToList();
         var dropped = config.Games.Count - kept.Count;
 
         if (dropped > 0)
         {
-            AgentLog.Info($"Removed {dropped} non-game tile(s). Menu has {kept.Count} game(s).");
+            var games = kept.Count(g => !IsApp(g));
+            AgentLog.Info(
+                $"Removed {dropped} tile(s) that were neither. "
+                + $"Menu has {games} game(s) and {kept.Count - games} app(s).");
         }
 
         return config.WithGames(kept);
+    }
+
+    /// <summary>Whether a tile belongs on the menu at all, game or app.</summary>
+    public static bool IsMenuItem(GameEntry game) => IsPlayableGame(game) || IsUsableApp(game);
+
+    /// <summary>Whether this is an application the customer may legitimately want.</summary>
+    public static bool IsUsableApp(GameEntry game)
+    {
+        if (!IsApp(game) || string.IsNullOrWhiteSpace(game.Name) || string.IsNullOrWhiteSpace(game.ExePath))
+        {
+            return false;
+        }
+
+        if (LooksLikeWindowsTool(game.Name, game.ExePath))
+        {
+            return false;
+        }
+
+        return File.Exists(game.ExePath)
+            || LooksLikeShortcut(game.ExePath)
+            || IsStoreGameLaunch(game.ExePath, game.Arguments ?? string.Empty);
     }
 
     /// <summary>Whether this tile is something a customer came in to play.</summary>
@@ -424,7 +473,7 @@ internal static class GameDiscovery
             return false;
         }
 
-        if (string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase))
+        if (IsApp(game))
         {
             return false;
         }
@@ -1198,7 +1247,7 @@ internal static class GameDiscovery
             .Append(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms));
 
         return FromShortcutFolders(folders, SearchOption.AllDirectories, launchShortcutFile: true)
-            .Where(IsPlayableGame);
+            .Where(IsMenuItem);
     }
 
     /// <summary>
@@ -1338,7 +1387,7 @@ internal static class GameDiscovery
                         Category = CategoryFor(candidate.Name),
                     };
 
-                    if (IsPlayableGame(entry))
+                    if (IsMenuItem(entry))
                     {
                         yield return entry;
                     }
@@ -1550,7 +1599,7 @@ internal static class GameDiscovery
                     Category = CategoryFor(name),
                 };
 
-                if (!IsPlayableGame(entry))
+                if (!IsMenuItem(entry))
                 {
                     continue;
                 }
@@ -1649,7 +1698,7 @@ internal static class GameDiscovery
                     Arguments = launchShortcutFile ? null : arguments,
                     ProcessName = null,
                     IconSourcePath = shortcut,
-                    Category = "game",
+                    Category = CategoryFor(label),
                 };
             }
 
