@@ -231,14 +231,6 @@ internal sealed class GameMenuForm : Form
             var width = Math.Max(scrollHost.ClientSize.Width - 72, 400);
             flow.MaximumSize = new Size(width, 0);
             flow.Width = width;
-
-            foreach (Control child in flow.Controls)
-            {
-                if (Equals(child.Tag, "heading"))
-                {
-                    child.Width = Math.Max(width - 4, 200);
-                }
-            }
         }
 
         var games = _config.Games
@@ -246,12 +238,7 @@ internal sealed class GameMenuForm : Form
                            && !string.IsNullOrWhiteSpace(game.Name))
             .ToList();
 
-        var apps = _config.Games
-            .Where(game => string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
-                           && !string.IsNullOrWhiteSpace(game.Name))
-            .ToList();
-
-        if (_config.Games.Count == 0)
+        if (games.Count == 0)
         {
             flow.Controls.Add(new Label
             {
@@ -265,24 +252,9 @@ internal sealed class GameMenuForm : Form
         }
         else
         {
-            if (games.Count > 0)
+            foreach (var game in games)
             {
-                flow.Controls.Add(BuildSectionHeading("GAMES", first: true));
-
-                foreach (var game in games)
-                {
-                    flow.Controls.Add(BuildTile(game));
-                }
-            }
-
-            if (apps.Count > 0)
-            {
-                flow.Controls.Add(BuildSectionHeading("APPS", first: games.Count == 0));
-
-                foreach (var app in apps)
-                {
-                    flow.Controls.Add(BuildTile(app));
-                }
+                flow.Controls.Add(BuildTile(game));
             }
         }
 
@@ -290,41 +262,6 @@ internal sealed class GameMenuForm : Form
         scrollHost.Resize += (_, _) => SizeFlow();
         SizeFlow();
         return scrollHost;
-    }
-
-    /// <summary>
-    /// A full-width heading that pushes the tiles after it onto a new row.
-    /// </summary>
-    /// <remarks>
-    /// Full width because that is how a FlowLayoutPanel is made to break a
-    /// line: it wraps when the next control will not fit, so a control as wide
-    /// as the row guarantees everything after it starts below.
-    /// </remarks>
-    private static Control BuildSectionHeading(string text, bool first)
-    {
-        var panel = new Panel
-        {
-            Width = 400,
-            Height = first ? 44 : 68,
-            Margin = new Padding(0),
-            BackColor = Color.Transparent,
-            Tag = "heading",
-        };
-
-        panel.Paint += (_, e) =>
-        {
-            using var font = new Font("Segoe UI", 10f, FontStyle.Bold);
-            var y = first ? 14f : 38f;
-
-            Theme.DrawTracked(e.Graphics, text, font, Palette.TextMuted, 14f, y, 5f);
-
-            var textWidth = Theme.MeasureTracked(e.Graphics, text, font, 5f);
-            using var rule = new SolidBrush(Palette.CardBorder);
-            e.Graphics.FillRectangle(
-                rule, 14 + (int)textWidth + 16, (int)y + 8, Math.Max(panel.Width - (int)textWidth - 60, 0), 1);
-        };
-
-        return panel;
     }
 
     private Control BuildTile(GameEntry game)

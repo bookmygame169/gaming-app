@@ -77,15 +77,24 @@ internal static class GameDiscovery
         "desktop", "this pc", "file explorer", "recycle", "network",
         "tracker", "overlay", "cleaner", "antivirus", "defender",
         "microsoft store", "get help", "tips", "weather", "news",
-        // Seen on the café's own menu, none of them a game: a sleep-prevention
-        // utility, a peripheral suite, a game overlay, and Roblox's authoring
-        // tool sitting next to Roblox itself.
         "deskrest", "kreo", "overwolf", "roblox studio", "wallpaper engine",
-        "steamworks", "redistributable", "epic games launcher",
+        "steamworks", "redistributable", "epic games launcher", "epic online",
         "media player", "movies & tv", "photos", "paint", "notepad",
         "calculator", "clock", "camera", "mail", "people", "phone link",
         "office", "word", "excel", "powerpoint", "teams", "outlook",
         "adobe", "winrar", "7-zip", "vlc", "notepad++",
+        // Windows admin and accessibility tools that live in the Start Menu.
+        // The last scan treated those shortcuts as games, which is how Disk
+        // Cleanup and Event Viewer ended up on the lock screen.
+        "computer management", "dfrgui", "defrag", "disk cleanup", "cleanmgr",
+        "event viewer", "eventvwr", "iscsi", "live captions", "magnif",
+        "memory diagnostic", "narrator", "odbc", "on-screen keyboard", "osk",
+        "onebrowser", "control panel", "task manager", "resource monitor",
+        "performance monitor", "registry editor", "command prompt",
+        "windows powershell", "windows tools", "administrative tools",
+        "snipping", "character map", "remote desktop", "windows security",
+        "device manager", "disk management", "services.msc", "task scheduler",
+        "system configuration", "msconfig", "windows terminal",
     };
 
     /// <summary>
@@ -128,6 +137,48 @@ internal static class GameDiscovery
         }
 
         return false;
+    }
+
+    private static readonly string[] WindowsToolExes =
+    {
+        "mmc", "dfrgui", "cleanmgr", "eventvwr", "iscsicpl", "odbcad32",
+        "osk", "narrator", "magnify", "msdt", "control", "compmgmtlauncher",
+        "perfmon", "resmon", "taskschd", "regedit", "cmd", "powershell",
+        "powershell_ise", "wt", "snippingtool", "sndvol", "write", "wordpad",
+        "mspaint", "notepad", "calc", "charmap", "mstsc", "taskmgr",
+        "devmgmt", "diskmgmt", "services", "msconfig", "wf", "firewall",
+        "taskmgr",
+    };
+
+    private static readonly string[] JunkShortcutFolders =
+    {
+        "administrative tools", "windows tools", "windows administrative tools",
+        "system tools", "accessibility", "ease of access", "accessories",
+        "maintenance", "windows powershell", "system32", "syswow64",
+    };
+
+    /// <summary>Windows settings and MMC snap-ins, never a game tile.</summary>
+    private static bool LooksLikeWindowsTool(string name, string? path)
+    {
+        var lowerName = name.ToLowerInvariant();
+        if (WindowsToolExes.Any(tool => lowerName == tool || lowerName.Replace(" ", "") == tool))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var lowerPath = path.ToLowerInvariant();
+        if (JunkShortcutFolders.Any(folder => lowerPath.Contains(folder)))
+        {
+            return true;
+        }
+
+        var exe = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+        return WindowsToolExes.Contains(exe);
     }
 
     private static string CategoryFor(string name)
@@ -264,13 +315,7 @@ internal static class GameDiscovery
             Take("Roblox", FromRoblox());
             Take("machine-wide list", FromSharedList());
             Take("desktops", FromAllDesktops());
-            Take("Start Menus", FromAllStartMenus());
             Take("installed programs", FromRegistry());
-
-            if (config.ShowLaunchers)
-            {
-                Take("launchers", Launchers());
-            }
         }
         catch (Exception ex)
         {
@@ -292,6 +337,13 @@ internal static class GameDiscovery
         {
             var key = Normalise(game.Name);
             if (key.Length < 2 || !known.Add(key))
+            {
+                continue;
+            }
+
+            if (string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
+                || IsJunk(game.Name)
+                || LooksLikeWindowsTool(game.Name, game.ExePath))
             {
                 continue;
             }
@@ -845,7 +897,8 @@ internal static class GameDiscovery
 
                 if (string.IsNullOrWhiteSpace(name) ||
                     string.IsNullOrWhiteSpace(location) ||
-                    string.IsNullOrWhiteSpace(executable))
+                    string.IsNullOrWhiteSpace(executable) ||
+                    IsJunk(name))
                 {
                     continue;
                 }
@@ -974,7 +1027,7 @@ internal static class GameDiscovery
         var skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Launcher", "Engine", "DirectX", "DirectXRedist", "Redist", "EasyAntiCheat",
-            "Battle.net", "Agent", "Support", "Uninstall",
+            "Battle.net", "Agent", "Support", "Uninstall", "Epic Online Services",
         };
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1222,12 +1275,9 @@ internal static class GameDiscovery
             var label = Path.GetFileNameWithoutExtension(shortcut);
             var lowerLabel = label.ToLowerInvariant();
 
-            if (NotAGameShortcut.Any(bad => lowerLabel.Contains(bad)))
-            {
-                return null;
-            }
-
-            if (IsJunk(label))
+            if (LooksLikeWindowsTool(label, shortcut)
+                || NotAGameShortcut.Any(bad => lowerLabel.Contains(bad))
+                || IsJunk(label))
             {
                 return null;
             }
@@ -1256,6 +1306,11 @@ internal static class GameDiscovery
 
             if (targetOk)
             {
+                if (LooksLikeWindowsTool(label, target))
+                {
+                    return null;
+                }
+
                 var fileName = Path.GetFileNameWithoutExtension(target).ToLowerInvariant();
                 if (NotTheGame.Any(bad => fileName.Contains(bad)))
                 {
@@ -1281,7 +1336,7 @@ internal static class GameDiscovery
 
             // Store games, Epic protocol links, and anything whose real exe is
             // unreadable (WindowsApps) still have a working desktop icon.
-            if (!launchShortcutFile)
+            if (!launchShortcutFile || LooksLikeWindowsTool(label, target) || LooksLikeWindowsTool(label, shortcut))
             {
                 return null;
             }

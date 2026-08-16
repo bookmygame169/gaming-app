@@ -132,7 +132,7 @@ internal sealed class AgentConfig
     /// browsed a store on their machines.
     /// </remarks>
     [JsonPropertyName("showLaunchers")]
-    public bool ShowLaunchers { get; init; } = true;
+    public bool ShowLaunchers { get; init; }
 
     public AgentConfig WithGames(List<GameEntry> games) => new()
     {
