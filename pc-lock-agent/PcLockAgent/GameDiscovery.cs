@@ -57,6 +57,64 @@ internal static class GameDiscovery
     /// without this reads like a folder listing rather than something to choose
     /// from.
     /// </remarks>
+    /// <summary>
+    /// Things that are never worth a tile, whatever they are called.
+    /// </summary>
+    /// <remarks>
+    /// Everything here was on a real café PC's menu at once: our own lock app,
+    /// the file sync client, a graphics driver panel, a mouse configurator, a
+    /// piece of adware, and a shortcut literally called Desktop. Detection that
+    /// finds everything is only useful with a rule for what to throw away.
+    /// </remarks>
+    private static readonly string[] NeverShow =
+    {
+        "bookmygame", "pclockagent", "onedrive", "onenote", "premieropinion",
+        "nvidia app", "geforce", "nvidia control", "logitech", "g hub", "ghub",
+        "realtek", "intel graphics", "amd software", "adrenalin", "armoury",
+        "msi center", "dragon center", "razer", "corsair", "icue",
+        "desktop", "this pc", "file explorer", "recycle", "network",
+        "tracker", "overlay", "cleaner", "antivirus", "defender",
+        "microsoft store", "get help", "tips", "weather", "news",
+        "media player", "movies & tv", "photos", "paint", "notepad",
+        "calculator", "clock", "camera", "mail", "people", "phone link",
+        "office", "word", "excel", "powerpoint", "teams", "outlook",
+        "adobe", "winrar", "7-zip", "vlc", "notepad++",
+    };
+
+    /// <summary>
+    /// Tiles that belong in the applications group rather than with the games.
+    /// </summary>
+    /// <remarks>
+    /// Not junk — a customer may well want Steam or a browser. They simply are
+    /// not what somebody scanning the menu for something to play is looking
+    /// for, and putting them among the games is what turned it into a list to
+    /// read rather than a set of choices.
+    /// </remarks>
+    private static readonly string[] IsAnApp =
+    {
+        "steam", "epic games", "xbox", "riot client", "battle.net", "ubisoft",
+        "ea app", "origin", "gog galaxy", "rockstar", "play games",
+        "chrome", "edge", "firefox", "opera", "browser", "discord", "spotify",
+    };
+
+    /// <summary>Whether a name should never appear on the menu at all.</summary>
+    private static bool IsJunk(string name)
+    {
+        var lower = name.ToLowerInvariant();
+
+        // A web shortcut Chrome made, not a game. Their names read "Fortnite -
+        // Chrome", which looks like a game right up until it opens a browser.
+        if (lower.EndsWith(" - chrome") || lower.EndsWith(" - edge"))
+        {
+            return true;
+        }
+
+        return NeverShow.Any(bad => lower.Contains(bad));
+    }
+
+    private static string CategoryFor(string name) =>
+        IsAnApp.Any(app => name.ToLowerInvariant().Contains(app)) ? "app" : "game";
+
     private static readonly string[] NotAGameShortcut =
     {
         "uninstall", "readme", "read me", "manual", "help", "support", "website",
@@ -86,7 +144,7 @@ internal static class GameDiscovery
         var steam = SteamExe();
         if (steam is not null)
         {
-            yield return new GameEntry { Name = "Steam", ExePath = steam, ProcessName = "steam" };
+            yield return new GameEntry { Name = "Steam", ExePath = steam, ProcessName = "steam", Category = "app" };
         }
 
         var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
@@ -100,6 +158,7 @@ internal static class GameDiscovery
                 Name = "Epic Games",
                 ExePath = epic,
                 ProcessName = "EpicGamesLauncher",
+                Category = "app",
             };
         }
 
@@ -114,6 +173,7 @@ internal static class GameDiscovery
                 // Explorer hands off and returns immediately, so the process to
                 // watch is the Xbox app rather than the one that was started.
                 ProcessName = "XboxPcApp",
+                Category = "app",
             };
         }
     }
@@ -587,7 +647,7 @@ internal static class GameDiscovery
                 // Checked here as well as when it was written. The list can be
                 // hours old, and a game uninstalled since would be a tile that
                 // fails when a customer presses it.
-                if (!File.Exists(exe))
+                if (!File.Exists(exe) || IsJunk(name))
                 {
                     continue;
                 }
@@ -597,6 +657,7 @@ internal static class GameDiscovery
                     Name = name,
                     ExePath = exe,
                     ProcessName = Path.GetFileNameWithoutExtension(exe),
+                    Category = CategoryFor(name),
                 });
             }
         }
@@ -684,7 +745,12 @@ internal static class GameDiscovery
                 return null;
             }
 
-            var target = ResolveShortcut(shortcut);
+            if (IsJunk(label))
+            {
+                return null;
+            }
+
+            var (target, arguments) = ResolveShortcut(shortcut);
 
             if (string.IsNullOrWhiteSpace(target) ||
                 !target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
@@ -705,7 +771,9 @@ internal static class GameDiscovery
             {
                 Name = label,
                 ExePath = target,
+                Arguments = arguments,
                 ProcessName = Path.GetFileNameWithoutExtension(target),
+                Category = CategoryFor(label),
             };
         }
         catch (Exception ex)
@@ -724,12 +792,12 @@ internal static class GameDiscovery
     /// nineties, and the alternative is hand-writing IShellLink for the sake of
     /// avoiding one late-bound call.
     /// </remarks>
-    private static string? ResolveShortcut(string path)
+    private static (string? Target, string? Arguments) ResolveShortcut(string path)
     {
         var shellType = Type.GetTypeFromProgID("WScript.Shell");
         if (shellType is null)
         {
-            return null;
+            return (null, null);
         }
 
         object? shell = null;
@@ -738,7 +806,7 @@ internal static class GameDiscovery
             shell = Activator.CreateInstance(shellType);
             if (shell is null)
             {
-                return null;
+                return (null, null);
             }
 
             var link = shellType.InvokeMember(
@@ -747,7 +815,16 @@ internal static class GameDiscovery
             var target = link?.GetType().InvokeMember(
                 "TargetPath", System.Reflection.BindingFlags.GetProperty, null, link, null) as string;
 
-            return target;
+            // The arguments matter as much as the target, and dropping them was
+            // a real bug. Steam writes its desktop shortcuts as steam.exe with
+            // the game in the arguments - so without these, every Steam game
+            // found this way became a tile that opened Steam and nothing else,
+            // wearing the Steam logo because that is the executable it pointed
+            // at.
+            var arguments = link?.GetType().InvokeMember(
+                "Arguments", System.Reflection.BindingFlags.GetProperty, null, link, null) as string;
+
+            return (target, string.IsNullOrWhiteSpace(arguments) ? null : arguments);
         }
         finally
         {

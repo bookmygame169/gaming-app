@@ -56,6 +56,17 @@ internal sealed class GameEntry
     public string? WorkingDirectory { get; init; }
 
     /// <summary>
+    /// Whether this tile is a game or an application.
+    /// </summary>
+    /// <remarks>
+    /// Once the menu lists everything installed it stops being a short list and
+    /// becomes a wall, and a customer hunting for Valorant should not be reading
+    /// past Steam, Chrome and the Xbox app to find it. Two groups, games first.
+    /// </remarks>
+    [JsonPropertyName("category")]
+    public string Category { get; init; } = "game";
+
+    /// <summary>
     /// A copy of this entry pointing at where the game really is on this PC.
     /// </summary>
     /// <remarks>
@@ -74,6 +85,7 @@ internal sealed class GameEntry
         IconPath = IconPath,
         ProcessName = ProcessName,
         Arguments = Arguments,
+        Category = Category,
         WorkingDirectory = Directory.Exists(WorkingDirectory) ? WorkingDirectory : null,
     };
 }

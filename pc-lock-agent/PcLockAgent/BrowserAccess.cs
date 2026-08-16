@@ -89,6 +89,7 @@ internal static class BrowserAccess
             // No processName: with its own profile folder the browser does not
             // hand off to an already-running copy, so the process started here
             // is the one that stays, and closing the last window ends it.
+            Category = "app",
             Arguments = string.Join(' ',
                 "--no-first-run",
                 "--no-default-browser-check",
