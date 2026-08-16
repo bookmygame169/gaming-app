@@ -44,10 +44,30 @@ export async function GET(request: NextRequest) {
     const accessResponse = await requireOwnerCafeAccess(supabase, ownerId, cafeId);
     if (accessResponse) return accessResponse;
 
-    const { data, error } = await supabase
+    // Typed as optional so the fallback below, which cannot select it, still
+    // satisfies the same shape.
+    type StatusRow = {
+      station_name: string;
+      status: string | null;
+      session_id: string | null;
+      last_seen_at: string | null;
+      agent_version?: string | null;
+    };
+
+    let { data, error } = (await supabase
       .from("station_status")
       .select("station_name, status, session_id, last_seen_at, agent_version")
-      .eq("cafe_id", cafeId);
+      .eq("cafe_id", cafeId)) as { data: StatusRow[] | null; error: { message: string } | null };
+
+    // The same fallback as the heartbeat, for the same reason: this page is the
+    // one place an owner can see whether their machines are alive, and it went
+    // blank behind a message blaming a missing table for a missing column.
+    if (error && /agent_version/i.test(error.message)) {
+      ({ data, error } = (await supabase
+        .from("station_status")
+        .select("station_name, status, session_id, last_seen_at")
+        .eq("cafe_id", cafeId)) as { data: StatusRow[] | null; error: { message: string } | null });
+    }
 
     if (error) {
       console.error("Failed to read station_status:", error.message);

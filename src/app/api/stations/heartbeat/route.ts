@@ -78,17 +78,37 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    const { error } = await supabase.from("station_status").upsert(
-      {
-        cafe_id: cafeId,
-        station_name: stationName,
-        status,
-        session_id: sessionId,
-        agent_version: agentVersion,
-        last_seen_at: new Date().toISOString(),
-      },
-      { onConflict: "cafe_id,station_name" }
-    );
+    const base = {
+      cafe_id: cafeId,
+      station_name: stationName,
+      status,
+      session_id: sessionId,
+      last_seen_at: new Date().toISOString(),
+    };
+
+    let { error } = await supabase
+      .from("station_status")
+      .upsert({ ...base, agent_version: agentVersion }, { onConflict: "cafe_id,station_name" });
+
+    /**
+     * Written again without the version if that column is not there yet.
+     *
+     * Code reaches production the moment it is pushed; a migration is run by
+     * hand, whenever somebody gets to it. Writing a column that does not exist
+     * yet failed the whole upsert - so every station stopped reporting, the
+     * dashboard showed them all offline, and the QR flow refused every scan
+     * because it checks a machine is online before taking money. A field that
+     * only feeds a line of text on a card took the lock offline.
+     *
+     * Retried rather than detected in advance, so it starts recording versions
+     * on its own once the migration lands, with nothing to redeploy.
+     */
+    if (error && /agent_version/i.test(error.message)) {
+      console.warn("station_status has no agent_version column yet; recording the heartbeat without it.");
+      ({ error } = await supabase
+        .from("station_status")
+        .upsert(base, { onConflict: "cafe_id,station_name" }));
+    }
 
     if (error) {
       console.error("Heartbeat upsert failed:", error.message);

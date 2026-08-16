@@ -204,7 +204,27 @@ function lineOf(source, index) {
 // ---------------------------------------------------------------------- check
 
 function check(schema) {
-  const problems = [];
+  /**
+ * Columns a migration adds that the code already copes with being absent.
+ *
+ * Code ships the instant it is pushed; a migration is run by hand whenever
+ * somebody gets to it. For most columns that gap is exactly what this check
+ * exists to catch — writing to something that is not there breaks the request.
+ *
+ * These are the ones where the code has been written to notice and carry on.
+ * station_status.agent_version is here because forgetting it cost every café PC
+ * its heartbeat: the upsert failed whole, the dashboard showed three machines
+ * offline that were not, and the QR flow refused every payment because it
+ * checks a machine is online first. A field feeding one line of text on a card
+ * took the lock off the air.
+ *
+ * The entry stays until the migration is applied everywhere, then goes.
+ */
+const optional = new Set([
+  "station_status.agent_version",
+]);
+
+const problems = [];
   const files = sourceFiles(SRC);
 
   for (const file of files) {
@@ -236,7 +256,7 @@ function check(schema) {
 
       const columns = schema.tables.get(table);
       const unknown = topLevelKeys(source, match.index + match[0].length - 1).filter(
-        (key) => !columns.has(key)
+        (key) => !columns.has(key) && !optional.has(`${table}.${key}`)
       );
 
       if (unknown.length > 0) {
