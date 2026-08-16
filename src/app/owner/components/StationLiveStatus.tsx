@@ -10,6 +10,7 @@ type StationStatus = {
     last_seen_at: string;
     seconds_since_seen: number;
     online: boolean;
+    agent_version?: string | null;
 };
 
 interface StationLiveStatusProps {
@@ -251,6 +252,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                             </p>
                                             <p className="mt-0.5 text-[10px] text-slate-500">
                                                 Seen {describeLastSeen(station.seconds_since_seen)}
+                                                {station.agent_version ? ` · v${station.agent_version}` : ''}
                                             </p>
                                         </div>
 

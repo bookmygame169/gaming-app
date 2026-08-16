@@ -58,6 +58,10 @@ export async function POST(request: NextRequest) {
     const status = String(body?.status || "").trim().toLowerCase();
     const sessionId = body?.sessionId ? String(body.sessionId) : null;
 
+    // Optional: an agent older than the build that started sending this simply
+    // does not, and a station reporting no version is still a station reporting.
+    const agentVersion = body?.version ? String(body.version).slice(0, 20) : null;
+
     if (!cafeId || !stationName) {
       return NextResponse.json(
         { error: "cafeId and stationName are required" },
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
         station_name: stationName,
         status,
         session_id: sessionId,
+        agent_version: agentVersion,
         last_seen_at: new Date().toISOString(),
       },
       { onConflict: "cafe_id,station_name" }

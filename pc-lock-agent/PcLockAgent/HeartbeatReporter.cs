@@ -119,6 +119,11 @@ internal sealed class HeartbeatReporter : IDisposable
             var payload = JsonSerializer.Serialize(new
             {
                 cafeId = _config.Heartbeat.CafeId,
+                // Stamped into the exe at build time, and already read by the
+                // updater to decide whether there is anything newer. Sending it
+                // is what makes "has this PC taken the new build" a thing the
+                // dashboard can answer.
+                version = AgentVersion.Current,
                 stationName = _config.StationId,
                 status = _status,
                 sessionId = _sessionId,

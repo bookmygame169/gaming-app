@@ -14,6 +14,7 @@ const OFFLINE_AFTER_SECONDS = 90;
 
 type StationStatusRow = {
   station_name: string;
+  agent_version?: string | null;
   status: string;
   session_id: string | null;
   last_seen_at: string;
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("station_status")
-      .select("station_name, status, session_id, last_seen_at")
+      .select("station_name, status, session_id, last_seen_at, agent_version")
       .eq("cafe_id", cafeId);
 
     if (error) {
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
           status: row.status,
           session_id: row.session_id,
           last_seen_at: row.last_seen_at,
+          agent_version: row.agent_version ?? null,
           seconds_since_seen: secondsSinceSeen,
           online: secondsSinceSeen <= OFFLINE_AFTER_SECONDS,
         };
