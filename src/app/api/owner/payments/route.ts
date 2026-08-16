@@ -153,6 +153,29 @@ export async function PUT(request: NextRequest) {
     );
   }
 
+  // Before the claim is moved, not after: refusing once it has already been
+  // marked verified would leave the owner an error message and a claim that
+  // says the money was taken.
+  if (action === "verify") {
+    const { data: target } = await supabase
+      .from("bookings")
+      .select("id, deleted_at")
+      .eq("id", claim.booking_id)
+      .maybeSingle();
+
+    // No session left to unlock, and moving it back to confirmed would
+    // resurrect a deleted booking on every screen that reads by status.
+    if (!target || target.deleted_at) {
+      return NextResponse.json(
+        {
+          error:
+            "That booking has been deleted. Reject this payment and refund the customer instead.",
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const { error: updateError } = await supabase
     .from("booking_payment_claims")
     .update({

@@ -3,6 +3,7 @@ import {
   requireOwnerCafeAccess,
   requireOwnerContext,
 } from "@/lib/ownerAuth";
+import { phoneKey } from "@/lib/loyalty";
 
 export const dynamic = "force-dynamic";
 
@@ -28,21 +29,39 @@ export async function GET(request: NextRequest) {
     return accessResponse;
   }
 
+  const key = phoneKey(phone);
+  if (!key) {
+    return NextResponse.json({ bookings: [] });
+  }
+
+  // Narrowed on the last four digits rather than the whole number, because
+  // customer_phone holds whatever was typed at the counter — "9876543210" and
+  // "+91 98765 43210" are the same customer and an exact match finds only one
+  // of them. The last four digits stay together under every way anyone writes
+  // a number, so this is a superset; the exact comparison happens below on the
+  // normalised key.
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, booking_date, start_time, duration, total_amount, status, source, payment_mode, created_at, customer_name, booking_items(id, console, quantity, price, title), booking_orders(id, quantity, total_price)"
+      "id, booking_date, start_time, duration, total_amount, status, source, payment_mode, created_at, customer_name, customer_phone, booking_items(id, console, quantity, price, title), booking_orders(id, quantity, total_price)"
     )
     .eq("cafe_id", cafeId)
-    .eq("customer_phone", phone)
-    .neq("status", "cancelled")
-    .neq("payment_mode", "owner")
+    .ilike("customer_phone", `%${key.slice(-4)}%`)
+    // Both as .or(): `NULL <> 'cancelled'` is NULL, so a plain .neq() drops
+    // every booking whose status or payment mode was never set.
+    .or("status.is.null,status.neq.cancelled")
+    .or("payment_mode.is.null,payment_mode.neq.owner")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(200);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ bookings: data || [] });
+  const bookings = (data ?? [])
+    .filter((booking) => phoneKey(booking.customer_phone) === key)
+    .slice(0, 10);
+
+  return NextResponse.json({ bookings });
 }

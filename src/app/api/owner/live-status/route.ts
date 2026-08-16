@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
       `)
       .eq("cafe_id", cafeId)
       .eq("booking_date", todayStr)
-      .eq("status", "in-progress");
+      .eq("status", "in-progress")
+      // Deleting a booking does not change its status, so without this a
+      // deleted session keeps its station showing as occupied all day.
+      .is("deleted_at", null);
 
     if (bookingsError) {
       return NextResponse.json({ error: bookingsError.message }, { status: 500 });

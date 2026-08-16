@@ -156,7 +156,7 @@ function applyBookingFilters(query: unknown, {
   if (source === "membership") {
     nextQuery = nextQuery.eq("source", "membership");
   } else if (source === "normal") {
-    nextQuery = nextQuery.neq("source", "membership");
+    nextQuery = nextQuery.or("source.is.null,source.neq.membership");
   }
 
   if (dateFrom) nextQuery = nextQuery.gte("booking_date", dateFrom);
@@ -436,13 +436,14 @@ export async function GET(request: NextRequest) {
       // Completing a session also locks its machine and awards the day's
       // points. Both used to be skipped here, so a session that ended on the
       // clock left the PC playable and earned nothing.
-      void (async () => {
-        try {
-          await completeEndedBookings(supabase, endedIds);
-        } catch (updateErr: unknown) {
-          console.error("Auto-complete bookings unexpected error:", updateErr);
-        }
-      })();
+      // Awaited: fired and forgotten, this was dropped whenever the platform
+      // froze the function on responding, leaving the session in-progress with
+      // its machine unlocked and no points awarded.
+      try {
+        await completeEndedBookings(supabase, endedIds);
+      } catch (updateErr: unknown) {
+        console.error("Auto-complete bookings unexpected error:", updateErr);
+      }
     }
 
     const visibleRawBookings = normalizedPageBookings.normalized.filter((booking) => isSessionBooking(booking));

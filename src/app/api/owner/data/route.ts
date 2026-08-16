@@ -285,24 +285,32 @@ export async function POST(request: NextRequest) {
       return normalized;
     });
 
-    // Fire & forget DB updates for realtime status normalization.
+    // Awaited, not fired and forgotten.
+    //
+    // This used to run as `void (async () => …)()` after the response was
+    // built. On Vercel the function can be frozen the moment it responds, so
+    // that work — marking the booking complete, locking its machine, awarding
+    // the day's points — was only ever best-effort, and silently skipped
+    // whenever the platform got there first. Sessions were left in-progress
+    // with no points given and no error anywhere.
+    //
+    // The cost is that this response waits for it. That is the right trade:
+    // the numbers below are read off these same rows, so returning before the
+    // write lands means answering with figures this request already knows are
+    // stale.
     if (endedIds.length > 0 || confirmedIds.length > 0) {
-        void (async () => {
-          try {
-            if (endedIds.length > 0) {
-              // Locks the machine and awards the day's points too. This route
-              // usually gets there first, so skipping them here meant most
-              // sessions ended with the PC still unlocked and no points given.
-              await completeEndedBookings(supabase, endedIds);
-            }
-            if (confirmedIds.length > 0) {
-              const { error } = await supabase.from("bookings").update({ status: "confirmed" }).in("id", confirmedIds);
-              if (error) console.error('Auto-confirm future bookings failed:', error.message, 'ids:', confirmedIds);
-            }
-          } catch (err: unknown) {
-            console.error('Realtime booking status update unexpected error:', err);
-          }
-        })();
+      try {
+        if (endedIds.length > 0) {
+          await completeEndedBookings(supabase, endedIds);
+        }
+        if (confirmedIds.length > 0) {
+          const { error } = await supabase.from("bookings").update({ status: "confirmed" }).in("id", confirmedIds);
+          if (error) console.error('Auto-confirm future bookings failed:', error.message, 'ids:', confirmedIds);
+        }
+      } catch (err: unknown) {
+        // Never fatal: the dashboard still renders from what was read above.
+        console.error('Realtime booking status update unexpected error:', err);
+      }
     }
 
     // Profiles enrichment keeps online bookings editable across dashboard and bookings views.

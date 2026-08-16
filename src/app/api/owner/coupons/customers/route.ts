@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
       .select('customer_name, customer_phone')
       .eq('cafe_id', cafeId)
       .is('deleted_at', null)
-      .neq('status', 'cancelled')
-      .neq('payment_mode', 'owner')
+      .or('status.is.null,status.neq.cancelled')
+      .or('payment_mode.is.null,payment_mode.neq.owner')
       .or(`customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`)
       .not('customer_phone', 'is', null)
       .not('customer_name', 'is', null)
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     .select('id, user_id, customer_name, customer_phone, total_amount, booking_date, created_at, status, source, payment_mode, deleted_at, booking_items(id, price), booking_orders(id, total_price)')
     .eq('cafe_id', cafeId)
     .is('deleted_at', null)
-    .neq('payment_mode', 'owner');
+    .or('payment_mode.is.null,payment_mode.neq.owner');
 
   if (bookingsError) return NextResponse.json({ error: bookingsError.message }, { status: 500 });
 
