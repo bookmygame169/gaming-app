@@ -29,6 +29,28 @@ internal sealed record StationCommand
 
     [JsonPropertyName("remaining_seconds")]
     public int? RemainingSeconds { get; init; }
+
+    /// <summary>
+    /// Unique per published command, so the same one is never acted on twice.
+    /// </summary>
+    /// <remarks>
+    /// Optional, because an older backend does not send it and refusing every
+    /// command from one would take the whole café offline on deploy order
+    /// alone.
+    /// </remarks>
+    [JsonPropertyName("command_id")]
+    public string? CommandId { get; init; }
+
+    /// <summary>
+    /// Unix seconds when the backend published this.
+    /// </summary>
+    /// <remarks>
+    /// An unlock is worth money, so one captured off the broker should not be
+    /// worth anything an hour later. Also optional, for the same reason as
+    /// <see cref="CommandId"/>.
+    /// </remarks>
+    [JsonPropertyName("issued_at")]
+    public long? IssuedAt { get; init; }
 }
 
 /// <summary>

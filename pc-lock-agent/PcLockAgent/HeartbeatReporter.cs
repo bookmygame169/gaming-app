@@ -112,8 +112,22 @@ internal sealed class HeartbeatReporter : IDisposable
         }
     }
 
+    /// <summary>
+    /// One heartbeat at a time.
+    /// </summary>
+    /// <remarks>
+    /// ReportState fires without waiting, so a lock followed quickly by an
+    /// unlock could put two requests in flight at once and let them arrive in
+    /// the wrong order — leaving the dashboard showing a station as unlocked
+    /// when it is locked. Each send reads the current state when its turn
+    /// comes, so the last one to run always reports the truth.
+    /// </remarks>
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
+
     private async Task SendAsync(CancellationToken ct)
     {
+        await _sendGate.WaitAsync(ct).ConfigureAwait(false);
+
         try
         {
             var payload = JsonSerializer.Serialize(new
@@ -191,6 +205,10 @@ internal sealed class HeartbeatReporter : IDisposable
                 _lastAttemptFailed = true;
             }
         }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
 
     /// <summary>
@@ -230,6 +248,7 @@ internal sealed class HeartbeatReporter : IDisposable
         }
 
         _cts?.Dispose();
+        _sendGate.Dispose();
         _http.Dispose();
     }
 }

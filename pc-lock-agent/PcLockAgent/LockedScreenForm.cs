@@ -102,6 +102,31 @@ internal sealed class LockedScreenForm : Form
     /// False while dev passthrough is on, so a <c>lock</c> command does not
     /// snatch the screen back over the terminal being used to send it.
     /// </param>
+    /// <summary>
+    /// Whether this window is allowed to close. Only the agent's own shutdown
+    /// sets it.
+    /// </summary>
+    public bool AllowClose { get; set; }
+
+    /// <summary>
+    /// Refuses every close this agent did not ask for.
+    /// </summary>
+    /// <remarks>
+    /// This is the screen that enforces payment. Anything that can take it off
+    /// the screen — Alt+F4, a close from the taskbar — hands the customer the
+    /// desktop, so nothing is allowed to except the agent shutting down.
+    /// </remarks>
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (!AllowClose && e.CloseReason is not CloseReason.WindowsShutDown)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        base.OnFormClosing(e);
+    }
+
     public void ShowLocked(bool reassertTopMost)
     {
         Show();

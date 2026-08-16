@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import mqtt from "mqtt";
 
 /**
@@ -58,7 +59,16 @@ export async function sendStationCommands(
     await Promise.all(
       stationNames.map((stationName) => {
         const topic = `cafe/station/${stationName}/command`;
-        const payload = JSON.stringify(buildCommand(stationName));
+
+        // Stamped so the agent can refuse a command it has already acted on,
+        // or one old enough to have been captured off the broker and replayed.
+        // An agent that predates these fields ignores them, so this can ship
+        // before the PCs have updated.
+        const payload = JSON.stringify({
+          ...buildCommand(stationName),
+          command_id: randomUUID(),
+          issued_at: Math.floor(Date.now() / 1000),
+        });
 
         // qos 1 so the broker acknowledges receipt. Never `retain` — a retained
         // unlock would be replayed to the station every time it reconnects,

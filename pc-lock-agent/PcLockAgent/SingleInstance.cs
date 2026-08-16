@@ -42,6 +42,36 @@ internal static class SingleInstance
     /// Claims the right to be the agent on this PC.
     /// </summary>
     /// <returns>False when another copy already holds it, and this one should quit.</returns>
+    /// <summary>Whether a real agent process other than this one is alive.</summary>
+    /// <remarks>
+    /// Checked by process name rather than by the mutex, because the mutex is
+    /// only evidence that something took the name — not that it is us.
+    /// </remarks>
+    private static bool AnotherAgentIsRunning()
+    {
+        try
+        {
+            var self = Environment.ProcessId;
+            var name = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "PcLockAgent";
+
+            return System.Diagnostics.Process.GetProcessesByName(name)
+                .Any(process =>
+                {
+                    using (process)
+                    {
+                        return process.Id != self;
+                    }
+                });
+        }
+        catch (Exception ex)
+        {
+            // Cannot tell, so assume the honest reading and step aside. Two
+            // agents fighting is recoverable; wrongly taking over is not.
+            AgentLog.Warn($"Could not check for another agent ({ex.Message}). Assuming one is running.");
+            return true;
+        }
+    }
+
     public static bool TryClaim()
     {
         try
@@ -65,6 +95,19 @@ internal static class SingleInstance
 
             if (!createdNew)
             {
+                // Everyone can create this name, which is what lets the customer
+                // account and an administrator see each other's claim — and also
+                // what would let a customer's own startup item take the name
+                // first and leave this PC unlocked all day. A claim with no
+                // agent behind it is not a claim.
+                if (!AnotherAgentIsRunning())
+                {
+                    AgentLog.Warn(
+                        "Something else holds the agent's lock but no agent is running. " +
+                        "Taking it over rather than leaving this station unlocked.");
+                    return true;
+                }
+
                 AgentLog.Warn(
                     "Another copy of the agent is already running on this PC. Closing this one. " +
                     "Two agents share one broker client id and would knock each other offline " +

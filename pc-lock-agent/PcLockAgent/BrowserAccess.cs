@@ -49,19 +49,40 @@ internal static class BrowserAccess
     /// </remarks>
     public static void ClearProfile()
     {
-        try
+        if (!Directory.Exists(ProfileDirectory))
         {
-            if (Directory.Exists(ProfileDirectory))
+            return;
+        }
+
+        // Retried because the browser is closed politely first and takes a
+        // moment to let go of its files. A delete attempted in that window
+        // fails on a locked file and leaves the previous customer's profile
+        // sitting there — which is the one failure here that actually matters.
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            try
             {
                 Directory.Delete(ProfileDirectory, recursive: true);
                 AgentLog.Info("Cleared the browsing profile for the next customer.");
+                return;
             }
-        }
-        catch (Exception ex)
-        {
-            // Worth saying, because it means the next customer may open the
-            // browser onto somebody else's accounts.
-            AgentLog.Warn($"Could not clear the browsing profile: {ex.Message}");
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == 5)
+                {
+                    AgentLog.Warn(
+                        $"Could not clear the browsing profile after {attempt} attempts ({ex.Message}). " +
+                        "The next customer may open the browser onto somebody else's accounts.");
+                    return;
+                }
+
+                Thread.Sleep(TimeSpan.FromSeconds(1));
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Warn($"Could not clear the browsing profile: {ex.Message}");
+                return;
+            }
         }
     }
 

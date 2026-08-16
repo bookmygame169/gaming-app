@@ -18,6 +18,20 @@ internal sealed class GameMenuForm : Form
     /// <summary>Raised when the running game has exited on its own.</summary>
     public event EventHandler? GameExited;
 
+    /// <summary>Raised when the customer opens an application from the menu.</summary>
+    public event EventHandler? AppLaunched;
+
+    /// <summary>
+    /// Whether this window is allowed to close.
+    /// </summary>
+    /// <remarks>
+    /// False for the whole of a session. Alt+F4 is permitted while something
+    /// the customer launched is in front, and once they close that, the next
+    /// Alt+F4 lands on this menu — closing it would leave the desktop with
+    /// nothing over it. Only the agent's own shutdown sets this.
+    /// </remarks>
+    public bool AllowClose { get; set; }
+
     /// <summary>Fallback for the dev chords if the keyboard hook is not installed.</summary>
     public event EventHandler<DevChord>? DevChordPressed;
 
@@ -188,6 +202,26 @@ internal sealed class GameMenuForm : Form
 
         header.Controls.Add(_remainingLabel);
         return header;
+    }
+
+    /// <summary>
+    /// Refuses every close this agent did not ask for.
+    /// </summary>
+    /// <remarks>
+    /// Alt+F4, the taskbar and Windows shutting applications down all arrive
+    /// here. None of them should be able to take the menu off the screen while
+    /// a session is running, because there is nothing behind it but the
+    /// desktop this agent exists to hide.
+    /// </remarks>
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (!AllowClose && e.CloseReason is not CloseReason.WindowsShutDown)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        base.OnFormClosing(e);
     }
 
     /// <summary>Updates the countdown shown in the header.</summary>
@@ -638,6 +672,8 @@ internal sealed class GameMenuForm : Form
             TopMost = false;
             _statusLabel.Text = $"{app.Name} is open. Come back here to start a game.";
             _statusLabel.ForeColor = Palette.TextMuted;
+
+            AppLaunched?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {

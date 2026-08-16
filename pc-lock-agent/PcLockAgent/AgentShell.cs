@@ -77,6 +77,11 @@ internal sealed class AgentShell : ApplicationContext
         };
         _gameMenu.GameExited += (_, _) => OnGameExited();
 
+        // An app is not a game, but the customer still needs a way to close it.
+        // Alt+F4 is blocked unless something they launched is in front, and
+        // without this the browser could only be closed with the mouse.
+        _gameMenu.AppLaunched += (_, _) => _lockService.SetGameRunning(true);
+
         // Services start only once a window handle exists: both the keyboard
         // hook and the MQTT client marshal their callbacks through the WinForms
         // SynchronizationContext, which is not installed until then.
@@ -127,6 +132,21 @@ internal sealed class AgentShell : ApplicationContext
 
     private void OnUnlockRequested(object? sender, UnlockEventArgs e)
     {
+        // No duration means no countdown, and no countdown means nothing will
+        // ever re-lock this station. SessionManager already refuses to guess a
+        // limit — unlocking anyway turned that refusal into a PC that stays
+        // open until a human notices, which is the exact discretion this agent
+        // exists to remove. Staying locked is the safe failure: staff can see
+        // the station is still locked and send another unlock.
+        if (e.DurationSeconds <= 0)
+        {
+            AgentLog.Error(
+                $"Refusing to unlock for session '{e.SessionId ?? "(none)"}': the command carried no " +
+                "duration_seconds, so nothing would re-lock this station. Staying locked. " +
+                "The backend must always send duration_seconds.");
+            return;
+        }
+
         AgentLog.Info($"Unlocking station (duration {e.DurationSeconds}s, session {e.SessionId ?? "(none)"}).");
 
         // A new customer, so the browser forgets the last one. Done here rather
@@ -166,10 +186,21 @@ internal sealed class AgentShell : ApplicationContext
         // returns to the locked screen regardless of what the customer was
         // doing. Termination is asynchronous, so the lock screen still appears
         // immediately.
-        if (_gameMenu.IsGameRunning)
-        {
-            _gameMenu.TerminateRunningGame();
-        }
+        // Unconditional. Applications the customer opened are closed in here
+        // too, and an app is deliberately not "a running game" — guarding this
+        // on IsGameRunning left a browser running behind the lock screen for
+        // anyone who never started a game.
+        _gameMenu.TerminateRunningGame();
+
+        // Between customers, and now that the browser is actually closed the
+        // delete can succeed. Doing it here as well as at unlock means the
+        // previous customer's logins are gone the moment their time ends
+        // rather than whenever the next one arrives.
+        //
+        // Off the UI thread: it waits for the browser to let go of its files,
+        // and the lock screen two lines below must not wait for that. By the
+        // time anyone unlocks this station again it is long finished.
+        _ = Task.Run(BrowserAccess.ClearProfile);
 
         _lockService.SetGameRunning(false);
         _screenBlanker.SetTopMost(!_lockService.Passthrough);
@@ -320,10 +351,12 @@ internal sealed class AgentShell : ApplicationContext
         _exiting = true;
         AgentLog.Info("Dev exit chord pressed. Shutting down.");
 
-        if (_gameMenu.IsGameRunning)
-        {
-            _gameMenu.TerminateRunningGame();
-        }
+        // Both forms refuse to close on their own; this is the only thing that
+        // lifts that. Set before Close() or the shutdown below is cancelled.
+        _gameMenu.AllowClose = true;
+        _lockedScreen.AllowClose = true;
+
+        _gameMenu.TerminateRunningGame();
 
         // Not Stop(): that clears the saved state, and a session interrupted by
         // a restart should resume rather than be forfeited.

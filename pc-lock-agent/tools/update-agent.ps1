@@ -129,6 +129,35 @@ try {
     }
     Write-Log "Downloaded $sizeMb MB."
 
+    # This script runs the file it just downloaded, with administrator rights,
+    # unattended, on every cafe PC. Checking it against the hash the build
+    # published is what makes that something other than "run whatever arrives".
+    # A missing hash file is not treated as a pass.
+    $expectedHash = $null
+    try {
+        $expectedHash = (Invoke-WebRequest -Uri "$ReleaseBase/setup.sha256" `
+            -UseBasicParsing -TimeoutSec 60).Content.Trim().ToLowerInvariant()
+    } catch {
+        Write-Log "Could not fetch setup.sha256: $_" "ERROR"
+    }
+
+    if (-not $expectedHash -or $expectedHash -notmatch '^[0-9a-f]{64}$') {
+        Write-Log "No usable SHA-256 published for this release. Refusing to install." "ERROR"
+        Remove-Item $temp -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
+
+    $actualHash = (Get-FileHash $temp -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualHash -ne $expectedHash) {
+        Write-Log "Hash mismatch - refusing to install." "ERROR"
+        Write-Log "  expected $expectedHash" "ERROR"
+        Write-Log "  actual   $actualHash" "ERROR"
+        Remove-Item $temp -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
+
+    Write-Log "Hash verified."
+
     if ($running -and $Force) {
         Write-Log "Stopping the running agent because -Force was given." "WARN"
         $running | Stop-Process -Force -ErrorAction SilentlyContinue

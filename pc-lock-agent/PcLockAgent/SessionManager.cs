@@ -29,6 +29,22 @@ internal sealed class SessionManager : IDisposable
 
     private const string StateFileName = "session.json";
 
+    /// <summary>
+    /// The longest session this will resume from disk.
+    /// </summary>
+    /// <remarks>
+    /// This file lives in the customer account's own AppData, because that is
+    /// the only place the agent can reliably write while running as them. That
+    /// means the account it is guarding against can edit it, and an end time in
+    /// the year 3000 would be honoured without this.
+    /// <para>
+    /// A cap does not make the file trustworthy — it bounds what a forged one
+    /// is worth. Longer than any real booking, so nothing legitimate trips it,
+    /// and anything past it is corruption or tampering either way.
+    /// </para>
+    /// </remarks>
+    private static readonly TimeSpan MaxResumableSession = TimeSpan.FromHours(24);
+
     private readonly string _statePath = AgentPaths.SessionStateFile;
     private readonly System.Windows.Forms.Timer _timer;
     private readonly HashSet<int> _firedWarnings = [];
@@ -144,6 +160,16 @@ internal sealed class SessionManager : IDisposable
             if (left <= TimeSpan.Zero)
             {
                 AgentLog.Info($"Found expired session '{persisted.SessionId ?? "(none)"}' on startup. Staying locked.");
+                ClearPersistedState();
+                return false;
+            }
+
+            if (left > MaxResumableSession)
+            {
+                AgentLog.Error(
+                    $"Refusing to resume session '{persisted.SessionId ?? "(none)"}': it claims " +
+                    $"{left.TotalHours:0} hours remaining, past the {MaxResumableSession.TotalHours:0}-hour " +
+                    "limit. Either the file was edited or the clock is wrong. Staying locked.");
                 ClearPersistedState();
                 return false;
             }

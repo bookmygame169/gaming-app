@@ -455,7 +455,7 @@ internal static class GameDiscovery
             return false;
         }
 
-        if (LooksLikeWindowsTool(game.Name, game.ExePath))
+        if (LooksLikeWindowsTool(game.Name, game.ExePath) || IsCustomerWritablePath(game.ExePath))
         {
             return false;
         }
@@ -479,6 +479,11 @@ internal static class GameDiscovery
         }
 
         if (IsJunk(game.Name) || LooksLikeWindowsTool(game.Name, game.ExePath))
+        {
+            return false;
+        }
+
+        if (IsCustomerWritablePath(game.ExePath))
         {
             return false;
         }
@@ -527,6 +532,44 @@ internal static class GameDiscovery
         Path.GetFileName(path).Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)
         && args.Contains("shell:AppsFolder", StringComparison.OrdinalIgnoreCase)
         && !args.Contains("Microsoft.Windows", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Folders the locked customer can drop a file into.
+    /// </summary>
+    /// <remarks>
+    /// The menu is built partly from games-cache.json, which sits in the
+    /// customer account's own AppData because that is where the agent can
+    /// write. So the account being locked out can add a tile — and the only
+    /// thing stopping that tile from being anything at all is where its
+    /// executable lives.
+    /// <para>
+    /// Downloads and Temp are how a file gets onto a kiosk PC in the first
+    /// place. No game installs to either, so refusing to launch from them
+    /// costs nothing and closes the obvious route out.
+    /// </para>
+    /// </remarks>
+    private static readonly string[] CustomerWritableFolders =
+    {
+        @"\downloads", @"ppdata\local	emp", @"ppdataoaming	emp",
+        @"\windows	emp", @"\$recycle.bin", @"rowser-profile",
+    };
+
+    /// <summary>Whether this is somewhere the customer could have put a file.</summary>
+    private static bool IsCustomerWritablePath(string path)
+    {
+        var lower = path.Replace('/', '\').ToLowerInvariant();
+        var matched = CustomerWritableFolders.FirstOrDefault(folder => lower.Contains(folder));
+
+        if (matched is null)
+        {
+            return false;
+        }
+
+        AgentLog.Warn(
+            $"Refusing to launch from '{path}': anything under '{matched.Trim('\\')}' "
+            + "can be written by the customer.");
+        return true;
+    }
 
     private static bool IsSystemPath(string path)
     {

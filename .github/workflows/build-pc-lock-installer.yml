@@ -211,6 +211,18 @@ jobs:
           "${{ inputs.version }}" | Out-File -FilePath version.txt -Encoding ascii -NoNewline
           Get-Content version.txt
 
+      # The café PCs update themselves by downloading and running this
+      # installer. Publishing its hash alongside gives update-agent.ps1
+      # something to check the download against, so a truncated or swapped
+      # file is refused rather than executed.
+      - name: Publish the installer's SHA-256
+        shell: pwsh
+        run: |
+          $exe = "pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $hash | Out-File -FilePath setup.sha256 -Encoding ascii -NoNewline
+          Write-Host "SHA-256: $hash"
+
       - name: Upload workflow artifact (backup download)
         uses: actions/upload-artifact@v4
         with:
@@ -233,7 +245,7 @@ jobs:
           tag: pc-lock-latest
           name: PC Lock Installer v${{ inputs.version }}
           body: Automated build of BookMyGame-PC-Lock-Setup.exe for café PC setup.
-          artifacts: "pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe,version.txt"
+          artifacts: "pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe,version.txt,setup.sha256"
           allowUpdates: true
           replacesArtifacts: true
           makeLatest: true

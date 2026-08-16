@@ -253,12 +253,89 @@ internal sealed class MqttService : IAsyncDisposable
     // Command handling
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// How old a command may be and still be acted on.
+    /// </summary>
+    /// <remarks>
+    /// Generous enough to survive a slow broker and a couple of minutes of
+    /// clock drift between a Vercel function and a café PC, short enough that
+    /// an unlock captured off the broker is worthless by the time anyone could
+    /// replay it deliberately.
+    /// </remarks>
+    private static readonly TimeSpan CommandLifetime = TimeSpan.FromMinutes(5);
+
+    /// <summary>Ids already acted on, newest last.</summary>
+    private readonly Queue<string> _handledIds = new();
+    private readonly HashSet<string> _handledIdSet = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Whether this command is a replay, or too old to act on.
+    /// </summary>
+    /// <remarks>
+    /// Both checks are skipped when the backend did not send the field. That is
+    /// deliberate: code ships to Vercel the moment it is pushed and this agent
+    /// updates on its own schedule, so for a while the two disagree about what
+    /// a command looks like. Refusing everything unsigned during that window
+    /// would lock every café PC out of being unlocked at all.
+    /// </remarks>
+    private bool IsStaleOrRepeated(StationCommand command)
+    {
+        if (command.IssuedAt is { } issuedAt)
+        {
+            var age = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(issuedAt);
+
+            // Negative age is a clock ahead of ours, not a problem in itself.
+            if (age > CommandLifetime)
+            {
+                AgentLog.Warn(
+                    $"Ignoring a command issued {age.TotalMinutes:0} minutes ago. " +
+                    "Either it was replayed or this PC's clock is wrong.");
+                return true;
+            }
+        }
+
+        if (command.CommandId is not { } id || string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        if (!_handledIdSet.Add(id))
+        {
+            AgentLog.Warn($"Ignoring command '{id}': already acted on.");
+            return true;
+        }
+
+        _handledIds.Enqueue(id);
+
+        // Bounded so a station running for months does not grow this forever.
+        // Far more than a café gets through in the five minutes above.
+        while (_handledIds.Count > 200)
+        {
+            _handledIdSet.Remove(_handledIds.Dequeue());
+        }
+
+        return false;
+    }
+
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
     {
         try
         {
             var payload = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
             AgentLog.Info($"Command received: {payload}");
+
+            // A retained command is delivered fresh on every reconnect, so a
+            // retained unlock would open this PC again every time the network
+            // blinked, for as long as it sat on the topic. The backend never
+            // publishes with retain — this refuses one that got there anyway.
+            if (args.ApplicationMessage.Retain)
+            {
+                AgentLog.Warn(
+                    "Ignoring a RETAINED command. Nothing should ever be retained on a station's " +
+                    "command topic; clear it with clear-retained.bat or this station will be " +
+                    "told the same thing on every reconnect.");
+                return Task.CompletedTask;
+            }
 
             StationCommand? command;
             try
@@ -274,6 +351,11 @@ internal sealed class MqttService : IAsyncDisposable
             if (command?.Action is null)
             {
                 AgentLog.Warn("Ignoring command with no action.");
+                return Task.CompletedTask;
+            }
+
+            if (IsStaleOrRepeated(command))
+            {
                 return Task.CompletedTask;
             }
 
