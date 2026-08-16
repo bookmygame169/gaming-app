@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Win32;
 
 namespace PcLockAgent;
 
@@ -252,6 +253,10 @@ internal static class GameDiscovery
             Take("machine-wide list", FromSharedList());
             Take("this account's desktop", FromDesktopShortcuts());
             Take("this account's Start Menu", FromStartMenu());
+            // Last, because it is the broadest and the noisiest: anything the
+            // sources above already found wins the name clash and this only
+            // contributes what none of them knew about.
+            Take("installed programs", FromRegistry());
 
             if (config.ShowLaunchers)
             {
@@ -551,6 +556,176 @@ internal static class GameDiscovery
         }
 
         return libraries.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    // -----------------------------------------------------------------------
+    // The uninstall registry
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Publishers whose entries are never a game.
+    /// </summary>
+    /// <remarks>
+    /// The uninstall list is mostly not games: drivers, runtimes, browsers and
+    /// the machinery of Windows itself. Filtering on the publisher removes most
+    /// of it in one rule, and does it without guessing at product names.
+    /// </remarks>
+    private static readonly string[] NotAGamePublisher =
+    {
+        "microsoft", "nvidia", "intel", "advanced micro devices", "amd",
+        "realtek", "logitech", "razer", "corsair", "adobe", "google",
+        "mozilla", "oracle", "python", "git", "docker", "vmware",
+        "dell", "hp inc", "lenovo", "asus", "gigabyte", "msi",
+    };
+
+    /// <summary>
+    /// Everything Windows knows is installed.
+    /// </summary>
+    /// <remarks>
+    /// The catch-all, and the answer to the games no store accounts for: a
+    /// title from Battle.net, one from Garena's own installer, one bought on
+    /// Epic, one installed from a disc. All of them record a name and a folder
+    /// here, because that is how Windows offers to uninstall them.
+    /// <para>
+    /// Read from HKLM as well as HKCU, and in both registry views — a 32-bit
+    /// installer writes somewhere a 64-bit process does not look by default,
+    /// and plenty of game installers are still 32-bit.
+    /// </para>
+    /// <para>
+    /// This is the noisiest source by a distance, so it is also the most
+    /// filtered: an entry needs a folder that exists, a plausible executable
+    /// inside it, a publisher that is not a hardware vendor, and a name that
+    /// survives the same rules as everything else.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromRegistry()
+    {
+        const string uninstall = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+
+        var roots = new (RegistryHive Hive, RegistryView View)[]
+        {
+            (RegistryHive.LocalMachine, RegistryView.Registry64),
+            (RegistryHive.LocalMachine, RegistryView.Registry32),
+            (RegistryHive.CurrentUser, RegistryView.Registry64),
+        };
+
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (hive, view) in roots)
+        {
+            string[] subKeyNames;
+            RegistryKey? baseKey = null;
+            RegistryKey? root = null;
+
+            try
+            {
+                baseKey = RegistryKey.OpenBaseKey(hive, view);
+                root = baseKey.OpenSubKey(uninstall);
+                if (root is null)
+                {
+                    continue;
+                }
+
+                subKeyNames = root.GetSubKeyNames();
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Warn($"Could not read the uninstall list: {ex.Message}");
+                continue;
+            }
+            finally
+            {
+                // Reopened per entry below; holding one key open across the
+                // whole loop is what makes a yield-return iterator leak it.
+                root?.Dispose();
+                baseKey?.Dispose();
+            }
+
+            foreach (var subKeyName in subKeyNames)
+            {
+                var entry = ReadUninstallEntry(hive, view, uninstall, subKeyName, windows, seen);
+                if (entry is not null)
+                {
+                    yield return entry;
+                }
+            }
+        }
+    }
+
+    private static GameEntry? ReadUninstallEntry(
+        RegistryHive hive,
+        RegistryView view,
+        string uninstallPath,
+        string subKeyName,
+        string windows,
+        HashSet<string> seen)
+    {
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+            using var key = baseKey.OpenSubKey($@"{uninstallPath}\{subKeyName}");
+            if (key is null)
+            {
+                return null;
+            }
+
+            var name = key.GetValue("DisplayName") as string;
+            var location = key.GetValue("InstallLocation") as string;
+            var publisher = key.GetValue("Publisher") as string ?? "";
+
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(location))
+            {
+                return null;
+            }
+
+            // Components and patches. Windows hides these from Add/Remove
+            // Programs for the same reason they do not belong on a menu.
+            if (key.GetValue("SystemComponent") is int component && component == 1)
+            {
+                return null;
+            }
+
+            if (key.GetValue("ParentKeyName") is not null || key.GetValue("ParentDisplayName") is not null)
+            {
+                return null;
+            }
+
+            if (NotAGamePublisher.Any(bad => publisher.ToLowerInvariant().Contains(bad)))
+            {
+                return null;
+            }
+
+            if (IsJunk(name))
+            {
+                return null;
+            }
+
+            if (!Directory.Exists(location) ||
+                location.StartsWith(windows, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var exe = BestExeIn(location);
+            if (exe is null || !seen.Add(exe))
+            {
+                return null;
+            }
+
+            return new GameEntry
+            {
+                Name = name.Trim(),
+                ExePath = exe,
+                ProcessName = Path.GetFileNameWithoutExtension(exe),
+                Category = CategoryFor(name),
+            };
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not read uninstall entry {subKeyName}: {ex.Message}");
+            return null;
+        }
     }
 
     // -----------------------------------------------------------------------
