@@ -222,17 +222,33 @@ internal sealed class GameMenuForm : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
-            MaximumSize = new Size(Bounds.Width - 120, 0),
             Location = new Point(48, 8),
             BackColor = Color.Transparent,
         };
 
+        void SizeFlow()
+        {
+            var width = Math.Max(scrollHost.ClientSize.Width - 72, 400);
+            flow.MaximumSize = new Size(width, 0);
+            flow.Width = width;
+
+            foreach (Control child in flow.Controls)
+            {
+                if (Equals(child.Tag, "heading"))
+                {
+                    child.Width = Math.Max(width - 4, 200);
+                }
+            }
+        }
+
         var games = _config.Games
-            .Where(game => !string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase))
+            .Where(game => !string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
+                           && !string.IsNullOrWhiteSpace(game.Name))
             .ToList();
 
         var apps = _config.Games
-            .Where(game => string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase))
+            .Where(game => string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
+                           && !string.IsNullOrWhiteSpace(game.Name))
             .ToList();
 
         if (_config.Games.Count == 0)
@@ -249,13 +265,9 @@ internal sealed class GameMenuForm : Form
         }
         else
         {
-            // Games first and apps after, each behind a heading. A menu that
-            // lists everything installed is a wall of tiles, and a customer
-            // looking for something to play should not have to read past Steam,
-            // a browser and the Xbox app to find it.
             if (games.Count > 0)
             {
-                flow.Controls.Add(BuildSectionHeading("GAMES", flow.MaximumSize.Width, first: true));
+                flow.Controls.Add(BuildSectionHeading("GAMES", first: true));
 
                 foreach (var game in games)
                 {
@@ -265,7 +277,7 @@ internal sealed class GameMenuForm : Form
 
             if (apps.Count > 0)
             {
-                flow.Controls.Add(BuildSectionHeading("APPS", flow.MaximumSize.Width, first: games.Count == 0));
+                flow.Controls.Add(BuildSectionHeading("APPS", first: games.Count == 0));
 
                 foreach (var app in apps)
                 {
@@ -275,6 +287,8 @@ internal sealed class GameMenuForm : Form
         }
 
         scrollHost.Controls.Add(flow);
+        scrollHost.Resize += (_, _) => SizeFlow();
+        SizeFlow();
         return scrollHost;
     }
 
@@ -286,14 +300,15 @@ internal sealed class GameMenuForm : Form
     /// line: it wraps when the next control will not fit, so a control as wide
     /// as the row guarantees everything after it starts below.
     /// </remarks>
-    private static Control BuildSectionHeading(string text, int width, bool first)
+    private static Control BuildSectionHeading(string text, bool first)
     {
         var panel = new Panel
         {
-            Width = Math.Max(width - 4, 200),
+            Width = 400,
             Height = first ? 44 : 68,
             Margin = new Padding(0),
             BackColor = Color.Transparent,
+            Tag = "heading",
         };
 
         panel.Paint += (_, e) =>
@@ -591,7 +606,7 @@ internal sealed class GameMenuForm : Form
             ClearRunningState();
         }
 
-        if (!File.Exists(game.ExePath))
+        if (!LooksLikeShortcut(game.ExePath) && !File.Exists(game.ExePath))
         {
             AgentLog.Error($"Cannot launch '{game.Name}': {game.ExePath} does not exist.");
             _statusLabel.Text = $"{game.Name} is not installed at the configured path.";
@@ -604,12 +619,11 @@ internal sealed class GameMenuForm : Form
             var startInfo = new ProcessStartInfo
             {
                 FileName = game.ExePath,
-                Arguments = game.Arguments ?? string.Empty,
-                // Many games only find their data files when started from their
-                // own folder, so default to that rather than the agent's.
+                Arguments = LooksLikeShortcut(game.ExePath) ? string.Empty : game.Arguments ?? string.Empty,
                 WorkingDirectory = game.WorkingDirectory
-                                   ?? Path.GetDirectoryName(game.ExePath)
-                                   ?? string.Empty,
+                                   ?? (LooksLikeShortcut(game.ExePath)
+                                       ? string.Empty
+                                       : Path.GetDirectoryName(game.ExePath) ?? string.Empty),
                 UseShellExecute = true,
             };
 
@@ -861,6 +875,10 @@ internal sealed class GameMenuForm : Form
             }
         }
     }
+
+    private static bool LooksLikeShortcut(string path) =>
+        path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".url", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Fires on a thread-pool thread when the launched process ends.

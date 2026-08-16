@@ -129,8 +129,20 @@ internal static class GameDiscovery
         return false;
     }
 
-    private static string CategoryFor(string name) =>
-        IsAnApp.Any(app => name.ToLowerInvariant().Contains(app)) ? "app" : "game";
+    private static string CategoryFor(string name)
+    {
+        var lower = name.ToLowerInvariant().Trim();
+        if (lower is "steam" or "xbox" or "epic games" or "epic games launcher"
+            or "riot client" or "battle.net" or "ubisoft connect" or "ea app"
+            or "origin" or "gog galaxy" or "discord" or "spotify"
+            or "google chrome" or "chrome" or "microsoft edge" or "edge"
+            or "firefox" or "opera")
+        {
+            return "app";
+        }
+
+        return IsAnApp.Any(app => lower == app || lower.StartsWith(app + " ")) ? "app" : "game";
+    }
 
     private static readonly string[] NotAGameShortcut =
     {
@@ -927,10 +939,11 @@ internal static class GameDiscovery
 
         foreach (var folder in folders.Where(f => !string.IsNullOrWhiteSpace(f) && Directory.Exists(f)))
         {
-            string[] shortcuts;
+            IEnumerable<string> shortcuts;
             try
             {
-                shortcuts = Directory.GetFiles(folder, "*.lnk", SearchOption.TopDirectoryOnly);
+                shortcuts = Directory.GetFiles(folder, "*.lnk", SearchOption.TopDirectoryOnly)
+                    .Concat(Directory.GetFiles(folder, "*.url", SearchOption.TopDirectoryOnly));
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
@@ -939,7 +952,12 @@ internal static class GameDiscovery
 
             foreach (var shortcut in shortcuts)
             {
-                var entry = EntryFromShortcut(shortcut, windows, seen);
+                // Desktop icons are launched as themselves. Fortnite and Rocket
+                // League both point at Epic's launcher; CS2 and Resident Evil
+                // both point at steam.exe. Deduping on that exe used to keep
+                // only the first icon and throw the rest away — which is why
+                // the lock screen showed a short list next to a full desktop.
+                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile: true);
                 if (entry is not null)
                 {
                     yield return entry;
@@ -1067,7 +1085,7 @@ internal static class GameDiscovery
 
             foreach (var shortcut in shortcuts)
             {
-                var entry = EntryFromShortcut(shortcut, windows, seen);
+                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile: false);
                 if (entry is not null)
                 {
                     yield return entry;
@@ -1085,7 +1103,24 @@ internal static class GameDiscovery
     /// it holds an order of magnitude more shortcuts, most of which are not
     /// games.
     /// </remarks>
-    private static GameEntry? EntryFromShortcut(string shortcut, string windows, HashSet<string> seen)
+    private static readonly string[] SharedLaunchers =
+    {
+        "steam", "epicgameslauncher", "riotclientservices", "riotclient",
+        "battle.net", "agent", "upc", "ubisoftconnect", "eadesktop", "origin",
+        "galaxyclient", "playgames", "explorer",
+    };
+
+    private static bool IsSharedLauncher(string target)
+    {
+        var name = Path.GetFileNameWithoutExtension(target).ToLowerInvariant();
+        return SharedLaunchers.Contains(name);
+    }
+
+    private static GameEntry? EntryFromShortcut(
+        string shortcut,
+        string windows,
+        HashSet<string> seen,
+        bool launchShortcutFile)
     {
         try
         {
@@ -1102,35 +1137,65 @@ internal static class GameDiscovery
                 return null;
             }
 
-            var (target, arguments) = ResolveShortcut(shortcut);
+            var (target, arguments) = shortcut.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
+                ? ResolveUrlShortcut(shortcut)
+                : ResolveShortcut(shortcut);
 
-            if (string.IsNullOrWhiteSpace(target) ||
-                !target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                !File.Exists(target) ||
-                target.StartsWith(windows, StringComparison.OrdinalIgnoreCase) ||
-                !seen.Add(target))
+            var identity = launchShortcutFile
+                ? shortcut
+                : string.IsNullOrWhiteSpace(target)
+                    ? shortcut
+                    : string.IsNullOrWhiteSpace(arguments)
+                        ? target
+                        : $"{target}|{arguments}";
+
+            if (!seen.Add(identity))
             {
                 return null;
             }
 
-            var fileName = Path.GetFileNameWithoutExtension(target).ToLowerInvariant();
-            if (NotTheGame.Any(bad => fileName.Contains(bad)))
+            var targetOk = !string.IsNullOrWhiteSpace(target)
+                && target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                && File.Exists(target)
+                && !target.StartsWith(windows, StringComparison.OrdinalIgnoreCase);
+
+            if (targetOk)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(target).ToLowerInvariant();
+                if (NotTheGame.Any(bad => fileName.Contains(bad)))
+                {
+                    return null;
+                }
+
+                var launchesSteamGame =
+                    Path.GetFileNameWithoutExtension(target).Equals("steam", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(arguments);
+
+                return new GameEntry
+                {
+                    Name = label,
+                    ExePath = target!,
+                    Arguments = arguments,
+                    ProcessName = launchesSteamGame || IsSharedLauncher(target!)
+                        ? null
+                        : Path.GetFileNameWithoutExtension(target),
+                    IconSourcePath = target,
+                    Category = CategoryFor(label),
+                };
+            }
+
+            // Store games, Epic protocol links, and anything whose real exe is
+            // unreadable (WindowsApps) still have a working desktop icon.
+            if (!launchShortcutFile)
             {
                 return null;
             }
-
-            // A Steam shortcut points at steam.exe with the game in its
-            // arguments, so the icon must not come from the target.
-            var launchesSteamGame =
-                Path.GetFileNameWithoutExtension(target).Equals("steam", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(arguments);
 
             return new GameEntry
             {
                 Name = label,
-                ExePath = target,
-                Arguments = arguments,
-                ProcessName = launchesSteamGame ? null : Path.GetFileNameWithoutExtension(target),
+                ExePath = shortcut,
+                IconSourcePath = shortcut,
                 Category = CategoryFor(label),
             };
         }
@@ -1139,6 +1204,27 @@ internal static class GameDiscovery
             AgentLog.Warn($"Could not read {Path.GetFileName(shortcut)}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>Reads a .url internet shortcut (Steam and Epic write these).</summary>
+    private static (string? Target, string? Arguments) ResolveUrlShortcut(string path)
+    {
+        try
+        {
+            foreach (var line in File.ReadLines(path))
+            {
+                if (line.StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (line[4..].Trim(), null);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            AgentLog.Warn($"Could not read {Path.GetFileName(path)}: {ex.Message}");
+        }
+
+        return (null, null);
     }
 
     /// <summary>
@@ -1194,5 +1280,5 @@ internal static class GameDiscovery
     }
 
     private static string Normalise(string value) =>
-        new(value.Where(char.IsLetterOrDigit).ToArray());
+        new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
 }
