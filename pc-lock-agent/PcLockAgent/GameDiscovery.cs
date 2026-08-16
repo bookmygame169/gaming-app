@@ -75,6 +75,11 @@ internal static class GameDiscovery
         "desktop", "this pc", "file explorer", "recycle", "network",
         "tracker", "overlay", "cleaner", "antivirus", "defender",
         "microsoft store", "get help", "tips", "weather", "news",
+        // Seen on the café's own menu, none of them a game: a sleep-prevention
+        // utility, a peripheral suite, a game overlay, and Roblox's authoring
+        // tool sitting next to Roblox itself.
+        "deskrest", "kreo", "overwolf", "roblox studio", "wallpaper engine",
+        "steamworks", "redistributable", "epic games launcher",
         "media player", "movies & tv", "photos", "paint", "notepad",
         "calculator", "clock", "camera", "mail", "people", "phone link",
         "office", "word", "excel", "powerpoint", "teams", "outlook",
@@ -106,10 +111,21 @@ internal static class GameDiscovery
         // Chrome", which looks like a game right up until it opens a browser.
         if (lower.EndsWith(" - chrome") || lower.EndsWith(" - edge"))
         {
+            AgentLog.Info($"Skipped '{name}': a web shortcut, not a program.");
             return true;
         }
 
-        return NeverShow.Any(bad => lower.Contains(bad));
+        var matched = NeverShow.FirstOrDefault(bad => lower.Contains(bad));
+        if (matched is not null)
+        {
+            // Named, because the risk of a rule like this is a real game whose
+            // title happens to contain one of these words. If that happens, the
+            // log says which word did it.
+            AgentLog.Info($"Skipped '{name}': matched the rule \"{matched}\".");
+            return true;
+        }
+
+        return false;
     }
 
     private static string CategoryFor(string name) =>
@@ -215,18 +231,32 @@ internal static class GameDiscovery
         try
         {
             found = new List<GameEntry>();
-            found.AddRange(FromSteam());
-            found.AddRange(FromEpic());
-            // First, because it is the only source that saw the whole machine.
-            // The two below add what this account can reach on its own, which
-            // matters when the scan has not run yet.
-            found.AddRange(FromSharedList());
-            found.AddRange(FromDesktopShortcuts());
-            found.AddRange(FromStartMenu());
+
+            // Counted per source and written to the log. Three rounds of this
+            // were spent comparing a photograph of the menu against a
+            // photograph of the desktop and guessing which source had missed
+            // what; a line in the log answers that in one reading.
+            void Take(string source, IEnumerable<GameEntry> from)
+            {
+                var before = found.Count;
+                found.AddRange(from);
+                AgentLog.Info($"  {source}: {found.Count - before}");
+            }
+
+            AgentLog.Info("Looking for installed games.");
+            Take("Steam", FromSteam());
+            Take("Epic", FromEpic());
+            Take("Xbox", FromXboxGames());
+            // The machine-wide list first, because it is the only source that
+            // saw every account. The two below add what this account can reach
+            // on its own, which is all there is before the scan has run.
+            Take("machine-wide list", FromSharedList());
+            Take("this account's desktop", FromDesktopShortcuts());
+            Take("this account's Start Menu", FromStartMenu());
 
             if (config.ShowLaunchers)
             {
-                found.AddRange(Launchers());
+                Take("launchers", Launchers());
             }
         }
         catch (Exception ex)
@@ -262,7 +292,11 @@ internal static class GameDiscovery
             return config;
         }
 
-        AgentLog.Info($"Adding {added.Count} installed game(s): {string.Join(", ", added.Select(g => g.Name))}");
+        var games = added.Where(g => g.Category != "app").Select(g => g.Name);
+        var apps = added.Where(g => g.Category == "app").Select(g => g.Name);
+
+        AgentLog.Info($"Games: {string.Join(", ", games)}");
+        AgentLog.Info($"Apps: {string.Join(", ", apps)}");
 
         var games = new List<GameEntry>(config.Games);
         games.AddRange(added.OrderBy(game => game.Name, StringComparer.OrdinalIgnoreCase));
@@ -318,6 +352,14 @@ internal static class GameDiscovery
                         continue;
                     }
 
+                    // Steam keeps manifests for its own tooling alongside the
+                    // games - "Steamworks Common Redistributables" is an entry
+                    // like any other, and appeared on the menu as one.
+                    if (IsSteamTool(name))
+                    {
+                        continue;
+                    }
+
                     // Steam keeps manifests for games it has queued or partly
                     // removed, so the folder is checked rather than trusted.
                     var folder = Path.Combine(steamapps, "common", installDir);
@@ -332,6 +374,8 @@ internal static class GameDiscovery
                         continue;
                     }
 
+                    var mainExe = BestExeIn(folder);
+
                     entry = new GameEntry
                     {
                         Name = name,
@@ -340,7 +384,11 @@ internal static class GameDiscovery
                         // Without this the agent would watch steam.exe, which
                         // never exits, and the menu would never come back when
                         // the customer closed the game.
-                        ProcessName = GuessMainExe(folder),
+                        ProcessName = mainExe is null ? null : Path.GetFileNameWithoutExtension(mainExe),
+                        // And the icon comes from the game, not from Steam. This
+                        // is the fallback when Steam has no artwork cached, which
+                        // is otherwise how a tile ends up wearing the Steam logo.
+                        IconSourcePath = mainExe,
                     };
                 }
                 catch (Exception ex)
@@ -357,6 +405,28 @@ internal static class GameDiscovery
     }
 
     /// <summary>
+    /// Whether a Steam entry is one of Steam's own components.
+    /// </summary>
+    /// <remarks>
+    /// Steam installs runtimes, redistributables and dedicated servers into the
+    /// same library as the games, with manifests indistinguishable from theirs
+    /// apart from the name.
+    /// </remarks>
+    private static bool IsSteamTool(string name)
+    {
+        var lower = name.ToLowerInvariant();
+
+        return lower.Contains("redistributable")
+            || lower.Contains("steamworks")
+            || lower.Contains("runtime")
+            || lower.Contains("dedicated server")
+            || lower.Contains("sdk")
+            || lower.Contains("soundtrack")
+            || lower.Contains("proton")
+            || lower.Contains("steam linux");
+    }
+
+    /// <summary>
     /// The executable a game folder is most likely to actually run as.
     /// </summary>
     /// <remarks>
@@ -367,11 +437,21 @@ internal static class GameDiscovery
     /// and when it is wrong the cost is the menu waiting out its timeout rather
     /// than anything the customer notices.
     /// </remarks>
-    private static string? GuessMainExe(string folder)
+    private static string? GuessMainExe(string folder) => BestExeIn(folder);
+
+    /// <summary>
+    /// The largest executable in a folder that is not obviously a helper.
+    /// </summary>
+    /// <remarks>
+    /// Returns the path rather than the name, because it is wanted for two
+    /// things: the process to watch, and — for a Steam game, where the file
+    /// being launched is steam.exe — the file to take the icon from.
+    /// </remarks>
+    private static string? BestExeIn(string folder)
     {
         try
         {
-            var best = Directory
+            return Directory
                 .EnumerateFiles(folder, "*.exe", SearchOption.TopDirectoryOnly)
                 .Concat(SafeSubdirectoryExes(folder))
                 .Where(path =>
@@ -381,8 +461,6 @@ internal static class GameDiscovery
                 })
                 .OrderByDescending(path => new FileInfo(path).Length)
                 .FirstOrDefault();
-
-            return best is null ? null : Path.GetFileNameWithoutExtension(best);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
         {
@@ -477,6 +555,109 @@ internal static class GameDiscovery
         }
 
         return libraries.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    // -----------------------------------------------------------------------
+    // Xbox / Game Pass
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Games installed through the Xbox app.
+    /// </summary>
+    /// <remarks>
+    /// Game Pass puts these in a plain folder at the root of a drive —
+    /// C:\XboxGames\Forza Horizon 5\Content — rather than in WindowsApps with
+    /// the Store apps, which is locked down and unreadable. Nothing was looking
+    /// there, so a game downloaded from the Xbox app could never appear however
+    /// many other sources were added.
+    /// <para>
+    /// Every fixed drive, because Game Pass installs where the space is and a
+    /// café PC keeps its games on the big disk.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromXboxGames()
+    {
+        DriveInfo[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives();
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not list drives for Xbox games: {ex.Message}");
+            yield break;
+        }
+
+        foreach (var drive in drives)
+        {
+            string root;
+            try
+            {
+                if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
+                {
+                    continue;
+                }
+
+                root = Path.Combine(drive.RootDirectory.FullName, "XboxGames");
+                if (!Directory.Exists(root))
+                {
+                    continue;
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                continue;
+            }
+
+            string[] folders;
+            try
+            {
+                folders = Directory.GetDirectories(root);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                continue;
+            }
+
+            foreach (var folder in folders)
+            {
+                GameEntry? entry = null;
+
+                try
+                {
+                    // The launchable exe lives under Content. Everything beside
+                    // it is the package's own scaffolding.
+                    var content = Path.Combine(folder, "Content");
+                    if (!Directory.Exists(content))
+                    {
+                        continue;
+                    }
+
+                    var exe = BestExeIn(content);
+                    if (exe is null)
+                    {
+                        continue;
+                    }
+
+                    entry = new GameEntry
+                    {
+                        Name = Path.GetFileName(folder),
+                        ExePath = exe,
+                        ProcessName = Path.GetFileNameWithoutExtension(exe),
+                    };
+                }
+                catch (Exception ex)
+                {
+                    AgentLog.Warn($"Could not read {folder}: {ex.Message}");
+                }
+
+                if (entry is not null)
+                {
+                    AgentLog.Info($"Xbox game: {entry.Name}");
+                    yield return entry;
+                }
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -767,12 +948,18 @@ internal static class GameDiscovery
                 return null;
             }
 
+            // A Steam shortcut points at steam.exe with the game in its
+            // arguments, so the icon must not come from the target.
+            var launchesSteamGame =
+                Path.GetFileNameWithoutExtension(target).Equals("steam", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(arguments);
+
             return new GameEntry
             {
                 Name = label,
                 ExePath = target,
                 Arguments = arguments,
-                ProcessName = Path.GetFileNameWithoutExtension(target),
+                ProcessName = launchesSteamGame ? null : Path.GetFileNameWithoutExtension(target),
                 Category = CategoryFor(label),
             };
         }

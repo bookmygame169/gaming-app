@@ -516,6 +516,18 @@ internal sealed class GameMenuForm : Form
                 return steamArt;
             }
 
+            // The game's own executable before the one that launches it. For a
+            // Steam game those differ, and the launcher's icon says nothing
+            // about the game.
+            if (!string.IsNullOrWhiteSpace(game.IconSourcePath))
+            {
+                var own = GameIcons.Extract(game.IconSourcePath);
+                if (own is not null)
+                {
+                    return own;
+                }
+            }
+
             return GameIcons.Extract(game.ExePath);
         }
         catch (Exception ex)

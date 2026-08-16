@@ -67,6 +67,19 @@ internal sealed class GameEntry
     public string Category { get; init; } = "game";
 
     /// <summary>
+    /// Where to take the icon from, when that is not what gets launched.
+    /// </summary>
+    /// <remarks>
+    /// A Steam game is started by running steam.exe, so the file being launched
+    /// carries Steam's icon and nothing about the game. This points at the
+    /// game's own executable instead — the fallback for when Steam has no
+    /// artwork cached, which is otherwise how four different games ended up
+    /// wearing the same logo.
+    /// </remarks>
+    [JsonPropertyName("iconSourcePath")]
+    public string? IconSourcePath { get; init; }
+
+    /// <summary>
     /// A copy of this entry pointing at where the game really is on this PC.
     /// </summary>
     /// <remarks>
@@ -86,6 +99,7 @@ internal sealed class GameEntry
         ProcessName = ProcessName,
         Arguments = Arguments,
         Category = Category,
+        IconSourcePath = IconSourcePath,
         WorkingDirectory = Directory.Exists(WorkingDirectory) ? WorkingDirectory : null,
     };
 }

@@ -21,8 +21,18 @@ namespace PcLockAgent;
 /// </remarks>
 internal static class GameArtwork
 {
+    /// <summary>
+    /// Both ways Steam identifies a game on a command line.
+    /// </summary>
+    /// <remarks>
+    /// <c>-applaunch 730</c> is what this agent builds. <c>steam://rungameid/730</c>
+    /// is what Steam itself writes into a desktop shortcut, and only the first
+    /// was matched — so every Steam game found through a shortcut failed the
+    /// artwork lookup and fell back to the icon of the file it pointed at, which
+    /// is steam.exe. That is the Steam logo appearing on four different games.
+    /// </remarks>
     private static readonly Regex AppLaunch =
-        new(@"-applaunch\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        new(@"(?:-applaunch\s+|rungameid[/=])(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>
     /// Steam's own artwork for this game, or null if there is none to be had.
