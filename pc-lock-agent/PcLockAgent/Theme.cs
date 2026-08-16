@@ -201,8 +201,8 @@ internal static class Theme
                 if (area.Width <= 0 || area.Height <= 0) continue;
 
                 using var halo = RoundedRect(area, CardRadius + spread);
-                using var pen = new Pen(Color.FromArgb(alpha * 2, Palette.Accent), 4f);
-                graphics.DrawPath(pen, halo);
+                using var haloPen = new Pen(Color.FromArgb(alpha * 2, Palette.Accent), 4f);
+                graphics.DrawPath(haloPen, halo);
             }
         }
 
