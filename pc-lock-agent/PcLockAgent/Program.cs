@@ -49,9 +49,10 @@ internal static class Program
 
             config = await GameCatalogSync.TryRefreshAsync(config);
 
-            // After the sync, never before: the café's full list is what gets
-            // cached to disk, so a PC that is offline at boot still has everything
-            // to filter against instead of yesterday's filtered subset.
+            // Ask SYSTEM to refresh the shared game list if the task exists.
+            // Best-effort: the lock user may not be allowed to start it.
+            TryRequestSharedGameScan();
+
             config = InstalledGames.FilterToInstalled(config);
             config = GameDiscovery.AddInstalledGames(config);
             config = GameDiscovery.KeepGamesOnly(config);
@@ -64,5 +65,34 @@ internal static class Program
         }
 
         AgentLog.Info("=== PcLockAgent stopped ===");
+    }
+
+    /// <summary>
+    /// Kicks the SYSTEM "BookMyGame Game List" task so admin-desktop and Xbox
+    /// titles land in ProgramData before we build the menu.
+    /// </summary>
+    private static void TryRequestSharedGameScan()
+    {
+        try
+        {
+            var start = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "schtasks.exe",
+                Arguments = "/Run /TN \"BookMyGame Game List\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var process = System.Diagnostics.Process.Start(start);
+            process?.WaitForExit(5000);
+
+            // Give SYSTEM a moment to rewrite installed-games.json.
+            System.Threading.Thread.Sleep(1500);
+            AgentLog.Info("Requested a shared game-list refresh.");
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Info($"Could not start the shared game-list task ({ex.Message}). Using whatever list is already on disk.");
+        }
     }
 }

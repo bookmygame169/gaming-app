@@ -331,21 +331,17 @@ internal static class GameDiscovery
             }
 
             AgentLog.Info("Looking for installed games.");
-            // Also list folders sitting directly in steamapps\common when a
-            // manifest is missing — common after a copy/paste Steam library.
+            // Shared list first: SYSTEM copied shortcuts into ProgramData so the
+            // lock user can open admin-desktop games. Without this, that account
+            // only sees the handful of titles installed for everyone.
+            Take("machine-wide list", FromSharedList());
             Take("Steam", FromSteam());
             Take("Steam folders", FromSteamCommonFolders());
             Take("Epic", FromEpic());
             Take("Xbox", FromXboxGames());
             Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
             Take("Roblox", FromRoblox());
-            // SYSTEM writes this for titles on the admin desktop that this
-            // customer account cannot open. Without it, half the café's games
-            // vanish the moment nobody pinned them on Public\Desktop.
-            Take("machine-wide list", FromSharedList());
             Take("desktops", FromAllDesktops());
-            // Start Menu, but only tiles that survive IsPlayableGame — never
-            // Administrative Tools. Needed for games with no desktop icon.
             Take("Start Menus", FromAllStartMenus());
         }
         catch (Exception ex)
@@ -958,41 +954,18 @@ internal static class GameDiscovery
     /// </remarks>
     private static IEnumerable<GameEntry> FromXboxGames()
     {
-        DriveInfo[] drives;
-        try
-        {
-            drives = DriveInfo.GetDrives();
-        }
-        catch (Exception ex)
-        {
-            AgentLog.Warn($"Could not list drives for Xbox games: {ex.Message}");
-            yield break;
-        }
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var drive in drives)
+        foreach (var root in XboxGameRoots())
         {
-            string root;
+            string[] folders;
             try
             {
-                if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
-                {
-                    continue;
-                }
-
-                root = Path.Combine(drive.RootDirectory.FullName, "XboxGames");
                 if (!Directory.Exists(root))
                 {
                     continue;
                 }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                continue;
-            }
 
-            string[] folders;
-            try
-            {
                 folders = Directory.GetDirectories(root);
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
@@ -1006,25 +979,29 @@ internal static class GameDiscovery
 
                 try
                 {
-                    // The launchable exe lives under Content. Everything beside
-                    // it is the package's own scaffolding.
-                    var content = Path.Combine(folder, "Content");
-                    if (!Directory.Exists(content))
+                    var name = Path.GetFileName(folder);
+                    if (string.IsNullOrWhiteSpace(name)
+                        || name.Equals("GameSave", StringComparison.OrdinalIgnoreCase)
+                        || IsJunk(name))
                     {
                         continue;
                     }
 
-                    var exe = BestExeIn(content);
-                    if (exe is null)
+                    // Prefer Content\, but some titles keep the exe one level up.
+                    var content = Path.Combine(folder, "Content");
+                    var search = Directory.Exists(content) ? content : folder;
+                    var exe = BestExeInDeep(search, maxDepth: 3);
+                    if (exe is null || !seen.Add(exe))
                     {
                         continue;
                     }
 
                     entry = new GameEntry
                     {
-                        Name = Path.GetFileName(folder),
+                        Name = name,
                         ExePath = exe,
                         ProcessName = Path.GetFileNameWithoutExtension(exe),
+                        IconSourcePath = exe,
                     };
                 }
                 catch (Exception ex)
@@ -1038,6 +1015,103 @@ internal static class GameDiscovery
                     yield return entry;
                 }
             }
+        }
+    }
+
+    /// <summary>Every XboxGames folder, including drives that relocated it.</summary>
+    private static IEnumerable<string> XboxGameRoots()
+    {
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        DriveInfo[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives();
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not list drives for Xbox games: {ex.Message}");
+            yield break;
+        }
+
+        foreach (var drive in drives)
+        {
+            string driveRoot;
+            try
+            {
+                if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
+                {
+                    continue;
+                }
+
+                driveRoot = drive.RootDirectory.FullName;
+            }
+            catch
+            {
+                continue;
+            }
+
+            var defaultRoot = Path.Combine(driveRoot, "XboxGames");
+            if (Directory.Exists(defaultRoot))
+            {
+                found.Add(defaultRoot);
+            }
+
+            // Xbox writes .GamingRoot when the library is not on C:\XboxGames.
+            var marker = Path.Combine(driveRoot, ".GamingRoot");
+            if (!File.Exists(marker))
+            {
+                continue;
+            }
+
+            try
+            {
+                var text = File.ReadAllText(marker);
+                foreach (Match match in Regex.Matches(text, @"[A-Za-z]:\\[^<>:""|?*\r\n]+"))
+                {
+                    var path = match.Value.Trim();
+                    if (Directory.Exists(path))
+                    {
+                        found.Add(path);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                // Keep the default roots we already have.
+            }
+        }
+
+        foreach (var root in found)
+        {
+            yield return root;
+        }
+    }
+
+    /// <summary>Like BestExeIn, but walks a few folders deep for Xbox layouts.</summary>
+    private static string? BestExeInDeep(string folder, int maxDepth)
+    {
+        try
+        {
+            return Directory
+                .EnumerateFiles(folder, "*.exe", SearchOption.AllDirectories)
+                .Where(path =>
+                {
+                    var depth = path.Substring(folder.Length).Count(c => c is '\\' or '/');
+                    if (depth > maxDepth)
+                    {
+                        return false;
+                    }
+
+                    var name = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+                    return !NotTheGame.Any(bad => name.Contains(bad));
+                })
+                .OrderByDescending(path => new FileInfo(path).Length)
+                .FirstOrDefault();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return BestExeIn(folder);
         }
     }
 
@@ -1449,8 +1523,17 @@ internal static class GameDiscovery
                     continue;
                 }
 
-                if (!File.Exists(exe) || IsJunk(name) || LooksLikeWindowsTool(name, exe))
+                if (IsJunk(name) || LooksLikeWindowsTool(name, exe))
                 {
+                    continue;
+                }
+
+                // The lock user cannot read C:\Users\Admin\... — that is why
+                // refresh-games copies shortcuts into ProgramData. Still accept
+                // a path that exists for this account.
+                if (!File.Exists(exe))
+                {
+                    AgentLog.Info($"Shared list skipped '{name}': {exe} not reachable from this account.");
                     continue;
                 }
 
@@ -1460,7 +1543,7 @@ internal static class GameDiscovery
                     Name = name,
                     ExePath = exe,
                     Arguments = args,
-                    ProcessName = IsSharedLauncher(exe) || !string.IsNullOrWhiteSpace(args)
+                    ProcessName = IsSharedLauncher(exe) || !string.IsNullOrWhiteSpace(args) || LooksLikeShortcut(exe)
                         ? null
                         : Path.GetFileNameWithoutExtension(exe),
                     IconSourcePath = exe,
@@ -1533,17 +1616,41 @@ internal static class GameDiscovery
                 ? ResolveUrlShortcut(shortcut)
                 : ResolveShortcut(shortcut);
 
+            var isStoreGame =
+                !string.IsNullOrWhiteSpace(target)
+                && Path.GetFileNameWithoutExtension(target).Equals("explorer", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(arguments)
+                && arguments.Contains("AppsFolder", StringComparison.OrdinalIgnoreCase);
+
             var identity = launchShortcutFile
                 ? shortcut
-                : string.IsNullOrWhiteSpace(target)
-                    ? shortcut
-                    : string.IsNullOrWhiteSpace(arguments)
-                        ? target
-                        : $"{target}|{arguments}";
+                : isStoreGame
+                    ? $"{target}|{arguments}"
+                    : string.IsNullOrWhiteSpace(target)
+                        ? shortcut
+                        : string.IsNullOrWhiteSpace(arguments)
+                            ? target
+                            : $"{target}|{arguments}";
 
             if (!seen.Add(identity))
             {
                 return null;
+            }
+
+            // Microsoft Store / Xbox titles: keep explorer + AppsFolder args, or
+            // the .lnk itself. Never drop them just because explorer lives under
+            // Windows\ — that is how Forza and Resident Evil were disappearing.
+            if (isStoreGame)
+            {
+                return new GameEntry
+                {
+                    Name = label,
+                    ExePath = launchShortcutFile ? shortcut : target!,
+                    Arguments = launchShortcutFile ? null : arguments,
+                    ProcessName = null,
+                    IconSourcePath = shortcut,
+                    Category = "game",
+                };
             }
 
             var targetOk = !string.IsNullOrWhiteSpace(target)
