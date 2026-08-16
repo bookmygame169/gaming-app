@@ -49,6 +49,25 @@ internal static class GameDiscovery
     };
 
     /// <summary>
+    /// Shortcut names that are never a game.
+    /// </summary>
+    /// <remarks>
+    /// The Start Menu is not a games list. Alongside each game sits its manual,
+    /// its website, its config tool and its uninstaller, and a café menu built
+    /// without this reads like a folder listing rather than something to choose
+    /// from.
+    /// </remarks>
+    private static readonly string[] NotAGameShortcut =
+    {
+        "uninstall", "readme", "read me", "manual", "help", "support", "website",
+        "web site", "homepage", "documentation", "docs", "release notes", "changelog",
+        "config", "settings", "setup", "repair", "troubleshoot", "benchmark",
+        "server", "dedicated", "editor", "sdk", "redistributable", "runtime",
+        "visual c++", "directx", ".net", "driver", "control panel", "license",
+        "eula", "report a bug", "feedback", "forum", "wiki", "discord", "activate",
+    };
+
+    /// <summary>
     /// The stores themselves, so a customer can get at anything not on the menu.
     /// </summary>
     /// <remarks>
@@ -139,6 +158,7 @@ internal static class GameDiscovery
             found.AddRange(FromSteam());
             found.AddRange(FromEpic());
             found.AddRange(FromDesktopShortcuts());
+            found.AddRange(FromStartMenu());
 
             if (config.ShowLaunchers)
             {
@@ -503,44 +523,113 @@ internal static class GameDiscovery
 
             foreach (var shortcut in shortcuts)
             {
-                GameEntry? entry = null;
-
-                try
-                {
-                    var target = ResolveShortcut(shortcut);
-
-                    if (string.IsNullOrWhiteSpace(target) ||
-                        !target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                        !File.Exists(target) ||
-                        target.StartsWith(windows, StringComparison.OrdinalIgnoreCase) ||
-                        !seen.Add(target))
-                    {
-                        continue;
-                    }
-
-                    var fileName = Path.GetFileNameWithoutExtension(target).ToLowerInvariant();
-                    if (NotTheGame.Any(bad => fileName.Contains(bad)))
-                    {
-                        continue;
-                    }
-
-                    entry = new GameEntry
-                    {
-                        Name = Path.GetFileNameWithoutExtension(shortcut),
-                        ExePath = target,
-                        ProcessName = Path.GetFileNameWithoutExtension(target),
-                    };
-                }
-                catch (Exception ex)
-                {
-                    AgentLog.Warn($"Could not read {Path.GetFileName(shortcut)}: {ex.Message}");
-                }
-
+                var entry = EntryFromShortcut(shortcut, windows, seen);
                 if (entry is not null)
                 {
                     yield return entry;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Every program with a Start Menu entry.
+    /// </summary>
+    /// <remarks>
+    /// The answer to "installed, but not on the desktop and not in a store".
+    /// Practically every Windows installer writes one, so this catches the
+    /// standalone titles, the ones from a launcher nobody has written a reader
+    /// for, and anything copied on from a stick and installed by hand.
+    /// <para>
+    /// Recursive, unlike the desktop, because installers put their entry inside
+    /// a folder of the publisher's name rather than at the top level. That is
+    /// also where the manuals and uninstallers live, which is what
+    /// <see cref="NotAGameShortcut"/> is for.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromStartMenu()
+    {
+        var folders = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+        };
+
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var folder in folders.Where(f => !string.IsNullOrWhiteSpace(f) && Directory.Exists(f)))
+        {
+            string[] shortcuts;
+            try
+            {
+                shortcuts = Directory.GetFiles(folder, "*.lnk", SearchOption.AllDirectories);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                continue;
+            }
+
+            foreach (var shortcut in shortcuts)
+            {
+                var entry = EntryFromShortcut(shortcut, windows, seen);
+                if (entry is not null)
+                {
+                    yield return entry;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Turns one shortcut into a menu tile, or decides it is not one.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the desktop and the Start Menu because the judgement is the
+    /// same in both places, and the Start Menu is where getting it wrong shows:
+    /// it holds an order of magnitude more shortcuts, most of which are not
+    /// games.
+    /// </remarks>
+    private static GameEntry? EntryFromShortcut(string shortcut, string windows, HashSet<string> seen)
+    {
+        try
+        {
+            var label = Path.GetFileNameWithoutExtension(shortcut);
+            var lowerLabel = label.ToLowerInvariant();
+
+            if (NotAGameShortcut.Any(bad => lowerLabel.Contains(bad)))
+            {
+                return null;
+            }
+
+            var target = ResolveShortcut(shortcut);
+
+            if (string.IsNullOrWhiteSpace(target) ||
+                !target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(target) ||
+                target.StartsWith(windows, StringComparison.OrdinalIgnoreCase) ||
+                !seen.Add(target))
+            {
+                return null;
+            }
+
+            var fileName = Path.GetFileNameWithoutExtension(target).ToLowerInvariant();
+            if (NotTheGame.Any(bad => fileName.Contains(bad)))
+            {
+                return null;
+            }
+
+            return new GameEntry
+            {
+                Name = label,
+                ExePath = target,
+                ProcessName = Path.GetFileNameWithoutExtension(target),
+            };
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not read {Path.GetFileName(shortcut)}: {ex.Message}");
+            return null;
         }
     }
 

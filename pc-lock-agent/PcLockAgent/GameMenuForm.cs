@@ -280,6 +280,14 @@ internal sealed class GameMenuForm : Form
 
         var image = LoadTileImage(game);
 
+        if (image is null)
+        {
+            // Some programs genuinely carry no icon, and a game found on this
+            // PC is worth offering whether or not Windows can draw it. An empty
+            // square reads as a broken tile; initials read as a tile.
+            image = InitialsTile(game.Name, 96);
+        }
+
         // Real cover art is wide; an extracted program icon is square. They want
         // different room, so the tile asks the picture which it got rather than
         // forcing both into one box - a header squeezed into a 96px square is
@@ -388,6 +396,47 @@ internal sealed class GameMenuForm : Form
     /// Loads the tile image, falling back to the icon embedded in the executable
     /// so a station works without anyone having to supply artwork.
     /// </summary>
+    /// <summary>
+    /// A stand-in picture built from the game's own name.
+    /// </summary>
+    /// <remarks>
+    /// Better than a blank square, which a customer reads as a tile that failed
+    /// rather than one whose program shipped no icon — and they will click it to
+    /// find out, which is a support question either way.
+    /// </remarks>
+    private static Image InitialsTile(string name, int size)
+    {
+        var words = name.Split(new[] { ' ', '-', '_', ':' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var initials = words.Length >= 2
+            ? $"{char.ToUpperInvariant(words[0][0])}{char.ToUpperInvariant(words[1][0])}"
+            : name.Trim().PadRight(2).Substring(0, 2).ToUpperInvariant();
+
+        var bitmap = new Bitmap(size, size);
+
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+
+        using (var path = Theme.RoundedRect(new Rectangle(0, 0, size, size), 18))
+        using (var fill = new SolidBrush(Palette.SurfaceHover))
+        {
+            graphics.FillPath(fill, path);
+        }
+
+        using var font = new Font("Segoe UI", size * 0.30f, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var brush = new SolidBrush(Palette.AccentSoft);
+        using var format = new StringFormat
+        {
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Center,
+        };
+
+        graphics.DrawString(initials, font, brush, new RectangleF(0, 0, size, size), format);
+
+        return bitmap;
+    }
+
     private static Image? LoadTileImage(GameEntry game)
     {
         try
@@ -406,11 +455,7 @@ internal sealed class GameMenuForm : Form
                 return steamArt;
             }
 
-            if (File.Exists(game.ExePath))
-            {
-                using var icon = Icon.ExtractAssociatedIcon(game.ExePath);
-                return icon?.ToBitmap();
-            }
+            return GameIcons.Extract(game.ExePath);
         }
         catch (Exception ex)
         {
