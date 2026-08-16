@@ -129,6 +129,11 @@ internal sealed class AgentShell : ApplicationContext
     {
         AgentLog.Info($"Unlocking station (duration {e.DurationSeconds}s, session {e.SessionId ?? "(none)"}).");
 
+        // A new customer, so the browser forgets the last one. Done here rather
+        // than at agent start: the agent runs for days, and it is between
+        // customers that a browser needs clearing.
+        BrowserAccess.ClearProfile();
+
         _session.Start(e.DurationSeconds, e.SessionId);
         EnterUnlockedState(e.SessionId);
     }

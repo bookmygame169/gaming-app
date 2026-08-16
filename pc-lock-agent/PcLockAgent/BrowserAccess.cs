@@ -17,11 +17,12 @@ namespace PcLockAgent;
 /// session would be exactly the kind of window a customer could keep using.
 /// </para>
 /// <para>
-/// Two flags do the privacy work, and both are needed. Incognito keeps history
-/// and cookies out of the profile; a private profile folder keeps the session
-/// away from whatever the browser normally uses, so one customer cannot open a
-/// window and find the previous one still signed in to their accounts. The
-/// folder is emptied when the agent starts, which on a café PC is every boot.
+/// Privacy between customers comes from a profile folder of its own, emptied at
+/// the start of every session — not from opening in private mode. Private mode
+/// was tried and is the wrong tool: it makes the browser behave like a browser
+/// in hiding, warns about it on every launch, and loses the customer's tabs and
+/// sign-ins while they are still using it. Clearing between customers achieves
+/// the same thing and leaves ordinary browsing in between.
 /// </para>
 /// <para>
 /// This is privacy between customers, not a security boundary. A determined
@@ -33,6 +34,36 @@ namespace PcLockAgent;
 internal static class BrowserAccess
 {
     private const string TileName = "Browse the internet";
+
+    /// <summary>Where the café's browsing profile lives.</summary>
+    public static string ProfileDirectory => Path.Combine(AgentPaths.DataFolder, "browser-profile");
+
+    /// <summary>
+    /// Empties the browsing profile, so a customer never starts on the last
+    /// one's signed-in accounts.
+    /// </summary>
+    /// <remarks>
+    /// Called when a session begins rather than when the agent starts. The
+    /// agent runs for days; a customer's session is an hour, and it is between
+    /// customers that a browser needs forgetting.
+    /// </remarks>
+    public static void ClearProfile()
+    {
+        try
+        {
+            if (Directory.Exists(ProfileDirectory))
+            {
+                Directory.Delete(ProfileDirectory, recursive: true);
+                AgentLog.Info("Cleared the browsing profile for the next customer.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Worth saying, because it means the next customer may open the
+            // browser onto somebody else's accounts.
+            AgentLog.Warn($"Could not clear the browsing profile: {ex.Message}");
+        }
+    }
 
     /// <summary>Adds the browser tile if browsing is allowed and one is installed.</summary>
     public static AgentConfig AddBrowserTile(AgentConfig config)
@@ -49,8 +80,7 @@ internal static class BrowserAccess
             return config;
         }
 
-        var profileDir = Path.Combine(AgentPaths.DataFolder, "browser-profile");
-        ResetProfile(profileDir);
+        var profileDir = ProfileDirectory;
 
         var entry = new GameEntry
         {
@@ -60,7 +90,6 @@ internal static class BrowserAccess
             // hand off to an already-running copy, so the process started here
             // is the one that stays, and closing the last window ends it.
             Arguments = string.Join(' ',
-                "--incognito",
                 "--no-first-run",
                 "--no-default-browser-check",
                 "--start-maximized",
@@ -73,27 +102,6 @@ internal static class BrowserAccess
         // not have to look past a browser to find what they came for.
         var games = new List<GameEntry>(config.Games) { entry };
         return config.WithGames(games);
-    }
-
-    /// <summary>
-    /// Empties the browsing profile so a session never starts on the last
-    /// customer's leftovers.
-    /// </summary>
-    private static void ResetProfile(string profileDir)
-    {
-        try
-        {
-            if (Directory.Exists(profileDir))
-            {
-                Directory.Delete(profileDir, recursive: true);
-            }
-        }
-        catch (Exception ex)
-        {
-            // Worth saying out loud rather than swallowing: it means the next
-            // customer may open the browser onto the previous one's session.
-            AgentLog.Warn($"Could not clear the browsing profile: {ex.Message}");
-        }
     }
 
     /// <summary>Chrome if it is here, Edge if it is not.</summary>

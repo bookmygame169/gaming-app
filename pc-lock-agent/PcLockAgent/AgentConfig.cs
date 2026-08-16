@@ -111,12 +111,37 @@ internal sealed class AgentConfig
     [JsonPropertyName("allowBrowsing")]
     public bool AllowBrowsing { get; init; } = true;
 
+    /// <summary>
+    /// Put games found on this PC on the menu, not just the café's list. On by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// The list is typed by hand in the dashboard, so it is always behind what
+    /// is actually installed — a PC with seventeen games on its desktop was
+    /// showing three. See <see cref="GameDiscovery"/>.
+    /// </remarks>
+    [JsonPropertyName("showInstalledGames")]
+    public bool ShowInstalledGames { get; init; } = true;
+
+    /// <summary>
+    /// Offer Steam, Epic and Xbox themselves. On by default.
+    /// </summary>
+    /// <remarks>
+    /// Detection cannot be complete, so the stores are the way out of a menu
+    /// that has missed something. Turn off for a café that would rather nobody
+    /// browsed a store on their machines.
+    /// </remarks>
+    [JsonPropertyName("showLaunchers")]
+    public bool ShowLaunchers { get; init; } = true;
+
     public AgentConfig WithGames(List<GameEntry> games) => new()
     {
         StationId = StationId,
         Games = games,
         ShowOnlyInstalledGames = ShowOnlyInstalledGames,
         AllowBrowsing = AllowBrowsing,
+        ShowInstalledGames = ShowInstalledGames,
+        ShowLaunchers = ShowLaunchers,
         EnrollUrl = EnrollUrl,
         IsEnrolled = IsEnrolled,
         Heartbeat = Heartbeat,
@@ -333,6 +358,8 @@ internal sealed class AgentConfig
                 // override file, which is every enrolled café PC.
                 ShowOnlyInstalledGames = config.ShowOnlyInstalledGames,
                 AllowBrowsing = config.AllowBrowsing,
+                ShowInstalledGames = config.ShowInstalledGames,
+                ShowLaunchers = config.ShowLaunchers,
                 EnrollUrl = config.EnrollUrl,
                 IsEnrolled = config.IsEnrolled,
                 Heartbeat = new HeartbeatConfig

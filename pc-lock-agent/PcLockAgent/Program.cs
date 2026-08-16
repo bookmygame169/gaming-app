@@ -54,8 +54,12 @@ internal static class Program
             // to filter against instead of yesterday's filtered subset.
             config = InstalledGames.FilterToInstalled(config);
 
-            // After the filter, or the browser tile would be judged against the
-            // cafe's game list and dropped for not being one of them.
+            // After the filter, or everything found here would be judged
+            // against the café's list and dropped for not being on it.
+            config = GameDiscovery.AddInstalledGames(config);
+
+            // Last, so the browser sits after the games. Someone who came in to
+            // play should not have to look past it to find what they came for.
             config = BrowserAccess.AddBrowserTile(config);
 
             Application.Run(new AgentShell(config));
