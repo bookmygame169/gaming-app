@@ -32,6 +32,23 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     private static readonly TimeSpan LaunchGracePeriod = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// The longest a game gets to appear while its launcher is still running.
+    /// </summary>
+    /// <remarks>
+    /// Two minutes is the wait when nothing is running at all, which means the
+    /// launch simply failed. It is far too short to be the whole answer for a
+    /// launcher-based game: signing in to Riot, clearing two-factor and letting
+    /// it check for a patch takes longer than that on any first visit, and the
+    /// customer is sitting there doing it.
+    /// <para>
+    /// Bounded rather than infinite because some launchers never exit. Steam
+    /// runs all day, so "wait while the launcher is alive" alone would mean a
+    /// game that failed to start is waited on until the session ends.
+    /// </para>
+    /// </remarks>
+    private static readonly TimeSpan MaxLaunchWait = TimeSpan.FromMinutes(12);
+
     private readonly AgentConfig _config;
     private Process? _runningProcess;
     private Label _statusLabel = null!;
@@ -48,6 +65,7 @@ internal sealed class GameMenuForm : Form
     // customer is told which game is in the way rather than just "a game".
     private string? _currentGameName;
     private string? _launchedExeName;
+    private bool _waitingOnLauncher;
 
     public GameMenuForm(AgentConfig config)
     {
@@ -431,6 +449,17 @@ internal sealed class GameMenuForm : Form
         {
             if (AnyGameProcessAlive())
             {
+                // Clicking the game that is already running means "I cannot see
+                // it" far more often than it means "start it twice". Getting out
+                // of the way is what they wanted, and it is the way back if this
+                // menu ever ends up in front of a game that is genuinely there.
+                if (string.Equals(_currentGameName, game.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    AgentLog.Info($"'{game.Name}' is already running. Standing aside rather than starting it again.");
+                    EnterBackgroundMode(game.Name, confirmedRunning: _watchedProcessSeen);
+                    return;
+                }
+
                 var stillRunning = _currentGameName ?? "A game";
                 AgentLog.Info($"'{game.Name}' not started: {stillRunning} is still running.");
                 _statusLabel.Text = $"{stillRunning} is still open. Close it first, then pick a game.";
@@ -526,6 +555,7 @@ internal sealed class GameMenuForm : Form
     {
         _watchedProcessName = processName;
         _watchedProcessSeen = false;
+        _waitingOnLauncher = false;
         _watchStartedUtc = DateTime.UtcNow;
 
         AgentLog.Info($"Launched '{gameName}'; watching for process '{processName}'.");
@@ -565,15 +595,42 @@ internal sealed class GameMenuForm : Form
             // that it is not coming.
             if (!_watchedProcessSeen)
             {
-                if (DateTime.UtcNow - _watchStartedUtc < LaunchGracePeriod)
+                var waited = DateTime.UtcNow - _watchStartedUtc;
+
+                if (waited < LaunchGracePeriod)
                 {
+                    return;
+                }
+
+                // The check the comment above always described and the code
+                // never did. Starting Valorant opens the Riot client, and the
+                // customer then signs in, clears two-factor and waits for a
+                // patch check - none of which this could see, so after two
+                // minutes it decided the launch had failed and put the menu
+                // back on top. They pressed Play into a window that was no
+                // longer in front, and the game started behind the kiosk.
+                //
+                // While the launcher is up, the customer is still starting
+                // their game.
+                if (IsProcessRunning(_launchedExeName) && waited < MaxLaunchWait)
+                {
+                    if (!_waitingOnLauncher)
+                    {
+                        _waitingOnLauncher = true;
+                        AgentLog.Info(
+                            $"'{gameName}' has not appeared yet, but its launcher is still " +
+                            "running. Waiting.");
+                        _statusLabel.Text = $"Sign in to start {gameName}…";
+                        _statusLabel.ForeColor = Palette.TextMuted;
+                    }
+
                     return;
                 }
 
                 AgentLog.Warn(
                     $"'{gameName}' never started a process called '{_watchedProcessName}' " +
-                    $"within {LaunchGracePeriod.TotalMinutes:0} minutes. Check the processName " +
-                    "setting for this game. Returning to the menu.");
+                    $"after {waited.TotalMinutes:0} minutes, and its launcher is not running " +
+                    "either. Check the processName setting for this game. Returning to the menu.");
             }
             else
             {
@@ -612,6 +669,7 @@ internal sealed class GameMenuForm : Form
         _watchTimer = null;
         _watchedProcessName = null;
         _watchedProcessSeen = false;
+        _waitingOnLauncher = false;
         _currentGameName = null;
         _launchedExeName = null;
     }
