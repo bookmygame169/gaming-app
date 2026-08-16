@@ -227,11 +227,10 @@ internal static class GameDiscovery
             return config;
         }
 
-        List<GameEntry> found;
+        var found = new List<GameEntry>();
+
         try
         {
-            found = new List<GameEntry>();
-
             // Counted per source and written to the log. Three rounds of this
             // were spent comparing a photograph of the menu against a
             // photograph of the desktop and guessing which source had missed
@@ -292,11 +291,8 @@ internal static class GameDiscovery
             return config;
         }
 
-        var games = added.Where(g => g.Category != "app").Select(g => g.Name);
-        var apps = added.Where(g => g.Category == "app").Select(g => g.Name);
-
-        AgentLog.Info($"Games: {string.Join(", ", games)}");
-        AgentLog.Info($"Apps: {string.Join(", ", apps)}");
+        AgentLog.Info($"Games: {string.Join(", ", added.Where(g => g.Category != "app").Select(g => g.Name))}");
+        AgentLog.Info($"Apps: {string.Join(", ", added.Where(g => g.Category == "app").Select(g => g.Name))}");
 
         var games = new List<GameEntry>(config.Games);
         games.AddRange(added.OrderBy(game => game.Name, StringComparer.OrdinalIgnoreCase));
