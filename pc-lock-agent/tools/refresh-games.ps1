@@ -43,13 +43,16 @@ $notTheExe = @(
     'dxsetup', 'dotnetfx', 'setup', 'installer', 'updater'
 )
 
-function Get-ShortcutTarget {
+function Get-ShortcutInfo {
     param([string]$Path)
 
     try {
         $shell = New-Object -ComObject WScript.Shell
         $link = $shell.CreateShortcut($Path)
-        return $link.TargetPath
+        return [PSCustomObject]@{
+            Target    = $link.TargetPath
+            Arguments = $link.Arguments
+        }
     } catch {
         return $null
     }
@@ -65,6 +68,7 @@ Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Obje
 }
 
 $folders.Add("$env:ProgramData\Microsoft\Windows\Start Menu\Programs")
+$folders.Add("$env:PUBLIC\Desktop")
 
 $games = @{}
 $windowsDir = $env:SystemRoot
@@ -72,28 +76,39 @@ $windowsDir = $env:SystemRoot
 foreach ($folder in $folders) {
     if (-not (Test-Path $folder)) { continue }
 
-    $shortcuts = Get-ChildItem $folder -Filter *.lnk -Recurse -ErrorAction SilentlyContinue
+    $shortcuts = @()
+    $shortcuts += Get-ChildItem $folder -Filter *.lnk -Recurse -ErrorAction SilentlyContinue
+    $shortcuts += Get-ChildItem $folder -Filter *.url -Recurse -ErrorAction SilentlyContinue
+
     foreach ($shortcut in $shortcuts) {
         $label = [System.IO.Path]::GetFileNameWithoutExtension($shortcut.Name)
         $lower = $label.ToLower()
 
         if ($notAGame | Where-Object { $lower.Contains($_) }) { continue }
 
-        $target = Get-ShortcutTarget -Path $shortcut.FullName
-        if ([string]::IsNullOrWhiteSpace($target)) { continue }
-        if (-not $target.ToLower().EndsWith(".exe")) { continue }
-        if (-not (Test-Path $target)) { continue }
-        if ($target.StartsWith($windowsDir, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+        $info = Get-ShortcutInfo -Path $shortcut.FullName
+        $target = $null
+        $arguments = $null
+        if ($info) {
+            $target = $info.Target
+            $arguments = $info.Arguments
+        }
 
-        $exeName = [System.IO.Path]::GetFileNameWithoutExtension($target).ToLower()
-        if ($notTheExe | Where-Object { $exeName.Contains($_) }) { continue }
+        $exePath = $shortcut.FullName
+        if (-not [string]::IsNullOrWhiteSpace($target) -and $target.ToLower().EndsWith(".exe") -and (Test-Path $target) -and -not $target.StartsWith($windowsDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $exeName = [System.IO.Path]::GetFileNameWithoutExtension($target).ToLower()
+            if ($notTheExe | Where-Object { $exeName.Contains($_) }) { continue }
+            $exePath = $target
+        }
 
-        # Keyed by target so the same game reached from two accounts, or from
-        # both a desktop and a Start Menu, appears once.
-        if (-not $games.ContainsKey($target)) {
-            $games[$target] = [PSCustomObject]@{
-                name    = $label
-                exePath = $target
+        # Key by name + target + arguments. Keying by exe alone dropped every
+        # Steam/Epic title after the first because they all point at one launcher.
+        $key = ("{0}|{1}|{2}" -f $label, $exePath, $arguments).ToLower()
+        if (-not $games.ContainsKey($key)) {
+            $games[$key] = [PSCustomObject]@{
+                name      = $label
+                exePath   = $exePath
+                arguments = $arguments
             }
         }
     }

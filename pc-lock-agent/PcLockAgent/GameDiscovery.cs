@@ -14,8 +14,9 @@ namespace PcLockAgent;
 /// <para>
 /// The list is still worth having: it carries the names, the ordering and the
 /// process names that a launcher-based game needs. But it is a curated front of
-/// the menu now rather than the whole of it, and anything installed that nobody
-/// listed appears behind it.
+/// the menu now rather than the whole of it. Steam, Epic, Xbox, Start Menu,
+/// other user profiles, and well-known install folders are all scanned, so a
+/// game still appears when nobody put a shortcut on this desktop.
 /// </para>
 /// <para>
 /// The rule for what counts is deliberately narrow. Steam and Epic keep records
@@ -259,15 +260,11 @@ internal static class GameDiscovery
             Take("Steam", FromSteam());
             Take("Epic", FromEpic());
             Take("Xbox", FromXboxGames());
-            // The machine-wide list first, because it is the only source that
-            // saw every account. The two below add what this account can reach
-            // on its own, which is all there is before the scan has run.
+            Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
+            Take("Roblox", FromRoblox());
             Take("machine-wide list", FromSharedList());
-            Take("this account's desktop", FromDesktopShortcuts());
-            Take("this account's Start Menu", FromStartMenu());
-            // Last, because it is the broadest and the noisiest: anything the
-            // sources above already found wins the name clash and this only
-            // contributes what none of them knew about.
+            Take("desktops", FromAllDesktops());
+            Take("Start Menus", FromAllStartMenus());
             Take("installed programs", FromRegistry());
 
             if (config.ShowLaunchers)
@@ -534,41 +531,7 @@ internal static class GameDiscovery
         return File.Exists(exe) ? exe : null;
     }
 
-    private static List<string> SteamLibraries()
-    {
-        var libraries = new List<string>();
-        var root = InstalledGames.FindSteamRoot();
-        if (root is null)
-        {
-            return libraries;
-        }
-
-        libraries.Add(root);
-
-        var vdf = Path.Combine(root, "steamapps", "libraryfolders.vdf");
-        if (!File.Exists(vdf))
-        {
-            return libraries;
-        }
-
-        try
-        {
-            foreach (Match match in Regex.Matches(File.ReadAllText(vdf), "\"path\"\\s*\"([^\"]+)\""))
-            {
-                var path = match.Groups[1].Value.Replace(@"\\", @"\");
-                if (Directory.Exists(path))
-                {
-                    libraries.Add(path);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            // The main library on its own is still worth having.
-        }
-
-        return libraries.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-    }
+    private static List<string> SteamLibraries() => InstalledGames.FindSteamLibraries();
 
     // -----------------------------------------------------------------------
     // The uninstall registry
@@ -585,9 +548,9 @@ internal static class GameDiscovery
     private static readonly string[] NotAGamePublisher =
     {
         "microsoft", "nvidia", "intel", "advanced micro devices", "amd",
-        "realtek", "logitech", "razer", "corsair", "adobe", "google",
+        "realtek", "logitech", "razer", "corsair", "adobe",
         "mozilla", "oracle", "python", "git", "docker", "vmware",
-        "dell", "hp inc", "lenovo", "asus", "gigabyte", "msi",
+        "dell", "hp inc", "lenovo", "asus", "gigabyte",
     };
 
     /// <summary>
@@ -913,27 +876,69 @@ internal static class GameDiscovery
     }
 
     // -----------------------------------------------------------------------
-    // The desktop
+    // Desktops, Start Menus, and well-known install folders
     // -----------------------------------------------------------------------
 
+    private static IEnumerable<GameEntry> FromAllDesktops() =>
+        FromShortcutFolders(ProfilePaths("Desktop", includePublicDesktop: true), SearchOption.TopDirectoryOnly, launchShortcutFile: true);
+
+    private static IEnumerable<GameEntry> FromAllStartMenus()
+    {
+        var folders = ProfilePaths(Path.Combine("AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs"), includePublicDesktop: false)
+            .Append(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms));
+
+        return FromShortcutFolders(folders, SearchOption.AllDirectories, launchShortcutFile: true);
+    }
+
     /// <summary>
-    /// Whatever the café put on the desktop.
+    /// Every user profile this account can read — not only the logged-in one.
     /// </summary>
     /// <remarks>
-    /// The best signal available and the one nobody thinks of. A café's desktop
-    /// is already a curated list of what customers are meant to play — somebody
-    /// arranged those icons on purpose — and it catches everything the launchers
-    /// do not: standalone installers, Riot titles, Roblox, a game copied from a
-    /// USB stick.
+    /// Games are often installed while signed in as the administrator, so the
+    /// shortcuts live on that desktop. The lock agent runs as the customer
+    /// account and used to look only at its own profile, which is empty on a
+    /// café PC that never puts icons on the public desktop.
     /// </remarks>
-    private static IEnumerable<GameEntry> FromDesktopShortcuts()
+    private static IEnumerable<string> ProfilePaths(string relative, bool includePublicDesktop)
     {
-        var folders = new[]
+        if (includePublicDesktop)
         {
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
-            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-        };
+            yield return Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+        }
 
+        var users = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\", "Users");
+        if (!Directory.Exists(users))
+        {
+            yield break;
+        }
+
+        string[] profiles;
+        try
+        {
+            profiles = Directory.GetDirectories(users);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            yield break;
+        }
+
+        foreach (var profile in profiles)
+        {
+            var name = Path.GetFileName(profile);
+            if (name is "Default" or "Default User" or "All Users" or "Public")
+            {
+                continue;
+            }
+
+            yield return Path.Combine(profile, relative);
+        }
+    }
+
+    private static IEnumerable<GameEntry> FromShortcutFolders(
+        IEnumerable<string> folders,
+        SearchOption search,
+        bool launchShortcutFile)
+    {
         var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -942,8 +947,8 @@ internal static class GameDiscovery
             IEnumerable<string> shortcuts;
             try
             {
-                shortcuts = Directory.GetFiles(folder, "*.lnk", SearchOption.TopDirectoryOnly)
-                    .Concat(Directory.GetFiles(folder, "*.url", SearchOption.TopDirectoryOnly));
+                shortcuts = Directory.GetFiles(folder, "*.lnk", search)
+                    .Concat(Directory.GetFiles(folder, "*.url", search));
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
@@ -952,12 +957,7 @@ internal static class GameDiscovery
 
             foreach (var shortcut in shortcuts)
             {
-                // Desktop icons are launched as themselves. Fortnite and Rocket
-                // League both point at Epic's launcher; CS2 and Resident Evil
-                // both point at steam.exe. Deduping on that exe used to keep
-                // only the first icon and throw the rest away — which is why
-                // the lock screen showed a short list next to a full desktop.
-                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile: true);
+                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile);
                 if (entry is not null)
                 {
                     yield return entry;
@@ -967,21 +967,166 @@ internal static class GameDiscovery
     }
 
     /// <summary>
+    /// Install folders cafés actually use, even when nobody made a shortcut.
+    /// </summary>
+    private static IEnumerable<GameEntry> FromWellKnownFolders()
+    {
+        var skip = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Launcher", "Engine", "DirectX", "DirectXRedist", "Redist", "EasyAntiCheat",
+            "Battle.net", "Agent", "Support", "Uninstall",
+        };
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var root in WellKnownGameRoots())
+        {
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+
+            string[] children;
+            try
+            {
+                children = Directory.GetDirectories(root);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                var folderName = Path.GetFileName(child);
+                if (skip.Contains(folderName) || IsJunk(folderName))
+                {
+                    continue;
+                }
+
+                var exe = BestExeIn(child);
+                if (exe is null || !seen.Add(exe))
+                {
+                    continue;
+                }
+
+                yield return new GameEntry
+                {
+                    Name = folderName,
+                    ExePath = exe,
+                    ProcessName = Path.GetFileNameWithoutExtension(exe),
+                    IconSourcePath = exe,
+                    Category = CategoryFor(folderName),
+                };
+            }
+        }
+    }
+
+    private static IEnumerable<string> WellKnownGameRoots()
+    {
+        var names = new[]
+        {
+            "Riot Games",
+            "EA Games",
+            "Electronic Arts",
+            "Rockstar Games",
+            "Garena",
+            "Ubisoft",
+            "Epic Games",
+            "Call of Duty",
+            "Activision",
+            "Battle.net",
+        };
+
+        DriveInfo[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives();
+        }
+        catch
+        {
+            yield break;
+        }
+
+        foreach (var drive in drives)
+        {
+            string root;
+            try
+            {
+                if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
+                {
+                    continue;
+                }
+
+                root = drive.RootDirectory.FullName;
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var name in names)
+            {
+                yield return Path.Combine(root, name);
+                yield return Path.Combine(root, "Program Files", name);
+                yield return Path.Combine(root, "Program Files (x86)", name);
+                yield return Path.Combine(root, "Games", name);
+            }
+        }
+    }
+
+    private static IEnumerable<GameEntry> FromRoblox()
+    {
+        var versions = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Roblox",
+            "Versions");
+
+        if (!Directory.Exists(versions))
+        {
+            yield break;
+        }
+
+        string? newest = null;
+        DateTime newestTime = DateTime.MinValue;
+
+        try
+        {
+            foreach (var folder in Directory.GetDirectories(versions))
+            {
+                var exe = Path.Combine(folder, "RobloxPlayerBeta.exe");
+                if (!File.Exists(exe))
+                {
+                    continue;
+                }
+
+                var written = Directory.GetLastWriteTimeUtc(folder);
+                if (written >= newestTime)
+                {
+                    newestTime = written;
+                    newest = exe;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            yield break;
+        }
+
+        if (newest is not null)
+        {
+            yield return new GameEntry
+            {
+                Name = "Roblox Player",
+                ExePath = newest,
+                ProcessName = "RobloxPlayerBeta",
+            };
+        }
+    }
+
+    /// <summary>
     /// The list SYSTEM wrote of what is installed for every account.
     /// </summary>
-    /// <remarks>
-    /// The one source that sees the whole machine. Games are installed by
-    /// whoever sets the PC up, and most installers default to "just for me" —
-    /// so the shortcuts sit on the administrator's own desktop and in their own
-    /// Start Menu. Windows keeps one user's profile from another, and this agent
-    /// runs as the unprivileged customer account on purpose, so it is refused
-    /// both. Everything it can reach itself is the shared folders, which on a
-    /// real machine is a fraction of what is there.
-    /// <para>
-    /// refresh-games.ps1 runs as SYSTEM, which can read every profile, and
-    /// leaves its findings in ProgramData where any account may read them.
-    /// </para>
-    /// </remarks>
     private static IEnumerable<GameEntry> FromSharedList()
     {
         var path = Path.Combine(
@@ -1008,15 +1153,13 @@ internal static class GameDiscovery
             {
                 var name = element.TryGetProperty("name", out var n) ? n.GetString() : null;
                 var exe = element.TryGetProperty("exePath", out var e) ? e.GetString() : null;
+                var arguments = element.TryGetProperty("arguments", out var a) ? a.GetString() : null;
 
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(exe))
                 {
                     continue;
                 }
 
-                // Checked here as well as when it was written. The list can be
-                // hours old, and a game uninstalled since would be a tile that
-                // fails when a customer presses it.
                 if (!File.Exists(exe) || IsJunk(name))
                 {
                     continue;
@@ -1026,6 +1169,7 @@ internal static class GameDiscovery
                 {
                     Name = name,
                     ExePath = exe,
+                    Arguments = string.IsNullOrWhiteSpace(arguments) ? null : arguments,
                     ProcessName = Path.GetFileNameWithoutExtension(exe),
                     Category = CategoryFor(name),
                 });
@@ -1042,55 +1186,6 @@ internal static class GameDiscovery
         foreach (var entry in entries)
         {
             yield return entry;
-        }
-    }
-
-    /// <summary>
-    /// Every program with a Start Menu entry.
-    /// </summary>
-    /// <remarks>
-    /// The answer to "installed, but not on the desktop and not in a store".
-    /// Practically every Windows installer writes one, so this catches the
-    /// standalone titles, the ones from a launcher nobody has written a reader
-    /// for, and anything copied on from a stick and installed by hand.
-    /// <para>
-    /// Recursive, unlike the desktop, because installers put their entry inside
-    /// a folder of the publisher's name rather than at the top level. That is
-    /// also where the manuals and uninstallers live, which is what
-    /// <see cref="NotAGameShortcut"/> is for.
-    /// </para>
-    /// </remarks>
-    private static IEnumerable<GameEntry> FromStartMenu()
-    {
-        var folders = new[]
-        {
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
-            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
-        };
-
-        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var folder in folders.Where(f => !string.IsNullOrWhiteSpace(f) && Directory.Exists(f)))
-        {
-            string[] shortcuts;
-            try
-            {
-                shortcuts = Directory.GetFiles(folder, "*.lnk", SearchOption.AllDirectories);
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                continue;
-            }
-
-            foreach (var shortcut in shortcuts)
-            {
-                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile: false);
-                if (entry is not null)
-                {
-                    yield return entry;
-                }
-            }
         }
     }
 

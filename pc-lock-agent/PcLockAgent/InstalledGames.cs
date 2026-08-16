@@ -446,43 +446,121 @@ internal static class InstalledGames
     /// <summary>
     /// Every Steam library folder on this machine, main install included.
     /// </summary>
-    private static List<string> FindSteamLibraries()
+    public static List<string> FindSteamLibraries()
     {
         var libraries = new List<string>();
 
         var steamRoot = FindSteamRoot();
-        if (steamRoot is null)
+        if (steamRoot is not null)
         {
-            return libraries;
-        }
+            libraries.Add(steamRoot);
 
-        libraries.Add(steamRoot);
-
-        var vdf = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
-        if (File.Exists(vdf))
-        {
-            try
+            var vdf = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
+            if (File.Exists(vdf))
             {
-                foreach (Match match in VdfPath.Matches(File.ReadAllText(vdf)))
+                try
                 {
-                    // Paths inside a VDF are escaped, so C:\\Games arrives with
-                    // a doubled separator and no directory of that name exists.
-                    var path = match.Groups[1].Value.Replace(@"\\", @"\");
-                    if (Directory.Exists(path))
+                    foreach (Match match in VdfPath.Matches(File.ReadAllText(vdf)))
                     {
-                        libraries.Add(path);
+                        var path = match.Groups[1].Value.Replace(@"\\", @"\");
+                        if (Directory.Exists(path))
+                        {
+                            libraries.Add(path);
+                        }
                     }
                 }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    // The main install on its own is still useful.
+                }
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                // The main install on its own is still useful.
-            }
+        }
+
+        // Libraries that never made it into libraryfolders.vdf — a café often
+        // copies a Steam folder onto D: and the current Windows account has
+        // never opened Steam, so HKCU does not know it exists.
+        foreach (var extra in SteamLibrariesOnDisk())
+        {
+            libraries.Add(extra);
         }
 
         return libraries
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static IEnumerable<string> SteamLibrariesOnDisk()
+    {
+        DriveInfo[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives();
+        }
+        catch
+        {
+            yield break;
+        }
+
+        foreach (var drive in drives)
+        {
+            string root;
+            try
+            {
+                if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
+                {
+                    continue;
+                }
+
+                root = drive.RootDirectory.FullName;
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var candidate in SteamLibraryCandidates(root))
+            {
+                yield return candidate;
+            }
+        }
+    }
+
+    private static IEnumerable<string> SteamLibraryCandidates(string driveRoot)
+    {
+        var guesses = new[]
+        {
+            Path.Combine(driveRoot, "Steam"),
+            Path.Combine(driveRoot, "SteamLibrary"),
+            Path.Combine(driveRoot, "Games", "Steam"),
+            Path.Combine(driveRoot, "Program Files (x86)", "Steam"),
+            Path.Combine(driveRoot, "Program Files", "Steam"),
+        };
+
+        foreach (var guess in guesses)
+        {
+            if (Directory.Exists(Path.Combine(guess, "steamapps")))
+            {
+                yield return guess;
+            }
+        }
+
+        string[] children;
+        try
+        {
+            children = Directory.GetDirectories(driveRoot);
+        }
+        catch
+        {
+            yield break;
+        }
+
+        foreach (var child in children)
+        {
+            if (Directory.Exists(Path.Combine(child, "steamapps")))
+            {
+                yield return child;
+            }
+        }
     }
 
     /// <summary>Where Steam is installed, or null if it is not.</summary>
@@ -512,12 +590,43 @@ internal static class InstalledGames
             }
         }
 
+        foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+        {
+            try
+            {
+                using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                using var key = baseKey.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")
+                                ?? baseKey.OpenSubKey(@"SOFTWARE\Valve\Steam");
+                if (key?.GetValue("InstallPath") is string machinePath && Directory.Exists(machinePath))
+                {
+                    return machinePath;
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+            }
+        }
+
         var guesses = new[]
         {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Steam"),
         };
 
-        return guesses.FirstOrDefault(Directory.Exists);
+        var known = guesses.FirstOrDefault(Directory.Exists);
+        if (known is not null)
+        {
+            return known;
+        }
+
+        foreach (var library in SteamLibrariesOnDisk())
+        {
+            if (File.Exists(Path.Combine(library, "steam.exe")))
+            {
+                return library;
+            }
+        }
+
+        return null;
     }
 }
