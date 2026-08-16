@@ -4,21 +4,13 @@
     Lists the games installed on this PC, for the lock screen menu to read.
 
 .DESCRIPTION
-    Runs as SYSTEM, because that is the only account that can see them all.
+    Desktops only — never the Start Menu. The Start Menu is where Windows puts
+    Computer Management, Disk Cleanup and ODBC, and treating those shortcuts as
+    games is how they appeared on CHOOSE A GAME.
 
-    Games get installed by whoever sets the machine up, and most installers
-    default to "just for me" - so the shortcuts land on the administrator's own
-    desktop and in the administrator's own Start Menu. Windows protects one
-    user's profile from another, so the agent, which deliberately runs as the
-    unprivileged customer account, is refused access to both. It could see the
-    Public desktop and the All Users Start Menu and nothing else, which on a
-    real cafe PC is a fraction of what is installed.
-
-    SYSTEM can read every profile. So it does the looking, writes what it found
-    somewhere any account may read, and the agent picks that up.
-
-.EXAMPLE
-    .\refresh-games.ps1
+    Steam / Epic / Xbox are discovered by the agent itself. This file is only
+    the extra titles someone pinned on a desktop the customer account cannot
+    see (the administrator's profile).
 #>
 param(
     [string]$OutputPath = "C:\ProgramData\BookMyGame\installed-games.json"
@@ -26,21 +18,25 @@ param(
 
 $ErrorActionPreference = "Continue"
 
-# Shortcut names that are never a game. Alongside each title an installer
-# leaves its manual, its website, its config tool and its uninstaller, and a
-# menu built without this reads like a folder listing.
 $notAGame = @(
-    'uninstall', 'readme', 'read me', 'manual', 'help', 'support', 'website',
-    'web site', 'homepage', 'documentation', 'release notes', 'changelog',
-    'config', 'settings', 'setup', 'repair', 'troubleshoot', 'benchmark',
-    'server', 'dedicated', 'editor', 'sdk', 'redistributable', 'runtime',
-    'visual c++', 'directx', 'driver', 'control panel', 'license', 'eula',
-    'report a bug', 'feedback', 'forum', 'wiki', 'discord', 'activate'
+    'uninstall', 'readme', 'manual', 'help', 'support', 'website',
+    'config', 'settings', 'setup', 'repair', 'benchmark', 'server',
+    'dedicated', 'editor', 'sdk', 'redistributable', 'runtime',
+    'control panel', 'computer management', 'dfrgui', 'defrag',
+    'disk cleanup', 'event viewer', 'iscsi', 'live captions',
+    'magnif', 'memory diagnostic', 'narrator', 'odbc', 'on-screen',
+    'onebrowser', 'administrative tools', 'windows tools'
 )
 
-$notTheExe = @(
-    'unins', 'uninstall', 'crashhandler', 'crashreport', 'vc_redist', 'vcredist',
-    'dxsetup', 'dotnetfx', 'setup', 'installer', 'updater'
+$windowsTools = @(
+    'mmc', 'dfrgui', 'cleanmgr', 'eventvwr', 'iscsicpl', 'odbcad32',
+    'osk', 'narrator', 'magnify', 'control', 'compmgmtlauncher',
+    'perfmon', 'resmon', 'taskschd', 'regedit', 'cmd', 'powershell'
+)
+
+$junkFolders = @(
+    'administrative tools', 'windows tools', 'system tools',
+    'accessibility', 'ease of access', 'accessories', 'system32', 'syswow64'
 )
 
 function Get-ShortcutInfo {
@@ -59,15 +55,9 @@ function Get-ShortcutInfo {
 }
 
 $folders = New-Object System.Collections.Generic.List[string]
-
-# Everyone's desktop and Start Menu, not just this account's. C:\Users\* is
-# where the whole point of running as SYSTEM lies.
 Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
     $folders.Add((Join-Path $_.FullName "Desktop"))
-    $folders.Add((Join-Path $_.FullName "AppData\Roaming\Microsoft\Windows\Start Menu\Programs"))
 }
-
-$folders.Add("$env:ProgramData\Microsoft\Windows\Start Menu\Programs")
 $folders.Add("$env:PUBLIC\Desktop")
 
 $games = @{}
@@ -77,14 +67,16 @@ foreach ($folder in $folders) {
     if (-not (Test-Path $folder)) { continue }
 
     $shortcuts = @()
-    $shortcuts += Get-ChildItem $folder -Filter *.lnk -Recurse -ErrorAction SilentlyContinue
-    $shortcuts += Get-ChildItem $folder -Filter *.url -Recurse -ErrorAction SilentlyContinue
+    $shortcuts += Get-ChildItem $folder -Filter *.lnk -ErrorAction SilentlyContinue
+    $shortcuts += Get-ChildItem $folder -Filter *.url -ErrorAction SilentlyContinue
 
     foreach ($shortcut in $shortcuts) {
         $label = [System.IO.Path]::GetFileNameWithoutExtension($shortcut.Name)
         $lower = $label.ToLower()
+        $full = $shortcut.FullName.ToLower()
 
         if ($notAGame | Where-Object { $lower.Contains($_) }) { continue }
+        if ($junkFolders | Where-Object { $full.Contains($_) }) { continue }
 
         $info = Get-ShortcutInfo -Path $shortcut.FullName
         $target = $null
@@ -94,15 +86,17 @@ foreach ($folder in $folders) {
             $arguments = $info.Arguments
         }
 
-        $exePath = $shortcut.FullName
-        if (-not [string]::IsNullOrWhiteSpace($target) -and $target.ToLower().EndsWith(".exe") -and (Test-Path $target) -and -not $target.StartsWith($windowsDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+        if (-not [string]::IsNullOrWhiteSpace($target)) {
             $exeName = [System.IO.Path]::GetFileNameWithoutExtension($target).ToLower()
-            if ($notTheExe | Where-Object { $exeName.Contains($_) }) { continue }
+            if ($windowsTools -contains $exeName) { continue }
+            if ($target.StartsWith($windowsDir, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+        }
+
+        $exePath = $shortcut.FullName
+        if (-not [string]::IsNullOrWhiteSpace($target) -and $target.ToLower().EndsWith(".exe") -and (Test-Path $target)) {
             $exePath = $target
         }
 
-        # Key by name + target + arguments. Keying by exe alone dropped every
-        # Steam/Epic title after the first because they all point at one launcher.
         $key = ("{0}|{1}|{2}" -f $label, $exePath, $arguments).ToLower()
         if (-not $games.ContainsKey($key)) {
             $games[$key] = [PSCustomObject]@{
@@ -116,7 +110,7 @@ foreach ($folder in $folders) {
 
 $list = @($games.Values | Sort-Object name)
 
-Write-Host "Found $($list.Count) game(s) across all user profiles."
+Write-Host "Found $($list.Count) desktop game(s)."
 foreach ($game in $list) { Write-Host "  $($game.name)" }
 
 $directory = Split-Path $OutputPath -Parent
@@ -124,8 +118,6 @@ if (-not (Test-Path $directory)) {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
 }
 
-# ProgramData, so the customer account can read it. Written to a temporary file
-# and moved into place, so the agent never reads a half-written list.
 $temp = "$OutputPath.tmp"
 $list | ConvertTo-Json -Depth 3 | Set-Content -Path $temp -Encoding UTF8
 Move-Item -Path $temp -Destination $OutputPath -Force

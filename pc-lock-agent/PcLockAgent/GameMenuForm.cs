@@ -233,10 +233,7 @@ internal sealed class GameMenuForm : Form
             flow.Width = width;
         }
 
-        var games = _config.Games
-            .Where(game => !string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase)
-                           && !string.IsNullOrWhiteSpace(game.Name))
-            .ToList();
+        var games = _config.Games.Where(GameDiscovery.IsPlayableGame).ToList();
 
         if (games.Count == 0)
         {

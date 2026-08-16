@@ -53,14 +53,8 @@ internal static class Program
             // cached to disk, so a PC that is offline at boot still has everything
             // to filter against instead of yesterday's filtered subset.
             config = InstalledGames.FilterToInstalled(config);
-
-            // After the filter, or everything found here would be judged
-            // against the café's list and dropped for not being on it.
             config = GameDiscovery.AddInstalledGames(config);
-
-            // Last, so the browser sits after the games. Someone who came in to
-            // play should not have to look past it to find what they came for.
-            config = BrowserAccess.AddBrowserTile(config);
+            config = GameDiscovery.KeepGamesOnly(config);
 
             Application.Run(new AgentShell(config));
         }

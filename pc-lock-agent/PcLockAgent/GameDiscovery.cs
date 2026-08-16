@@ -14,9 +14,10 @@ namespace PcLockAgent;
 /// <para>
 /// The list is still worth having: it carries the names, the ordering and the
 /// process names that a launcher-based game needs. But it is a curated front of
-/// the menu now rather than the whole of it. Steam, Epic, Xbox, Start Menu,
-/// other user profiles, and well-known install folders are all scanned, so a
-/// game still appears when nobody put a shortcut on this desktop.
+/// the menu now rather than the whole of it. Steam, Epic, Xbox,
+/// other user desktops, and well-known install folders are scanned. The Start
+/// Menu and the uninstall registry are not: those are where Windows keeps
+/// Disk Cleanup and Event Viewer, not games.
 /// </para>
 /// <para>
 /// The rule for what counts is deliberately narrow. Steam and Epic keep records
@@ -313,9 +314,7 @@ internal static class GameDiscovery
             Take("Xbox", FromXboxGames());
             Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
             Take("Roblox", FromRoblox());
-            Take("machine-wide list", FromSharedList());
             Take("desktops", FromAllDesktops());
-            Take("installed programs", FromRegistry());
         }
         catch (Exception ex)
         {
@@ -363,7 +362,85 @@ internal static class GameDiscovery
         var games = new List<GameEntry>(config.Games);
         games.AddRange(added.OrderBy(game => game.Name, StringComparer.OrdinalIgnoreCase));
 
-        return config.WithGames(games);
+        return KeepGamesOnly(config.WithGames(games));
+    }
+
+    /// <summary>
+    /// Last pass: the menu is games, and only games.
+    /// </summary>
+    /// <remarks>
+    /// Discovery, the café catalog, a leftover installed-games.json, and the
+    /// browser tile all feed the same list. A denylist on the way in is not
+    /// enough — Computer Management still arrived via a Start Menu dump that
+    /// never went through those checks. Everything that reaches the lock
+    /// screen has to survive this gate.
+    /// </remarks>
+    public static AgentConfig KeepGamesOnly(AgentConfig config)
+    {
+        var kept = config.Games.Where(IsPlayableGame).ToList();
+        var dropped = config.Games.Count - kept.Count;
+
+        if (dropped > 0)
+        {
+            AgentLog.Info($"Removed {dropped} non-game tile(s). Menu has {kept.Count} game(s).");
+        }
+
+        return config.WithGames(kept);
+    }
+
+    /// <summary>Whether this tile is something a customer came in to play.</summary>
+    public static bool IsPlayableGame(GameEntry game)
+    {
+        if (string.IsNullOrWhiteSpace(game.Name) || string.IsNullOrWhiteSpace(game.ExePath))
+        {
+            return false;
+        }
+
+        if (string.Equals(game.Category, "app", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (IsJunk(game.Name) || LooksLikeWindowsTool(game.Name, game.ExePath))
+        {
+            return false;
+        }
+
+        var path = game.ExePath;
+        var args = game.Arguments ?? string.Empty;
+
+        if (IsStoreGameLaunch(path, args))
+        {
+            return true;
+        }
+
+        if (IsSystemPath(path))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsStoreGameLaunch(string path, string args) =>
+        Path.GetFileName(path).Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)
+        && args.Contains("shell:AppsFolder", StringComparison.OrdinalIgnoreCase)
+        && !args.Contains("Microsoft.Windows", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSystemPath(string path)
+    {
+        var lower = path.Replace('/', '\\').ToLowerInvariant();
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows).ToLowerInvariant();
+
+        if (!string.IsNullOrWhiteSpace(windows) && lower.StartsWith(windows))
+        {
+            return true;
+        }
+
+        return JunkShortcutFolders.Any(folder => lower.Contains(folder))
+            || lower.Contains(@"\windows nt\")
+            || lower.Contains(@"\windows defender\")
+            || lower.Contains(@"\windowsapps\microsoft.windows");
     }
 
     // -----------------------------------------------------------------------
