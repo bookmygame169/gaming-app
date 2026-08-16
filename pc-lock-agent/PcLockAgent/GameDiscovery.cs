@@ -14,10 +14,10 @@ namespace PcLockAgent;
 /// <para>
 /// The list is still worth having: it carries the names, the ordering and the
 /// process names that a launcher-based game needs. But it is a curated front of
-/// the menu now rather than the whole of it. Steam, Epic, Xbox,
-/// other user desktops, and well-known install folders are scanned. The Start
-/// Menu and the uninstall registry are not: those are where Windows keeps
-/// Disk Cleanup and Event Viewer, not games.
+/// the menu now rather than the whole of it. Steam, Epic, Xbox, desktops,
+/// the SYSTEM-written machine list, filtered Start Menu entries, and
+/// well-known install folders are scanned. Windows tools are stripped at
+/// the end so Disk Cleanup cannot return.
 /// </para>
 /// <para>
 /// The rule for what counts is deliberately narrow. Steam and Epic keep records
@@ -69,33 +69,45 @@ internal static class GameDiscovery
     /// piece of adware, and a shortcut literally called Desktop. Detection that
     /// finds everything is only useful with a rule for what to throw away.
     /// </remarks>
+    /// <summary>
+    /// Substrings that always mean "not a game". Kept long on purpose —
+    /// short words like "clock" or "network" used as Contains() matches
+    /// hide real titles.
+    /// </summary>
     private static readonly string[] NeverShow =
     {
         "bookmygame", "pclockagent", "onedrive", "onenote", "premieropinion",
-        "nvidia app", "geforce", "nvidia control", "logitech", "g hub", "ghub",
-        "realtek", "intel graphics", "amd software", "adrenalin", "armoury",
-        "msi center", "dragon center", "razer", "corsair", "icue",
-        "desktop", "this pc", "file explorer", "recycle", "network",
-        "tracker", "overlay", "cleaner", "antivirus", "defender",
-        "microsoft store", "get help", "tips", "weather", "news",
+        "nvidia app", "geforce experience", "nvidia control", "logitech", "g hub", "ghub",
+        "realtek", "intel graphics", "amd software", "adrenalin", "armoury crate",
+        "msi center", "dragon center", "razer synapse", "corsair", "icue",
+        "this pc", "file explorer", "recycle bin",
+        "antivirus", "windows defender",
+        "microsoft store", "get help",
         "deskrest", "kreo", "overwolf", "roblox studio", "wallpaper engine",
-        "steamworks", "redistributable", "epic games launcher", "epic online",
-        "media player", "movies & tv", "photos", "paint", "notepad",
-        "calculator", "clock", "camera", "mail", "people", "phone link",
-        "office", "word", "excel", "powerpoint", "teams", "outlook",
-        "adobe", "winrar", "7-zip", "vlc", "notepad++",
-        // Windows admin and accessibility tools that live in the Start Menu.
-        // The last scan treated those shortcuts as games, which is how Disk
-        // Cleanup and Event Viewer ended up on the lock screen.
-        "computer management", "dfrgui", "defrag", "disk cleanup", "cleanmgr",
-        "event viewer", "eventvwr", "iscsi", "live captions", "magnif",
-        "memory diagnostic", "narrator", "odbc", "on-screen keyboard", "osk",
-        "onebrowser", "control panel", "task manager", "resource monitor",
-        "performance monitor", "registry editor", "command prompt",
-        "windows powershell", "windows tools", "administrative tools",
-        "snipping", "character map", "remote desktop", "windows security",
-        "device manager", "disk management", "services.msc", "task scheduler",
+        "steamworks", "redistributable", "epic games launcher", "epic online services",
+        "media player", "movies & tv", "phone link",
+        "notepad++", "winrar", "7-zip",
+        "computer management", "dfrgui", "disk cleanup", "cleanmgr",
+        "event viewer", "eventvwr", "iscsi initiator", "live captions",
+        "memory diagnostics", "memory diagnostic", "narrator", "odbc data",
+        "on-screen keyboard", "onebrowser", "control panel", "task manager",
+        "resource monitor", "performance monitor", "registry editor",
+        "command prompt", "windows powershell", "windows tools",
+        "administrative tools", "snipping tool", "character map",
+        "remote desktop connection", "windows security",
+        "device manager", "disk management", "task scheduler",
         "system configuration", "msconfig", "windows terminal",
+        "microsoft teams",
+    };
+
+    /// <summary>Exact names that are never games (short words unsafe as Contains).</summary>
+    private static readonly string[] NeverShowExact =
+    {
+        "desktop", "network", "tips", "weather", "news", "photos", "paint",
+        "notepad", "calculator", "clock", "camera", "mail", "people",
+        "osk", "vlc", "discord", "spotify", "chrome", "edge", "firefox",
+        "steam", "xbox", "settings", "magnify", "magnifier",
+        "word", "excel", "powerpoint", "outlook", "teams",
     };
 
     /// <summary>
@@ -109,30 +121,33 @@ internal static class GameDiscovery
     /// </remarks>
     private static readonly string[] IsAnApp =
     {
-        "steam", "epic games", "xbox", "riot client", "battle.net", "ubisoft",
-        "ea app", "origin", "gog galaxy", "rockstar", "play games",
-        "chrome", "edge", "firefox", "opera", "browser", "discord", "spotify",
+        "steam", "epic games", "epic games launcher", "xbox", "riot client",
+        "battle.net", "ubisoft connect", "ea app", "origin", "gog galaxy",
+        "rockstar games launcher", "google play games", "play games",
+        "google chrome", "microsoft edge", "firefox", "opera",
+        "discord", "spotify", "browse the internet",
     };
 
     /// <summary>Whether a name should never appear on the menu at all.</summary>
     private static bool IsJunk(string name)
     {
-        var lower = name.ToLowerInvariant();
+        var lower = name.ToLowerInvariant().Trim();
 
-        // A web shortcut Chrome made, not a game. Their names read "Fortnite -
-        // Chrome", which looks like a game right up until it opens a browser.
         if (lower.EndsWith(" - chrome") || lower.EndsWith(" - edge"))
         {
             AgentLog.Info($"Skipped '{name}': a web shortcut, not a program.");
             return true;
         }
 
+        if (NeverShowExact.Any(bad => lower == bad))
+        {
+            AgentLog.Info($"Skipped '{name}': exact non-game name.");
+            return true;
+        }
+
         var matched = NeverShow.FirstOrDefault(bad => lower.Contains(bad));
         if (matched is not null)
         {
-            // Named, because the risk of a rule like this is a real game whose
-            // title happens to contain one of these words. If that happens, the
-            // log says which word did it.
             AgentLog.Info($"Skipped '{name}': matched the rule \"{matched}\".");
             return true;
         }
@@ -185,16 +200,23 @@ internal static class GameDiscovery
     private static string CategoryFor(string name)
     {
         var lower = name.ToLowerInvariant().Trim();
-        if (lower is "steam" or "xbox" or "epic games" or "epic games launcher"
-            or "riot client" or "battle.net" or "ubisoft connect" or "ea app"
-            or "origin" or "gog galaxy" or "discord" or "spotify"
-            or "google chrome" or "chrome" or "microsoft edge" or "edge"
-            or "firefox" or "opera")
+        if (IsAnApp.Any(app => lower == app))
         {
             return "app";
         }
 
-        return IsAnApp.Any(app => lower == app || lower.StartsWith(app + " ")) ? "app" : "game";
+        // Exact launcher names only — "Ubisoft" as a folder parent is fine,
+        // but "Ubisoft Connect" is the store app.
+        if (lower is "steam" or "xbox" or "epic games" or "epic games launcher"
+            or "riot client" or "battle.net" or "ubisoft connect" or "ea app"
+            or "origin" or "gog galaxy" or "discord" or "spotify"
+            or "google chrome" or "chrome" or "microsoft edge" or "edge"
+            or "firefox" or "opera" or "browse the internet")
+        {
+            return "app";
+        }
+
+        return "game";
     }
 
     private static readonly string[] NotAGameShortcut =
@@ -309,12 +331,22 @@ internal static class GameDiscovery
             }
 
             AgentLog.Info("Looking for installed games.");
+            // Also list folders sitting directly in steamapps\common when a
+            // manifest is missing — common after a copy/paste Steam library.
             Take("Steam", FromSteam());
+            Take("Steam folders", FromSteamCommonFolders());
             Take("Epic", FromEpic());
             Take("Xbox", FromXboxGames());
             Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
             Take("Roblox", FromRoblox());
+            // SYSTEM writes this for titles on the admin desktop that this
+            // customer account cannot open. Without it, half the café's games
+            // vanish the moment nobody pinned them on Public\Desktop.
+            Take("machine-wide list", FromSharedList());
             Take("desktops", FromAllDesktops());
+            // Start Menu, but only tiles that survive IsPlayableGame — never
+            // Administrative Tools. Needed for games with no desktop icon.
+            Take("Start Menus", FromAllStartMenus());
         }
         catch (Exception ex)
         {
@@ -409,9 +441,17 @@ internal static class GameDiscovery
         var path = game.ExePath;
         var args = game.Arguments ?? string.Empty;
 
-        if (IsStoreGameLaunch(path, args))
+        // Steam / Epic / Xbox Store launches are games even when the exe is a
+        // shared launcher or explorer.exe.
+        if (IsGameLauncherLaunch(path, args) || IsStoreGameLaunch(path, args))
         {
             return true;
+        }
+
+        // Desktop .lnk / .url that still exists — the café put it there on purpose.
+        if (LooksLikeShortcut(path) && File.Exists(path))
+        {
+            return !LooksLikeWindowsTool(game.Name, path);
         }
 
         if (IsSystemPath(path))
@@ -419,7 +459,23 @@ internal static class GameDiscovery
             return false;
         }
 
-        return true;
+        return File.Exists(path) || LooksLikeShortcut(path);
+    }
+
+    private static bool LooksLikeShortcut(string path) =>
+        path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".url", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGameLauncherLaunch(string path, string args)
+    {
+        var exe = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(args))
+        {
+            return false;
+        }
+
+        return exe is "steam" or "epicgameslauncher" or "riotclientservices"
+            or "battle.net" or "upc" or "ubisoftconnect" or "eadesktop" or "origin";
     }
 
     private static bool IsStoreGameLaunch(string path, string args) =>
@@ -539,6 +595,56 @@ internal static class GameDiscovery
                 {
                     yield return entry;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Games sitting in steamapps\common without a readable manifest.
+    /// </summary>
+    private static IEnumerable<GameEntry> FromSteamCommonFolders()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var library in SteamLibraries())
+        {
+            var common = Path.Combine(library, "steamapps", "common");
+            if (!Directory.Exists(common))
+            {
+                continue;
+            }
+
+            string[] folders;
+            try
+            {
+                folders = Directory.GetDirectories(common);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                continue;
+            }
+
+            foreach (var folder in folders)
+            {
+                var name = Path.GetFileName(folder);
+                if (string.IsNullOrWhiteSpace(name) || IsJunk(name) || IsSteamTool(name))
+                {
+                    continue;
+                }
+
+                var mainExe = BestExeIn(folder);
+                if (mainExe is null || !seen.Add(mainExe))
+                {
+                    continue;
+                }
+
+                yield return new GameEntry
+                {
+                    Name = name,
+                    ExePath = mainExe,
+                    ProcessName = Path.GetFileNameWithoutExtension(mainExe),
+                    IconSourcePath = mainExe,
+                };
             }
         }
     }
@@ -1017,7 +1123,8 @@ internal static class GameDiscovery
         var folders = ProfilePaths(Path.Combine("AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs"), includePublicDesktop: false)
             .Append(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms));
 
-        return FromShortcutFolders(folders, SearchOption.AllDirectories, launchShortcutFile: true);
+        return FromShortcutFolders(folders, SearchOption.AllDirectories, launchShortcutFile: true)
+            .Where(IsPlayableGame);
     }
 
     /// <summary>
@@ -1087,6 +1194,12 @@ internal static class GameDiscovery
 
             foreach (var shortcut in shortcuts)
             {
+                var lowerPath = shortcut.ToLowerInvariant();
+                if (JunkShortcutFolders.Any(folder => lowerPath.Contains(folder)))
+                {
+                    continue;
+                }
+
                 var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile);
                 if (entry is not null)
                 {
@@ -1134,22 +1247,64 @@ internal static class GameDiscovery
                     continue;
                 }
 
-                var exe = BestExeIn(child);
-                if (exe is null || !seen.Add(exe))
+                foreach (var candidate in GameFoldersUnder(child, folderName))
                 {
-                    continue;
-                }
+                    var exe = BestExeIn(candidate.Folder);
+                    if (exe is null || !seen.Add(exe))
+                    {
+                        continue;
+                    }
 
-                yield return new GameEntry
-                {
-                    Name = folderName,
-                    ExePath = exe,
-                    ProcessName = Path.GetFileNameWithoutExtension(exe),
-                    IconSourcePath = exe,
-                    Category = CategoryFor(folderName),
-                };
+                    var entry = new GameEntry
+                    {
+                        Name = candidate.Name,
+                        ExePath = exe,
+                        ProcessName = Path.GetFileNameWithoutExtension(exe),
+                        IconSourcePath = exe,
+                        Category = CategoryFor(candidate.Name),
+                    };
+
+                    if (IsPlayableGame(entry))
+                    {
+                        yield return entry;
+                    }
+                }
             }
         }
+    }
+
+    private static IEnumerable<(string Name, string Folder)> GameFoldersUnder(string folder, string name)
+    {
+        yield return (name, folder);
+
+        // Battle.net / Garena often nest the real game one level down.
+        string[] nested;
+        try
+        {
+            nested = Directory.GetDirectories(folder);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            yield break;
+        }
+
+        foreach (var child in nested)
+        {
+            var nestedName = Path.GetFileName(child);
+            if (skipFolderName(nestedName))
+            {
+                continue;
+            }
+
+            yield return ($"{name} — {nestedName}", child);
+        }
+
+        static bool skipFolderName(string nestedName) =>
+            nestedName.Equals("Launcher", StringComparison.OrdinalIgnoreCase)
+            || nestedName.Equals("Engine", StringComparison.OrdinalIgnoreCase)
+            || nestedName.Equals("Support", StringComparison.OrdinalIgnoreCase)
+            || nestedName.Equals("Redist", StringComparison.OrdinalIgnoreCase)
+            || nestedName.Equals("DirectX", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IEnumerable<string> WellKnownGameRoots()
@@ -1161,11 +1316,15 @@ internal static class GameDiscovery
             "Electronic Arts",
             "Rockstar Games",
             "Garena",
+            "Garena Free Fire",
             "Ubisoft",
+            "Ubisoft Game Launcher",
             "Epic Games",
             "Call of Duty",
             "Activision",
             "Battle.net",
+            "Games",
+            "PC Games",
         };
 
         DriveInfo[] drives;
@@ -1290,19 +1449,30 @@ internal static class GameDiscovery
                     continue;
                 }
 
-                if (!File.Exists(exe) || IsJunk(name))
+                if (!File.Exists(exe) || IsJunk(name) || LooksLikeWindowsTool(name, exe))
                 {
                     continue;
                 }
 
-                entries.Add(new GameEntry
+                var args = string.IsNullOrWhiteSpace(arguments) ? null : arguments;
+                var entry = new GameEntry
                 {
                     Name = name,
                     ExePath = exe,
-                    Arguments = string.IsNullOrWhiteSpace(arguments) ? null : arguments,
-                    ProcessName = Path.GetFileNameWithoutExtension(exe),
+                    Arguments = args,
+                    ProcessName = IsSharedLauncher(exe) || !string.IsNullOrWhiteSpace(args)
+                        ? null
+                        : Path.GetFileNameWithoutExtension(exe),
+                    IconSourcePath = exe,
                     Category = CategoryFor(name),
-                });
+                };
+
+                if (!IsPlayableGame(entry))
+                {
+                    continue;
+                }
+
+                entries.Add(entry);
             }
         }
         catch (Exception ex)
