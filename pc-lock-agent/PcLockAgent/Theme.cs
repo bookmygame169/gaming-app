@@ -28,7 +28,37 @@ namespace PcLockAgent;
 internal static class Theme
 {
     public const int CornerRadius = 14;
-    public const int CardRadius = 18;
+    public const int CardRadius = 20;
+
+    /// <summary>
+    /// Draws the small mark that anchors the top of a card.
+    /// </summary>
+    /// <remarks>
+    /// Borrowed from how other café kiosks build this screen, and it earns its
+    /// place: without something at the top the card begins with a word floating
+    /// in space, and the eye has nowhere to start.
+    /// </remarks>
+    public static void DrawEmblem(Graphics graphics, Rectangle area, string initials)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        using (var path = RoundedRect(area, area.Width / 3))
+        using (var fill = new LinearGradientBrush(
+                   area, Palette.Accent, Palette.AccentDeep, LinearGradientMode.ForwardDiagonal))
+        {
+            graphics.FillPath(fill, path);
+        }
+
+        using var font = new Font("Segoe UI", area.Height * 0.40f, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var brush = new SolidBrush(Palette.TextPrimary);
+        using var format = new StringFormat
+        {
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Center,
+        };
+
+        graphics.DrawString(initials, font, brush, area, format);
+    }
 
     /// <summary>
     /// The whole backdrop, rendered once and kept.
@@ -142,7 +172,13 @@ internal static class Theme
     }
 
     /// <summary>The floating panel everything important sits on.</summary>
-    public static void PaintCard(Graphics graphics, Rectangle rect, bool highlighted = false)
+    /// <param name="glow">
+    /// Draws a soft halo outside the card. What makes it read as sitting above
+    /// the starfield rather than as a hole cut into it — the same job a box
+    /// shadow does on a web page, which GDI+ has no equivalent for, so it is
+    /// built from a handful of rounded outlines fading outwards.
+    /// </param>
+    public static void PaintCard(Graphics graphics, Rectangle rect, bool highlighted = false, bool glow = false)
     {
         if (rect.Width <= 0 || rect.Height <= 0)
         {
@@ -150,6 +186,25 @@ internal static class Theme
         }
 
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        if (glow)
+        {
+            // Outwards, fading. Few enough rings to cost nothing on a repaint,
+            // wide enough apart that the banding is invisible at this alpha.
+            for (var ring = 10; ring >= 1; ring--)
+            {
+                var spread = ring * 4;
+                var alpha = 10 - ring;
+                if (alpha <= 0) continue;
+
+                var area = Rectangle.Inflate(rect, spread, spread);
+                if (area.Width <= 0 || area.Height <= 0) continue;
+
+                using var halo = RoundedRect(area, CardRadius + spread);
+                using var pen = new Pen(Color.FromArgb(alpha * 2, Palette.Accent), 4f);
+                graphics.DrawPath(pen, halo);
+            }
+        }
 
         using var path = RoundedRect(rect, CardRadius);
         using (var fill = new SolidBrush(Palette.CardFill))

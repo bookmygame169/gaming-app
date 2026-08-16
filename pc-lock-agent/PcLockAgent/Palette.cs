@@ -50,6 +50,9 @@ internal static class Palette
 
     public static readonly Color Accent = Color.FromArgb(0xE1, 0x1D, 0x48);
 
+    /// <summary>The far end of the emblem's gradient.</summary>
+    public static readonly Color AccentDeep = Color.FromArgb(0x7F, 0x10, 0x30);
+
     /// <summary>Lighter rose, for text that should carry the brand but stay readable.</summary>
     public static readonly Color AccentSoft = Color.FromArgb(0xFB, 0x71, 0x85);
 

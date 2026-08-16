@@ -26,32 +26,34 @@ internal sealed class LockedScreenForm : Form
     private Panel? _card;
     private Image? _scanCode;
 
+    // Every measurement here was laid out as a browser page first and looked
+    // at, rather than reasoned about - which is how the last version was caught
+    // drawing the code straight through the rule above it.
+    private const int CardWidth = 520;
+
+    private const int EmblemTop = 44;
+    private const int EmblemSize = 44;
+    private const int BrandTop = 114;
+    private const int KickerTop = 160;
+    private const int FirstRuleTop = 190;
+
+    private const int ContentTop = 216;
+    private const int CodeSize = 210;
     private const int PlateWidth = 300;
     private const int PlateHeight = 150;
-    private const int PlateTop = 150;
 
-    // The code gets its own size and position rather than the plate's inflated
-    // by twenty. Borrowing them put its top edge exactly on the divider above,
-    // and made the card bottom-heavy because everything below still measured
-    // from where the plate would have ended.
-    private const int CodeSize = 220;
-    private const int CodeTop = 146;
-    private const int CardWidth = 560;
-    /// <summary>
-    /// Card height for whichever of the two blocks is showing.
-    /// </summary>
-    /// <remarks>
-    /// The code is taller than the plate it replaces, so one fixed height suits
-    /// exactly one of them and leaves the other with a stretch of empty card
-    /// underneath. Measured instead: the last line ends 138 below the block, and
-    /// 46 of margin under it matches the 46 above the heading.
-    /// </remarks>
+    /// <summary>Gap between the code or plate and the line under it.</summary>
+    private const int CallGap = 28;
+
+    private const int RuleGap = 58;
+    private const int StationGap = 78;
+    private const int HintGap = 118;
+
+    /// <summary>What sits below the content block, plus the margin under it.</summary>
+    private const int TailHeight = HintGap + 18 + 44;
+
     private static int CardHeightFor(bool withCode) =>
-        withCode
-            ? CodeTop + CodeSize + 138 + 46
-            // Shorter without a code: the station number is not repeated below
-            // the plate, so there are two fewer lines to leave room for.
-            : PlateTop + PlateHeight + 100 + 46;
+        ContentTop + (withCode ? CodeSize : PlateHeight) + TailHeight;
 
     public LockedScreenForm(AgentConfig config)
     {
@@ -251,18 +253,26 @@ internal sealed class LockedScreenForm : Form
         card.Paint += (_, e) =>
         {
             var g = e.Graphics;
-            Theme.PaintCard(g, new Rectangle(0, 0, card.Width - 1, card.Height - 1));
 
-            using var brandFont = new Font("Segoe UI", 30f, FontStyle.Bold);
-            using var kickerFont = new Font("Segoe UI", 9f, FontStyle.Regular);
-            using var callFont = new Font("Segoe UI", 11f, FontStyle.Regular);
-            using var stationFont = new Font("Segoe UI", 17f, FontStyle.Bold);
-            using var noteFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+            // Glow on: it is what makes the card sit above the starfield rather
+            // than look like a hole cut into it.
+            Theme.PaintCard(g, new Rectangle(0, 0, card.Width - 1, card.Height - 1), glow: true);
 
-            Theme.DrawTrackedCentred(g, "PLAYTIME", brandFont, Palette.TextPrimary, card.Width, 46f, 10f);
-            Theme.DrawTrackedCentred(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, card.Width, 100f, 6f);
+            Theme.DrawEmblem(
+                g,
+                new Rectangle((card.Width - EmblemSize) / 2, EmblemTop, EmblemSize, EmblemSize),
+                "BM");
 
-            Theme.DrawDivider(g, card.Width, 130f, 320, Palette.Divider);
+            using var brandFont = new Font("Segoe UI", 25f, FontStyle.Bold);
+            using var kickerFont = new Font("Segoe UI", 8f, FontStyle.Regular);
+            using var callFont = new Font("Segoe UI", 10f, FontStyle.Regular);
+            using var stationFont = new Font("Segoe UI", 18f, FontStyle.Bold);
+            using var noteFont = new Font("Segoe UI", 8f, FontStyle.Regular);
+
+            Theme.DrawTrackedCentred(g, "PLAYTIME", brandFont, Palette.TextPrimary, card.Width, BrandTop, 11f);
+            Theme.DrawTrackedCentred(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, card.Width, KickerTop, 7f);
+
+            Theme.DrawDivider(g, card.Width, FirstRuleTop, 300, Palette.Divider);
 
             if (_scanCode is not null)
             {
@@ -273,41 +283,23 @@ internal sealed class LockedScreenForm : Form
                 DrawStationPlate(g, card.Width);
             }
 
-            // Whichever is on screen decides where the rest of the card sits,
-            // so the code showing or not never leaves a gap or an overlap.
-            var below = _scanCode is not null
-                ? (float)(CodeTop + CodeSize)
-                : (float)(PlateTop + PlateHeight);
+            var below = (float)(ContentTop + (_scanCode is not null ? CodeSize : PlateHeight));
 
             Theme.DrawTrackedCentred(
                 g,
                 _scanCode is not null ? "SCAN TO PAY FROM YOUR APP" : "ASK AT THE COUNTER TO START",
-                callFont, Palette.TextMuted, card.Width, below + 30f, 2f);
+                callFont, Palette.TextMuted, card.Width, below + CallGap, 3f);
 
-            Theme.DrawDivider(g, card.Width, below + 66f, 320, Palette.Divider);
+            Theme.DrawDivider(g, card.Width, below + RuleGap, 300, Palette.Divider);
 
-            // The counter is always offered, whether or not a code is showing.
-            // A customer with no app, no balance or no phone must still have a
-            // way to start playing, and the station number is what staff need.
-            //
-            // Repeated only when the code is showing. Without a code the plate
-            // above already carries the number in the largest type on the
-            // screen, and printing it again eight lines lower - which is what
-            // the fallback did - reads as two different numbers to check rather
-            // than one to say out loud.
-            if (_scanCode is not null)
-            {
-                Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont,
-                    Palette.Accent, card.Width, below + 78f, 5f);
+            // The number staff need, and the one a customer says out loud. Shown
+            // whether or not a code is up, because the counter is always the
+            // other way in.
+            Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont,
+                Palette.Accent, card.Width, below + StationGap, 6f);
 
-                Theme.DrawTrackedCentred(g, "Or ask at the counter and tell them this number.",
-                    noteFont, Palette.TextFaint, card.Width, below + 122f, 0.4f);
-            }
-            else
-            {
-                Theme.DrawTrackedCentred(g, "Tell them the number above.",
-                    noteFont, Palette.TextFaint, card.Width, below + 84f, 0.4f);
-            }
+            Theme.DrawTrackedCentred(g, "Or ask at the counter and tell them this number.",
+                noteFont, Palette.TextFaint, card.Width, below + HintGap, 0.4f);
         };
 
         return card;
@@ -330,7 +322,7 @@ internal sealed class LockedScreenForm : Form
         }
 
         var left = (containerWidth - CodeSize) / 2;
-        var area = new Rectangle(left, CodeTop, CodeSize, CodeSize);
+        var area = new Rectangle(left, ContentTop, CodeSize, CodeSize);
 
         using (var backing = new SolidBrush(Color.White))
         using (var path = Theme.RoundedRect(area, 10))
@@ -361,7 +353,7 @@ internal sealed class LockedScreenForm : Form
     private void DrawStationPlate(Graphics graphics, int containerWidth)
     {
         var left = (containerWidth - PlateWidth) / 2;
-        var area = new Rectangle(left, PlateTop, PlateWidth, PlateHeight);
+        var area = new Rectangle(left, ContentTop, PlateWidth, PlateHeight);
 
         using (var fill = new SolidBrush(Palette.Surface))
         using (var path = Theme.RoundedRect(area, 12))
@@ -372,18 +364,18 @@ internal sealed class LockedScreenForm : Form
         Theme.DrawBorder(graphics, area, Palette.CardBorder, 1f, 12);
 
         using var labelFont = new Font("Segoe UI", 9f, FontStyle.Regular);
-        using var idFont = new Font("Segoe UI", 34f, FontStyle.Bold);
+        using var idFont = new Font("Segoe UI", 30f, FontStyle.Bold);
 
         var labelWidth = Theme.MeasureTracked(graphics, "LOCKED", labelFont, 5f);
         Theme.DrawTracked(graphics, "LOCKED", labelFont, Palette.TextMuted,
-            left + (PlateWidth - labelWidth) / 2f, PlateTop + 34f, 5f);
+            left + (PlateWidth - labelWidth) / 2f, ContentTop + 34f, 5f);
 
         // Upper-cased for display only - the id itself stays lower case to match
         // the MQTT topic the website publishes to.
         var id = _config.StationId.ToUpperInvariant();
         var idWidth = Theme.MeasureTracked(graphics, id, idFont, 4f);
         Theme.DrawTracked(graphics, id, idFont, Palette.Accent,
-            left + (PlateWidth - idWidth) / 2f, PlateTop + 62f, 4f);
+            left + (PlateWidth - idWidth) / 2f, ContentTop + 62f, 4f);
     }
 
     /// <summary>
