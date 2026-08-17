@@ -79,25 +79,6 @@ internal sealed class GameEntry
     [JsonPropertyName("iconSourcePath")]
     public string? IconSourcePath { get; init; }
 
-    /// <summary>
-    /// Whether a person deliberately put this in front of customers.
-    /// </summary>
-    /// <remarks>
-    /// True for anything found on a desktop, and for the machine-wide list,
-    /// which is built by copying those desktops. Both mean an administrator
-    /// chose this — that is a stronger signal about whether a café wants a tile
-    /// than any rule here can work out from a name.
-    /// <para>
-    /// It exists because the guessing was losing real games. Every candidate
-    /// used to run a gauntlet of overlapping deny lists at three separate
-    /// stages, so a title could vanish for any of a dozen reasons and the only
-    /// way to find out which was to read the log. Three games were missing from
-    /// one café's menu at once while sitting in plain view on its desktop.
-    /// A trusted entry now only has to exist and not be a Windows tool.
-    /// </para>
-    /// </remarks>
-    [JsonIgnore]
-    public bool Trusted { get; init; }
 
     /// <summary>
     /// A copy of this entry pointing at where the game really is on this PC.
