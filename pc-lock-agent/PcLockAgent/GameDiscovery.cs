@@ -388,7 +388,15 @@ internal static class GameDiscovery
                 continue;
             }
 
-            if (IsJunk(game.Name) || LooksLikeWindowsTool(game.Name, game.ExePath))
+            // Trusted entries skip the name guessing here too. This was the
+            // second of three places the same deny lists were applied, and a
+            // game only had to be caught by one of them to disappear.
+            if (!game.Trusted && IsJunk(game.Name))
+            {
+                continue;
+            }
+
+            if (LooksLikeWindowsTool(game.Name, game.ExePath))
             {
                 continue;
             }
@@ -465,6 +473,40 @@ internal static class GameDiscovery
             || IsStoreGameLaunch(game.ExePath, game.Arguments ?? string.Empty);
     }
 
+    /// <summary>
+    /// Whether a tile an administrator placed themselves is usable.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately almost nothing. A shortcut on a café's desktop is that
+    /// café saying "customers may play this", and no rule in this file knows
+    /// better than that. All that is checked is that it can be launched and
+    /// that it is not this agent or a Windows tool — because those are the two
+    /// things an administrator would not have meant to offer.
+    /// </remarks>
+    private static bool TrustedEntryIsUsable(GameEntry game)
+    {
+        if (LooksLikeWindowsTool(game.Name, game.ExePath))
+        {
+            AgentLog.Info($"Dropped '{game.Name}': it is a Windows tool.");
+            return false;
+        }
+
+        // Our own lock screen must never be a tile on our own lock screen.
+        if (game.Name.Contains("bookmygame", StringComparison.OrdinalIgnoreCase)
+            || game.Name.Contains("pclockagent", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (File.Exists(game.ExePath) || IsStoreGameLaunch(game.ExePath, game.Arguments ?? string.Empty))
+        {
+            return true;
+        }
+
+        AgentLog.Info($"Dropped '{game.Name}': {game.ExePath} does not exist.");
+        return false;
+    }
+
     /// <summary>Whether this tile is something a customer came in to play.</summary>
     public static bool IsPlayableGame(GameEntry game)
     {
@@ -476,6 +518,15 @@ internal static class GameDiscovery
         if (IsApp(game))
         {
             return false;
+        }
+
+        // Placed by hand, so it skips every guess below. This is the whole point
+        // of the flag: the rules underneath are for things nobody chose, like a
+        // Start Menu dump or a walk of Program Files, and applying them to a
+        // café's own desktop is what kept losing real games.
+        if (game.Trusted)
+        {
+            return TrustedEntryIsUsable(game);
         }
 
         if (IsJunk(game.Name) || LooksLikeWindowsTool(game.Name, game.ExePath))
@@ -1282,7 +1333,14 @@ internal static class GameDiscovery
     // -----------------------------------------------------------------------
 
     private static IEnumerable<GameEntry> FromAllDesktops() =>
-        FromShortcutFolders(ProfilePaths("Desktop", includePublicDesktop: true), SearchOption.TopDirectoryOnly, launchShortcutFile: true);
+        FromShortcutFolders(
+            ProfilePaths("Desktop", includePublicDesktop: true),
+            SearchOption.TopDirectoryOnly,
+            launchShortcutFile: true,
+            // A desktop icon is a café's own decision about what customers may
+            // play. The Start Menu below is not — that is every installer's
+            // leftovers — so only this one is trusted.
+            trusted: true);
 
     private static IEnumerable<GameEntry> FromAllStartMenus()
     {
@@ -1340,7 +1398,8 @@ internal static class GameDiscovery
     private static IEnumerable<GameEntry> FromShortcutFolders(
         IEnumerable<string> folders,
         SearchOption search,
-        bool launchShortcutFile)
+        bool launchShortcutFile,
+        bool trusted = false)
     {
         var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1366,7 +1425,7 @@ internal static class GameDiscovery
                     continue;
                 }
 
-                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile);
+                var entry = EntryFromShortcut(shortcut, windows, seen, launchShortcutFile, trusted);
                 if (entry is not null)
                 {
                     yield return entry;
@@ -1591,10 +1650,37 @@ internal static class GameDiscovery
 
         if (!File.Exists(path))
         {
-            AgentLog.Info(
-                "No installed-games.json yet. Only games this account can see itself " +
-                "will be listed - re-run install-startup.ps1 to set up the scan.");
+            AgentLog.Warn(
+                "No installed-games.json. This account cannot read the administrator's " +
+                "desktop, so only games installed for everyone will appear. " +
+                "Run install-startup.ps1 as administrator to register the scan.");
             yield break;
+        }
+
+        // Age matters more than it looks. This file is a snapshot, and if the
+        // SYSTEM task that rewrites it was never registered it stays whatever
+        // it was the day somebody last ran the script by hand — so every game
+        // installed since then is simply absent from the menu, with nothing
+        // anywhere saying why. That is the shape of "most of my games show and
+        // the newest three do not".
+        try
+        {
+            var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(path);
+            if (age > TimeSpan.FromDays(1))
+            {
+                AgentLog.Warn(
+                    $"installed-games.json is {age.TotalDays:0} day(s) old. Any game installed " +
+                    "since then will be missing from this menu. The SYSTEM refresh task is " +
+                    "probably not registered - run install-startup.ps1 as administrator.");
+            }
+            else
+            {
+                AgentLog.Info($"installed-games.json was written {age.TotalHours:0.#} hour(s) ago.");
+            }
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not check the age of installed-games.json: {ex.Message}");
         }
 
         List<GameEntry> entries;
@@ -1615,10 +1701,11 @@ internal static class GameDiscovery
                     continue;
                 }
 
-                if (IsJunk(name) || LooksLikeWindowsTool(name, exe))
-                {
-                    continue;
-                }
+                // No IsJunk here on purpose. This list is the café's own
+                // desktops, collected by a SYSTEM scan that has already dropped
+                // Windows tools. A second pass of name guessing over an
+                // administrator's deliberate choices is what made real games
+                // disappear with no way to tell which rule took them.
 
                 // The lock user cannot read C:\Users\Admin\... — that is why
                 // refresh-games copies shortcuts into ProgramData. Still accept
@@ -1640,6 +1727,7 @@ internal static class GameDiscovery
                         : Path.GetFileNameWithoutExtension(exe),
                     IconSourcePath = exe,
                     Category = CategoryFor(name),
+                    Trusted = true,
                 };
 
                 if (!IsMenuItem(entry))
@@ -1690,16 +1778,25 @@ internal static class GameDiscovery
         string shortcut,
         string windows,
         HashSet<string> seen,
-        bool launchShortcutFile)
+        bool launchShortcutFile,
+        bool trusted = false)
     {
         try
         {
             var label = Path.GetFileNameWithoutExtension(shortcut);
             var lowerLabel = label.ToLowerInvariant();
 
-            if (LooksLikeWindowsTool(label, shortcut)
-                || NotAGameShortcut.Any(bad => lowerLabel.Contains(bad))
-                || IsJunk(label))
+            // Windows tools go whatever the source. The name lists below only
+            // apply to shortcuts nobody chose — a Start Menu holds every
+            // installer's manual, uninstaller and config tool, while a desktop
+            // holds what the café decided to put in front of customers.
+            if (LooksLikeWindowsTool(label, shortcut))
+            {
+                return null;
+            }
+
+            if (!trusted
+                && (NotAGameShortcut.Any(bad => lowerLabel.Contains(bad)) || IsJunk(label)))
             {
                 return null;
             }
@@ -1707,6 +1804,19 @@ internal static class GameDiscovery
             var (target, arguments) = shortcut.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
                 ? ResolveUrlShortcut(shortcut)
                 : ResolveShortcut(shortcut);
+
+            // "Counter-Strike 2 Tracker" and "Valorant Tracker" are Overwolf
+            // overlays, not games, and their names carry nothing that says so —
+            // the only honest signal is what they point at. Matched on the
+            // target rather than the label so a real game with "tracker" in its
+            // title is unaffected.
+            if (!trusted
+                && !string.IsNullOrWhiteSpace(target)
+                && target.Replace('/', '\\').ToLowerInvariant().Contains("\\overwolf\\"))
+            {
+                AgentLog.Info($"Skipped '{label}': an Overwolf overlay, not a game.");
+                return null;
+            }
 
             var isStoreGame =
                 !string.IsNullOrWhiteSpace(target)
@@ -1742,6 +1852,7 @@ internal static class GameDiscovery
                     ProcessName = null,
                     IconSourcePath = shortcut,
                     Category = CategoryFor(label),
+                    Trusted = trusted,
                 };
             }
 
@@ -1777,6 +1888,7 @@ internal static class GameDiscovery
                         : Path.GetFileNameWithoutExtension(target),
                     IconSourcePath = target,
                     Category = CategoryFor(label),
+                    Trusted = trusted,
                 };
             }
 
@@ -1793,6 +1905,7 @@ internal static class GameDiscovery
                 ExePath = shortcut,
                 IconSourcePath = shortcut,
                 Category = CategoryFor(label),
+                Trusted = trusted,
             };
         }
         catch (Exception ex)
