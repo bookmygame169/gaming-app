@@ -223,6 +223,17 @@ internal sealed class AgentConfig
         [JsonPropertyName("games")]
         public List<GameEntry>? Games { get; init; }
 
+        /// <summary>
+        /// This station's exit password hash.
+        /// </summary>
+        /// <remarks>
+        /// Belongs on the override rather than only on the shipped settings:
+        /// the password is chosen per machine, and appsettings.Local.json is
+        /// the file that is not overwritten by an update.
+        /// </remarks>
+        [JsonPropertyName("exitPasswordHash")]
+        public string? ExitPasswordHash { get; init; }
+
         internal sealed class HeartbeatOverride
         {
             [JsonPropertyName("url")]
