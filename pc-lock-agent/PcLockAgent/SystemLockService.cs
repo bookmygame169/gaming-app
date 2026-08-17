@@ -58,6 +58,9 @@ internal sealed class SystemLockService : IDisposable
 
     private readonly bool _allowDevExit;
 
+    /// <summary>Whether a password has been set for this station's exit chord.</summary>
+    private readonly bool _passwordExitAllowed;
+
     /// <summary>
     /// When true the hook stays installed but stops swallowing keys.
     /// </summary>
@@ -104,9 +107,10 @@ internal sealed class SystemLockService : IDisposable
     private object? _previousTaskMgrValue;
     private EventHandler? _processExitHandler;
 
-    public SystemLockService(bool allowDevExit)
+    public SystemLockService(bool allowDevExit, bool passwordExitAllowed = false)
     {
         _allowDevExit = allowDevExit;
+        _passwordExitAllowed = passwordExitAllowed;
     }
 
     public bool IsActive => _hookHandle != IntPtr.Zero;
@@ -288,6 +292,18 @@ internal sealed class SystemLockService : IDisposable
             // Dev chords are checked before the block list, and regardless of
             // passthrough, so they keep working globally even when our window
             // has lost focus.
+            // Q on its own, gated by the password rather than by the dev flag.
+            //
+            // The others stay behind AllowDevExit deliberately: U and T hand out
+            // a free session and K locks the station, so a chord that only asks
+            // for a password afterwards would be worth finding. Q asks first and
+            // does nothing without the right answer.
+            if (ctrlDown && shiftDown && altDown && key == Keys.Q && _passwordExitAllowed)
+            {
+                RaiseOnUi(() => PasswordExitRequested?.Invoke(this, EventArgs.Empty));
+                return NativeMethods.Suppress;
+            }
+
             if (_allowDevExit && ctrlDown && shiftDown && altDown)
             {
                 switch (key)
@@ -361,6 +377,9 @@ internal sealed class SystemLockService : IDisposable
 
         return false;
     }
+
+    /// <summary>Raised when Ctrl+Alt+Shift+Q is pressed and a password is set.</summary>
+    public event EventHandler? PasswordExitRequested;
 
     private void RaiseDevExitRequested() =>
         RaiseOnUi(() => DevExitRequested?.Invoke(this, EventArgs.Empty));

@@ -46,6 +46,7 @@ Source: "..\tools\update-agent.ps1";     DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\refresh-games.ps1";    DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\why-not-showing.ps1";  DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\copy-games-to-user.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\tools\set-exit-password.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
 ; One writable folder, and only one.

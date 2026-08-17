@@ -34,7 +34,7 @@ internal sealed class AgentShell : ApplicationContext
     public AgentShell(AgentConfig config)
     {
         _config = config;
-        _lockService = new SystemLockService(AgentSettings.AllowDevExit);
+        _lockService = new SystemLockService(AgentSettings.AllowDevExit, config.HasExitPassword);
         _mqttService = new MqttService(config);
         _session = new SessionManager();
         _heartbeat = new HeartbeatReporter(config);
@@ -48,6 +48,7 @@ internal sealed class AgentShell : ApplicationContext
         _session.Remaining += (_, remaining) => _gameMenu.UpdateRemaining(remaining);
 
         _lockService.DevExitRequested += (_, _) => Shutdown();
+        _lockService.PasswordExitRequested += (_, _) => AskForExitPassword();
         _lockService.DevPassthroughToggleRequested += (_, _) => ToggleDevPassthrough();
         _lockService.DevSimulateUnlockRequested += (_, _) => SimulateUnlock();
         _lockService.DevSimulateShortSessionRequested += (_, _) => SimulateShortSession();
@@ -339,6 +340,54 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         _lockedScreen.SetPassthroughIndicator(enabled);
+    }
+
+    /// <summary>
+    /// Asks for the exit password, and closes the agent if it is right.
+    /// </summary>
+    /// <remarks>
+    /// The session is deliberately not stopped on the way out. Somebody exiting
+    /// to fix a machine mid-session should not cost the customer the rest of the
+    /// hour they paid for — the saved state is left alone, so restarting the
+    /// agent resumes it.
+    /// </remarks>
+    private void AskForExitPassword()
+    {
+        if (_exiting || !_config.HasExitPassword)
+        {
+            return;
+        }
+
+        // Dropped so the dialog is not covered by our own fullscreen windows.
+        var wasTopMost = _lockedScreen.TopMost;
+        _lockedScreen.TopMost = false;
+        _gameMenu.TopMost = false;
+        _screenBlanker.SetTopMost(false);
+
+        try
+        {
+            using var prompt = new ExitPasswordForm(_config.ExitPasswordHash);
+            prompt.ShowDialog();
+
+            if (prompt.Accepted)
+            {
+                Shutdown();
+                return;
+            }
+        }
+        finally
+        {
+            if (!_exiting)
+            {
+                _lockedScreen.TopMost = wasTopMost;
+                _gameMenu.TopMost = wasTopMost;
+                _screenBlanker.SetTopMost(!_lockService.Passthrough);
+
+                var front = _lockedScreen.Visible ? (Form)_lockedScreen : _gameMenu;
+                front.BringToFront();
+                front.Activate();
+            }
+        }
     }
 
     private void Shutdown()

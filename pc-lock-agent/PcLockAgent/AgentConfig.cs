@@ -134,8 +134,29 @@ internal sealed class AgentConfig
     [JsonPropertyName("showLaunchers")]
     public bool ShowLaunchers { get; init; }
 
+    /// <summary>
+    /// Salted hash of the password that closes the agent, or null for none.
+    /// </summary>
+    /// <remarks>
+    /// A hash, never the password. This repository is public, and the file this
+    /// is read from sits on a café PC that a customer is signed into — neither
+    /// is a place a working password may exist.
+    /// <para>
+    /// Set per machine by set-exit-password.ps1. With none set, the exit chord
+    /// does nothing at all, which is the right default for a station nobody has
+    /// deliberately configured.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("exitPasswordHash")]
+    public string? ExitPasswordHash { get; init; }
+
+    /// <summary>Whether an administrator can close the agent with a password.</summary>
+    [JsonIgnore]
+    public bool HasExitPassword => !string.IsNullOrWhiteSpace(ExitPasswordHash);
+
     public AgentConfig WithGames(List<GameEntry> games) => new()
     {
+        ExitPasswordHash = ExitPasswordHash,
         StationId = StationId,
         Games = games,
         ShowOnlyInstalledGames = ShowOnlyInstalledGames,
@@ -360,6 +381,9 @@ internal sealed class AgentConfig
                 AllowBrowsing = config.AllowBrowsing,
                 ShowInstalledGames = config.ShowInstalledGames,
                 ShowLaunchers = config.ShowLaunchers,
+                // The local file is where a machine's own password lives, so it
+                // takes precedence; the shipped file has none.
+                ExitPasswordHash = overrides.ExitPasswordHash ?? config.ExitPasswordHash,
                 EnrollUrl = config.EnrollUrl,
                 IsEnrolled = config.IsEnrolled,
                 Heartbeat = new HeartbeatConfig
