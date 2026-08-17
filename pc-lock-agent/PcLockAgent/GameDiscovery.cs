@@ -358,13 +358,13 @@ internal static class GameDiscovery
             Take("Steam", FromSteam());
             Take("Steam folders", FromSteamCommonFolders());
             Take("Epic", FromEpic());
-            Take("Xbox", FromXboxGames());
-
-            // After the folder scan, so a title found both ways keeps the entry
-            // that came from a real folder — but before the shortcut sources,
-            // because this is the only one that finds a Game Pass install the
-            // customer account is not allowed to look inside.
+            // Before the folder scan, deliberately. When a Game Pass title is
+            // found both ways the shell entry has to win: its executable is
+            // licence-checked and refuses to start when run directly, so the
+            // folder scan's version of the same game is a tile that does
+            // nothing.
             Take("Store / Xbox apps", FromStoreApps());
+            Take("Xbox", FromXboxGames());
             Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
             Take("Roblox", FromRoblox());
             Take("desktops", FromAllDesktops());
@@ -468,6 +468,7 @@ internal static class GameDiscovery
 
         return File.Exists(game.ExePath)
             || LooksLikeShortcut(game.ExePath)
+            || IsProtocolLaunch(game.ExePath)
             || IsStoreGameLaunch(game.ExePath, game.Arguments ?? string.Empty);
     }
 
@@ -515,8 +516,19 @@ internal static class GameDiscovery
             return false;
         }
 
-        return File.Exists(path) || LooksLikeShortcut(path);
+        return File.Exists(path) || LooksLikeShortcut(path) || IsProtocolLaunch(path);
     }
+
+    /// <summary>
+    /// Whether this starts through a protocol rather than by opening a file.
+    /// </summary>
+    /// <remarks>
+    /// steam://, com.epicgames.launcher:// and the rest are how a launcher-owned
+    /// game is started when the executable itself is out of reach — which, on
+    /// the account customers actually use, is most of them.
+    /// </remarks>
+    private static bool IsProtocolLaunch(string path) =>
+        path.Contains("://", StringComparison.Ordinal);
 
     private static bool LooksLikeShortcut(string path) =>
         path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
@@ -1140,6 +1152,14 @@ internal static class GameDiscovery
     {
         var results = new List<GameEntry>();
 
+        // The folder names alone. Windows locks what is inside a Game Pass
+        // install, but listing the games' own folders needs no permission.
+        var installedGameFolders = XboxGameFolderNames();
+        if (installedGameFolders.Count == 0)
+        {
+            return results;
+        }
+
         var shellType = Type.GetTypeFromProgID("Shell.Application");
         if (shellType is null)
         {
@@ -1189,7 +1209,22 @@ internal static class GameDiscovery
                     // A packaged app's id looks like Publisher.Name_hash!AppId.
                     // Anything without the bang is an ordinary program, already
                     // covered by every other source here.
-                    if (!appId.Contains('!') || IsWindowsComponent(appId) || IsJunk(name))
+                    if (!appId.Contains('!') || IsJunk(name))
+                    {
+                        continue;
+                    }
+
+                    // Positive test, not a deny list. Naming the Microsoft
+                    // packages to exclude put Click to Do, Get Started, 365
+                    // Copilot and Clipchamp on a café menu — Clipchamp is not
+                    // even published by Microsoft, so no amount of matching on
+                    // "microsoft." was ever going to hold.
+                    //
+                    // A game installed by the Xbox app has a folder of its own
+                    // under a gaming root. That listing is readable even though
+                    // what is inside it is not, so it says which of these
+                    // packages is a game without guessing from a name.
+                    if (!installedGameFolders.Contains(name.Trim()))
                     {
                         continue;
                     }
@@ -1231,41 +1266,38 @@ internal static class GameDiscovery
         return results;
     }
 
-    /// <summary>Whether a package id belongs to Windows rather than to a game.</summary>
-    private static bool IsWindowsComponent(string appId)
+    /// <summary>Names of the game folders under every gaming root on this PC.</summary>
+    private static HashSet<string> XboxGameFolderNames()
     {
-        var lower = appId.ToLowerInvariant();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return lower.StartsWith("microsoft.windows")
-            || lower.StartsWith("windows.")
-            || lower.StartsWith("microsoft.549981c3f5f10")   // Cortana
-            || lower.StartsWith("microsoft.bing")
-            || lower.StartsWith("microsoft.zune")
-            || lower.StartsWith("microsoft.xbox")            // the Xbox apps, not the games
-            || lower.StartsWith("microsoft.gaming")
-            || lower.StartsWith("microsoft.getstarted")
-            || lower.StartsWith("microsoft.microsoftedge")
-            || lower.StartsWith("microsoft.microsoftstickynotes")
-            || lower.StartsWith("microsoft.office")
-            || lower.StartsWith("microsoft.people")
-            || lower.StartsWith("microsoft.screensketch")
-            || lower.StartsWith("microsoft.todos")
-            || lower.StartsWith("microsoft.yourphone")
-            || lower.StartsWith("microsoft.paint")
-            || lower.StartsWith("microsoft.paint3d")
-            || lower.StartsWith("microsoft.paintstudio")
-            || lower.StartsWith("microsoft.paint_")
-            || lower.StartsWith("microsoft.storepurchaseapp")
-            || lower.StartsWith("microsoft.desktopappinstaller")
-            || lower.StartsWith("microsoft.webmediaextensions")
-            || lower.StartsWith("microsoft.hevc")
-            || lower.StartsWith("microsoft.vp9")
-            || lower.StartsWith("microsoft.raw")
-            || lower.StartsWith("microsoft.webp")
-            || lower.StartsWith("microsoft.powerautomate")
-            || lower.StartsWith("microsoft.outlook")
-            || lower.StartsWith("microsoftcorporationii")
-            || lower.StartsWith("microsoftteams");
+        foreach (var root in XboxGameRoots())
+        {
+            try
+            {
+                if (!Directory.Exists(root))
+                {
+                    continue;
+                }
+
+                foreach (var folder in Directory.GetDirectories(root))
+                {
+                    var name = Path.GetFileName(folder);
+                    if (!string.IsNullOrWhiteSpace(name)
+                        && !name.Equals("GameSave", StringComparison.OrdinalIgnoreCase))
+                    {
+                        names.Add(name);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                // Nothing to be done about a root we cannot list.
+            }
+        }
+
+        AgentLog.Info($"Game folders under the Xbox roots: {names.Count}");
+        return names;
     }
 
     private static IEnumerable<string> XboxGameRoots()
@@ -1410,17 +1442,42 @@ internal static class GameDiscovery
                 }
 
                 var exe = Path.Combine(location, executable.Replace('/', '\\'));
-                if (!File.Exists(exe))
-                {
-                    continue;
-                }
 
-                entry = new GameEntry
+                if (File.Exists(exe))
                 {
-                    Name = name,
-                    ExePath = exe,
-                    ProcessName = Path.GetFileNameWithoutExtension(exe),
-                };
+                    entry = new GameEntry
+                    {
+                        Name = name,
+                        ExePath = exe,
+                        ProcessName = Path.GetFileNameWithoutExtension(exe),
+                    };
+                }
+                else
+                {
+                    // The manifest says it is installed, so it is — this account
+                    // just cannot read the folder. Dropping the game here is why
+                    // a library full of titles showed as a handful: the customer
+                    // account has no rights over games installed by the
+                    // administrator, and every one of them failed this check.
+                    //
+                    // The launcher can start it without us reaching the file, and
+                    // is how Epic's own shortcuts do it anyway.
+                    var appName = root.TryGetProperty("AppName", out var a) ? a.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(appName))
+                    {
+                        AgentLog.Info($"Skipped Epic game '{name}': no AppName and {exe} is unreadable.");
+                        continue;
+                    }
+
+                    AgentLog.Info($"Epic game '{name}' will start through the launcher ({exe} is unreadable).");
+
+                    entry = new GameEntry
+                    {
+                        Name = name,
+                        ExePath = $"com.epicgames.launcher://apps/{appName}?action=launch&silent=true",
+                        ProcessName = Path.GetFileNameWithoutExtension(executable),
+                    };
+                }
             }
             catch (Exception ex) when (ex is JsonException or UnauthorizedAccessException or IOException)
             {

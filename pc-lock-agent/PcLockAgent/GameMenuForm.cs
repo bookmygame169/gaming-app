@@ -628,7 +628,7 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     private void LaunchApp(GameEntry app)
     {
-        if (!LooksLikeShortcut(app.ExePath) && !File.Exists(app.ExePath))
+        if (!LooksLikeShortcut(app.ExePath) && !IsProtocolLaunch(app.ExePath) && !File.Exists(app.ExePath))
         {
             AgentLog.Error($"Cannot open '{app.Name}': {app.ExePath} does not exist.");
             _statusLabel.Text = $"{app.Name} is not installed on this PC.";
@@ -641,9 +641,11 @@ internal sealed class GameMenuForm : Form
             var startInfo = new ProcessStartInfo
             {
                 FileName = app.ExePath,
-                Arguments = LooksLikeShortcut(app.ExePath) ? string.Empty : app.Arguments ?? string.Empty,
+                Arguments = LooksLikeShortcut(app.ExePath) || IsProtocolLaunch(app.ExePath)
+                    ? string.Empty
+                    : app.Arguments ?? string.Empty,
                 WorkingDirectory = app.WorkingDirectory
-                                   ?? (LooksLikeShortcut(app.ExePath)
+                                   ?? (LooksLikeShortcut(app.ExePath) || IsProtocolLaunch(app.ExePath)
                                        ? string.Empty
                                        : Path.GetDirectoryName(app.ExePath) ?? string.Empty),
                 UseShellExecute = true,
@@ -738,7 +740,7 @@ internal sealed class GameMenuForm : Form
             ClearRunningState();
         }
 
-        if (!LooksLikeShortcut(game.ExePath) && !File.Exists(game.ExePath))
+        if (!LooksLikeShortcut(game.ExePath) && !IsProtocolLaunch(game.ExePath) && !File.Exists(game.ExePath))
         {
             AgentLog.Error($"Cannot launch '{game.Name}': {game.ExePath} does not exist.");
             _statusLabel.Text = $"{game.Name} is not installed at the configured path.";
@@ -751,9 +753,11 @@ internal sealed class GameMenuForm : Form
             var startInfo = new ProcessStartInfo
             {
                 FileName = game.ExePath,
-                Arguments = LooksLikeShortcut(game.ExePath) ? string.Empty : game.Arguments ?? string.Empty,
+                Arguments = LooksLikeShortcut(game.ExePath) || IsProtocolLaunch(game.ExePath)
+                    ? string.Empty
+                    : game.Arguments ?? string.Empty,
                 WorkingDirectory = game.WorkingDirectory
-                                   ?? (LooksLikeShortcut(game.ExePath)
+                                   ?? (LooksLikeShortcut(game.ExePath) || IsProtocolLaunch(game.ExePath)
                                        ? string.Empty
                                        : Path.GetDirectoryName(game.ExePath) ?? string.Empty),
                 UseShellExecute = true,
@@ -1007,6 +1011,15 @@ internal sealed class GameMenuForm : Form
             }
         }
     }
+
+    /// <summary>Whether this starts through a protocol rather than a file.</summary>
+    /// <remarks>
+    /// steam:// and com.epicgames.launcher:// are how a game owned by a
+    /// launcher is started when its own files are out of reach — which is the
+    /// normal case on the account customers use.
+    /// </remarks>
+    private static bool IsProtocolLaunch(string path) =>
+        path.Contains("://", StringComparison.Ordinal);
 
     private static bool LooksLikeShortcut(string path) =>
         path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
