@@ -550,14 +550,14 @@ internal static class GameDiscovery
     /// </remarks>
     private static readonly string[] CustomerWritableFolders =
     {
-        @"\downloads", @"ppdata\local	emp", @"ppdataoaming	emp",
-        @"\windows	emp", @"\$recycle.bin", @"rowser-profile",
+        @"\downloads\", @"\appdata\local\temp\", @"\appdata\roaming\temp\",
+        @"\windows\temp\", @"\$recycle.bin\", @"\browser-profile\",
     };
 
     /// <summary>Whether this is somewhere the customer could have put a file.</summary>
     private static bool IsCustomerWritablePath(string path)
     {
-        var lower = path.Replace('/', '\').ToLowerInvariant();
+        var lower = path.Replace('/', '\\').ToLowerInvariant();
         var matched = CustomerWritableFolders.FirstOrDefault(folder => lower.Contains(folder));
 
         if (matched is null)
