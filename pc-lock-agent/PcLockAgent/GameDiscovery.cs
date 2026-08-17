@@ -450,6 +450,34 @@ internal static class GameDiscovery
         return config.WithGames(kept);
     }
 
+    /// <summary>
+    /// Writes out the finished menu, tile by tile, with where each came from.
+    /// </summary>
+    /// <remarks>
+    /// The counts alone say a source produced eleven games; they do not say
+    /// which eleven, so "Rocket League is missing" still could not be answered
+    /// from them. This lists what actually survived, so a menu and a desktop
+    /// can be compared without anyone squinting at a photograph.
+    /// </remarks>
+    public static void LogFinalMenu(AgentConfig config)
+    {
+        var games = config.Games.Where(g => !IsApp(g)).ToList();
+        var apps = config.Games.Where(IsApp).ToList();
+
+        AgentLog.Info(string.Empty);
+        AgentLog.Info($"FINAL MENU: {games.Count} game(s), {apps.Count} app(s).");
+
+        foreach (var game in games)
+        {
+            AgentLog.Info($"  GAME  {game.Name}  ->  {game.ExePath} {game.Arguments}".TrimEnd());
+        }
+
+        foreach (var app in apps)
+        {
+            AgentLog.Info($"  APP   {app.Name}  ->  {app.ExePath} {app.Arguments}".TrimEnd());
+        }
+    }
+
     /// <summary>Whether a tile belongs on the menu at all, game or app.</summary>
     public static bool IsMenuItem(GameEntry game) => IsPlayableGame(game) || IsUsableApp(game);
 

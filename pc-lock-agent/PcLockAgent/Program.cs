@@ -53,6 +53,12 @@ internal static class Program
             // Best-effort: the lock user may not be allowed to start it.
             TryRequestSharedGameScan();
 
+            // Everything the scan says is collected and written out as one
+            // readable file, because six rounds of "which game is missing and
+            // why" were spent reasoning backwards from a photograph of the
+            // menu while the agent already knew the answer.
+            AgentLog.StartCapture();
+
             config = InstalledGames.FilterToInstalled(config);
             config = GameDiscovery.AddInstalledGames(config);
 
@@ -62,6 +68,11 @@ internal static class Program
             config = BrowserAccess.AddBrowserTile(config);
 
             config = GameDiscovery.KeepMenuItemsOnly(config);
+
+            GameDiscovery.LogFinalMenu(config);
+            AgentLog.SaveCapture(
+                "Send this file if a game is missing. It lists every place that was " +
+                "searched, everything found, and the rule that rejected anything dropped.");
 
             Application.Run(new AgentShell(config));
         }
