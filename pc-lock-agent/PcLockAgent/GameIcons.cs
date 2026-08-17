@@ -49,6 +49,13 @@ internal static class GameIcons
             return null;
         }
 
+        // A Store or Xbox game is not a file at all — it is an entry in the
+        // shell's app list — so nothing that opens a path can draw it.
+        if (path.StartsWith("shell:AppsFolder", StringComparison.OrdinalIgnoreCase))
+        {
+            return FromShellItem(path);
+        }
+
         // A shortcut is a pointer, not a picture. Follow it before looking for
         // pixels, or every shortcut on the menu wears the same grey page.
         if (IsShortcut(path))
@@ -381,6 +388,62 @@ internal static class GameIcons
         }
     }
 
+    /// <summary>
+    /// The tile artwork Windows holds for a packaged app.
+    /// </summary>
+    /// <remarks>
+    /// This is the Start Menu's own artwork, taken at 256 pixels — a Game Pass
+    /// title's logo lives inside its package under WindowsApps, which the
+    /// customer account is not allowed to read, so asking the shell for a
+    /// picture is the only way to get it.
+    /// </remarks>
+    private static Image? FromShellItem(string parsingName)
+    {
+        var factoryId = typeof(IShellItemImageFactory).GUID;
+        var bitmap = IntPtr.Zero;
+
+        try
+        {
+            if (SHCreateItemFromParsingName(parsingName, IntPtr.Zero, ref factoryId, out var factory) != 0
+                || factory is null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var size = new SIZE { cx = 256, cy = 256 };
+
+                // ResizeToFit rather than IconOnly: a Game Pass title has real
+                // cover art, and asking for the icon gets a shrunken copy of it
+                // with a Store badge in the corner.
+                if (factory.GetImage(size, SIIGBF_RESIZETOFIT, out bitmap) != 0 || bitmap == IntPtr.Zero)
+                {
+                    return null;
+                }
+
+                // Copied, because the handle is freed below and the Bitmap this
+                // returns does not own the pixels behind it.
+                using var fromHandle = Image.FromHbitmap(bitmap);
+                return new Bitmap(fromHandle);
+            }
+            finally
+            {
+                if (bitmap != IntPtr.Zero)
+                {
+                    DeleteObject(bitmap);
+                }
+
+                Marshal.ReleaseComObject(factory);
+            }
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"No artwork for {parsingName}: {ex.Message}");
+            return null;
+        }
+    }
+
     private static Image? FromImageList(int index, int listSize)
     {
         var handle = IntPtr.Zero;
@@ -507,4 +570,40 @@ internal static class GameIcons
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr hObject);
+
+    /// <summary>Scale the image to fit the size asked for.</summary>
+    private const int SIIGBF_RESIZETOFIT = 0x00000000;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SIZE
+    {
+        public int cx;
+        public int cy;
+    }
+
+    /// <summary>
+    /// Asks the shell for a picture of anything it can name, including a
+    /// packaged app that has no path on disk.
+    /// </summary>
+    [ComImport]
+    [Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IShellItemImageFactory
+    {
+        [PreserveSig] int GetImage(SIZE size, int flags, out IntPtr phbm);
+    }
+
+    // PreserveSig so the HRESULT comes back as a value to check rather than as
+    // an exception — a Store app that has been uninstalled between the scan and
+    // the draw is an ordinary miss, not something worth throwing over.
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHCreateItemFromParsingName(
+        string pszPath,
+        IntPtr pbc,
+        ref Guid riid,
+        [MarshalAs(UnmanagedType.Interface)] out IShellItemImageFactory? ppv);
 }

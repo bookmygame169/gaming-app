@@ -359,6 +359,12 @@ internal static class GameDiscovery
             Take("Steam folders", FromSteamCommonFolders());
             Take("Epic", FromEpic());
             Take("Xbox", FromXboxGames());
+
+            // After the folder scan, so a title found both ways keeps the entry
+            // that came from a real folder — but before the shortcut sources,
+            // because this is the only one that finds a Game Pass install the
+            // customer account is not allowed to look inside.
+            Take("Store / Xbox apps", FromStoreApps());
             Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
             Take("Roblox", FromRoblox());
             Take("desktops", FromAllDesktops());
@@ -1111,6 +1117,157 @@ internal static class GameDiscovery
     }
 
     /// <summary>Every XboxGames folder, including drives that relocated it.</summary>
+    /// <summary>
+    /// Every packaged app Windows knows about, which is the only way to find
+    /// an Xbox Game Pass title.
+    /// </summary>
+    /// <remarks>
+    /// Scanning C:\XboxGames does not work, for two reasons that both bite.
+    /// A Game Pass install is ACL-locked — the customer account cannot list
+    /// what is inside Content\, so the walk finds no executable and moves on.
+    /// And even when it does find one, running it directly fails: those builds
+    /// are licence-checked and must be started through the Store.
+    /// <para>
+    /// Asking the shell avoids both. shell:AppsFolder is the same list the
+    /// Start Menu shows, it needs no permissions, it does not care which drive
+    /// the game is on, and the identifier it returns is exactly what launches
+    /// the game. Forza appeared on one café's menu only because a folder scan
+    /// happened to reach it; Call of Duty and Resident Evil Village, installed
+    /// the same way, did not.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromStoreApps()
+    {
+        var results = new List<GameEntry>();
+
+        var shellType = Type.GetTypeFromProgID("Shell.Application");
+        if (shellType is null)
+        {
+            return results;
+        }
+
+        object? shell = null;
+        try
+        {
+            shell = Activator.CreateInstance(shellType);
+            if (shell is null)
+            {
+                return results;
+            }
+
+            const System.Reflection.BindingFlags Call = System.Reflection.BindingFlags.InvokeMethod;
+            const System.Reflection.BindingFlags Get = System.Reflection.BindingFlags.GetProperty;
+
+            var folder = shellType.InvokeMember(
+                "NameSpace", Call, null, shell, new object[] { "shell:AppsFolder" });
+            var items = folder?.GetType().InvokeMember("Items", Call, null, folder, null);
+            if (items is null)
+            {
+                return results;
+            }
+
+            var count = items.GetType().InvokeMember("Count", Get, null, items, null) as int? ?? 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                try
+                {
+                    var item = items.GetType().InvokeMember("Item", Call, null, items, new object[] { i });
+                    if (item is null)
+                    {
+                        continue;
+                    }
+
+                    var name = item.GetType().InvokeMember("Name", Get, null, item, null) as string;
+                    var appId = item.GetType().InvokeMember("Path", Get, null, item, null) as string;
+
+                    if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(appId))
+                    {
+                        continue;
+                    }
+
+                    // A packaged app's id looks like Publisher.Name_hash!AppId.
+                    // Anything without the bang is an ordinary program, already
+                    // covered by every other source here.
+                    if (!appId.Contains('!') || IsWindowsComponent(appId) || IsJunk(name))
+                    {
+                        continue;
+                    }
+
+                    results.Add(new GameEntry
+                    {
+                        Name = name,
+                        ExePath = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
+                        Arguments = $@"shell:AppsFolder\{appId}",
+
+                        // Nothing to watch: explorer hands off and exits, and
+                        // the game runs as a process named after itself.
+                        ProcessName = null,
+                        IconSourcePath = $@"shell:AppsFolder\{appId}",
+                        Category = CategoryFor(name),
+                    });
+                }
+                catch
+                {
+                    // One unreadable entry is not a reason to lose the rest.
+                }
+            }
+
+            AgentLog.Info($"Store/Xbox apps found: {results.Count}");
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not read the Store app list: {ex.Message}");
+        }
+        finally
+        {
+            if (shell is not null && System.Runtime.InteropServices.Marshal.IsComObject(shell))
+            {
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>Whether a package id belongs to Windows rather than to a game.</summary>
+    private static bool IsWindowsComponent(string appId)
+    {
+        var lower = appId.ToLowerInvariant();
+
+        return lower.StartsWith("microsoft.windows")
+            || lower.StartsWith("windows.")
+            || lower.StartsWith("microsoft.549981c3f5f10")   // Cortana
+            || lower.StartsWith("microsoft.bing")
+            || lower.StartsWith("microsoft.zune")
+            || lower.StartsWith("microsoft.xbox")            // the Xbox apps, not the games
+            || lower.StartsWith("microsoft.gaming")
+            || lower.StartsWith("microsoft.getstarted")
+            || lower.StartsWith("microsoft.microsoftedge")
+            || lower.StartsWith("microsoft.microsoftstickynotes")
+            || lower.StartsWith("microsoft.office")
+            || lower.StartsWith("microsoft.people")
+            || lower.StartsWith("microsoft.screensketch")
+            || lower.StartsWith("microsoft.todos")
+            || lower.StartsWith("microsoft.yourphone")
+            || lower.StartsWith("microsoft.paint")
+            || lower.StartsWith("microsoft.paint3d")
+            || lower.StartsWith("microsoft.paintstudio")
+            || lower.StartsWith("microsoft.paint_")
+            || lower.StartsWith("microsoft.storepurchaseapp")
+            || lower.StartsWith("microsoft.desktopappinstaller")
+            || lower.StartsWith("microsoft.webmediaextensions")
+            || lower.StartsWith("microsoft.hevc")
+            || lower.StartsWith("microsoft.vp9")
+            || lower.StartsWith("microsoft.raw")
+            || lower.StartsWith("microsoft.webp")
+            || lower.StartsWith("microsoft.powerautomate")
+            || lower.StartsWith("microsoft.outlook")
+            || lower.StartsWith("microsoftcorporationii")
+            || lower.StartsWith("microsoftteams");
+    }
+
     private static IEnumerable<string> XboxGameRoots()
     {
         var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
