@@ -92,15 +92,58 @@ internal static class GameArtwork
     }
 
     /// <summary>The Steam app id this entry launches, if it launches one.</summary>
+    /// <summary>
+    /// The Steam app id behind this tile, wherever it is written down.
+    /// </summary>
+    /// <remarks>
+    /// Arguments only covers the shortcut form <c>steam.exe -applaunch 730</c>.
+    /// Steam's own desktop shortcuts are .url files instead, holding
+    /// <c>URL=steam://rungameid/730</c> — no arguments anywhere, so looking
+    /// only there found nothing for exactly the games Steam itself created a
+    /// shortcut for, which is most of a café's library.
+    /// </remarks>
     private static string? ReadAppId(GameEntry game)
     {
-        if (string.IsNullOrWhiteSpace(game.Arguments))
+        foreach (var candidate in new[] { game.Arguments, game.ExePath })
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            var match = AppLaunch.Match(candidate);
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+        }
+
+        // The id is inside the file rather than in anything about it.
+        var path = game.ExePath;
+        if (string.IsNullOrWhiteSpace(path)
+            || !path.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
+            || !File.Exists(path))
         {
             return null;
         }
 
-        var match = AppLaunch.Match(game.Arguments);
-        return match.Success ? match.Groups[1].Value : null;
+        try
+        {
+            foreach (var line in File.ReadLines(path))
+            {
+                var match = AppLaunch.Match(line);
+                if (match.Success)
+                {
+                    return match.Groups[1].Value;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not read {Path.GetFileName(path)}: {ex.Message}");
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -59,12 +59,32 @@ $junkFolders = @(
 
 function Get-ShortcutInfo {
     param([string]$Path)
+
+    # A .url is a text file, and CreateShortcut hands back a different object
+    # for one - it has no Arguments property, so asking threw and this returned
+    # null for the whole shortcut. It happened to still work, because a null
+    # target falls through to "keep the shortcut itself", but nothing about the
+    # game was ever actually read. Steam writes every one of its desktop
+    # shortcuts this way.
+    if ($Path.ToLowerInvariant().EndsWith('.url')) {
+        $url = $null
+        try {
+            foreach ($line in Get-Content -LiteralPath $Path -ErrorAction Stop) {
+                if ($line -match '^\s*URL\s*=\s*(.+)$') { $url = $Matches[1].Trim(); break }
+            }
+        } catch {
+            return $null
+        }
+        return [PSCustomObject]@{ Target = $null; Arguments = $null; Url = $url }
+    }
+
     try {
         $shell = New-Object -ComObject WScript.Shell
         $link = $shell.CreateShortcut($Path)
         return [PSCustomObject]@{
             Target    = [string]$link.TargetPath
             Arguments = [string]$link.Arguments
+            Url       = $null
         }
     } catch {
         return $null

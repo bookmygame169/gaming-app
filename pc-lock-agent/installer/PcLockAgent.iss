@@ -47,6 +47,22 @@ Source: "..\tools\refresh-games.ps1";    DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\why-not-showing.ps1";  DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
+; Builds the machine-wide game list, every install and every update.
+;
+; The locked customer account cannot read the administrator's desktop, so games
+; installed there reach the menu only through installed-games.json. Nothing
+; wrote that file automatically: it needed somebody to run install-startup.ps1
+; by hand, so it stayed as it was the day that last happened and every game
+; installed since was simply missing from the menu, with nothing saying why.
+;
+; Deliberately NOT skipifsilent. Auto-updates install silently, and those are
+; exactly the moments this most needs to run. runhidden so a café PC updating
+; overnight does not leave a console window on screen.
+Filename: "powershell.exe"; \
+  Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\refresh-games.ps1"""; \
+  StatusMsg: "Finding the games installed on this PC..."; \
+  Flags: runhidden waituntilterminated
+
 ; Ticked by default: the agent needs running once to ask for the setup code, and
 ; until that happens it locks nothing. Starting it here means the person doing
 ; the install can finish the job while they are still at the machine.

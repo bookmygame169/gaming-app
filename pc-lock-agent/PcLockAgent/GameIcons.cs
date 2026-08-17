@@ -103,12 +103,80 @@ internal static class GameIcons
     /// <summary>
     /// The shortcut's icon location, its index, and its target.
     /// </summary>
+    private static (string? IconFile, int IconIndex, string? Target) ReadShortcut(string path) =>
+        path.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
+            ? ReadUrlShortcut(path)
+            : ReadLinkShortcut(path);
+
+    /// <summary>
+    /// Reads a .url shortcut as the text file it is.
+    /// </summary>
     /// <remarks>
+    /// This is how Steam writes every desktop shortcut it creates, and it is
+    /// why most of a café's menu was grey pages while its desktop looked fine.
+    /// <para>
+    /// A .url is an INI file naming the icon outright:
+    /// </para>
+    /// <code>
+    /// [InternetShortcut]
+    /// URL=steam://rungameid/730
+    /// IconFile=C:\Program Files (x86)\Steam\steam\games\abc123.ico
+    /// IconIndex=0
+    /// </code>
+    /// <para>
+    /// WScript.Shell was being used for these too, and for a .url it hands back
+    /// a different object — one with no IconLocation at all. Asking for it threw,
+    /// the catch discarded the target that had already been read successfully,
+    /// and every Steam game came back with nothing to draw. The answer was
+    /// sitting in the file in plain text the whole time.
+    /// </para>
+    /// </remarks>
+    private static (string? IconFile, int IconIndex, string? Target) ReadUrlShortcut(string path)
+    {
+        string? iconFile = null;
+        string? target = null;
+        var iconIndex = 0;
+
+        try
+        {
+            foreach (var line in File.ReadLines(path))
+            {
+                if (line.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase))
+                {
+                    iconFile = line[9..].Trim();
+                }
+                else if (line.StartsWith("IconIndex=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = int.TryParse(line[10..].Trim(), out iconIndex);
+                }
+                else if (line.StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
+                {
+                    target = line[4..].Trim();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not read {Path.GetFileName(path)}: {ex.Message}");
+        }
+
+        return (string.IsNullOrWhiteSpace(iconFile) ? null : iconFile, iconIndex, target);
+    }
+
+    /// <summary>
+    /// Reads a .lnk shortcut through the shell.
+    /// </summary>
+    /// <remarks>
+    /// Each property is read on its own. Reading them together meant one
+    /// unsupported property threw and took the others with it, discarding
+    /// answers that had already been found.
+    /// <para>
     /// IconLocation comes back as "path,index" — the index matters because a
     /// shortcut into a multi-icon DLL that ignored it would show whichever icon
     /// happened to be first.
+    /// </para>
     /// </remarks>
-    private static (string? IconFile, int IconIndex, string? Target) ReadShortcut(string path)
+    private static (string? IconFile, int IconIndex, string? Target) ReadLinkShortcut(string path)
     {
         var shellType = Type.GetTypeFromProgID("WScript.Shell");
         if (shellType is null)
@@ -133,8 +201,20 @@ internal static class GameIcons
                 return (null, 0, null);
             }
 
-            string? Read(string property) => link.GetType().InvokeMember(
-                property, System.Reflection.BindingFlags.GetProperty, null, link, null) as string;
+            // Independently, so one property this shortcut type does not carry
+            // cannot discard the ones that were read successfully.
+            string? Read(string property)
+            {
+                try
+                {
+                    return link.GetType().InvokeMember(
+                        property, System.Reflection.BindingFlags.GetProperty, null, link, null) as string;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
 
             var target = Read("TargetPath");
             var location = Read("IconLocation");
