@@ -86,7 +86,7 @@ internal static class AgentLog
                  {
                      Path.Combine(
                          Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                         "BookMyGame", "game-report.txt"),
+                         "BookMyGame", "reports", "game-report.txt"),
                      Path.Combine(AgentPaths.DataFolder, "game-report.txt"),
                  })
         {

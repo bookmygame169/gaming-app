@@ -598,6 +598,7 @@ internal static class GameDiscovery
     {
         @"\downloads\", @"\appdata\local\temp\", @"\appdata\roaming\temp\",
         @"\windows\temp\", @"\$recycle.bin\", @"\browser-profile\",
+        @"\bookmygame\reports\",
     };
 
     /// <summary>Whether this is somewhere the customer could have put a file.</summary>

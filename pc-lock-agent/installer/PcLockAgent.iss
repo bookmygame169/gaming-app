@@ -46,6 +46,18 @@ Source: "..\tools\update-agent.ps1";     DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\refresh-games.ps1";    DestDir: "{app}"; Flags: ignoreversion
 Source: "..\tools\why-not-showing.ps1";  DestDir: "{app}"; Flags: ignoreversion
 
+[Dirs]
+; One writable folder, and only one.
+;
+; The agent runs as the customer, and ProgramData\BookMyGame is created by the
+; SYSTEM scan, so everything in it is read-only to that account — including the
+; place the game report needs to go. Granting modify on the whole folder would
+; also hand the customer installed-games.json, which is a list of things the
+; menu will launch, so the write is confined to a subfolder that holds nothing
+; but reports.
+Name: "{commonappdata}\BookMyGame"
+Name: "{commonappdata}\BookMyGame\reports"; Permissions: users-modify
+
 [Run]
 ; Builds the machine-wide game list, every install and every update.
 ;
