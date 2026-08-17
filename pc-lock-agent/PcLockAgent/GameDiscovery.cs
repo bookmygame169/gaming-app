@@ -350,25 +350,25 @@ internal static class GameDiscovery
                 AgentLog.Info($"  {source}: {found.Count - before}");
             }
 
-            AgentLog.Info("Looking for installed games.");
-            // Shared list first: SYSTEM copied shortcuts into ProgramData so the
-            // lock user can open admin-desktop games. Without this, that account
-            // only sees the handful of titles installed for everyone.
-            Take("machine-wide list", FromSharedList());
-            Take("Steam", FromSteam());
-            Take("Steam folders", FromSteamCommonFolders());
-            Take("Epic", FromEpic());
-            // Before the folder scan, deliberately. When a Game Pass title is
-            // found both ways the shell entry has to win: its executable is
-            // licence-checked and refuses to start when run directly, so the
-            // folder scan's version of the same game is a tile that does
-            // nothing.
-            Take("Store / Xbox apps", FromStoreApps());
-            Take("Xbox", FromXboxGames());
-            Take("Riot / EA / Ubisoft / other folders", FromWellKnownFolders());
-            Take("Roblox", FromRoblox());
-            Take("desktops", FromAllDesktops());
-            Take("Start Menus", FromAllStartMenus());
+            AgentLog.Info("Reading this account's desktop.");
+
+            // This account's own desktop, and nothing else.
+            //
+            // Every version of this that guessed — Steam libraries, Epic
+            // manifests, Xbox packages, the registry, Start Menus, a
+            // SYSTEM-written list copied out of another profile — failed the
+            // same way, because all of them read things this account has no
+            // rights over. Permissions, not logic. A game would vanish with no
+            // error and the only way to find out which of ten deny lists took
+            // it was to read a log off the machine.
+            //
+            // The desktop of the account the agent runs as is the one place it
+            // can always read. What is on it is what the café put there, so it
+            // is also the one list that is correct by definition: if a game is
+            // missing, the shortcut is missing, and that is visible at a glance
+            // rather than needing a report.
+            Take("this account's desktop", FromOwnDesktop());
+            Take("apps", FromKnownApps());
         }
         catch (Exception ex)
         {
@@ -1295,6 +1295,155 @@ internal static class GameDiscovery
         return results;
     }
 
+    /// <summary>
+    /// Everything on this account's desktop.
+    /// </summary>
+    /// <remarks>
+    /// Read as the account the agent runs as, so there is no permission to be
+    /// refused and nothing to copy out of another profile. Filtering is almost
+    /// nothing on purpose: this desktop is not somebody's working desktop full
+    /// of tools, it is the one the café prepared for customers, so its contents
+    /// are the answer rather than evidence to weigh.
+    /// <para>
+    /// copy-games-to-user.ps1 is what fills it, and that is where the judgement
+    /// about what counts as a game now lives — once, visibly, with a printed
+    /// list of what it skipped, instead of ten deny lists deciding silently at
+    /// run time.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromOwnDesktop()
+    {
+        var folders = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+        };
+
+        foreach (var folder in folders)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            AgentLog.Info($"Desktop: {folder}");
+        }
+
+        return FromShortcutFolders(folders, SearchOption.TopDirectoryOnly, launchShortcutFile: true);
+    }
+
+    /// <summary>
+    /// The handful of applications worth offering, when they are installed.
+    /// </summary>
+    /// <remarks>
+    /// A fixed list, checked against the disk. Discovering applications by
+    /// scanning is what put a video editor, a Copilot tile and a piece of
+    /// adware in front of customers over three separate builds; naming them
+    /// means nothing else can arrive however it is published or whatever it
+    /// calls itself.
+    /// </remarks>
+    private static IEnumerable<GameEntry> FromKnownApps()
+    {
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        var known = new (string Name, string[] Paths)[]
+        {
+            ("Google Chrome", new[]
+            {
+                Path.Combine(programFiles, @"Google\Chrome\Application\chrome.exe"),
+                Path.Combine(programFilesX86, @"Google\Chrome\Application\chrome.exe"),
+            }),
+            ("Microsoft Edge", new[]
+            {
+                Path.Combine(programFilesX86, @"Microsoft\Edge\Application\msedge.exe"),
+                Path.Combine(programFiles, @"Microsoft\Edge\Application\msedge.exe"),
+            }),
+            ("Steam", new[]
+            {
+                Path.Combine(programFilesX86, @"Steam\steam.exe"),
+                Path.Combine(programFiles, @"Steam\steam.exe"),
+            }),
+            ("Epic Games Launcher", new[]
+            {
+                Path.Combine(programFiles, @"Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe"),
+                Path.Combine(programFilesX86, @"Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe"),
+            }),
+            ("Discord", new[]
+            {
+                Path.Combine(localAppData, @"Discord\Update.exe"),
+            }),
+            ("NVIDIA App", new[]
+            {
+                Path.Combine(programFiles, @"NVIDIA Corporation\NVIDIA app\CEF\NVIDIA app.exe"),
+                Path.Combine(programFiles, @"NVIDIA Corporation\NVIDIA GeForce Experience\NVIDIA GeForce Experience.exe"),
+            }),
+        };
+
+        foreach (var (name, paths) in known)
+        {
+            var exe = paths.FirstOrDefault(File.Exists);
+            if (exe is null)
+            {
+                continue;
+            }
+
+            AgentLog.Info($"App available: {name}");
+
+            yield return new GameEntry
+            {
+                Name = name,
+                ExePath = exe,
+                // Discord ships a stub updater that hands off to the real app,
+                // so there is nothing here worth watching for any of these.
+                ProcessName = null,
+                IconSourcePath = exe,
+                Category = "app",
+            };
+        }
+
+        // The Xbox app has no executable anyone may run directly.
+        var xbox = XboxAppId();
+        if (xbox is not null)
+        {
+            AgentLog.Info("App available: Xbox");
+
+            yield return new GameEntry
+            {
+                Name = "Xbox",
+                ExePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
+                Arguments = $@"shell:AppsFolder\{xbox}",
+                IconSourcePath = $@"shell:AppsFolder\{xbox}",
+                Category = "app",
+            };
+        }
+    }
+
+    /// <summary>The Xbox app's launch id, if it is installed.</summary>
+    private static string? XboxAppId()
+    {
+        const string Id = @"Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.App";
+
+        try
+        {
+            var windowsApps = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsApps");
+
+            return Directory.Exists(windowsApps)
+                   && Directory.EnumerateDirectories(windowsApps, "Microsoft.GamingApp_*").Any()
+                ? Id
+                : null;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            // WindowsApps is locked down on most machines. Offering the tile is
+            // better than hiding it: at worst it does nothing.
+            return Id;
+        }
+    }
+
     /// <summary>Names of the game folders under every gaming root on this PC.</summary>
     private static HashSet<string> XboxGameFolderNames()
     {
@@ -1967,9 +2116,17 @@ internal static class GameDiscovery
             var label = Path.GetFileNameWithoutExtension(shortcut);
             var lowerLabel = label.ToLowerInvariant();
 
+            // Windows tools and this agent itself, and nothing else.
+            //
+            // The only caller now is the customer account's own desktop, which
+            // copy-games-to-user.ps1 fills and which the café can edit by hand.
+            // Judging its contents a second time here is what the last twenty
+            // rounds were: a shortcut placed on purpose being removed by a rule
+            // written for a Start Menu, invisibly. What is on that desktop is
+            // the menu.
             if (LooksLikeWindowsTool(label, shortcut)
-                || NotAGameShortcut.Any(bad => lowerLabel.Contains(bad))
-                || IsJunk(label))
+                || lowerLabel.Contains("bookmygame")
+                || lowerLabel.Contains("pclockagent"))
             {
                 return null;
             }
