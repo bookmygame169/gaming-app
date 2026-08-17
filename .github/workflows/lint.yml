@@ -1,0 +1,81 @@
+# Compiles everything on every push.
+#
+# The installer and APK workflows are workflow_dispatch only, so until this
+# existed nothing ran automatically and broken code sat in main until somebody
+# manually started a build. Three separate C# breakages reached the café PCs
+# that way, all of which a compiler would have caught in seconds.
+#
+# Nothing here publishes or deploys. It only answers "does this build?".
+name: Lint
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push makes an in-flight run pointless.
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sources:
+    name: Source hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # No toolchain needed, so it answers in about a second. Catches files
+      # damaged by escape processing — control characters and literals left
+      # open at end of line — which read as invisible in an editor.
+      - name: Check for damaged source files
+        run: node scripts/check-sources.mjs
+
+  agent:
+    name: PC lock agent compiles
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore pc-lock-agent/PcLockAgent/PcLockAgent.csproj
+
+      # Build only. The full installer workflow publishes a self-contained
+      # single file and runs Inno Setup on top, which is not needed to find out
+      # whether the code is valid.
+      - name: Build
+        run: dotnet build pc-lock-agent/PcLockAgent/PcLockAgent.csproj --no-restore -c Release
+
+  web:
+    name: Website typechecks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      # tsc rather than `npm run build`, because the build runs the schema
+      # check first and that needs database credentials this job has no
+      # business holding.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # `npm run lint` is deliberately not here. ESLint currently reports 112
+      # errors across the existing codebase, so it would fail every push from
+      # the day it was added and teach everyone to ignore a red tick. Worth
+      # adding once that backlog is cleared, and worthless before then.
