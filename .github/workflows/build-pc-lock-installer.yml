@@ -11,6 +11,24 @@ on:
         required: false
         default: "1.0.0"
 
+  # Automatic, because manual was the reason fixes did not arrive.
+  #
+  # This workflow was dispatch-only, so a fix could be written, reviewed,
+  # compiled and pushed and still not exist as an installer — the café PCs poll
+  # a release nobody had built. Rounds of "still the same" were exactly that:
+  # the change was correct and had never left GitHub.
+  push:
+    branches: [main]
+    paths:
+      - "pc-lock-agent/**"
+      - ".github/workflows/build-pc-lock-installer.yml"
+
+# Named once so the build, the version file, the release and the exe all carry
+# the same string. A push supplies no input, so it falls back to the run number
+# — always higher than the last, which is all the updater compares.
+env:
+  AGENT_VERSION: ${{ inputs.version || format('1.1.{0}', github.run_number) }}
+
 permissions:
   contents: write
 
@@ -179,7 +197,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           Set-Location pc-lock-agent/tools
-          ./build-installer.ps1 -Version "${{ inputs.version }}"
+          ./build-installer.ps1 -Version "${{ env.AGENT_VERSION }}"
           $exe = Resolve-Path "../installer/Output/BookMyGame-PC-Lock-Setup.exe"
           Write-Host "Built installer: $exe"
           Get-Item $exe | Format-List FullName, Length
@@ -194,7 +212,7 @@ jobs:
           $exe = "pc-lock-agent/publish/PcLockAgent.exe"
           if (-not (Test-Path $exe)) { throw "No published exe at $exe" }
           $stamped = (Get-Item $exe).VersionInfo.FileVersion
-          $want = "${{ inputs.version }}"
+          $want = "${{ env.AGENT_VERSION }}"
           Write-Host "exe reports '$stamped', release is '$want'"
           if (-not $stamped.StartsWith($want)) {
             Write-Host "::error::Version not stamped - exe says '$stamped', expected '$want'"
@@ -208,7 +226,7 @@ jobs:
       - name: Write version file
         shell: pwsh
         run: |
-          "${{ inputs.version }}" | Out-File -FilePath version.txt -Encoding ascii -NoNewline
+          "${{ env.AGENT_VERSION }}" | Out-File -FilePath version.txt -Encoding ascii -NoNewline
           Get-Content version.txt
 
       # The café PCs update themselves by downloading and running this
@@ -243,7 +261,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: pc-lock-latest
-          name: PC Lock Installer v${{ inputs.version }}
+          name: PC Lock Installer v${{ env.AGENT_VERSION }}
           body: Automated build of BookMyGame-PC-Lock-Setup.exe for café PC setup.
           artifacts: "pc-lock-agent/installer/Output/BookMyGame-PC-Lock-Setup.exe,version.txt,setup.sha256"
           allowUpdates: true
