@@ -92,7 +92,10 @@ internal sealed class WarningOverlayForm : Form
     /// <param name="anchorWindow">
     /// Optional game window to stack directly above instead of using TopMost.
     /// </param>
-    public void ShowWarning(int secondsRemaining, bool gameIsRunning, IntPtr anchorWindow = IntPtr.Zero)
+    // `default` rather than IntPtr.Zero: the latter is a static readonly field,
+    // not a compile-time constant, and C# only accepts constants as default
+    // parameter values. Same value, and this one builds.
+    public void ShowWarning(int secondsRemaining, bool gameIsRunning, IntPtr anchorWindow = default)
     {
         _messageLabel.Text = FormatMessage(secondsRemaining);
         _hideTimer.Stop();
