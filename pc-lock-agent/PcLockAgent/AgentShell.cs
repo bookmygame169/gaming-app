@@ -26,8 +26,10 @@ internal sealed class AgentShell : ApplicationContext
     private readonly LockedScreenForm _lockedScreen;
     private readonly GameMenuForm _gameMenu;
     private readonly WarningOverlayForm _warningOverlay;
+    private readonly ReturnToGamePromptForm _returnToGamePrompt;
     private readonly ScreenBlanker _screenBlanker;
     private readonly UnlockQrProvider _unlockQr;
+    private readonly System.Windows.Forms.Timer _foregroundWatchTimer;
 
     private bool _exiting;
 
@@ -41,11 +43,25 @@ internal sealed class AgentShell : ApplicationContext
         _lockedScreen = new LockedScreenForm(config);
         _gameMenu = new GameMenuForm(config);
         _warningOverlay = new WarningOverlayForm();
+        _returnToGamePrompt = new ReturnToGamePromptForm();
         _screenBlanker = new ScreenBlanker();
 
+        _foregroundWatchTimer = new System.Windows.Forms.Timer { Interval = 1500 };
+        _foregroundWatchTimer.Tick += (_, _) => CheckGameForeground();
+
         _session.SessionExpired += (_, _) => OnSessionExpired();
-        _session.WarningDue += (_, secondsRemaining) => _warningOverlay.ShowWarning(secondsRemaining);
+        _session.WarningDue += (_, secondsRemaining) => ShowSessionWarning(secondsRemaining);
         _session.Remaining += (_, remaining) => _gameMenu.UpdateRemaining(remaining);
+
+        _warningOverlay.Hidden += (_, _) =>
+        {
+            if (_gameMenu.IsGameRunning)
+            {
+                _gameMenu.TryRestoreGameForeground();
+            }
+        };
+
+        _returnToGamePrompt.ReturnClicked += (_, _) => OnReturnToGameClicked();
 
         _lockService.DevExitRequested += (_, _) => Shutdown();
         _lockService.PasswordExitRequested += (_, _) => AskForExitPassword();
@@ -75,6 +91,7 @@ internal sealed class AgentShell : ApplicationContext
             // Lets a game that spans both monitors draw over the covers. They
             // stay visible underneath, so the desktop is still hidden.
             _screenBlanker.SetTopMost(false);
+            _foregroundWatchTimer.Start();
         };
         _gameMenu.GameExited += (_, _) => OnGameExited();
 
@@ -177,7 +194,7 @@ internal sealed class AgentShell : ApplicationContext
 
     private void OnSessionExpired()
     {
-        _warningOverlay.ShowWarning(0);
+        ShowSessionWarning(0);
         ApplyLocked();
     }
 
@@ -191,6 +208,8 @@ internal sealed class AgentShell : ApplicationContext
         // too, and an app is deliberately not "a running game" — guarding this
         // on IsGameRunning left a browser running behind the lock screen for
         // anyone who never started a game.
+        _foregroundWatchTimer.Stop();
+        _returnToGamePrompt.HidePrompt();
         _gameMenu.TerminateRunningGame();
 
         // Between customers, and now that the browser is actually closed the
@@ -238,6 +257,9 @@ internal sealed class AgentShell : ApplicationContext
 
     private void OnGameExited()
     {
+        _foregroundWatchTimer.Stop();
+        _returnToGamePrompt.HidePrompt();
+
         _lockService.SetGameRunning(false);
         _screenBlanker.SetTopMost(!_lockService.Passthrough);
 
@@ -263,7 +285,52 @@ internal sealed class AgentShell : ApplicationContext
     private void OnWarnRequested(object? sender, int remainingSeconds)
     {
         AgentLog.Info($"Warn command received ({remainingSeconds}s remaining).");
-        _warningOverlay.ShowWarning(remainingSeconds);
+        ShowSessionWarning(remainingSeconds);
+    }
+
+    private void ShowSessionWarning(int secondsRemaining)
+    {
+        var gameRunning = _gameMenu.IsGameRunning;
+        var anchor = gameRunning
+            ? GameWindowFocus.FindBestWindow(_gameMenu.GetActiveProcessNames())
+            : IntPtr.Zero;
+
+        _warningOverlay.ShowWarning(secondsRemaining, gameRunning, anchor);
+
+        if (gameRunning)
+        {
+            // Run after the warning paints so the game is not left behind the menu.
+            _gameMenu.BeginInvoke(new Action(() => _gameMenu.TryRestoreGameForeground()));
+        }
+    }
+
+    private void CheckGameForeground()
+    {
+        if (!_gameMenu.IsGameRunning || _warningOverlay.Visible)
+        {
+            _returnToGamePrompt.HidePrompt();
+            return;
+        }
+
+        if (_gameMenu.IsGameForeground())
+        {
+            _returnToGamePrompt.HidePrompt();
+            return;
+        }
+
+        var gameName = _gameMenu.CurrentGameName ?? "your game";
+        _returnToGamePrompt.ShowForGame(gameName);
+    }
+
+    private void OnReturnToGameClicked()
+    {
+        if (!_gameMenu.TryRestoreGameForeground())
+        {
+            var gameName = _gameMenu.CurrentGameName ?? "your game";
+            _gameMenu.ShowReturnToGameMenu(gameName);
+        }
+
+        _returnToGamePrompt.HidePrompt();
     }
 
     // -----------------------------------------------------------------------
@@ -405,6 +472,8 @@ internal sealed class AgentShell : ApplicationContext
         _gameMenu.AllowClose = true;
         _lockedScreen.AllowClose = true;
 
+        _foregroundWatchTimer.Stop();
+        _returnToGamePrompt.HidePrompt();
         _gameMenu.TerminateRunningGame();
 
         // Not Stop(): that clears the saved state, and a session interrupted by
@@ -421,8 +490,10 @@ internal sealed class AgentShell : ApplicationContext
         _ = _mqttService.DisposeAsync().AsTask();
 
         _unlockQr.Dispose();
+        _foregroundWatchTimer.Dispose();
         _screenBlanker.Dispose();
         _warningOverlay.Close();
+        _returnToGamePrompt.Close();
         _gameMenu.Close();
         _lockedScreen.Close();
 

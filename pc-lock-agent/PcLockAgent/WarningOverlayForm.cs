@@ -1,5 +1,7 @@
 namespace PcLockAgent;
 
+using System.Runtime.InteropServices;
+
 /// <summary>
 /// Small banner across the top of the screen warning that time is running out.
 /// </summary>
@@ -50,8 +52,11 @@ internal sealed class WarningOverlayForm : Form
         {
             _hideTimer.Stop();
             Hide();
+            Hidden?.Invoke(this, EventArgs.Empty);
         };
     }
+
+    public event EventHandler? Hidden;
 
     /// <summary>
     /// Stops the banner taking focus when it appears.
@@ -79,14 +84,42 @@ internal sealed class WarningOverlayForm : Form
     }
 
     /// <summary>Shows the banner for a few seconds.</summary>
-    public void ShowWarning(int secondsRemaining)
+    /// <param name="secondsRemaining">Seconds left in the session.</param>
+    /// <param name="gameIsRunning">
+    /// When true, TopMost is avoided so exclusive-fullscreen games are not
+    /// forced behind the kiosk menu.
+    /// </param>
+    /// <param name="anchorWindow">
+    /// Optional game window to stack directly above instead of using TopMost.
+    /// </param>
+    public void ShowWarning(int secondsRemaining, bool gameIsRunning, IntPtr anchorWindow = IntPtr.Zero)
     {
         _messageLabel.Text = FormatMessage(secondsRemaining);
         _hideTimer.Stop();
 
-        Show();
-        TopMost = false;
-        TopMost = true;
+        if (gameIsRunning)
+        {
+            TopMost = false;
+            Show();
+
+            if (anchorWindow != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(
+                    Handle,
+                    anchorWindow,
+                    Location.X,
+                    Location.Y,
+                    Width,
+                    Height,
+                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
+            }
+        }
+        else
+        {
+            Show();
+            TopMost = false;
+            TopMost = true;
+        }
 
         _hideTimer.Start();
     }
@@ -123,5 +156,22 @@ internal sealed class WarningOverlayForm : Form
     {
         public const int WS_EX_NOACTIVATE = 0x08000000;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
+    }
+
+    private static class NativeMethods
+    {
+        public const uint SWP_NOACTIVATE = 0x0010;
+        public const uint SWP_SHOWWINDOW = 0x0040;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetWindowPos(
+            IntPtr hWnd,
+            IntPtr hWndInsertAfter,
+            int x,
+            int y,
+            int cx,
+            int cy,
+            uint uFlags);
     }
 }

@@ -90,6 +90,7 @@ internal sealed class GameMenuForm : Form
     private readonly List<string> _openedApps = new();
     private string? _launchedExeName;
     private bool _waitingOnLauncher;
+    private bool _playingHiddenOverlay;
 
     public GameMenuForm(AgentConfig config)
     {
@@ -99,6 +100,70 @@ internal sealed class GameMenuForm : Form
     }
 
     public bool IsGameRunning => _runningProcess is not null || _watchedProcessName is not null;
+
+    /// <summary>Process names that belong to the game currently in play.</summary>
+    public IReadOnlyList<string> GetActiveProcessNames()
+    {
+        var names = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(_watchedProcessName))
+        {
+            names.Add(_watchedProcessName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_launchedExeName))
+        {
+            names.Add(_launchedExeName);
+        }
+
+        var process = _runningProcess;
+        if (process is not null)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    names.Add(process.ProcessName);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Process already gone.
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>Display name of the game the customer is playing, if any.</summary>
+    public string? CurrentGameName => _currentGameName;
+
+    /// <summary>
+    /// Brings the running game back to the foreground after a popup stole focus.
+    /// </summary>
+    public bool TryRestoreGameForeground()
+    {
+        if (!IsGameRunning)
+        {
+            return false;
+        }
+
+        var restored = GameWindowFocus.TryBringToFront(GetActiveProcessNames());
+        if (restored)
+        {
+            ApplyPlayingHiddenOverlay();
+        }
+
+        return restored;
+    }
+
+    /// <summary>
+    /// Whether the game process owns the foreground window right now.
+    /// </summary>
+    public bool IsGameForeground()
+    {
+        return GameWindowFocus.IsAnyProcessForeground(GetActiveProcessNames());
+    }
 
     private void InitializeWindowBehaviour()
     {
@@ -853,6 +918,7 @@ internal sealed class GameMenuForm : Form
                     AgentLog.Info($"'{gameName}' is now running.");
                     _statusLabel.Text = $"{gameName} is running — close it to come back here.";
                     _statusLabel.ForeColor = Palette.TextMuted;
+                    ApplyPlayingHiddenOverlay();
                 }
 
                 return;
@@ -932,6 +998,8 @@ internal sealed class GameMenuForm : Form
 
     private void StopWatching()
     {
+        RestoreVisibleOverlay();
+
         _watchTimer?.Stop();
         _watchTimer?.Dispose();
         _watchTimer = null;
@@ -951,6 +1019,8 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     private void ClearRunningState()
     {
+        RestoreVisibleOverlay();
+
         var process = Interlocked.Exchange(ref _runningProcess, null);
         if (process is not null)
         {
@@ -1151,6 +1221,61 @@ internal sealed class GameMenuForm : Form
             ? $"{gameName} is running — close it to come back here."
             : $"Starting {gameName}… this can take a minute.";
         _statusLabel.ForeColor = Palette.TextMuted;
+
+        if (confirmedRunning)
+        {
+            ApplyPlayingHiddenOverlay();
+        }
+        else
+        {
+            RestoreVisibleOverlay();
+        }
+    }
+
+    /// <summary>
+    /// Makes the menu invisible and click-through while a game is in front.
+    /// </summary>
+  /// <remarks>
+  /// The form stays fullscreen so the desktop never peeks through, but the
+  /// customer only sees their game.
+  /// </remarks>
+    private void ApplyPlayingHiddenOverlay()
+    {
+        if (_playingHiddenOverlay)
+        {
+            return;
+        }
+
+        _playingHiddenOverlay = true;
+        Opacity = 0;
+        WindowClickThrough.SetEnabled(this, true);
+    }
+
+    private void RestoreVisibleOverlay()
+    {
+        if (!_playingHiddenOverlay)
+        {
+            return;
+        }
+
+        _playingHiddenOverlay = false;
+        Opacity = 1;
+        WindowClickThrough.SetEnabled(this, false);
+    }
+
+    /// <summary>
+    /// Shows the menu again when the game is hidden behind it.
+    /// </summary>
+    public void ShowReturnToGameMenu(string gameName)
+    {
+        RestoreVisibleOverlay();
+        Show();
+        TopMost = true;
+        BringToFront();
+        Activate();
+
+        _statusLabel.Text = $"{gameName} is still running in the background.";
+        _statusLabel.ForeColor = Palette.Accent;
     }
 
     /// <summary>
@@ -1222,6 +1347,7 @@ internal sealed class GameMenuForm : Form
     /// <summary>Re-shows the menu and puts it back on top.</summary>
     public void ShowMenu()
     {
+        RestoreVisibleOverlay();
         Show();
         TopMost = false;
         TopMost = true;
