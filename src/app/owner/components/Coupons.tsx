@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Select } from './ui';
+import { Card, Button } from './ui';
 import {
     Search, Plus, Edit2, Trash2, Copy, Check,
     Ticket, Clock, Calendar, Users,
-    AlertCircle, ChevronLeft, Eye, Send,
+    AlertCircle, ChevronLeft, Send,
     Info, UserCheck, Filter
 } from 'lucide-react';
 
@@ -55,7 +55,7 @@ interface CouponsProps {
     onRefresh: () => void;
 }
 
-export function Coupons({ isMobile, cafeId, onRefresh }: CouponsProps) {
+export function Coupons({ cafeId }: CouponsProps) {
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -327,15 +327,6 @@ See you soon! 🎯`;
         return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     };
 
-    const getDiscountDisplay = (coupon: Coupon) => {
-        if (coupon.discount_type === 'percentage' && coupon.discount_value > 0) {
-            return `${coupon.discount_value}%`;
-        }
-        if (coupon.bonus_minutes > 0) {
-            return `${coupon.bonus_minutes}m`;
-        }
-        return '-';
-    };
 
     // Filter coupons
     const filteredCoupons = coupons.filter(coupon => {

@@ -17,8 +17,6 @@ import {
   Gamepad2,
   TrendingUp,
   Zap,
-  Award,
-  Users,
   ChevronRight,
   ExternalLink,
   Loader2,
@@ -26,8 +24,6 @@ import {
   History,
   CalendarCheck,
   CreditCard,
-  Sparkles,
-  Crown
 } from "lucide-react";
 import ActiveSessionTimer from "@/components/ActiveSessionTimer";
 import LeaveReviewPrompt from "@/components/LeaveReviewPrompt";

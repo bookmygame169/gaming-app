@@ -23,28 +23,6 @@ function toLocalISODate(date: Date): string {
 }
 
 // Parse closing hour from opening_hours string like "Mon-Sun: 10:00 AM - 11:00 PM"
-function parseClosingHour(openingHours: string | null): number | null {
-  if (!openingHours) return null;
-
-  const match = openingHours.match(
-    /(\d{1,2})(?::\d{2})?\s*(AM|PM)\s*[-–]\s*(\d{1,2})(?::\d{2})?\s*(AM|PM)/i
-  );
-
-  if (match) {
-    let closeHour = parseInt(match[3], 10);
-    const closePeriod = match[4].toUpperCase();
-
-    if (closePeriod === 'PM' && closeHour !== 12) {
-      closeHour += 12;
-    } else if (closePeriod === 'AM' && closeHour === 12) {
-      closeHour = 0;
-    }
-
-    return closeHour;
-  }
-
-  return null;
-}
 
 interface BookingItem {
   console: string;

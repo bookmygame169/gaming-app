@@ -626,31 +626,6 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const maxConsoleCount = Math.max(...consoleData.map(c => c.count), 1);
 
     // 5. F&B / Snack item breakdown — aggregate booking_orders from all billable bookings
-    const snackData = useMemo(() => {
-        const items: Record<string, { qty: number; revenue: number; transactions: number }> = {};
-
-        billableBookings.forEach(b => {
-            const orders = b.booking_orders;
-            if (!orders || orders.length === 0) return;
-
-            // Track unique bookings per item
-            const seenItems = new Set<string>();
-            orders.forEach((o: BookingOrder) => {
-                const name = o.item_name || 'Unknown';
-                if (!items[name]) items[name] = { qty: 0, revenue: 0, transactions: 0 };
-                items[name].qty += o.quantity;
-                items[name].revenue += o.total_price;
-                if (!seenItems.has(name)) {
-                    seenItems.add(name);
-                    items[name].transactions += 1;
-                }
-            });
-        });
-
-        return Object.entries(items)
-            .map(([name, data]) => ({ name, ...data }))
-            .sort((a, b) => b.revenue - a.revenue);
-    }, [billableBookings]);
 
     // --- F&B Analytics (from direct Supabase query, same as InventoryAnalytics) ---
     const snackStats = useMemo(() => {

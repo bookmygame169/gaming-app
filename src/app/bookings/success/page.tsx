@@ -14,24 +14,13 @@ import {
   Calendar,
   Clock,
   Ticket,
-  CreditCard,
   Info,
   XCircle,
   AlertCircle,
   Loader2,
-  ArrowLeft,
-  Home,
   Star,
   Instagram,
-  MapPin,
-  ExternalLink,
   Users,
-  Hash,
-  Shield,
-  Sparkles,
-  Award,
-  ThumbsUp,
-  Share2,
   RectangleGoggles,
   Car
 } from "lucide-react";
@@ -181,10 +170,6 @@ function BookingSuccessContent() {
     };
   }, [bookingId]);
 
-  const totalTickets = useMemo(() => {
-    if (!data) return 0;
-    return data.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
-  }, [data]);
 
   const canCancel = useMemo(() => {
     if (!data) return false;

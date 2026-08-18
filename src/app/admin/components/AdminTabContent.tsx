@@ -2,7 +2,7 @@
 
 import {
   Store, Users, CalendarCheck, BarChart3, IndianRupee, KeyRound, Shield, Megaphone,
-  Gamepad2, TrendingUp, Settings, ExternalLink, ChevronRight, AlertTriangle,
+  Gamepad2, ExternalLink, ChevronRight, AlertTriangle,
   // Used by the "Force Full Reload" button and never imported. This file used
   // to open with @ts-nocheck, so the compiler was not allowed to notice, and
   // the button threw the moment that panel rendered.
@@ -10,19 +10,15 @@ import {
 } from "lucide-react";
 import { useAdminDashboard } from "../context/AdminDashboardContext";
 import type { NavTab } from "../types";
-import { thCls, tdCls, badge, Pagination } from "./AdminTableHelpers";
+import { thCls, tdCls } from "./AdminTableHelpers";
 
 export function AdminTabContent() {
   const props = useAdminDashboard();
   const activeCafeRate = props.activeCafeRate;
   const activeSubscriptions = props.activeSubscriptions;
   const activeTab = props.activeTab;
-  const activeTabMeta = props.activeTabMeta;
   const addStationCount = props.addStationCount;
   const addStationType = props.addStationType;
-  const adminApi = props.adminApi;
-  const adminId = props.adminId;
-  const adminUsername = props.adminUsername;
   const announcementForm = props.announcementForm;
   const announcements = props.announcements;
   const auditActionFilter = props.auditActionFilter;
@@ -30,12 +26,10 @@ export function AdminTabContent() {
   const auditLogs = props.auditLogs;
   const averageBookingsPerCafe = props.averageBookingsPerCafe;
   const averageRevenuePerBooking = props.averageRevenuePerBooking;
-  const bookingDateFilter = props.bookingDateFilter;
   const bookingDateFrom = props.bookingDateFrom;
   const bookingDateTo = props.bookingDateTo;
   const bookingPage = props.bookingPage;
   const bookingSearch = props.bookingSearch;
-  const bookingSort = props.bookingSort;
   const bookingSourceFilter = props.bookingSourceFilter;
   const bookingStatusFilter = props.bookingStatusFilter;
   const bookings = props.bookings;
@@ -51,7 +45,6 @@ export function AdminTabContent() {
   const cafeSearch = props.cafeSearch;
   const cafeSort = props.cafeSort;
   const cafes = props.cafes;
-  const closeCafeManage = props.closeCafeManage;
   const confirmPassword = props.confirmPassword;
   const couponForm = props.couponForm;
   const couponMsg = props.couponMsg;
@@ -64,7 +57,6 @@ export function AdminTabContent() {
   const deleteAnnouncement = props.deleteAnnouncement;
   const deleteBookingAdmin = props.deleteBookingAdmin;
   const deleteCafe = props.deleteCafe;
-  const deleteCafeAdmin = props.deleteCafeAdmin;
   const confirmDeleteCafe = props.confirmDeleteCafe;
   const deleteConfirm = props.deleteConfirm;
   const deleteCoupon = props.deleteCoupon;
@@ -79,7 +71,6 @@ export function AdminTabContent() {
   const editCouponForm = props.editCouponForm;
   const editCouponId = props.editCouponId;
   const error = props.error;
-  const exportAuditLogsCsv = props.exportAuditLogsCsv;
   const filteredAuditLogs = props.filteredAuditLogs;
   const filteredBookings = props.filteredBookings;
   const filteredCafes = props.filteredCafes;
@@ -88,7 +79,6 @@ export function AdminTabContent() {
   const filteredUsers = props.filteredUsers;
   const formatCurrency = props.formatCurrency;
   const formatDate = props.formatDate;
-  const formattedToday = props.formattedToday;
   const globalCouponCafeId = props.globalCouponCafeId;
   const globalCouponForm = props.globalCouponForm;
   const globalCouponMsg = props.globalCouponMsg;
@@ -97,9 +87,6 @@ export function AdminTabContent() {
   const handleDeleteOwnerEmail = props.handleDeleteOwnerEmail;
   const handleSort = props.handleSort;
   const handleTabChange = props.handleTabChange;
-  const isAdmin = props.isAdmin;
-  const isChecking = props.isChecking;
-  const isMobile = props.isMobile;
   const itemsPerPage = props.itemsPerPage;
   const loadCafeBookings = props.loadCafeBookings;
   const loadCafeCoupons = props.loadCafeCoupons;
@@ -109,7 +96,6 @@ export function AdminTabContent() {
   const loadingCoupons = props.loadingCoupons;
   const loadingData = props.loadingData;
   const loadingMemberships = props.loadingMemberships;
-  const loadingOfflineCustomers = props.loadingOfflineCustomers;
   const loadingReport = props.loadingReport;
   const loadingStationPricing = props.loadingStationPricing;
   const loadingSubscriptions = props.loadingSubscriptions;
@@ -118,7 +104,6 @@ export function AdminTabContent() {
   const managedUserId = props.managedUserId;
   const membershipForm = props.membershipForm;
   const membershipMsg = props.membershipMsg;
-  const mobileMenuOpen = props.mobileMenuOpen;
   const newOwnerCafeId = props.newOwnerCafeId;
   const newOwnerEmail = props.newOwnerEmail;
   const newPassword = props.newPassword;
@@ -136,19 +121,14 @@ export function AdminTabContent() {
   const paginatedBookings = props.paginatedBookings;
   const paginatedCafes = props.paginatedCafes;
   const paginatedUsers = props.paginatedUsers;
-  const platformSubscriptions = props.platformSubscriptions;
   const reportDailyData = props.reportDailyData;
   const reportDays = props.reportDays;
   const reportPeakHours = props.reportPeakHours;
   const reportSourceSplit = props.reportSourceSplit;
   const revenueCafeFilter = props.revenueCafeFilter;
   const revenueFilteredCafes = props.revenueFilteredCafes;
-  const revenueFrom = props.revenueFrom;
-  const revenueSourceBreakdown = props.revenueSourceBreakdown;
-  const revenueTo = props.revenueTo;
   const router = props.router;
   const saveAdminSettings = props.saveAdminSettings;
-  const saveCafeEdits = props.saveCafeEdits;
   const saveCafeInfoAdmin = props.saveCafeInfoAdmin;
   const saveCoupon = props.saveCoupon;
   const saveEditCoupon = props.saveEditCoupon;
@@ -167,98 +147,49 @@ export function AdminTabContent() {
   const setAddStationCount = props.setAddStationCount;
   const setAddStationType = props.setAddStationType;
   const setAnnouncementForm = props.setAnnouncementForm;
-  const setAnnouncements = props.setAnnouncements;
   const setAuditActionFilter = props.setAuditActionFilter;
   const setAuditEntityFilter = props.setAuditEntityFilter;
-  const setAuditLogs = props.setAuditLogs;
   const setBookingDateFilter = props.setBookingDateFilter;
   const setBookingDateFrom = props.setBookingDateFrom;
   const setBookingDateTo = props.setBookingDateTo;
   const setBookingPage = props.setBookingPage;
   const setBookingSearch = props.setBookingSearch;
-  const setBookingSort = props.setBookingSort;
   const setBookingSourceFilter = props.setBookingSourceFilter;
   const setBookingStatusFilter = props.setBookingStatusFilter;
-  const setBookings = props.setBookings;
-  const setBulkActionLoading = props.setBulkActionLoading;
-  const setCafeBookings = props.setCafeBookings;
-  const setCafeCoupons = props.setCafeCoupons;
   const setCafeFilter = props.setCafeFilter;
-  const setCafeInfoMsg = props.setCafeInfoMsg;
   const setCafeManageSubTab = props.setCafeManageSubTab;
-  const setCafeMembershipPlans = props.setCafeMembershipPlans;
   const setCafePage = props.setCafePage;
   const setCafeSearch = props.setCafeSearch;
   const setCafeSort = props.setCafeSort;
-  const setCafes = props.setCafes;
   const setConfirmPassword = props.setConfirmPassword;
   const setCouponForm = props.setCouponForm;
-  const setCouponMsg = props.setCouponMsg;
-  const setCoupons = props.setCoupons;
   const setCreateCafeForm = props.setCreateCafeForm;
-  const setCreateCafeLoading = props.setCreateCafeLoading;
   const setCreateCafeMsg = props.setCreateCafeMsg;
   const setCurrentPassword = props.setCurrentPassword;
   const setDeleteConfirm = props.setDeleteConfirm;
   const setEditCafeForm = props.setEditCafeForm;
   const setEditCouponForm = props.setEditCouponForm;
   const setEditCouponId = props.setEditCouponId;
-  const setError = props.setError;
   const setGlobalCouponCafeId = props.setGlobalCouponCafeId;
   const setGlobalCouponForm = props.setGlobalCouponForm;
-  const setGlobalCouponMsg = props.setGlobalCouponMsg;
-  const setIsMobile = props.setIsMobile;
-  const setLoadingCafeBookings = props.setLoadingCafeBookings;
-  const setLoadingCoupons = props.setLoadingCoupons;
-  const setLoadingData = props.setLoadingData;
-  const setLoadingMemberships = props.setLoadingMemberships;
-  const setLoadingReport = props.setLoadingReport;
-  const setLoadingStationPricing = props.setLoadingStationPricing;
-  const setLoadingSubscriptions = props.setLoadingSubscriptions;
-  const setLoadingUserBookings = props.setLoadingUserBookings;
   const setManagedCafeId = props.setManagedCafeId;
   const setManagedUserId = props.setManagedUserId;
   const setMembershipForm = props.setMembershipForm;
-  const setMembershipMsg = props.setMembershipMsg;
-  const setMobileMenuOpen = props.setMobileMenuOpen;
   const setNewOwnerCafeId = props.setNewOwnerCafeId;
   const setNewOwnerEmail = props.setNewOwnerEmail;
   const setNewPassword = props.setNewPassword;
   const setNewUsername = props.setNewUsername;
   const setOfflineCafeFilter = props.setOfflineCafeFilter;
-  const setOfflineCustomers = props.setOfflineCustomers;
-  const setOfflineCustomersLoading = props.setOfflineCustomersLoading;
   const setOfflineSearch = props.setOfflineSearch;
   const setOfflineSort = props.setOfflineSort;
-  const setOwnerEmailMsg = props.setOwnerEmailMsg;
-  const setOwnerEmails = props.setOwnerEmails;
-  const setOwnerEmailsLoading = props.setOwnerEmailsLoading;
-  const setPlatformSubscriptions = props.setPlatformSubscriptions;
-  const setReportDailyData = props.setReportDailyData;
   const setReportDays = props.setReportDays;
-  const setReportPeakHours = props.setReportPeakHours;
-  const setReportSourceSplit = props.setReportSourceSplit;
   const setRevenueCafeFilter = props.setRevenueCafeFilter;
-  const setRevenueFrom = props.setRevenueFrom;
-  const setRevenueSourceBreakdown = props.setRevenueSourceBreakdown;
-  const setRevenueTo = props.setRevenueTo;
-  const setSavingCafeInfo = props.setSavingCafeInfo;
-  const setSavingCoupon = props.setSavingCoupon;
-  const setSavingEditCoupon = props.setSavingEditCoupon;
-  const setSavingGlobalCoupon = props.setSavingGlobalCoupon;
-  const setSavingMembership = props.setSavingMembership;
-  const setSavingSettings = props.setSavingSettings;
-  const setSavingStation = props.setSavingStation;
-  const setSavingStationPricing = props.setSavingStationPricing;
   const setSelectedCafeIds = props.setSelectedCafeIds;
-  const setSettingsMessage = props.setSettingsMessage;
   const setShowAnnouncementForm = props.setShowAnnouncementForm;
   const setShowCreateCafe = props.setShowCreateCafe;
   const setShowGlobalCouponForm = props.setShowGlobalCouponForm;
   const setStationPriceForm = props.setStationPriceForm;
   const setStationPricing = props.setStationPricing;
-  const setStationPricingMsg = props.setStationPricingMsg;
-  const setStats = props.setStats;
   const setSubscriptionCafeFilter = props.setSubscriptionCafeFilter;
   const setSubscriptionSearch = props.setSubscriptionSearch;
   const setUserBookings = props.setUserBookings;
@@ -266,22 +197,18 @@ export function AdminTabContent() {
   const setUserRoleFilter = props.setUserRoleFilter;
   const setUserSearch = props.setUserSearch;
   const setUserSort = props.setUserSort;
-  const setUsers = props.setUsers;
   const settingsMessage = props.settingsMessage;
   const showAnnouncementForm = props.showAnnouncementForm;
   const showCreateCafe = props.showCreateCafe;
   const showGlobalCouponForm = props.showGlobalCouponForm;
   const startEditCoupon = props.startEditCoupon;
   const stationPriceForm = props.stationPriceForm;
-  const stationPricing = props.stationPricing;
   const stationPricingMsg = props.stationPricingMsg;
   const stats = props.stats;
   const subscriptionCafeFilter = props.subscriptionCafeFilter;
   const subscriptionRevenue = props.subscriptionRevenue;
   const subscriptionSearch = props.subscriptionSearch;
   const toggleAnnouncementStatus = props.toggleAnnouncementStatus;
-  const toggleCafeActive = props.toggleCafeActive;
-  const toggleCafeFeatured = props.toggleCafeFeatured;
   const toggleCafeStatus = props.toggleCafeStatus;
   const toggleCouponActive = props.toggleCouponActive;
   const toggleCouponActiveInManage = props.toggleCouponActiveInManage;
@@ -291,7 +218,6 @@ export function AdminTabContent() {
   const totalCafePages = props.totalCafePages;
   const totalUserPages = props.totalUserPages;
   const updateBookingStatus = props.updateBookingStatus;
-  const updateCafeViaApi = props.updateCafeViaApi;
   const updateStationCount = props.updateStationCount;
   const updateUserRole = props.updateUserRole;
   const userBookings = props.userBookings;
@@ -1146,7 +1072,7 @@ export function AdminTabContent() {
                                 <td className="px-4 py-3 text-sm text-slate-400">{plan.validity_days}d</td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
-                                    <button onClick={() => toggleMembershipActive(plan.id, plan.is_active, managedCafeId)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${plan.is_active ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
+                                    <button onClick={() => toggleMembershipActive(plan.id, plan.is_active)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${plan.is_active ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
                                       {plan.is_active ? 'Disable' : 'Enable'}
                                     </button>
                                     <button onClick={() => deleteMembershipPlan(plan.id, managedCafeId)} className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>
@@ -1183,7 +1109,7 @@ export function AdminTabContent() {
                           </div>
                           <div className="flex gap-3 pt-1">
                             <button onClick={() => setEditCouponId(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-white/[0.06] text-slate-300 hover:bg-white/[0.09] transition-colors">Cancel</button>
-                            <button onClick={() => saveEditCoupon(managedCafeId)} disabled={savingEditCoupon} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50">{savingEditCoupon ? 'Saving…' : 'Save'}</button>
+                            <button onClick={() => saveEditCoupon()} disabled={savingEditCoupon} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50">{savingEditCoupon ? 'Saving…' : 'Save'}</button>
                           </div>
                         </div>
                       </div>
@@ -1273,7 +1199,7 @@ export function AdminTabContent() {
                                   <td className="px-4 py-3 text-right">
                                     <div className="flex items-center justify-end gap-1.5">
                                       <button onClick={() => startEditCoupon(coupon)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">Edit</button>
-                                      <button onClick={() => toggleCouponActiveInManage(coupon.id, coupon.is_active, managedCafeId)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${coupon.is_active ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
+                                      <button onClick={() => toggleCouponActiveInManage(coupon.id, coupon.is_active)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${coupon.is_active ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'}`}>
                                         {coupon.is_active ? 'Pause' : 'Resume'}
                                       </button>
                                       <button onClick={() => deleteCoupon(coupon.id, managedCafeId)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Delete</button>

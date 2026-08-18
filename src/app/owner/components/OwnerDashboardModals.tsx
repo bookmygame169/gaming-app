@@ -40,7 +40,7 @@ export function OwnerDashboardModals() {
     setShowDeleteConfirm, handleEndSessionNow, cafes, currentCafe, getBillingPrice, subscriptions,
     viewingSubscription, setViewingSubscription, subscriptionUsageHistory, loadingUsageHistory,
     isMobile, setViewingCustomer, setSubscriptions, toast, viewingCustomer, customerBookings,
-    setLoadingCustomerData, showDeleteConfirm, deleteRemark, setDeleteRemark, handleDeleteBooking,
+    showDeleteConfirm, deleteRemark, setDeleteRemark, handleDeleteBooking,
     showAddStationModal, setShowAddStationModal, newStationType, setNewStationType, newStationCount,
     setNewStationCount, addingStation, handleAddStation, stationToDelete, setStationToDelete,
     deletingStation, handleDeleteStation, pendingPowerToggle, setPendingPowerToggle, setStationPricing,

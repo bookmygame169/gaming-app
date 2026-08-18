@@ -16,7 +16,6 @@ import {
   Users,
   Clock,
   Zap,
-  Sparkles,
   GamepadDirectional,
   Monitor,
   CircleDollarSign,

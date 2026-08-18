@@ -15,7 +15,6 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 
 function LoginContent() {
   const router = useRouter();

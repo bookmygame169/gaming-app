@@ -4,14 +4,12 @@
 
 import { useCallback, useEffect, useState, createContext, useContext, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 import { type ConsoleId } from "@/lib/constants";
-import { buildStationPricingMap } from "@/lib/stationNames";
 import { dispatchOwnerBookingsChanged } from "@/lib/ownerBookingsSync";
-import { getBookingGamingTotal, getBookingRevenueTotal, getOwnerPaymentBucket, isBillableRevenueBooking } from "@/lib/ownerRevenue";
-import { CafeRow, BookingRow, NavTab } from "../types";
-import { formatDurationLabel, getAvailableConsoleIds, getLocalDateString, normaliseConsoleType } from "../utils";
-import { getInitialOwnerBookingStatus, isBookingActiveNow, isSessionBooking } from "@/lib/bookingFilters";
+import { getBookingGamingTotal } from "@/lib/ownerRevenue";
+import { BookingRow, NavTab } from "../types";
+import { getLocalDateString, normaliseConsoleType } from "../utils";
+import { getInitialOwnerBookingStatus, isBookingActiveNow } from "@/lib/bookingFilters";
 import { uploadCafeImage, deleteCafeImage } from "../utils/uploads";
 import { calcBillingPrice } from "../utils/pricing";
 import { useOwnerAuth } from "../hooks/useOwnerAuth";
@@ -26,13 +24,11 @@ import {
   getAssignedStationsFromItemTitle,
   getBookingItemDuration,
   buildBookingItemTitle,
-  parseClockTimeToMinutes,
   getDayPassDurationUntil10Pm,
   getPreferredConsoleForCafe,
   toWholeRupees,
   distributeWholeRupees,
   getDayPassEndAt,
-  normalizePhoneDigits,
   findMembershipSubscriptionForBooking,
   type TimeAdjustmentTarget,
 } from "../utils/dashboardHelpers";

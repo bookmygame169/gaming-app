@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 
 export const thCls = "px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest";
 export const tdCls = "px-4 py-3.5 text-sm text-slate-300";

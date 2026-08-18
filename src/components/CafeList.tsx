@@ -4,7 +4,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import LiveAvailability from "@/components/LiveAvailability";
-import type { Cafe, CafeCountField, CafeListItem } from "@/types/cafe";
+import type { Cafe, CafeListItem } from "@/types/cafe";
 import {
   MapPin,
   Star,
@@ -13,13 +13,11 @@ import {
   GamepadDirectional,
   Monitor,
   DollarSign,
-  Car,
   RectangleGoggles,
   Target,
   MonitorPlay,
   Zap,
   ChevronRight,
-  Award,
   Sparkles,
   Users,
   Crown,
@@ -663,7 +661,7 @@ function ConsoleIconsRow({ cafe }: { cafe: Cafe }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {available.map(({ key, icon, label, color }, idx) => {
+        {available.map(({ key, icon, label, color }) => {
           const count = (cafe[key] as number | null) ?? 0;
           return (
             <div

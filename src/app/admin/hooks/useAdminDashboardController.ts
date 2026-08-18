@@ -1680,7 +1680,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     }
   }
 
-  async function toggleCouponActiveInManage(id: string, currentStatus: boolean, cafeId: string) {
+  async function toggleCouponActiveInManage(id: string, currentStatus: boolean) {
     try {
       await adminApi('coupons', 'PUT', { id, updates: { is_active: !currentStatus } });
       setCafeCoupons(prev => prev.map(c => c.id === id ? { ...c, is_active: !currentStatus } : c));
@@ -1698,7 +1698,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     });
   }
 
-  async function saveEditCoupon(cafeId: string) {
+  async function saveEditCoupon() {
     if (!editCouponId) return;
     setSavingEditCoupon(true);
     try {
@@ -1717,7 +1717,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     }
   }
 
-  async function toggleMembershipActive(id: string, currentStatus: boolean, cafeId: string) {
+  async function toggleMembershipActive(id: string, currentStatus: boolean) {
     try {
       await adminApi('membership-plans', 'PUT', { id, updates: { is_active: !currentStatus } });
       setCafeMembershipPlans(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));

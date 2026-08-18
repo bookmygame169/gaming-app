@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Card, Button, Input, Select } from './ui';
-import { Search, Filter, Clock, Calendar, CheckCircle, XCircle, Plus, Edit2, Trash2, Smartphone, Monitor, User, Users } from 'lucide-react';
+import { Search, XCircle, Plus, Edit2, Trash2, Smartphone, Monitor, User, Users } from 'lucide-react';
 
 type MembershipPlanType = 'day_pass' | 'hourly_package';
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -67,7 +67,6 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function Memberships({
-    isMobile,
     cafeId,
     subscriptions,
     membershipPlans,
@@ -82,8 +81,7 @@ export function Memberships({
     // Subscription Filter States
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [planFilter, setPlanFilter] = useState('all');
-    const [viewingSubscription, setViewingSubscription] = useState<Subscription | null>(null);
+    const [planFilter] = useState('all');
 
     // Plan Management States
     const [showPlanModal, setShowPlanModal] = useState(false);

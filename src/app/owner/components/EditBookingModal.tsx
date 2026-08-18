@@ -135,7 +135,7 @@ export function EditBookingModal({
   amount, setAmount, setAmountManuallyEdited,
   status, paymentMethod, setPaymentMethod,
   saving, deleting,
-  onSave, onClose, onDelete, onEndNow, onManageSnacks,
+  onSave, onClose, onDelete, onEndNow, 
   cafe, getBillingPrice, membershipSubscription,
 }: Props) {
   // Customer autocomplete

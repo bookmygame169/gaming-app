@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { parseTimeToMinutes } from "@/lib/timeUtils";
-import { Timer, Zap, ChevronRight, Gamepad2, Clock } from "lucide-react";
+import { Zap, ChevronRight, Gamepad2, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import useUser from "@/hooks/useUser";
 
 // Demo mode allows testing the UI without a real booking
-const DEMO_MODE = false;
 
 // Shares the one parser in timeUtils; only the shape differs, because the
 // countdown below wants hours and minutes rather than minutes from midnight.

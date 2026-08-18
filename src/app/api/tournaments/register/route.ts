@@ -80,6 +80,16 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user_id)
       .single();
 
+    // PGRST116 is .single() reporting no rows, which is the normal "not
+    // registered yet" answer. Anything else means the check itself failed, and
+    // carrying on would register somebody who may already be registered.
+    if (existingError && existingError.code !== "PGRST116") {
+      return NextResponse.json(
+        { error: "Could not check your existing registration. Please try again." },
+        { status: 500 }
+      );
+    }
+
     if (existing) {
       return NextResponse.json(
         { error: "Already registered for this tournament" },

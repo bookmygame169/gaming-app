@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Trophy,
   Users,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import PullToRefresh from "@/components/ui/PullToRefresh";
 import { colors, fonts } from "@/lib/constants";
 
 type Tournament = {
@@ -38,7 +36,6 @@ type Tournament = {
 };
 
 export default function TournamentsPage() {
-  const router = useRouter();
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);

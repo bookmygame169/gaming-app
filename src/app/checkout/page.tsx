@@ -2,7 +2,7 @@
 "use client";
 
 import { errorMessage } from "@/lib/sanitize";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import useUser from "@/hooks/useUser";
@@ -23,7 +23,6 @@ import {
   Loader2,
   AlertCircle,
   IndianRupee,
-  MapPin,
   Check,
   XCircle
 } from "lucide-react";
@@ -308,13 +307,10 @@ export default function CheckoutPage() {
       }
 
       const bookingId = result.bookingId as string;
-      const finalAmount = Number(result.totalAmount) || 0;
       setSettled({
         walletUsed: Number(result.walletUsed) || 0,
         payableAtVenue: Number(result.payableAtVenue) || 0,
       });
-      const discount = Number(result.discount) || 0;
-      const extraMinutes = Number(result.bonusMinutes) || 0;
 
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("checkoutDraft");
