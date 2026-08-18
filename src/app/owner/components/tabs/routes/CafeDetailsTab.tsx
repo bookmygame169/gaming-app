@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import { theme } from '../../../utils/theme';
 import { useOwnerDashboard } from '../../../context/OwnerDashboardContext';

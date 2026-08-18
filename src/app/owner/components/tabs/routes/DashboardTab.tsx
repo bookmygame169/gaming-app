@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import { AlarmClock, ShoppingBag, BarChart3, ChevronRight } from 'lucide-react';
 import { getBookingRevenueTotal, getOwnerPaymentBucket, isBillableRevenueBooking } from '@/lib/ownerRevenue';

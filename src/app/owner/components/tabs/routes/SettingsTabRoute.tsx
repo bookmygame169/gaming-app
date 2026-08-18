@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import dynamic from "next/dynamic";
 import { fonts } from "@/lib/constants";

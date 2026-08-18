@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import dynamic from "next/dynamic";
 import { ErrorBoundary } from "../../ErrorBoundary";

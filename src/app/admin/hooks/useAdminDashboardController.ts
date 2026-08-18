@@ -1974,6 +1974,9 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     deleteAnnouncement,
     deleteBookingAdmin,
     deleteCafe,
+    // Was defined here and never returned, so the modal's own confirm button
+    // referenced an identifier that did not exist.
+    confirmDeleteCafe,
     deleteConfirm,
     deleteCoupon,
     deleteGlobalCoupon,

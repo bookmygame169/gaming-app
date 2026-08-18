@@ -1,12 +1,11 @@
-// @ts-nocheck
 "use client";
 
 import {
   Store, Users, CalendarCheck, BarChart3, IndianRupee, KeyRound, Shield, Megaphone,
   Gamepad2, TrendingUp, Settings, ExternalLink, ChevronRight, AlertTriangle,
-  // Used by the "Force Full Reload" button and never imported. The file carries
-  // a @ts-nocheck, so the compiler had nothing to say about it and the button
-  // threw the moment that panel rendered.
+  // Used by the "Force Full Reload" button and never imported. This file used
+  // to open with @ts-nocheck, so the compiler was not allowed to notice, and
+  // the button threw the moment that panel rendered.
   RefreshCw,
 } from "lucide-react";
 import { useAdminDashboard } from "../context/AdminDashboardContext";
@@ -14,7 +13,7 @@ import type { NavTab } from "../types";
 import { thCls, tdCls, badge, Pagination } from "./AdminTableHelpers";
 
 export function AdminTabContent() {
-  const props = useAdminDashboard() as any;
+  const props = useAdminDashboard();
   const activeCafeRate = props.activeCafeRate;
   const activeSubscriptions = props.activeSubscriptions;
   const activeTab = props.activeTab;
@@ -66,6 +65,7 @@ export function AdminTabContent() {
   const deleteBookingAdmin = props.deleteBookingAdmin;
   const deleteCafe = props.deleteCafe;
   const deleteCafeAdmin = props.deleteCafeAdmin;
+  const confirmDeleteCafe = props.confirmDeleteCafe;
   const deleteConfirm = props.deleteConfirm;
   const deleteCoupon = props.deleteCoupon;
   const deleteGlobalCoupon = props.deleteGlobalCoupon;
