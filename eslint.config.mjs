@@ -18,6 +18,29 @@ const eslintConfig = defineConfig([
       // errors, so a genuine crash sat in the same list — RefreshCw used
       // without an import — and nobody was going to find it in that noise.
       "react/no-unescaped-entities": "off",
+
+      // Off, and this one is a judgement about the data rather than the rule.
+      //
+      // next/image is faster and lazy-loads, and it throws at runtime for any
+      // host missing from images.remotePatterns — a 500 on the whole page, not
+      // a broken thumbnail. Every one of the eight <img> tags it flagged points
+      // at a URL this app does not control:
+      //
+      //   cafes.cover_url and cafe_images.image_url hold both
+      //   *.supabase.co and lh3.googleusercontent.com, the latter arriving with
+      //   Google Places data and not configured;
+      //   HomeClient's membership and tournament tiles use images.unsplash.com;
+      //   one has an onError fallback to via.placeholder.com, which next/image
+      //   cannot express.
+      //
+      // So <img> fails softly on an unknown host and next/image takes the page
+      // down with it. For URLs that come from users and third parties that is
+      // the wrong trade, and listing hosts only holds until someone pastes a
+      // link from a new one.
+      //
+      // Worth revisiting for images this app uploads itself, where the host is
+      // known — that is a per-image decision, not a lint fix.
+      "@next/next/no-img-element": "off",
     },
   },
 

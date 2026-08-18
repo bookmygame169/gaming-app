@@ -172,6 +172,15 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
     return () => {
       cancelled = true;
     };
+    // activeTab and dataScope are already inside fetchKey, so the rule is
+    // asking for them twice.
+    //
+    // hasLoadedData and loadedScope are the reason this stays suppressed. They
+    // are read once, to decide whether to show a spinner, and this effect sets
+    // both — so naming them would re-run it the moment they change and fetch
+    // the whole dashboard a second time on every visit. A redundant spinner
+    // decision is cheaper than a duplicated payload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canFetch, refreshTrigger, fetchKey]);
 
   useEffect(() => {

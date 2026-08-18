@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Button, Select } from './ui';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -139,16 +139,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const [snackInventoryItems, setSnackInventoryItems] = useState<InventoryItem[]>([]);
     const [snackLoading, setSnackLoading] = useState(false);
 
-    // Fetch data based on range — skip until cafeId is available
-    useEffect(() => {
-        if (!cafeId) return;
-        fetchReportsData();
-        fetchCafeHours();
-        fetchPeakHoursData();
-        fetchSnackData();
-    }, [dateRange, cafeId, customStart, customEnd]);
 
-    const getDateRange = (range: string) => {
+    const getDateRange = useCallback((range: string) => {
         const now = new Date();
         const todayStr = formatLocalDate(now);
 
@@ -234,9 +226,9 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         }
 
         return { startDate, endDate, prevStartDate, prevEndDate };
-    };
+    }, [customStart, customEnd]);
 
-    const fetchReportsData = async () => {
+    const fetchReportsData = useCallback(async () => {
         if (!cafeId) return;
         setLoading(true);
         try {
@@ -259,9 +251,9 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         } finally {
             setLoading(false);
         }
-    };
+    }, [cafeId, dateRange, getDateRange]);
 
-    const fetchSnackData = async () => {
+    const fetchSnackData = useCallback(async () => {
         if (!cafeId) return;
         setSnackLoading(true);
         try {
@@ -302,7 +294,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         } finally {
             setSnackLoading(false);
         }
-    };
+    }, [cafeId, dateRange, getDateRange]);
 
     // --- Analytics Calculations ---
     // Exclude owner-use internal records (payment_mode='owner') from revenue stats
@@ -477,7 +469,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const maxHourly = Math.max(...peakHoursData.map(h => h.count), 5);
 
     // Fetch 30 days of booking data specifically for peak hours analysis
-    const fetchPeakHoursData = async () => {
+    const fetchPeakHoursData = useCallback(async () => {
         if (!cafeId) return;
         try {
             const res = await fetch(`/api/owner/reports?cafeId=${cafeId}`, { credentials: 'include' });
@@ -489,10 +481,10 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         } catch (err) {
             console.error('Error fetching peak hours data:', err);
         }
-    };
+    }, [cafeId]);
 
     // Parse cafe operating hours from prop
-    const fetchCafeHours = () => {
+    const fetchCafeHours = useCallback(() => {
         const hoursStr = openingHours;
         if (!hoursStr) return;
 
@@ -511,7 +503,22 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
             setCafeHours({ openHour, closeHour });
         }
-    };
+        // openingHours is what this parses; cafeId was never read here.
+    }, [openingHours]);
+
+    // Fetch data based on range — skip until cafeId is available
+    //
+    // Moved below the four callbacks it calls: a dependency array is evaluated
+    // during render, and naming a const that has not run yet throws. Each is a
+    // useCallback over the same values this list used to carry, so it fires on
+    // exactly the same changes.
+    useEffect(() => {
+        if (!cafeId) return;
+        fetchReportsData();
+        fetchCafeHours();
+        fetchPeakHoursData();
+        fetchSnackData();
+    }, [cafeId, fetchReportsData, fetchCafeHours, fetchPeakHoursData, fetchSnackData]);
 
     // 3. Payment Method Breakdown
     const paymentData = useMemo(() => {
