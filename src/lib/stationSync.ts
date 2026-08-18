@@ -72,6 +72,41 @@ function parseBookingStart(bookingDate: string, startTime: string): Date | null 
  * triggered it. The edit is the record; the command is a best-effort follow-up,
  * and the station stays locked if it never arrives.
  */
+/**
+ * Logs any station that has never sent a heartbeat.
+ *
+ * Best-effort and never throws: this exists to make a silent failure audible,
+ * and it must not become a reason a paid-for machine fails to unlock.
+ */
+async function warnAboutStationsWithNoAgent(
+  supabase: SupabaseClient,
+  stationNames: string[]
+): Promise<void> {
+  if (stationNames.length === 0) return;
+
+  try {
+    const { data, error } = await supabase
+      .from("station_status")
+      .select("station_name")
+      .in("station_name", stationNames);
+
+    if (error) return;
+
+    const reporting = new Set((data ?? []).map((row) => row.station_name));
+    const silent = stationNames.filter((name) => !reporting.has(name));
+
+    if (silent.length > 0) {
+      console.warn(
+        `Station command sent to ${silent.join(", ")}, which no agent has ever ` +
+          "reported for. Nothing will lock or unlock there until the lock is " +
+          "installed on it, or the café's station count is corrected."
+      );
+    }
+  } catch {
+    // Nothing here is worth failing a sync over.
+  }
+}
+
 export async function syncStationsForBooking(
   supabase: SupabaseClient,
   bookingId: string,
@@ -143,6 +178,19 @@ export async function syncStationsForBooking(
       stationNames.push(scanned.station_name);
       scannedDurationMinutes = Number(scanned.duration_minutes) || 0;
     }
+
+    // Say something when a command is going somewhere nothing is listening.
+    //
+    // A station name is an MQTT topic. Publishing to one no agent subscribes to
+    // succeeds — the broker accepts it and it reaches nobody — so a machine with
+    // no agent installed looks identical to one that is working, from here.
+    //
+    // This café is configured for four PCs and three have ever reported. Forty-
+    // five bookings have been assigned pc-04, and every one of those sessions
+    // was neither locked nor unlocked by anything. Console stations are expected
+    // to be quiet for now, since the PS5 side has no agent yet, which is why
+    // this warns rather than refusing.
+    await warnAboutStationsWithNoAgent(supabase, stationNames);
 
     const status = (booking.status || "").toLowerCase();
     const shouldLock =
