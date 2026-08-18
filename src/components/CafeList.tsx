@@ -4,7 +4,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import LiveAvailability from "@/components/LiveAvailability";
-import type { Cafe } from "@/types/cafe";
+import type { Cafe, CafeCountField, CafeListItem } from "@/types/cafe";
 import {
   MapPin,
   Star,
@@ -278,7 +278,7 @@ export default function CafeList({ cafes }: Props) {
             }}
           >
             {/* Desktop card content - your existing code */}
-            {(cafe as any).is_premium && (
+            {(cafe as CafeListItem).is_premium && (
               <div className="absolute top-4 right-4 z-20 premium-badge px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
                 <Crown className="w-3.5 h-3.5" />
                 <span className="text-xs font-bold" style={{ fontFamily: 'Orbitron, sans-serif' }}>
@@ -310,7 +310,7 @@ export default function CafeList({ cafes }: Props) {
                       isActive={cafe.is_active !== false}
                     />
 
-                    {(cafe as any).is_verified && (
+                    {(cafe as CafeListItem).is_verified && (
                       <div className="flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-sm px-3 py-1.5">
                         <Shield className="w-3.5 h-3.5 text-[#00f0ff]" />
                         <span className="text-xs font-medium text-white" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -337,12 +337,12 @@ export default function CafeList({ cafes }: Props) {
                         </div>
                       </div>
 
-                      {(cafe as any).rating && (
+                      {(cafe as CafeListItem).rating && (
                         <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-3 py-2 rounded-xl">
                           <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                           <div className="flex flex-col">
                             <span className="text-lg font-bold text-white" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                              {(cafe as any).rating}
+                              {(cafe as CafeListItem).rating}
                             </span>
                             <span className="text-[10px] text-zinc-400" style={{ fontFamily: 'Inter, sans-serif' }}>
                               Rating
@@ -396,20 +396,20 @@ export default function CafeList({ cafes }: Props) {
 
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {(cafe as any).distance && (
+                  {(cafe as CafeListItem).distance && (
                     <div className="flex items-center gap-1.5">
                       <MapPin className="w-4 h-4 text-[#00f0ff]" />
                       <span className="text-sm text-zinc-300" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        {(cafe as any).distance} km
+                        {(cafe as CafeListItem).distance} km
                       </span>
                     </div>
                   )}
 
-                  {(cafe as any).popularity && (
+                  {(cafe as CafeListItem).popularity && (
                     <div className="flex items-center gap-1.5">
                       <Users className="w-4 h-4 text-[#ff073a]" />
                       <span className="text-sm text-zinc-300" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        {(cafe as any).popularity}+ playing now
+                        {(cafe as CafeListItem).popularity}+ playing now
                       </span>
                     </div>
                   )}
@@ -494,11 +494,11 @@ export default function CafeList({ cafes }: Props) {
               </div>
 
               {/* Rating Badge */}
-              {(cafe as any).rating && (
+              {(cafe as CafeListItem).rating && (
                 <div className="mobile-rating-badge">
                   <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                   <span className="text-xs font-semibold text-white">
-                    {(cafe as any).rating}
+                    {(cafe as CafeListItem).rating}
                   </span>
                 </div>
               )}
@@ -648,7 +648,7 @@ const CONSOLE_CONFIG: {
 
 function ConsoleIconsRow({ cafe }: { cafe: Cafe }) {
   const available = CONSOLE_CONFIG.filter(
-    ({ key }) => (((cafe as any)[key] as number | null) ?? 0) > 0
+    ({ key }) => ((cafe[key] as number | null) ?? 0) > 0
   );
 
   if (available.length === 0) return null;
@@ -664,7 +664,7 @@ function ConsoleIconsRow({ cafe }: { cafe: Cafe }) {
 
       <div className="flex flex-wrap gap-2">
         {available.map(({ key, icon, label, color }, idx) => {
-          const count = ((cafe as any)[key] as number | null) ?? 0;
+          const count = (cafe[key] as number | null) ?? 0;
           return (
             <div
               key={key}
@@ -699,49 +699,49 @@ function EquipmentIconsMobile({ cafe }: { cafe: Cafe }) {
       key: "ps5_count",
       icon: <GamepadDirectional className="mobile-icon-small" />,
       label: "PS5",
-      show: (((cafe as any)["ps5_count"] as number | null) ?? 0) > 0
+      show: ((cafe["ps5_count"] as number | null) ?? 0) > 0
     },
     {
       key: "ps4_count",
       icon: <Gamepad2 className="mobile-icon-small" />,
       label: "PS4",
-      show: (((cafe as any)["ps4_count"] as number | null) ?? 0) > 0
+      show: ((cafe["ps4_count"] as number | null) ?? 0) > 0
     },
     {
       key: "xbox_count",
       icon: <Gamepad2 className="mobile-icon-small" />,
       label: "Xbox",
-      show: (((cafe as any)["xbox_count"] as number | null) ?? 0) > 0
+      show: ((cafe["xbox_count"] as number | null) ?? 0) > 0
     },
     {
       key: "pc_count",
       icon: <Monitor className="mobile-icon-small" />,
       label: "PC",
-      show: (((cafe as any)["pc_count"] as number | null) ?? 0) > 0
+      show: ((cafe["pc_count"] as number | null) ?? 0) > 0
     },
     {
       key: "pool_count",
       icon: <DollarSign className="mobile-icon-small" />,
       label: "Pool",
-      show: (((cafe as any)["pool_count"] as number | null) ?? 0) > 0
+      show: ((cafe["pool_count"] as number | null) ?? 0) > 0
     },
     {
       key: "vr_count",
       icon: <RectangleGoggles className="mobile-icon-small" />,
       label: "VR",
-      show: (((cafe as any)["vr_count"] as number | null) ?? 0) > 0
+      show: ((cafe["vr_count"] as number | null) ?? 0) > 0
     },
     {
       key: "arcade_count",
       icon: <MonitorPlay className="mobile-icon-small" />,
       label: "Arcade",
-      show: (((cafe as any)["arcade_count"] as number | null) ?? 0) > 0
+      show: ((cafe["arcade_count"] as number | null) ?? 0) > 0
     },
     {
       key: "snooker_count",
       icon: <Target className="mobile-icon-small" />,
       label: "Snooker",
-      show: (((cafe as any)["snooker_count"] as number | null) ?? 0) > 0
+      show: ((cafe["snooker_count"] as number | null) ?? 0) > 0
     },
   ];
 

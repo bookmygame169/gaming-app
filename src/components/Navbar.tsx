@@ -800,13 +800,19 @@ export default function Navbar() {
 }
 
 /* Helper functions */
-function displayName(user: any) {
+/** Only what these two helpers actually read off a signed-in user. */
+type NamedUser = {
+  email?: string | null;
+  user_metadata?: { full_name?: string | null } | null;
+};
+
+function displayName(user: NamedUser) {
   return (
     user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Player"
   );
 }
 
-function initialsFromUser(user: any) {
+function initialsFromUser(user: NamedUser) {
   const name: string = displayName(user);
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();

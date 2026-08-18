@@ -214,3 +214,27 @@ export function sanitizeObject<T extends Record<string, unknown>>(
 
   return sanitized;
 }
+
+/**
+ * The message from something thrown, whatever was thrown.
+ *
+ * `catch (err: any)` then `err.message` was written in eight route handlers.
+ * It reads fine and is a lie: JavaScript lets any value be thrown, and if a
+ * string or an object reaches one of those blocks then `.message` is undefined
+ * and the caller is told nothing went wrong except a blank error.
+ *
+ * `catch (err)` gives `unknown`, which is the truth, and this turns it into
+ * something safe to send.
+ */
+export function errorMessage(err: unknown, fallback = "Something went wrong"): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err) return err;
+
+  // Supabase and fetch both reject with plain objects carrying a message.
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+
+  return fallback;
+}

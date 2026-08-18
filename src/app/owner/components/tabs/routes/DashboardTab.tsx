@@ -1,5 +1,7 @@
 "use client";
 
+import type { ComponentProps } from 'react';
+import type { BookingRow } from "../../../types";
 import { AlarmClock, ShoppingBag, BarChart3, ChevronRight } from 'lucide-react';
 import { getBookingRevenueTotal, getOwnerPaymentBucket, isBillableRevenueBooking } from '@/lib/ownerRevenue';
 import { isBookingActiveNow, isSessionBooking } from '@/lib/bookingFilters';
@@ -18,7 +20,7 @@ import { useOwnerDashboard } from '../../../context/OwnerDashboardContext';
 export function DashboardTab() {
   const {
     loadingData,
-    bookings,
+    bookings: bookingsFromContext,
     ownerSummary,
     subscriptions,
     activeTimers,
@@ -45,6 +47,12 @@ export function DashboardTab() {
     currentCafeId,
   } = useOwnerDashboard();
 
+  // The context is still typed `any`, so nothing below could be inferred and
+  // every callback had to say `(b: any)`. Naming the shape once here types all
+  // of them, and means a field that stops existing is caught at this line
+  // rather than read as undefined at eleven others.
+  const bookings = bookingsFromContext as BookingRow[];
+
   if (loadingData) return null;
 
   return (
@@ -54,7 +62,7 @@ export function DashboardTab() {
               {/* Ending Soon Alert Banner */}
               {(() => {
                 const now = new Date();
-                const endingSoon = bookings.filter((b: any) => {
+                const endingSoon = bookings.filter((b) => {
                   if (b.deleted_at) return false;
                   if (!isBookingActiveNow(b, now)) return false;
                   if (!b.start_time || !b.duration) return false;
@@ -83,7 +91,7 @@ export function DashboardTab() {
                         {endingSoon.length} session{endingSoon.length > 1 ? 's' : ''} ending in under 15 min
                       </span>
                       <span className="text-amber-400/60 text-xs ml-2 truncate">
-                        {endingSoon.map((b: any) => b.customer_name || 'Guest').join(', ')}
+                        {endingSoon.map((b) => b.customer_name || 'Guest').join(', ')}
                       </span>
                     </div>
                     <button
@@ -120,7 +128,7 @@ export function DashboardTab() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em', fontWeight: 600 }}>Active Sessions</h2>
                     {(() => {
-                      const count = bookings.filter((b: any) => !b.deleted_at && isBookingActiveNow(b)).length;
+                      const count = bookings.filter((b) => !b.deleted_at && isBookingActiveNow(b)).length;
                       return count > 0 ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]" style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid transparent' }}>
                           <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-red-400 pulse-dot" style={{ color: '#ef4444' }} />
@@ -161,7 +169,7 @@ export function DashboardTab() {
 
               {/* Today's Bookings — clean design-matching table */}
               <DashboardBookingsTable
-                bookings={bookings.filter((b: any) =>
+                bookings={bookings.filter((b) =>
                   !b.deleted_at &&
                   b.booking_date === getLocalDateString() &&
                   (!currentCafeId || b.cafe_id === currentCafeId) &&
@@ -182,7 +190,10 @@ export function DashboardTab() {
                   <h2 className="text-base font-semibold text-white">Snack Sales</h2>
                 </div>
                 <TodaySnackOrders
-                  bookings={bookings as any[]}
+                  // Its prop type declares booking_date as non-null while its
+                  // own code handles the null case. Narrowed here rather than
+                  // loosening a shared type from the outside.
+                  bookings={bookings as ComponentProps<typeof TodaySnackOrders>["bookings"]}
                   todayStr={getLocalDateString()}
                   onNewSale={() => setSnackSaleModalOpen(true)}
                   onEditSale={(bookingId, customerName) => {
@@ -201,15 +212,19 @@ export function DashboardTab() {
                 const lastWeekStr = getLocalDateString(lastWeek);
                 const todayStr = getLocalDateString(today);
 
-                const weeklyBookings = bookings.filter((b: any) => {
+                const weeklyBookings = bookings.filter((b) => {
                   if (b.deleted_at) return false;
                   const bDate = b.booking_date;
+                  // Explicit, and equivalent: comparing null against a date
+                  // string is false in JavaScript either way, so a booking with
+                  // no date was already excluded here. Now it says so.
+                  if (!bDate) return false;
                   return bDate >= lastWeekStr && bDate <= todayStr;
                 });
 
                 const weeklyRevenue = weeklyBookings
                   .filter(isBillableRevenueBooking)
-                  .reduce((sum: number, b: any) => sum + getBookingRevenueTotal(b), 0);
+                  .reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
 
                 return (
                   <section>
@@ -245,17 +260,17 @@ export function DashboardTab() {
               {/* End-of-Day Cash Summary */}
               {(() => {
                 const todayStr = getLocalDateString();
-                const todayDone = bookings.filter((b: any) =>
+                const todayDone = bookings.filter((b) =>
                   isBillableRevenueBooking(b) &&
                   b.booking_date === todayStr &&
                   b.source !== 'membership'
                 );
                 const cashTotal = todayDone
-                  .filter((b: any) => getOwnerPaymentBucket(b.payment_mode) === 'cash')
-                  .reduce((s: number, b: any) => s + getBookingRevenueTotal(b), 0);
+                  .filter((b) => getOwnerPaymentBucket(b.payment_mode) === 'cash')
+                  .reduce((s, b) => s + getBookingRevenueTotal(b), 0);
                 const upiTotal = todayDone
-                  .filter((b: any) => getOwnerPaymentBucket(b.payment_mode) === 'upi')
-                  .reduce((s: number, b: any) => s + getBookingRevenueTotal(b), 0);
+                  .filter((b) => getOwnerPaymentBucket(b.payment_mode) === 'upi')
+                  .reduce((s, b) => s + getBookingRevenueTotal(b), 0);
                 if (cashTotal === 0 && upiTotal === 0) return null;
                 return (
                   <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4">

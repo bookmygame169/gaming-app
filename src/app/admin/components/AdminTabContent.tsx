@@ -478,7 +478,7 @@ export function AdminTabContent() {
                               <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">{f.label}</label>
                               <input
                                 type="text"
-                                value={(createCafeForm as any)[f.key]}
+                                value={createCafeForm[f.key as keyof typeof createCafeForm]}
                                 onChange={e => setCreateCafeForm(p => ({ ...p, [f.key]: e.target.value }))}
                                 placeholder={f.placeholder}
                                 required={f.required}
@@ -516,7 +516,7 @@ export function AdminTabContent() {
                               <input
                                 type="number"
                                 min="0"
-                                value={(createCafeForm as any)[f.key]}
+                                value={createCafeForm[f.key as keyof typeof createCafeForm]}
                                 onChange={e => setCreateCafeForm(p => ({ ...p, [f.key]: e.target.value }))}
                                 className="w-full px-3 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white outline-none focus:border-violet-500/60"
                               />
@@ -546,7 +546,7 @@ export function AdminTabContent() {
                               <input
                                 type="number"
                                 min="0"
-                                value={(createCafeForm as any)[f.key]}
+                                value={createCafeForm[f.key as keyof typeof createCafeForm]}
                                 onChange={e => setCreateCafeForm(p => ({ ...p, [f.key]: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white text-center outline-none focus:border-violet-500/60"
                               />
@@ -762,7 +762,7 @@ export function AdminTabContent() {
                             type={f.key.includes('price') ? 'number' : 'text'}
                             value={editCafeForm[f.key] || ''}
                             onChange={e => setEditCafeForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                            placeholder={(f as any).hint || ''}
+                            placeholder={f.hint || ''}
                             className="w-full px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.09] text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500/50"
                           />
                         </div>
@@ -848,7 +848,7 @@ export function AdminTabContent() {
                       <h3 className="text-sm font-semibold text-white mb-4">Station Inventory</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                         {STATION_TYPES.map(st => {
-                          const count = (mc as any)[st.key] || 0;
+                          const count = (mc[st.key as keyof typeof mc] as number | null) || 0;
                           return (
                             <div key={st.id} className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
                               <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{st.label}</p>
@@ -919,8 +919,8 @@ export function AdminTabContent() {
                         <p className="text-xs text-slate-500 py-4 text-center">Loading pricing…</p>
                       ) : (
                         <div className="space-y-4">
-                          {STATION_TYPES.filter(st => ((mc as any)[st.key] || 0) > 0).map(st => {
-                            const count = (mc as any)[st.key] || 0;
+                          {STATION_TYPES.filter(st => ((mc[st.key as keyof typeof mc] as number | null) || 0) > 0).map(st => {
+                            const count = (mc[st.key as keyof typeof mc] as number | null) || 0;
                             const f = stationPriceForm[st.label] || {};
                             const setF = (field: string, val: string) =>
                               setStationPriceForm(prev => ({ ...prev, [st.label]: { ...prev[st.label], [field]: val } }));
@@ -993,7 +993,7 @@ export function AdminTabContent() {
                             );
                           })}
 
-                          {STATION_TYPES.filter(st => ((mc as any)[st.key] || 0) > 0).length === 0 && (
+                          {STATION_TYPES.filter(st => ((mc[st.key as keyof typeof mc] as number | null) || 0) > 0).length === 0 && (
                             <p className="text-xs text-slate-500 text-center py-4">No stations added yet. Add stations above first.</p>
                           )}
                         </div>
@@ -2305,7 +2305,7 @@ export function AdminTabContent() {
                 </div>
                 <button onClick={() => {
                   const rows = [['Customer', 'Phone', 'Café', 'Plan', 'Console', 'Amount Paid (₹)', 'Hours Remaining', 'Timer Active', 'Purchase Date']];
-                  filteredSubscriptions.forEach((s: any) => rows.push([s.customer_name||'', s.customer_phone||'', s.cafe_name||'', s.membership_plans?.name||'', s.membership_plans?.console_type||'', s.amount_paid||0, s.hours_remaining||0, s.timer_active?'Yes':'No', s.purchase_date||'']));
+                  filteredSubscriptions.forEach((s) => rows.push([s.customer_name||'', s.customer_phone||'', s.cafe_name||'', s.membership_plans?.name||'', s.membership_plans?.console_type||'', s.amount_paid||0, s.hours_remaining||0, s.timer_active?'Yes':'No', s.purchase_date||'']));
                   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
                   const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=`subscriptions-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
                 }} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.09] text-slate-300 transition-colors">
@@ -2334,7 +2334,7 @@ export function AdminTabContent() {
                         <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Loading subscriptions…</td></tr>
                       ) : filteredSubscriptions.length === 0 ? (
                         <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No subscriptions found</td></tr>
-                      ) : filteredSubscriptions.map((s: any) => (
+                      ) : filteredSubscriptions.map((s) => (
                         <tr key={s.id} className="hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3.5">
                             <div className="text-sm font-semibold text-white">{s.customer_name || 'Unknown'}</div>
@@ -2529,7 +2529,7 @@ export function AdminTabContent() {
                               <span className="text-slate-200">{row.email}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-sm text-slate-400">{(row as any).cafes?.name || row.cafe_id}</td>
+                          <td className="px-4 py-3.5 text-sm text-slate-400">{row.cafes?.name || row.cafe_id}</td>
                           <td className="px-4 py-3.5 text-sm">
                             {row.active
                               ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">Active</span>

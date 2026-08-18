@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/sanitize";
 import { NextRequest, NextResponse } from "next/server";
 import {
   requireOwnerCafeAccess,
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
         .select("id, name")
         .in("id", userIds);
 
-      profiles?.forEach((p: any) => {
+      profiles?.forEach((p) => {
         profilesMap[p.id] = { name: p.name };
       });
     }
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
       activeSubscriptions: activeSubscriptions || [],
       stationPricing: stationPricing || [],
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch live status" }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err, "Failed to fetch live status") }, { status: 500 });
   }
 }

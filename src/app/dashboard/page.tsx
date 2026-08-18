@@ -252,8 +252,8 @@ export default function DashboardPage() {
       if (sessionEnd.getTime() < sessionStart.getTime()) {
         sessionEnd.setDate(sessionEnd.getDate() + 1);
       }
-    } else if ((booking as any).duration) {
-      sessionEnd = new Date(sessionStart.getTime() + (booking as any).duration * 60 * 1000);
+    } else if (booking.duration) {
+      sessionEnd = new Date(sessionStart.getTime() + booking.duration * 60 * 1000);
     } else {
       return false;
     }

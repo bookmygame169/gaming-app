@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/sanitize";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getOwnedCafeIdForRecord,
@@ -39,8 +40,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ images: data || [] });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch gallery" }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err, "Failed to fetch gallery") }, { status: 500 });
   }
 }
 
@@ -75,8 +76,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ image: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to add gallery image" }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err, "Failed to add gallery image") }, { status: 500 });
   }
 }
 
@@ -116,7 +117,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to delete gallery image" }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err, "Failed to delete gallery image") }, { status: 500 });
   }
 }

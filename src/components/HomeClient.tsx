@@ -184,10 +184,10 @@ export default function HomeClient({ cafes }: Props) {
     if (onlyPc) list = list.filter((c) => (c.pc_count ?? 0) > 0);
     if (onlyPool) list = list.filter((c) => (c.pool_count ?? 0) > 0);
     if (onlyWheel)
-      list = list.filter((c) => ((c as any).steering_wheel_count ?? 0) > 0);
-    if (onlyVr) list = list.filter((c) => ((c as any).vr_count ?? 0) > 0);
+      list = list.filter((c) => (c.steering_wheel_count ?? 0) > 0);
+    if (onlyVr) list = list.filter((c) => (c.vr_count ?? 0) > 0);
     if (onlySnooker)
-      list = list.filter((c) => ((c as any).snooker_count ?? 0) > 0);
+      list = list.filter((c) => (c.snooker_count ?? 0) > 0);
 
     if (sortBy === "price_asc") {
       list.sort(

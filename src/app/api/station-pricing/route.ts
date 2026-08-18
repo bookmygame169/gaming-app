@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwnerCafeAccess, requireOwnerContext } from '@/lib/ownerAuth';
-import { dedupeStationPricingRows, formatStationTypeLabel, normaliseStationName } from '@/lib/stationNames';
+import { dedupeStationPricingRows, formatStationTypeLabel, normaliseStationName, type StationPricingLike } from '@/lib/stationNames';
 
 type StationPricingPayload = Record<string, unknown> & {
   cafe_id?: string;
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ pricing: dedupeStationPricingRows((data || []) as any[]) });
+    return NextResponse.json({ pricing: dedupeStationPricingRows((data || []) as StationPricingLike[]) });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to fetch station pricing';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -91,8 +91,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     const matchingIds = (existingRows || [])
-      .filter((row: any) => normaliseStationName(row.station_name, row.station_type, row.station_number) === canonicalStationName)
-      .map((row: any) => row.id);
+      .filter((row) => normaliseStationName(row.station_name, row.station_type, row.station_number) === canonicalStationName)
+      .map((row) => row.id);
 
     if (matchingIds.length > 0) {
       const { error } = await supabase.from('station_pricing').delete().in('id', matchingIds);

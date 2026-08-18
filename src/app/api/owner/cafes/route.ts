@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/sanitize";
 import { NextRequest, NextResponse } from "next/server";
 import {
   requireOwnerCafeAccess,
@@ -88,8 +89,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ cafe: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch cafe" }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err, "Failed to fetch cafe") }, { status: 500 });
   }
 }
 
@@ -130,7 +131,7 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update cafe" }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err, "Failed to update cafe") }, { status: 500 });
   }
 }

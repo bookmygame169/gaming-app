@@ -1,9 +1,12 @@
 import React from 'react';
 
 type SettingsTabProps = {
-  theme: any;
-  fonts: any;
-  cafes: any[];
+  // Taken from the owner theme module rather than restated, so a colour that
+  // is renamed there stops compiling here instead of rendering as undefined.
+  theme: typeof import('../../utils/theme').theme;
+  fonts: typeof import('@/lib/constants').fonts;
+  // Only the first café, and only its name and cover, are read here.
+  cafes: ReadonlyArray<{ name?: string | null; cover_url?: string | null }>;
   editedCafe: {
     address: string;
     phone: string;
@@ -45,7 +48,7 @@ type SettingsTabProps = {
   handleProfilePhotoDelete: () => void;
   uploadingGalleryPhoto: boolean;
   handleGalleryPhotoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  galleryImages: any[];
+  galleryImages: Array<{ id: string; image_url: string }>;
   handleGalleryPhotoDelete: (id: string, url: string) => void;
 };
 

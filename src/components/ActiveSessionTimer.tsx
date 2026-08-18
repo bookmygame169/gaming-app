@@ -18,10 +18,45 @@ function parseTimeString(timeStr: string): { hours: number; minutes: number } | 
     return { hours: Math.floor(total / 60), minutes: total % 60 };
 }
 
+/**
+ * A running session, as this widget uses it.
+ *
+ * Narrower than the full booking row on purpose: these are the only fields read
+ * here, so a change to any other one cannot break this component, and a change
+ * to one of these cannot pass unnoticed.
+ */
+type ActiveBooking = {
+  id: string;
+  source?: string | null;
+  console_type?: string | null;
+  cafe?: { name?: string | null } | null;
+  cafes?: { name?: string | null } | null;
+  booking_items?: Array<{ console?: string | null; quantity?: number | null }> | null;
+};
+
+/**
+ * A candidate row while the widget works out which session is live.
+ *
+ * The two underscore-prefixed fields are this component's own: it computes the
+ * window a booking covers and hangs the result on the row rather than carrying
+ * a parallel map. Declaring them keeps that visible instead of leaving it to
+ * whoever next wonders where they come from.
+ */
+type SessionCandidate = ActiveBooking & {
+  booking_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  duration?: number | null;
+  status?: string | null;
+  deleted_at?: string | null;
+  _calculatedStart?: Date;
+  _calculatedEnd?: Date;
+};
+
 export default function ActiveSessionTimer() {
     const router = useRouter();
     const { user, loading: userLoading } = useUser();
-    const [activeBooking, setActiveBooking] = useState<any>(null);
+    const [activeBooking, setActiveBooking] = useState<ActiveBooking | null>(null);
     const [endTime, setEndTime] = useState<Date | null>(null);
     const [startTime, setStartTime] = useState<Date | null>(null);
     const [timeLeft, setTimeLeft] = useState<string>("");
@@ -64,7 +99,7 @@ export default function ActiveSessionTimer() {
                 if (data && data.length > 0) {
                     const currentTimeMs = now.getTime();
 
-                    const active = data.find((b: any) => {
+                    const active = data.find((b: SessionCandidate) => {
                         // Check Status (case insensitive)
                         const status = (b.status || '').toLowerCase();
                         // Only show in-progress or confirmed sessions
@@ -116,8 +151,8 @@ export default function ActiveSessionTimer() {
 
                     if (active) {
                         setActiveBooking(active);
-                        setStartTime(active._calculatedStart);
-                        setEndTime(active._calculatedEnd);
+                        setStartTime(active._calculatedStart ?? null);
+                        setEndTime(active._calculatedEnd ?? null);
                     }
                 }
             } catch (err) {

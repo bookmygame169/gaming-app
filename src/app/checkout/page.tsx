@@ -1,6 +1,7 @@
 // src/app/checkout/page.tsx
 "use client";
 
+import { errorMessage } from "@/lib/sanitize";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -239,9 +240,9 @@ export default function CheckoutPage() {
         discountAmount: discountAmount
       });
       setCouponCode(""); // Clear input on success
-    } catch (err: any) {
+    } catch (err) {
       console.error('Coupon error:', err);
-      setCouponError(err.message || "Failed to apply coupon");
+      setCouponError(errorMessage(err, "Failed to apply coupon"));
     } finally {
       setApplyingCoupon(false);
     }

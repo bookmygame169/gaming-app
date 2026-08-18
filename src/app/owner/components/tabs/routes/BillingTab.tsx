@@ -1,10 +1,20 @@
 "use client";
 
+import type { ComponentProps } from 'react';
 import dynamic from "next/dynamic";
 import { ErrorBoundary } from "../../ErrorBoundary";
 import { useOwnerDashboard } from "../../../context/OwnerDashboardContext";
 
 const Billing = dynamic(() => import("../../Billing").then((mod) => mod.Billing), { ssr: false });
+
+/**
+ * The only field either of these filters reads.
+ *
+ * The owner context is still typed `any`, so nothing narrower flows in here
+ * yet — but naming the field that matters is enough to catch it being renamed,
+ * which `any` was not.
+ */
+type CafeScoped = { cafe_id?: string | null };
 
 export function BillingTab() {
   const {
@@ -29,11 +39,13 @@ export function BillingTab() {
           onSnackOnlySale={() => setSnackSaleModalOpen(true)}
           pricingData={consolePricing[currentCafeId] || {}}
           stationPricingList={
-            Object.values(stationPricing).filter(
-              (station: any) => !currentCafeId || station?.cafe_id === currentCafeId
-            ) as any
+            (Object.values(stationPricing) as CafeScoped[]).filter(
+              (station) => !currentCafeId || station?.cafe_id === currentCafeId
+            ) as ComponentProps<typeof Billing>["stationPricingList"]
           }
-          membershipPlans={membershipPlans.filter((p: any) => p.cafe_id === currentCafeId)}
+          membershipPlans={membershipPlans.filter(
+            (plan: CafeScoped) => plan.cafe_id === currentCafeId
+          )}
           onSuccess={() => {
             refreshData();
             handleTabChange("dashboard");
