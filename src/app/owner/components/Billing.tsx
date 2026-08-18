@@ -46,6 +46,16 @@ type BillingItem = {
     quantity: number;
     duration: number;
     price: number;
+    /**
+     * A specific machine, or undefined for whichever is free.
+     *
+     * The server has always accepted this — reserveStations takes requested
+     * stations and refuses one that is occupied — but nothing ever sent it, so
+     * every booking was auto-assigned and staff could not put a customer on the
+     * desk they were standing at. With the lock running per machine that is the
+     * difference between the right PC unlocking and the wrong one.
+     */
+    station?: string;
 };
 
 type CustomerSuggestion = {
@@ -421,6 +431,14 @@ export function Billing({
                 if (['console', 'quantity', 'duration'].includes(field)) {
                     updated.price = calculatePrice(updated.console, updated.quantity, updated.duration);
                 }
+
+                // A pinned machine belongs to one console type, and a quantity
+                // above one needs that many machines rather than a single named
+                // desk. Either change makes the pin invalid, so it is dropped
+                // instead of being sent and rejected.
+                if (field === 'console' || (field === 'quantity' && Number(value) !== 1)) {
+                    updated.station = undefined;
+                }
                 return updated;
             }
             return item;
@@ -568,7 +586,12 @@ export function Billing({
                         console: it.console,
                         quantity: it.quantity,
                         price: it.price,
-                        title: String(it.duration),
+                        // The API reads a requested machine out of this field,
+                        // and falls back to assigning a free one when there is
+                        // none. Same format it has always parsed.
+                        title: it.station
+                            ? `${it.duration}|${it.station}`
+                            : String(it.duration),
                     })),
                 }),
             });
@@ -1213,6 +1236,39 @@ export function Billing({
                                                         })}
                                                     </div>
                                                 </div>
+
+                                                {/* Machine — only when one is being booked. Above that,
+                                                    the booking needs several and the server picks them. */}
+                                                {item.quantity === 1 && stationOptions(item.console).length > 0 && (
+                                                    <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
+                                                        <div className={CONTROL_LABEL_CLASS}>Machine</div>
+                                                        <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
+                                                            {[undefined, ...stationOptions(item.console)].map((station) => {
+                                                                const selected = item.station === station;
+                                                                return (
+                                                                    <button
+                                                                        key={station ?? 'any'}
+                                                                        type="button"
+                                                                        onClick={() => updateItem(item.id, 'station', station)}
+                                                                        className="rounded-xl py-3 text-xs font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
+                                                                        style={{
+                                                                            background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)',
+                                                                            border: selected ? '1.5px solid rgba(6,182,212,0.40)' : '1.5px solid rgba(255,255,255,0.07)',
+                                                                            color: selected ? '#67e8f9' : '#64748b',
+                                                                            boxShadow: selected ? '0 0 20px -6px rgba(6,182,212,0.5)' : 'none',
+                                                                        }}
+                                                                    >
+                                                                        {station ?? 'Any'}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="mono mt-2 text-[11px] text-[var(--muted)]">
+                                                            Any picks the first machine free for this time. Choosing one
+                                                            fails the booking rather than moving the customer if it is taken.
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                             </div>
                                         );
