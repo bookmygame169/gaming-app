@@ -25,6 +25,9 @@ type ExistingBookingItem = {
   console?: string | null;
   quantity?: number | null;
   title?: string | null;
+  // Optional: the column may not exist on a database whose migration
+  // has not been run, and the title fallback covers that.
+  station_names?: string[] | null;
 };
 
 type ExistingBookingRow = {
@@ -269,9 +272,16 @@ export async function loadStationReservationState(
 ): Promise<StationReservationState> {
   let bookingsQuery = supabase
     .from("bookings")
-    .select("id, start_time, duration, status, booking_items(console, quantity, title)")
+    .select("id, start_time, duration, status, booking_items(console, quantity, title, station_names)")
     .eq("cafe_id", cafeId)
     .eq("booking_date", bookingDate)
+    // Deleting a booking does not clear its status, so without this a deleted
+    // session goes on holding its machine. Seventeen of them were doing exactly
+    // that — one had pc-01 and pc-02 reserved on a day they were both free, so
+    // every booking taken in that window was pushed onto pc-03 and pc-04 and
+    // the number the lock screen was told did not match the desk the customer
+    // was sent to.
+    .is("deleted_at", null)
     .in("status", ["in-progress", "confirmed", "pending"]);
 
   if (excludeBookingId) {
@@ -330,7 +340,10 @@ export async function loadStationReservationState(
         const consoleType = normaliseConsoleType(item.console);
         if (!consoleType) return;
 
-        const assignedStations = parseAssignedStationsFromTitle(item.title);
+        // The column, falling back to the title. Which machine a booking holds
+        // is data now, and reading the label instead means a booking whose
+        // label was edited reserves the wrong desk.
+        const assignedStations = getAssignedStations(item);
         if (assignedStations.length > 0) {
           assignedStations.forEach((stationName) => occupiedStations.add(stationName));
           return;
