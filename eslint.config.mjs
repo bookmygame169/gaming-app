@@ -5,6 +5,22 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Off deliberately.
+      //
+      // It wants ' and " written as HTML entities inside JSX text. That guarded
+      // against a real problem in much older React; today both render exactly
+      // the same, and the rule has no auto-fix, so honouring it means hand-
+      // editing prose in 29 places for no change in what anyone sees.
+      //
+      // The cost of leaving it on is worse than nothing: it was 29 of 112
+      // errors, so a genuine crash sat in the same list — RefreshCw used
+      // without an import — and nobody was going to find it in that noise.
+      "react/no-unescaped-entities": "off",
+    },
+  },
+
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

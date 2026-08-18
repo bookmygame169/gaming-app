@@ -75,7 +75,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      # `npm run lint` is deliberately not here. ESLint currently reports 112
-      # errors across the existing codebase, so it would fail every push from
-      # the day it was added and teach everyone to ignore a red tick. Worth
-      # adding once that backlog is cleared, and worthless before then.
+      # A ratchet rather than a gate. 79 ESLint errors remain, mostly `any`,
+      # and failing every push over them would teach everyone to ignore a red
+      # tick. This fails only when a change makes the count worse, so new code
+      # is held to a standard the old code is not yet.
+      - name: Lint budget
+        run: npm run check:lint

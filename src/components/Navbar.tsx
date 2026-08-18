@@ -23,10 +23,6 @@ export default function Navbar() {
   const isOwnerPage = pathname?.startsWith("/owner");
   const isAdminPage = pathname?.startsWith("/admin");
 
-  if (isOwnerPage || isAdminPage) {
-    return null;
-  }
-
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
@@ -84,6 +80,16 @@ export default function Navbar() {
       router.push("/login");
     }
   };
+
+  // Renders nothing on these routes — but only after every hook above has run.
+  //
+  // This return used to sit before those three effects. React identifies hooks
+  // by call order, so navigating from a normal page to /owner rendered this
+  // component with three fewer hooks than the render before it. That is not a
+  // lint preference; it is the condition React throws on.
+  if (isOwnerPage || isAdminPage) {
+    return null;
+  }
 
   return (
     <>

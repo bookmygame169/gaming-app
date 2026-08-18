@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:schema": "node scripts/check-schema.mjs",
-    "check:sources": "node scripts/check-sources.mjs"
+    "check:sources": "node scripts/check-sources.mjs",
+    "check:lint": "node scripts/check-lint-budget.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

@@ -4,6 +4,10 @@
 import {
   Store, Users, CalendarCheck, BarChart3, IndianRupee, KeyRound, Shield, Megaphone,
   Gamepad2, TrendingUp, Settings, ExternalLink, ChevronRight, AlertTriangle,
+  // Used by the "Force Full Reload" button and never imported. The file carries
+  // a @ts-nocheck, so the compiler had nothing to say about it and the button
+  // threw the moment that panel rendered.
+  RefreshCw,
 } from "lucide-react";
 import { useAdminDashboard } from "../context/AdminDashboardContext";
 import type { NavTab } from "../types";
