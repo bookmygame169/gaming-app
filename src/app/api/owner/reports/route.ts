@@ -1,5 +1,5 @@
 import { fetchAllRows, chunked } from "@/lib/db/pagination";
-import { revenueBookings } from "@/lib/db/bookings";
+import { excludeCancelled, excludeDeleted, revenueBookings } from "@/lib/db/bookings";
 import { NextRequest, NextResponse } from "next/server";
 import {
   requireOwnerCafeAccess,
@@ -224,12 +224,14 @@ export async function GET(request: NextRequest) {
     const startDate = getIndiaDateString(thirtyDaysAgo);
     const endDate = getIndiaDateString(now);
 
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('id, start_time, created_at, status')
-      .eq('cafe_id', cafeId)
-      .or('status.is.null,status.neq.cancelled')
-      .is('deleted_at', null)
+    const { data, error } = await excludeCancelled(
+      excludeDeleted(
+        supabase
+          .from('bookings')
+          .select('id, start_time, created_at, status')
+          .eq('cafe_id', cafeId)
+      )
+    )
       .gte('booking_date', startDate)
       .lte('booking_date', endDate);
 

@@ -1,3 +1,4 @@
+import { whatsappNumber } from "@/lib/phone";
 import { CONSOLE_DB_KEYS, type ConsoleId } from "@/lib/constants";
 
 // Helper functions for time conversion
@@ -194,9 +195,7 @@ export const getTimezoneOffset = (_date?: Date): string => '+05:30';
 
 /** Normalise an Indian phone number to E.164 (without the +) for wa.me links. */
 export function formatPhoneForWhatsApp(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) return `91${digits}`;
-  return digits; // already has country code
+  return whatsappNumber(phone);
 }
 
 /** Build the wa.me URL that opens WhatsApp with a pre-filled message. */

@@ -1,3 +1,4 @@
+import { phoneKey } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/userAuth";
@@ -12,12 +13,7 @@ export const dynamic = "force-dynamic";
  * the raw strings would show a member nothing, so both sides are reduced to the
  * last ten digits before matching.
  */
-function phoneKey(phone: string | null | undefined): string | null {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 10) return null;
-  return digits.slice(-10);
-}
+
 
 type SubscriptionRow = {
   id: string;

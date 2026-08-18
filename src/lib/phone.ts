@@ -55,3 +55,21 @@ export function phoneSearchFragment(phone: string | null | undefined): string | 
 export function dialableDigits(phone: string | null | undefined): string {
   return (phone || "").replace(/\D/g, "");
 }
+
+/**
+ * A number in the form wa.me expects: country code, no plus, no spaces.
+ *
+ * Four different versions of this exist in the UI today and they disagree:
+ * one adds 91 only to a ten-digit number, one adds it unless the number
+ * already starts with 91, one always adds it, and one adds nothing at all —
+ * which produces a link that does not open for a plain Indian mobile.
+ *
+ * This is the first of those, because it is the only one that is already a
+ * named function with a stated contract. Bringing the other three here is a
+ * behaviour change for numbers written with a leading zero, so it is a
+ * decision to take deliberately rather than fold into a refactor.
+ */
+export function whatsappNumber(phone: string | null | undefined): string {
+  const digits = dialableDigits(phone);
+  return digits.length === 10 ? `91${digits}` : digits;
+}

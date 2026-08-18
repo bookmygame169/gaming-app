@@ -1,3 +1,4 @@
+import { excludeCancelled, excludeDeleted } from "@/lib/db/bookings";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendDailyReport } from '@/lib/email';
@@ -79,9 +80,22 @@ async function generateReportForCafe(cafeId: string, cafeName: string, cafeEmail
   const yesterdayStr = toLocalISODate(yesterday);
 
   // Fetch today's bookings
-  const { data: todayBookings } = await supabase
-    .from('bookings')
-    .select(`
+  // Two fixes, and deliberately not a third.
+  //
+  // Deleting a booking does not clear its status, so with no deleted_at filter
+  // this counted deleted sessions as takings: 31 of them across 23 days, one
+  // evening overstated by Rs 1,999. And .neq() drops rows whose status is NULL
+  // rather than keeping them, which is the same trap already found six times
+  // elsewhere.
+  //
+  // Owner comps are still included, because this report has always counted
+  // them and narrowing it here would change what the email means rather than
+  // correct it.
+  const { data: todayBookings } = await excludeCancelled(
+    excludeDeleted(
+      supabase
+        .from('bookings')
+        .select(`
       id,
       total_amount,
       payment_mode,
@@ -91,17 +105,20 @@ async function generateReportForCafe(cafeId: string, cafeName: string, cafeEmail
         price
       )
     `)
-    .eq('cafe_id', cafeId)
-    .neq('status', 'cancelled')
-    .eq('booking_date', todayStr);
+        .eq('cafe_id', cafeId)
+    )
+  ).eq('booking_date', todayStr);
 
   // Fetch yesterday's bookings for comparison
-  const { data: yesterdayBookings } = await supabase
-    .from('bookings')
-    .select('id, total_amount')
-    .eq('cafe_id', cafeId)
-    .neq('status', 'cancelled')
-    .eq('booking_date', yesterdayStr);
+  // Same rule, or yesterday's comparison is measured differently from today's.
+  const { data: yesterdayBookings } = await excludeCancelled(
+    excludeDeleted(
+      supabase
+        .from('bookings')
+        .select('id, total_amount')
+        .eq('cafe_id', cafeId)
+    )
+  ).eq('booking_date', yesterdayStr);
 
   // Fetch today's F&B orders
   const bookingIds = (todayBookings || []).map((b: Booking) => b.id);

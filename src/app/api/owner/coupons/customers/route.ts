@@ -1,3 +1,4 @@
+import { revenueBookings } from "@/lib/db/bookings";
 import { NextRequest, NextResponse } from "next/server";
 import {
   requireOwnerCafeAccess,
@@ -62,13 +63,12 @@ export async function GET(request: NextRequest) {
 
   // Fast path: autocomplete search — targeted query, no full customer map build
   if (search.length >= 2) {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('customer_name, customer_phone')
-      .eq('cafe_id', cafeId)
-      .is('deleted_at', null)
-      .or('status.is.null,status.neq.cancelled')
-      .or('payment_mode.is.null,payment_mode.neq.owner')
+    const { data, error } = await revenueBookings(
+      supabase
+        .from('bookings')
+        .select('customer_name, customer_phone')
+        .eq('cafe_id', cafeId)
+    )
       .or(`customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`)
       .not('customer_phone', 'is', null)
       .not('customer_name', 'is', null)

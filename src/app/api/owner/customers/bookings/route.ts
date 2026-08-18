@@ -3,7 +3,8 @@ import {
   requireOwnerCafeAccess,
   requireOwnerContext,
 } from "@/lib/ownerAuth";
-import { phoneKey } from "@/lib/loyalty";
+import { phoneKey, phoneSearchFragment } from "@/lib/phone";
+import { revenueBookings } from "@/lib/db/bookings";
 
 export const dynamic = "force-dynamic";
 
@@ -40,18 +41,15 @@ export async function GET(request: NextRequest) {
   // of them. The last four digits stay together under every way anyone writes
   // a number, so this is a superset; the exact comparison happens below on the
   // normalised key.
-  const { data, error } = await supabase
-    .from("bookings")
-    .select(
-      "id, booking_date, start_time, duration, total_amount, status, source, payment_mode, created_at, customer_name, customer_phone, booking_items(id, console, quantity, price, title), booking_orders(id, quantity, total_price)"
-    )
-    .eq("cafe_id", cafeId)
-    .ilike("customer_phone", `%${key.slice(-4)}%`)
-    // Both as .or(): `NULL <> 'cancelled'` is NULL, so a plain .neq() drops
-    // every booking whose status or payment mode was never set.
-    .or("status.is.null,status.neq.cancelled")
-    .or("payment_mode.is.null,payment_mode.neq.owner")
-    .is("deleted_at", null)
+  const { data, error } = await revenueBookings(
+    supabase
+      .from("bookings")
+      .select(
+        "id, booking_date, start_time, duration, total_amount, status, source, payment_mode, created_at, customer_name, customer_phone, booking_items(id, console, quantity, price, title), booking_orders(id, quantity, total_price)"
+      )
+      .eq("cafe_id", cafeId)
+  )
+    .ilike("customer_phone", phoneSearchFragment(phone) ?? "")
     .order("created_at", { ascending: false })
     .limit(200);
 
