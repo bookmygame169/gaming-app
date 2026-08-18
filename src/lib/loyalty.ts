@@ -1,3 +1,5 @@
+import { phoneKey } from "@/lib/phone";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getIndiaDateString } from "@/lib/bookingFilters";
 
@@ -65,11 +67,7 @@ export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
  * profile. Everything about loyalty is keyed on this, so a mismatch here means
  * a customer silently loses their balance.
  */
-export function phoneKey(phone: string | null | undefined): string | null {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  return digits.length >= 10 ? digits.slice(-10) : null;
-}
+
 
 /**
  * What a day's spending earns.
@@ -267,3 +265,9 @@ export async function getBalance(
 
   return data.reduce((sum, row) => sum + (Number(row.points) || 0), 0);
 }
+
+/**
+ * Re-exported so existing importers keep working while there is only one
+ * implementation. New code should import from "@/lib/phone" directly.
+ */
+export { phoneKey };

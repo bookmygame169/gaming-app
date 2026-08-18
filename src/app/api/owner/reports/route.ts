@@ -1,3 +1,5 @@
+import { fetchAllRows, chunked } from "@/lib/db/pagination";
+import { revenueBookings } from "@/lib/db/bookings";
 import { NextRequest, NextResponse } from "next/server";
 import {
   requireOwnerCafeAccess,
@@ -63,24 +65,43 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch current period bookings (exclude soft-deleted)
-    const { data: currentData, error: currentError } = await supabase
-      .from('bookings')
-      .select(`
+    // Paged, because an unbounded select stops at PostgREST's 1000-row ceiling
+    // without saying so and every figure below is a JavaScript reduction over
+    // whatever came back. On the one live café an all-time range matches 2,847
+    // bookings and returned 1,000, so the reported revenue was a third of the
+    // real number and looked entirely plausible.
+    const REPORT_COLUMNS = `
         id, total_amount, created_at, booking_date, status, payment_mode, start_time,
         customer_name, customer_phone, source,
         booking_items (console, quantity, price)
-      `)
-      .eq('cafe_id', cafeId)
-      .or('status.is.null,status.neq.cancelled')
-      .or('payment_mode.is.null,payment_mode.neq.owner')
-      .is('deleted_at', null)
-      .gte('booking_date', startDate)
-      .lte('booking_date', endDate)
-      .order('booking_date', { ascending: true });
+      `;
+
+    const { rows: currentRows, error: currentError, truncated: currentTruncated } =
+      await fetchAllRows<BookingRow>(() =>
+        revenueBookings(
+          supabase
+            .from('bookings')
+            .select(REPORT_COLUMNS)
+            .eq('cafe_id', cafeId)
+        )
+          .gte('booking_date', startDate)
+          .lte('booking_date', endDate)
+          .order('booking_date', { ascending: true })
+      );
 
     if (currentError) {
-      return NextResponse.json({ error: currentError.message }, { status: 500 });
+      return NextResponse.json({ error: currentError }, { status: 500 });
     }
+
+    if (currentTruncated) {
+      // Loud rather than silent. A report this large is still worth showing,
+      // but nobody should read a total that stopped early without knowing.
+      console.warn(
+        `Reports: hit the row ceiling for café ${cafeId} between ${startDate} and ${endDate}.`
+      );
+    }
+
+    const currentData = currentRows;
 
     // Fetch booking_orders for ALL bookings in the period. Gaming and snack revenue
     // are stored separately as booking_items.price and booking_orders.total_price.
@@ -88,12 +109,18 @@ export async function POST(request: NextRequest) {
 
     const snackOrdersMap: Record<string, BookingOrderSummary[]> = {};
     if (allBookingIds.length > 0) {
-      const { data: ordersData } = await supabase
-        .from('booking_orders')
-        .select('booking_id, item_name, quantity, unit_price, total_price')
-        .in('booking_id', allBookingIds);
+      // Chunked: these ids go into the query string, and a few thousand uuids
+      // makes a URL that proxies refuse.
+      const ordersData: BookingOrderRow[] = [];
+      for (const ids of chunked(allBookingIds)) {
+        const { data: page } = await supabase
+          .from('booking_orders')
+          .select('booking_id, item_name, quantity, unit_price, total_price')
+          .in('booking_id', ids);
+        ordersData.push(...((page || []) as BookingOrderRow[]));
+      }
 
-      ((ordersData || []) as BookingOrderRow[]).forEach((o) => {
+      ordersData.forEach((o) => {
         if (!snackOrdersMap[o.booking_id]) snackOrdersMap[o.booking_id] = [];
         snackOrdersMap[o.booking_id].push({
           item_name: o.item_name,
@@ -111,28 +138,33 @@ export async function POST(request: NextRequest) {
     }));
 
     // Fetch previous period bookings (exclude soft-deleted)
-    const { data: prevData } = await supabase
-      .from('bookings')
-      .select(`
+    const { rows: prevData } = await fetchAllRows<BookingRow>(() =>
+      revenueBookings(
+        supabase
+          .from('bookings')
+          .select(`
         id, total_amount, booking_date, status, payment_mode, source,
         booking_items (console, quantity, price)
       `)
-      .eq('cafe_id', cafeId)
-      .or('status.is.null,status.neq.cancelled')
-      .or('payment_mode.is.null,payment_mode.neq.owner')
-      .is('deleted_at', null)
-      .gte('booking_date', prevStartDate)
-      .lte('booking_date', prevEndDate);
+          .eq('cafe_id', cafeId)
+      )
+        .gte('booking_date', prevStartDate)
+        .lte('booking_date', prevEndDate)
+    );
 
     const prevBookingIds = ((prevData || []) as BookingRow[]).map((b) => b.id);
     const prevSnackOrdersMap: Record<string, BookingOrderSummary[]> = {};
     if (prevBookingIds.length > 0) {
-      const { data: prevOrdersData } = await supabase
-        .from('booking_orders')
-        .select('booking_id, item_name, quantity, unit_price, total_price')
-        .in('booking_id', prevBookingIds);
+      const prevOrdersData: BookingOrderRow[] = [];
+      for (const ids of chunked(prevBookingIds)) {
+        const { data: page } = await supabase
+          .from('booking_orders')
+          .select('booking_id, item_name, quantity, unit_price, total_price')
+          .in('booking_id', ids);
+        prevOrdersData.push(...((page || []) as BookingOrderRow[]));
+      }
 
-      ((prevOrdersData || []) as BookingOrderRow[]).forEach((o) => {
+      prevOrdersData.forEach((o) => {
         if (!prevSnackOrdersMap[o.booking_id]) prevSnackOrdersMap[o.booking_id] = [];
         prevSnackOrdersMap[o.booking_id].push({
           item_name: o.item_name,
