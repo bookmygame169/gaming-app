@@ -15,6 +15,7 @@ import { calcBillingPrice } from "../utils/pricing";
 import { useOwnerAuth } from "../hooks/useOwnerAuth";
 import { useOwnerData } from "../hooks/useOwnerData";
 import { useToast } from "../hooks/useToast";
+import { useStableHandler } from "../hooks/useStableHandler";
 import { useOwnerSummary } from "../components/NeedsAttention";
 import { ownerPathForTab } from "../navigation";
 import type { OwnerRouteTab } from "../navigation";
@@ -81,10 +82,10 @@ export function OwnerDashboardProvider({
   const [isMobile, setIsMobile] = useState(false);
 
   // Navigate via route paths instead of in-page tab state
-  const handleTabChange = (tab: NavTab) => {
+  const handleTabChange = useStableHandler((tab: NavTab) => {
     setMobileMenuOpen(false);
     router.push(ownerPathForTab(tab));
-  };
+  });
 
 
 
@@ -115,12 +116,12 @@ export function OwnerDashboardProvider({
   }, [activeTab]);
   const ownerSummary = useOwnerSummary(currentCafeId || undefined, summaryTick);
 
-  const hideDeletedBookingLocally = (bookingId: string) => {
+  const hideDeletedBookingLocally = useStableHandler((bookingId: string) => {
     setBookings((prev) => prev.filter((booking: any) => (
       booking.id !== bookingId && booking.originalBookingId !== bookingId
     )));
     setBookingsMgmtRefreshKey(k => k + 1);
-  };
+  });
 
   // Subscription timer state
   const [activeTimers, setActiveTimers] = useState<Map<string, number>>(new Map()); // Now storing start time (epoch seconds or ms)
@@ -478,7 +479,7 @@ export function OwnerDashboardProvider({
   // Realtime subscription removed — ISP blocks WebSocket to Supabase (ERR_CERT_COMMON_NAME_INVALID)
   // Mutations call refreshData() directly to keep UI in sync
 
-  const handleEndSessionNow = () => {
+  const handleEndSessionNow = useStableHandler(() => {
     if (!editingBooking?.start_time || !editingBooking?.booking_date) return;
 
     // Build a full start datetime from booking_date + start_time to handle cross-midnight correctly
@@ -504,7 +505,7 @@ export function OwnerDashboardProvider({
     setEditStatus('completed');
     setEditAmountManuallyEdited(false);
     return roundedDuration;
-  };
+  });
 
   // Fetch pricing on-demand when edit modal opens and pricing not yet loaded (e.g. from dashboard tab)
   useEffect(() => {
@@ -559,7 +560,7 @@ export function OwnerDashboardProvider({
     }
   }, [editItems, editDuration, editingBooking, editingBookingItemId, editAmountManuallyEdited, getBillingPrice]);
 
-  const handleOrdersUpdated = ({
+  const handleOrdersUpdated = useStableHandler(({
     bookingId,
     orders,
     updatedAt,
@@ -595,10 +596,10 @@ export function OwnerDashboardProvider({
           : prev
       ));
     }
-  };
+  });
 
 
-  async function handlePaymentModeChange(bookingId: string, mode: string): Promise<boolean> {
+  const handlePaymentModeChange = useStableHandler(async (bookingId: string, mode: string): Promise<boolean> => {
     const booking = bookings.find(b => b.id === bookingId) as any;
     const trueBookingId = booking?.originalBookingId || (bookingId.includes('-item-') ? bookingId.split('-item-')[0] : bookingId);
     const normalizedMode = normaliseOwnerPaymentMode(mode);
@@ -643,10 +644,10 @@ export function OwnerDashboardProvider({
       }
       return false;
     }
-  }
+  });
 
   // Handle edit booking
-  const handleBookingStatusChange = async (id: string, status: string) => {
+  const handleBookingStatusChange = useStableHandler(async (id: string, status: string) => {
     const trueBookingId = id.includes('-item-') ? id.split('-item-')[0] : id;
     const targetBooking = bookings.find((b: any) => (
       b.id === id || b.id === trueBookingId || b.originalBookingId === trueBookingId
@@ -680,7 +681,7 @@ export function OwnerDashboardProvider({
       toast.error('Failed to update booking status');
       refreshData(); // revert
     }
-  };
+  });
 
   /**
    * Unlocks or locks the physical machine(s) attached to a booking.
@@ -688,7 +689,7 @@ export function OwnerDashboardProvider({
    * The duration is worked out server-side from the booking, so nothing here
    * can influence how long the station stays open.
    */
-  async function handleStationCommand(bookingId: string, action: 'unlock' | 'lock') {
+  const handleStationCommand = useStableHandler(async (bookingId: string, action: 'unlock' | 'lock') => {
     // Flattened cards use a synthetic "<id>-item-<itemId>" id; the API needs
     // the real booking.
     const trueBookingId = bookingId.includes('-item-')
@@ -721,9 +722,9 @@ export function OwnerDashboardProvider({
       console.error('[handleStationCommand]', err);
       toast.error(err instanceof Error ? err.message : 'Could not reach the station');
     }
-  }
+  });
 
-  async function handleOpenTimeAdjustment(booking: BookingRow) {
+  const handleOpenTimeAdjustment = useStableHandler(async (booking: BookingRow) => {
     const originalBookingId = (booking as any).originalBookingId;
     const targetBookingId = originalBookingId || booking.id;
     const specificItemId = originalBookingId && booking.booking_items?.[0]?.id
@@ -805,9 +806,9 @@ export function OwnerDashboardProvider({
       customerName: actualBooking.customer_name || actualBooking.user_name || 'Guest',
       stationName: assignedStation || consoleName,
     });
-  }
+  });
 
-  async function handleSaveTimeAdjustment() {
+  const handleSaveTimeAdjustment = useStableHandler(async () => {
     if (!timeAdjustment) return;
 
     const nextDuration = Math.max(30, Math.round(timeAdjustment.nextDuration));
@@ -890,9 +891,9 @@ export function OwnerDashboardProvider({
     } finally {
       setSavingTimeAdjustment(false);
     }
-  }
+  });
 
-  async function handleEditBooking(booking: BookingRow) {
+  const handleEditBooking = useStableHandler(async (booking: BookingRow) => {
     // If this is a flattened booking entry (from bulk booking), find the original booking
     const originalBookingId = (booking as any).originalBookingId;
     const targetBookingId = originalBookingId || booking.id;
@@ -1041,10 +1042,10 @@ export function OwnerDashboardProvider({
       const now = new Date();
       setEditStartTime(`${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`);
     }
-  }
+  });
 
   // Handle save booking
-  async function handleSaveBooking() {
+  const handleSaveBooking = useStableHandler(async () => {
     if (!editingBooking) return;
 
     const isAppBooking = !!editingBooking.user_id;
@@ -1301,9 +1302,9 @@ export function OwnerDashboardProvider({
     } finally {
       setSaving(false);
     }
-  }
+  });
 
-  async function handleDeleteBooking() {
+  const handleDeleteBooking = useStableHandler(async () => {
     if (!editingBooking) return;
 
     try {
@@ -1404,10 +1405,10 @@ export function OwnerDashboardProvider({
     } finally {
       setDeletingBooking(false);
     }
-  }
+  });
 
   // Subscription timer handlers
-  async function handleStartTimer(subscriptionId: string) {
+  const handleStartTimer = useStableHandler(async (subscriptionId: string) => {
     debugLog('[Timer] Starting timer for subscription:', subscriptionId);
     // Don't start if already running
     if (activeTimers.has(subscriptionId)) {
@@ -1540,9 +1541,9 @@ export function OwnerDashboardProvider({
     // Set local timer state
     setActiveTimers(prev => new Map(prev).set(subscriptionId, startTime));
     debugLog('[Timer] Timer started successfully');
-  }
+  });
 
-  async function handleStopTimer(subscriptionId: string) {
+  const handleStopTimer = useStableHandler(async (subscriptionId: string) => {
     debugLog('[Timer] Stopping timer for subscription:', subscriptionId);
     const startTime = activeTimers.get(subscriptionId);
     if (!startTime) {
@@ -1635,7 +1636,7 @@ export function OwnerDashboardProvider({
     } else {
       console.error('[Timer] Subscription not found:', subscriptionId);
     }
-  }
+  });
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -1899,7 +1900,7 @@ export function OwnerDashboardProvider({
     fetchCustomerData();
   }, [viewingCustomer, selectedCafeId]);
 
-  const handleViewCustomer = (customer: {
+  const handleViewCustomer = useStableHandler((customer: {
     activeSubscription?: any;
     email?: string | null;
     lastVisit?: string;
@@ -1922,10 +1923,10 @@ export function OwnerDashboardProvider({
       ...customer,
       activeSubscription: activeSub || null,
     });
-  };
+  });
 
   // Handle settings save
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = useStableHandler(async () => {
     if (!currentCafeId) return;
 
     setSavingSettings(true);
@@ -1983,10 +1984,10 @@ export function OwnerDashboardProvider({
     } finally {
       setSavingSettings(false);
     }
-  };
+  });
 
   // Handle add new station
-  const handleAddStation = async () => {
+  const handleAddStation = useStableHandler(async () => {
     if (!currentCafe || newStationCount < 1) return;
 
     setAddingStation(true);
@@ -2016,10 +2017,10 @@ export function OwnerDashboardProvider({
     } finally {
       setAddingStation(false);
     }
-  };
+  });
 
   // Handle toggle station power — shows confirmation before powering off
-  const handleTogglePower = (stationName: string) => {
+  const handleTogglePower = useStableHandler((stationName: string) => {
     const isCurrentlyOff = poweredOffStations.has(stationName);
     if (isCurrentlyOff) {
       // Powering back on — no confirmation needed
@@ -2032,9 +2033,9 @@ export function OwnerDashboardProvider({
       )
     );
     setPendingPowerToggle({ name: stationName, hasActiveSession });
-  };
+  });
 
-  const executePowerToggle = async (stationName: string, isCurrentlyOff: boolean) => {
+  const executePowerToggle = useStableHandler(async (stationName: string, isCurrentlyOff: boolean) => {
     // Optimistic update
     setPoweredOffStations(prev => {
       const newSet = new Set(prev);
@@ -2084,7 +2085,7 @@ export function OwnerDashboardProvider({
       });
       toast.error('Failed to update station power status. Please try again.');
     }
-  };
+  });
 
   const handleToggleMaintenance = (stationName: string) => {
     setMaintenanceStations(prev => {
@@ -2096,7 +2097,7 @@ export function OwnerDashboardProvider({
   };
 
   // Handle profile photo upload
-  const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePhotoUpload = useStableHandler(async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !currentCafe) return;
 
     const file = event.target.files[0];
@@ -2131,10 +2132,10 @@ export function OwnerDashboardProvider({
       // Reset input
       event.target.value = '';
     }
-  };
+  });
 
   // Handle profile photo delete
-  const handleProfilePhotoDelete = async () => {
+  const handleProfilePhotoDelete = useStableHandler(async () => {
     if (!currentCafe || !currentCafe.cover_url) return;
 
     try {
@@ -2155,10 +2156,10 @@ export function OwnerDashboardProvider({
       console.error('Error deleting profile photo:', error);
       toast.error('Failed to delete profile photo. Please try again.');
     }
-  };
+  });
 
   // Handle gallery photo upload
-  const handleGalleryPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryPhotoUpload = useStableHandler(async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !currentCafeId) return;
 
     const file = event.target.files[0];
@@ -2189,10 +2190,10 @@ export function OwnerDashboardProvider({
       // Reset input
       event.target.value = '';
     }
-  };
+  });
 
   // Handle gallery photo delete
-  const handleGalleryPhotoDelete = async (imageId: string, imageUrl: string) => {
+  const handleGalleryPhotoDelete = useStableHandler(async (imageId: string, imageUrl: string) => {
     try {
       await deleteCafeImage(currentCafeId, imageUrl);
 
@@ -2211,10 +2212,10 @@ export function OwnerDashboardProvider({
       console.error('Error deleting gallery photo:', error);
       toast.error('Failed to delete gallery photo. Please try again.');
     }
-  };
+  });
 
   // Handle delete station
-  const handleDeleteStation = async () => {
+  const handleDeleteStation = useStableHandler(async () => {
     if (!stationToDelete || !currentCafe) return;
 
     setDeletingStation(true);
@@ -2259,7 +2260,7 @@ export function OwnerDashboardProvider({
     } finally {
       setDeletingStation(false);
     }
-  };
+  });
 
   const value = useMemo(
     () => ({
@@ -2471,16 +2472,8 @@ export function OwnerDashboardProvider({
       handleGalleryPhotoDelete,
       handleDeleteStation,
     }),
-    // The rule is right that this closes over dozens of handlers and wrong
-    // about what to do. Naming them all would rebuild this object on every
-    // render, which is the one thing a memo around a context value exists to
-    // prevent — every consumer of the owner dashboard would re-render on every
-    // keystroke.
-    //
-    // Making the list honest means wrapping roughly forty handlers in
-    // useCallback first. That is worth doing and is not a lint fix; it needs
-    // the dashboard open to confirm nothing regressed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Every handler in here has a stable identity now — see useStableHandler —
+    // so naming them costs nothing and the memo does what it was written to do.
     [
       activeTab,
       router,
@@ -2576,6 +2569,43 @@ export function OwnerDashboardProvider({
       controller4HalfHour,
       controller4FullHour,
       enabledControllers,
+      // Stable for the life of the component: the handlers via
+      // useStableHandler, the setters because useState returns the same
+      // function every render, toast because useToast memoises it.
+      executePowerToggle,
+      getBillingPrice,
+      handleAddStation,
+      handleBookingStatusChange,
+      handleDeleteBooking,
+      handleDeleteStation,
+      handleEditBooking,
+      handleEndSessionNow,
+      handleGalleryPhotoDelete,
+      handleGalleryPhotoUpload,
+      handleOpenTimeAdjustment,
+      handleOrdersUpdated,
+      handlePaymentModeChange,
+      handleProfilePhotoDelete,
+      handleProfilePhotoUpload,
+      handleSaveBooking,
+      handleSaveSettings,
+      handleSaveTimeAdjustment,
+      handleStartTimer,
+      handleStationCommand,
+      handleStopTimer,
+      handleTabChange,
+      handleTogglePower,
+      handleViewCustomer,
+      hideDeletedBookingLocally,
+      refreshData,
+      removeToast,
+      setBookings,
+      setCafes,
+      setConsolePricing,
+      setStationPricing,
+      setSubscriptions,
+      summaryTick,
+      toast,
     ]
   );
 
