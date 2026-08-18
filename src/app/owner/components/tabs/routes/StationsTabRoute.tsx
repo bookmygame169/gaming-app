@@ -69,6 +69,9 @@ export function StationsTabRoute() {
   }, [selectedCafeId]);
 
   useEffect(() => {
+    // loadLiveStatus sets state only after `await fetch(...)`. Nothing runs
+    // synchronously here; the rule cannot see past the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadLiveStatus();
     const timer = setInterval(loadLiveStatus, 20000);
     return () => clearInterval(timer);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
@@ -18,22 +18,43 @@ interface BeforeInstallPromptEvent extends Event {
 export default function PWAInstaller() {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-    const [isIOS, setIsIOS] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(false);
+    /**
+     * Whether the site is already running as an installed app, and whether this
+     * is an iPhone or iPad.
+     *
+     * Subscribed to rather than copied into state on mount. Copying rendered
+     * the page twice and, for the frame in between, offered to install
+     * something already installed.
+     *
+     * The third argument is the server's answer. This component renders on the
+     * server too, where there is no window, so returning false there keeps the
+     * first client render matching the HTML instead of throwing a hydration
+     * mismatch — which is also why a lazy useState initialiser will not do.
+     *
+     * Kept identical to OwnerPWAInstaller, which is the same component for the
+     * owner dashboard.
+     */
+    const isStandalone = useSyncExternalStore(
+        (onChange) => {
+            const query = window.matchMedia('(display-mode: standalone)');
+            query.addEventListener('change', onChange);
+            return () => query.removeEventListener('change', onChange);
+        },
+        () =>
+            window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
+        () => false
+    );
+
+    // Nothing to subscribe to: a user agent does not change.
+    const isIOS = useSyncExternalStore(
+        () => () => {},
+        () => /iPad|iPhone|iPod/.test(navigator.userAgent),
+        () => false
+    );
 
     useEffect(() => {
-        // Check if already installed (synchronous check is fine inside useEffect on mount)
         if (typeof window !== 'undefined') {
-            const isStandaloneMode =
-                window.matchMedia('(display-mode: standalone)').matches ||
-                (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            setIsStandalone(isStandaloneMode);
-
-            // Check if iOS
-            const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            setIsIOS(isIOSDevice);
-
             // Check if dismissed recently (7 days)
             const dismissedAt = localStorage.getItem('pwa_dismissed');
             if (dismissedAt) {
@@ -42,12 +63,15 @@ export default function PWAInstaller() {
             }
 
             // Show iOS instructions after delay if not installed
-            if (isIOSDevice && !isStandaloneMode) {
+            if (isIOS && !isStandalone) {
                 const timer = setTimeout(() => setShowInstallPrompt(true), 4000);
                 return () => clearTimeout(timer);
             }
         }
-    }, []); // Empty dependency array is correct for mount logic
+        // isIOS and isStandalone are read here, and during hydration the
+        // first render sees the server's answer, so this has to re-run when
+        // they settle.
+    }, [isIOS, isStandalone]);
 
     useEffect(() => {
         // Listen for install prompt separate from init logic

@@ -192,7 +192,6 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
   // Sorting
   const [cafeSort, setCafeSort] = useState<{ field: string; order: 'asc' | 'desc' }>({ field: 'created_at', order: 'desc' });
   const [userSort, setUserSort] = useState<{ field: string; order: 'asc' | 'desc' }>({ field: 'created_at', order: 'desc' });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [bookingSort, setBookingSort] = useState<{ field: string; order: 'asc' | 'desc' }>({ field: 'created_at', order: 'desc' });
   const tabMeta: Record<NavTab, { title: string; subtitle: string; eyebrow: string }> = {
     overview: {
@@ -1177,7 +1176,6 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
   }
 
   // Sorting helper
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sortData = <T extends Record<string, any>>(data: T[], field: string, order: 'asc' | 'desc'): T[] => {
     return [...data].sort((a, b) => {
       const aVal = a[field];

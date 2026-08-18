@@ -37,7 +37,6 @@ import {
   type TimeAdjustmentTarget,
 } from "../utils/dashboardHelpers";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OwnerDashboardContextValue = any;
 
 export const OwnerDashboardContext = createContext<OwnerDashboardContextValue | null>(null);

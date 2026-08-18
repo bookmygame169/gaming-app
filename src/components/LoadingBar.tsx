@@ -8,7 +8,15 @@ export default function LoadingBar() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
 
+  // Clears the overlay once the new route is on screen.
+  //
+  // Deriving this instead — remember where we navigated to, show the overlay
+  // until pathname matches — looks cleaner and is wrong: back and forward do
+  // not go through the click handler below, so the remembered target goes stale
+  // and the overlay reappears over a page the customer is already reading. One
+  // extra render per navigation is the cheaper of the two.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(false);
   }, [pathname]);
 

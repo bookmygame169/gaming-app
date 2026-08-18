@@ -53,6 +53,9 @@ export default function LiveAvailability({ cafeId, variant = "full" }: LiveAvail
   }, [cafeId]);
 
   useEffect(() => {
+    // load() sets state only after `await fetch(...)`, so this is not a
+    // synchronous update. The rule cannot see past the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
 
     const timer = setInterval(load, REFRESH_MS);

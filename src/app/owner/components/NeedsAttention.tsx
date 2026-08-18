@@ -129,6 +129,10 @@ export function useOwnerSummary(cafeId?: string, refreshKey = 0) {
     }, [cafeId]);
 
     useEffect(() => {
+        // load() sets state only after `await fetch(...)`, so nothing here runs
+        // synchronously. The rule cannot see past the async boundary, so it
+        // flags the call itself.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         load();
     }, [load, refreshKey]);
 

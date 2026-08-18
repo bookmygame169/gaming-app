@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
@@ -18,20 +18,47 @@ interface BeforeInstallPromptEvent extends Event {
 export default function OwnerPWAInstaller() {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-    const [isIOS, setIsIOS] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(false);
+    /**
+     * Whether this is an iPhone or iPad, which get written instructions
+     * because Safari has no install prompt to offer.
+     *
+     * Read the same way as isStandalone and for the same reason: the value has
+     * to come from the browser, the server has no browser, and copying it into
+     * state from an effect renders the page twice. Nothing to subscribe to —
+     * a user agent does not change — so the subscribe function does nothing.
+     */
+    const isIOS = useSyncExternalStore(
+        () => () => {},
+        () => /iPad|iPhone|iPod/.test(navigator.userAgent),
+        () => false
+    );
+    /**
+     * Whether the dashboard is already running as an installed app.
+     *
+     * Subscribed to rather than copied into state by an effect. The effect
+     * version set state synchronously on mount, which renders the page twice
+     * and — for the frame in between — offers to install something already
+     * installed.
+     *
+     * The third argument is the server's answer. A client component still
+     * renders on the server, where there is no window, so returning false
+     * there is what keeps the first client render matching the HTML instead of
+     * throwing a hydration mismatch. That is also why a lazy useState
+     * initialiser will not do the job.
+     */
+    const isStandalone = useSyncExternalStore(
+        (onChange) => {
+            const query = window.matchMedia('(display-mode: standalone)');
+            query.addEventListener('change', onChange);
+            return () => query.removeEventListener('change', onChange);
+        },
+        () =>
+            window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
+        () => false
+    );
 
     useEffect(() => {
-        // Check if already installed
-        const isStandaloneMode =
-            window.matchMedia('(display-mode: standalone)').matches ||
-            (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-        setIsStandalone(isStandaloneMode);
-
-        // Check if iOS
-        const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        setIsIOS(isIOSDevice);
-
         // Check if dismissed recently (7 days)
         const dismissedAt = localStorage.getItem('owner_pwa_dismissed');
         if (dismissedAt) {
@@ -50,14 +77,19 @@ export default function OwnerPWAInstaller() {
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
         // Show iOS instructions after delay
-        if (isIOSDevice && !isStandaloneMode) {
+        if (isIOS && !isStandalone) {
             setTimeout(() => setShowInstallPrompt(true), 3000);
         }
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         };
-    }, []);
+        // isStandalone belongs here now that it is subscribed rather than read
+        // inside. During hydration the first render sees the server's answer —
+        // false — so an effect with no dependency on it would capture that and
+        // offer to install an app that is already installed. Re-running when it
+        // settles costs one listener swap.
+    }, [isIOS, isStandalone]);
 
     const handleInstall = useCallback(async () => {
         if (!deferredPrompt) return;
