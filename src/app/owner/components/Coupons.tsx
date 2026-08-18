@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, Button } from './ui';
 import {
     Search, Plus, Edit2, Trash2, Copy, Check,
@@ -94,12 +94,7 @@ export function Coupons({ cafeId }: CouponsProps) {
         isActive: true
     });
 
-    // Fetch coupons
-    useEffect(() => {
-        fetchCoupons();
-    }, [cafeId]);
-
-    const fetchCoupons = async () => {
+    const fetchCoupons = useCallback(async () => {
         if (!cafeId) return;
         setLoading(true);
 
@@ -107,7 +102,13 @@ export function Coupons({ cafeId }: CouponsProps) {
         const data = await res.json();
         if (res.ok && Array.isArray(data)) setCoupons(data);
         setLoading(false);
-    };
+    }, [cafeId]);
+
+    // Fetch coupons
+    useEffect(() => {
+        fetchCoupons();
+    }, [fetchCoupons]);
+
 
     // Fetch all customers (from bookings, same as Customers tab)
     const fetchEligibleCustomers = async (coupon: Coupon) => {

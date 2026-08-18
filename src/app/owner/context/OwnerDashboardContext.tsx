@@ -1708,7 +1708,9 @@ export function OwnerDashboardProvider({
         debugLog('[Timer] Timer restored.');
       }
     });
-  }, [subscriptions, activeTimers]); // Run when subscriptions are loaded/updated
+    // setSubscriptions comes from useState and is stable for the life of the
+    // component, so naming it here changes nothing about when this runs.
+  }, [subscriptions, activeTimers, setSubscriptions]);
 
   // Day passes are valid only until 10:00 PM IST on the purchase day.
   useEffect(() => {
@@ -1769,7 +1771,8 @@ export function OwnerDashboardProvider({
         refreshData();
       });
     });
-  }, [activeTimers, currentTime, refreshData, subscriptions]);
+    // Stable useState setter; naming it changes nothing about when this runs.
+  }, [activeTimers, currentTime, refreshData, subscriptions, setSubscriptions]);
 
   // Fetch usage history when viewing a subscription
   useEffect(() => {

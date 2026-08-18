@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { CONSOLE_LABELS, CONSOLE_ICONS } from '@/lib/constants';
 import { isBookingActiveNow } from '@/lib/bookingFilters';
 import { Button, LoadingSpinner, EmptyState } from './ui';
@@ -91,7 +91,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
 
-    const loadConsoleStatus = async () => {
+    const loadConsoleStatus = useCallback(async () => {
         try {
             const res = await fetch(`/api/owner/live-status?cafeId=${cafeId}`);
             if (!res.ok) throw new Error('Failed to fetch live status');
@@ -111,7 +111,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [cafeId]);
 
     const buildConsoleSummaries = (cafe: CafeConsoleCounts, bookings: BookingData[], memberships: MembershipData[], stationPricing: StationPricingData[]): ConsoleSummary[] => {
         const consoleTypes: Array<{ id: ConsoleId; key: string }> = [
@@ -288,7 +288,10 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
         loadConsoleStatus();
         const interval = setInterval(loadConsoleStatus, 5000);
         return () => clearInterval(interval);
-    }, [cafeId]);
+        // loadConsoleStatus is a useCallback over [cafeId], so this fires on
+        // exactly the same changes it did before — the dependency is now
+        // declared rather than assumed.
+    }, [loadConsoleStatus]);
 
     if (loading && consoleData.length === 0) return <LoadingSpinner size="lg" />;
 

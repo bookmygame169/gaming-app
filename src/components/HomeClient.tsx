@@ -72,7 +72,10 @@ type TournamentPreview = {
 
 export default function HomeClient({ cafes }: Props) {
   const router = useRouter();
-  const safeCafes: Cafe[] = Array.isArray(cafes) ? cafes : [];
+  // Memoised because the `: []` branch builds a new array on every render, and
+  // the filtered list below depends on this — so without it that filter re-ran
+  // on every keystroke anywhere in the page.
+  const safeCafes: Cafe[] = useMemo(() => (Array.isArray(cafes) ? cafes : []), [cafes]);
 
   const [activeTab, setActiveTab] = useState<TabType>("book");
   const [query, setQuery] = useState("");
