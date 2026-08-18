@@ -222,6 +222,10 @@ function check(schema) {
  */
 const optional = new Set([
   "station_status.agent_version",
+  // Read with a fallback to parsing booking_items.title, and populated by a
+  // trigger rather than by the application, so the code works either side of
+  // its migration.
+  "booking_items.station_names",
 ]);
 
 const problems = [];

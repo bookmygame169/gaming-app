@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseTimeToMinutes } from "@/lib/timeUtils";
 import {
   getItemDurationFromPayload,
-  parseAssignedStationsFromTitle,
+  getAssignedStations,
 } from "@/lib/ownerStationAssignments";
 import { sendStationCommands } from "@/lib/stationCommands";
 
@@ -22,6 +22,9 @@ import { sendStationCommands } from "@/lib/stationCommands";
 type BookingItemRow = {
   title: string | null;
   duration?: number | null;
+  // Optional: the column may not exist yet on a database whose
+  // migration has not been run.
+  station_names?: string[] | null;
 };
 
 type BookingForSync = {
@@ -75,11 +78,30 @@ export async function syncStationsForBooking(
   options: { forceLock?: boolean } = {}
 ): Promise<void> {
   try {
-    const { data, error } = await supabase
+    // station_names first, title as the fallback.
+    //
+    // The select is retried without the column if the database does not have it
+    // yet, because this decides whether a paid-for machine unlocks: shipping a
+    // column reference ahead of its migration has already taken every station
+    // in this café offline for hours, and a lock is not the place to repeat it.
+    const columnsWithStations =
+      "booking_date, start_time, duration, status, deleted_at, booking_items(title, station_names)";
+    const columnsWithoutStations =
+      "booking_date, start_time, duration, status, deleted_at, booking_items(title)";
+
+    let { data, error } = await supabase
       .from("bookings")
-      .select("booking_date, start_time, duration, status, deleted_at, booking_items(title)")
+      .select(columnsWithStations)
       .eq("id", bookingId)
       .maybeSingle();
+
+    if (error && /station_names/i.test(error.message)) {
+      ({ data, error } = await supabase
+        .from("bookings")
+        .select(columnsWithoutStations)
+        .eq("id", bookingId)
+        .maybeSingle());
+    }
 
     if (error || !data) {
       if (error) console.error("Station sync: could not read booking:", error.message);
@@ -89,7 +111,7 @@ export async function syncStationsForBooking(
     const booking = data as unknown as BookingForSync;
 
     const stationNames = (booking.booking_items || []).flatMap((item) =>
-      parseAssignedStationsFromTitle(item.title)
+      getAssignedStations(item)
     );
 
     /**

@@ -163,6 +163,41 @@ function getAvailableStationsForConsole(
   return Array.from(new Set([...configured, ...generated]));
 }
 
+/**
+ * An item as far as station assignment is concerned.
+ *
+ * `station_names` is optional because the column may not exist yet: code
+ * deploys on push and migrations are run by hand, and a build that assumed the
+ * column has already taken this café's stations offline once.
+ */
+export type StationBearingItem = {
+  title?: string | null;
+  station_names?: string[] | null;
+};
+
+/**
+ * The stations assigned to an item.
+ *
+ * Prefers the column, falls back to parsing the title. Both are kept in step by
+ * the writers, so the fallback is for rows written before the migration and for
+ * the window before it is run — not a second source of truth.
+ */
+export function getAssignedStations(item: StationBearingItem): string[] {
+  const fromColumn = item.station_names;
+
+  if (Array.isArray(fromColumn) && fromColumn.length > 0) {
+    return fromColumn.map((name) => normaliseStationName(name)).filter(Boolean);
+  }
+
+  return parseAssignedStationsFromTitle(item.title);
+}
+
+/**
+ * Reads the assignment back out of the label.
+ *
+ * Kept because every row written before the column existed still carries its
+ * stations only here. New code should call {@link getAssignedStations}.
+ */
 export function parseAssignedStationsFromTitle(title: string | null | undefined): string[] {
   const raw = title?.split("|")[1]?.trim();
   if (!raw) return [];
@@ -196,6 +231,27 @@ export function encodeAssignedStationsTitle(duration: number, assignedStations: 
   return normalizedStations.length > 0
     ? `${duration}|${normalizedStations.join(",")}`
     : String(duration || 60);
+}
+
+/**
+ * The fields to write for an item's stations: the column and the label.
+ *
+ * Both, on purpose. The column is what everything should read; the title stays
+ * correct so that a row written now is still readable by an older deployment,
+ * and so the fallback above never sees a row it cannot understand.
+ */
+export function stationAssignmentFields(
+  duration: number,
+  assignedStations: string[]
+): { title: string; station_names: string[] } {
+  const normalized = assignedStations
+    .map((stationName) => normaliseStationName(stationName))
+    .filter(Boolean);
+
+  return {
+    title: encodeAssignedStationsTitle(duration, normalized),
+    station_names: normalized,
+  };
 }
 
 export type StationReservationState = {
