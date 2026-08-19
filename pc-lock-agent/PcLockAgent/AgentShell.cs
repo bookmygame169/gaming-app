@@ -271,7 +271,27 @@ internal sealed class AgentShell : ApplicationContext
             return;
         }
 
-        _gameMenu.ShowMenu();
+        // The safety net for every version of this that got it wrong.
+        //
+        // ShowMenu takes the foreground. That is right when the customer is
+        // looking at the desktop and needs the menu back, and wrong whenever
+        // anything else is on screen — a launcher they are signing into, a
+        // patcher, an installer, a crash dialog. Deciding a game "exited" while
+        // its launcher is still up and then stealing focus is what put people
+        // back at the game selection screen mid-launch.
+        //
+        // So the menu is made visible either way, and only takes focus when
+        // there is nothing else to take it from.
+        if (GameWindowFocus.IsDesktopForeground())
+        {
+            _gameMenu.ShowMenu();
+            return;
+        }
+
+        AgentLog.Info(
+            "Game reported as exited, but something else is on screen. Showing the menu " +
+            "behind it rather than taking focus.");
+        _gameMenu.EnsureDesktopCovered();
     }
 
     /// <summary>

@@ -946,7 +946,7 @@ internal sealed class GameMenuForm : Form
                 //
                 // While the launcher is up, the customer is still starting
                 // their game.
-                if (IsProcessRunning(_launchedExeName) && waited < MaxLaunchWait)
+                if ((IsProcessRunning(_launchedExeName) || IsAnyLauncherRunning()) && waited < MaxLaunchWait)
                 {
                     if (!_waitingOnLauncher)
                     {
@@ -1059,6 +1059,48 @@ internal sealed class GameMenuForm : Form
         }
 
         return IsProcessRunning(_watchedProcessName) || IsProcessRunning(_launchedExeName);
+    }
+
+    /// <summary>
+    /// Launcher processes that mean a customer is still starting their game.
+    /// </summary>
+    /// <remarks>
+    /// Watching only the exe we started is not enough, and Valorant is the
+    /// example. It is launched as RiotClientServices.exe, which bootstraps
+    /// RiotClientUx.exe and does not necessarily stay — so two minutes in, with
+    /// the customer still signing in, nothing we were watching was running and
+    /// the launch was declared failed.
+    /// <para>
+    /// A family rather than one name, because the same shape applies to every
+    /// launcher: the process that puts a window on screen is often not the one
+    /// that was started.
+    /// </para>
+    /// </remarks>
+    private static readonly string[] LauncherProcesses =
+    {
+        "RiotClientServices", "RiotClientUx", "RiotClientUxRender",
+        "steam", "steamwebhelper",
+        "EpicGamesLauncher",
+        "Battle.net", "Agent",
+        "EADesktop", "EABackgroundService", "Origin",
+        "UbisoftConnect", "upc",
+        "GalaxyClient",
+        "MinecraftLauncher",
+        "XboxPcApp", "GamingServices",
+    };
+
+    /// <summary>Whether any known launcher is on screen.</summary>
+    private static bool IsAnyLauncherRunning()
+    {
+        foreach (var name in LauncherProcesses)
+        {
+            if (IsProcessRunning(name))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsProcessRunning(string? processName)
