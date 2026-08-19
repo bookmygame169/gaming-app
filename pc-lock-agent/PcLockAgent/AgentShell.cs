@@ -318,6 +318,13 @@ internal sealed class AgentShell : ApplicationContext
             return;
         }
 
+        // Before the prompt, and this is the part that matters: while a game
+        // plays the menu is transparent, and on the primary screen it is the
+        // only thing over the desktop. A game that minimises or drops out of
+        // fullscreen therefore leaves the customer looking at Windows. Making
+        // the menu visible again closes that within one tick.
+        _gameMenu.EnsureDesktopCovered();
+
         var gameName = _gameMenu.CurrentGameName ?? "your game";
         _returnToGamePrompt.ShowForGame(gameName);
     }

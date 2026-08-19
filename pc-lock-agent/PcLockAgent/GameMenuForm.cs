@@ -1235,10 +1235,13 @@ internal sealed class GameMenuForm : Form
     /// <summary>
     /// Makes the menu invisible and click-through while a game is in front.
     /// </summary>
-  /// <remarks>
-  /// The form stays fullscreen so the desktop never peeks through, but the
-  /// customer only sees their game.
-  /// </remarks>
+    /// <remarks>
+    /// Opacity 0, so the form still occupies the screen but draws nothing. That
+    /// is only safe while the game is in front of it: on the primary monitor
+    /// this form is the sole thing over the desktop, so an invisible one covers
+    /// nothing at all. EnsureDesktopCovered above undoes this as soon as the
+    /// game stops being foreground.
+    /// </remarks>
     private void ApplyPlayingHiddenOverlay()
     {
         if (_playingHiddenOverlay)
@@ -1249,6 +1252,45 @@ internal sealed class GameMenuForm : Form
         _playingHiddenOverlay = true;
         Opacity = 0;
         WindowClickThrough.SetEnabled(this, true);
+    }
+
+    /// <summary>
+    /// Puts something over the desktop again when the game is no longer in front.
+    /// </summary>
+    /// <remarks>
+    /// While a game plays, this form is held at Opacity 0 and click-through so
+    /// the customer sees only their game. On the primary screen it is the only
+    /// thing between them and the desktop — ScreenBlanker deliberately skips
+    /// that monitor — so "invisible" and "not covering anything" are the same
+    /// state as far as a person looking at it is concerned.
+    /// <para>
+    /// That is fine while the game is actually in front of it, and a hole
+    /// straight to the desktop the moment the game minimises, crashes, or drops
+    /// out of fullscreen. Which is what a customer reported: mid-session, the
+    /// screen went to the desktop instead of the game.
+    /// </para>
+    /// <para>
+    /// Called from the foreground watch, so the gap is at most one tick.
+    /// </para>
+    /// </remarks>
+    public void EnsureDesktopCovered()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        if (WindowState == FormWindowState.Minimized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
+
+        if (!Visible)
+        {
+            Show();
+        }
+
+        RestoreVisibleOverlay();
     }
 
     private void RestoreVisibleOverlay()
