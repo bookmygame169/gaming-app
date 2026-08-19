@@ -314,16 +314,26 @@ internal sealed class AgentShell : ApplicationContext
 
         if (_gameMenu.IsGameForeground())
         {
+            // Step back out of the way. Without this the menu could be made
+            // opaque to hide the desktop and then stay opaque over the game.
+            _gameMenu.StepAsideForGame();
             _returnToGamePrompt.HidePrompt();
             return;
         }
 
-        // Before the prompt, and this is the part that matters: while a game
-        // plays the menu is transparent, and on the primary screen it is the
-        // only thing over the desktop. A game that minimises or drops out of
-        // fullscreen therefore leaves the customer looking at Windows. Making
-        // the menu visible again closes that within one tick.
-        _gameMenu.EnsureDesktopCovered();
+        // Something other than the game is in front. Cover the screen only if
+        // that something is the desktop.
+        //
+        // This used to cover whenever the watched game was not foreground,
+        // which is a different question and the wrong one: starting Valorant
+        // runs the Riot Client, the Riot Client is not the watched process, and
+        // the menu drew itself over the launcher the customer had to sign in
+        // to. Every launcher, updater, installer and crash dialog would have
+        // done the same.
+        if (GameWindowFocus.IsDesktopForeground())
+        {
+            _gameMenu.EnsureDesktopCovered();
+        }
 
         var gameName = _gameMenu.CurrentGameName ?? "your game";
         _returnToGamePrompt.ShowForGame(gameName);

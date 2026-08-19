@@ -1273,6 +1273,24 @@ internal sealed class GameMenuForm : Form
     /// Called from the foreground watch, so the gap is at most one tick.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Goes transparent again so whatever the customer is using stays visible.
+    /// </summary>
+    /// <remarks>
+    /// The other half of EnsureDesktopCovered. Without it the menu could be
+    /// made opaque to hide the desktop and then never step back, leaving it
+    /// over the game once the game finally came forward.
+    /// </remarks>
+    public void StepAsideForGame()
+    {
+        if (IsDisposed || !IsGameRunning)
+        {
+            return;
+        }
+
+        ApplyPlayingHiddenOverlay();
+    }
+
     public void EnsureDesktopCovered()
     {
         if (IsDisposed)

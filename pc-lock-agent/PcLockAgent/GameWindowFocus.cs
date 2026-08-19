@@ -41,6 +41,60 @@ internal static class GameWindowFocus
         }
     }
 
+    /// <summary>
+    /// Whether the Windows desktop itself is what is in front.
+    /// </summary>
+    /// <remarks>
+    /// This is the question the cover actually needs answered, and asking a
+    /// different one is what put the menu on top of a customer's launcher.
+    /// <para>
+    /// The menu used to re-cover the screen whenever the watched game was not
+    /// foreground. Starting Valorant runs the Riot Client, which is not the
+    /// watched process, so the menu decided nothing useful was on screen and
+    /// drew itself over the launcher the customer had to sign in to. Every
+    /// launcher, updater, installer and crash dialog would have done the same.
+    /// <para>
+    /// So the rule is now what it should always have been: cover the screen
+    /// only when the thing in front is the desktop. Anything else is something
+    /// the customer is looking at, whether or not it is the game.
+    /// </para>
+    /// </para>
+    /// </remarks>
+    public static bool IsDesktopForeground()
+    {
+        try
+        {
+            var foreground = NativeMethods.GetForegroundWindow();
+
+            // Nothing focused at all. Windows does this between a window
+            // closing and the next one being raised, so the desktop is what a
+            // person is looking at.
+            if (foreground == IntPtr.Zero)
+            {
+                return true;
+            }
+
+            var className = new System.Text.StringBuilder(256);
+            if (NativeMethods.GetClassName(foreground, className, className.Capacity) == 0)
+            {
+                // Cannot tell. Leave whatever is there alone rather than cover
+                // something the customer may be using.
+                return false;
+            }
+
+            var name = className.ToString();
+
+            // Progman is the desktop; WorkerW is the layer wallpaper lives on
+            // and is what holds focus after Show Desktop; Shell_TrayWnd is the
+            // taskbar, which is covered but can still take focus.
+            return name is "Progman" or "WorkerW" or "Shell_TrayWnd";
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static bool IsAnyProcessForeground(IEnumerable<string?> processNames)
     {
         foreach (var name in processNames)
@@ -223,6 +277,9 @@ internal static class GameWindowFocus
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
 
         [DllImport("user32.dll")]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
