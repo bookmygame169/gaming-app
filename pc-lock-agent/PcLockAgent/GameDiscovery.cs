@@ -2131,6 +2131,15 @@ internal static class GameDiscovery
                 return null;
             }
 
+            // Never offer the lock itself as something to play. Matched on what
+            // the shortcut points at, not its name, so the "Lock this PC"
+            // shortcut on the customer desktop stays off the menu whatever it
+            // is called.
+            if (PointsAtThisAgent(shortcut))
+            {
+                return null;
+            }
+
             var (target, arguments) = shortcut.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
                 ? ResolveUrlShortcut(shortcut)
                 : ResolveShortcut(shortcut);
@@ -2226,6 +2235,24 @@ internal static class GameDiscovery
                 return null;
             }
 
+            // A shortcut that points at nothing is not a game.
+            //
+            // The menu is the desktop now, and a desktop keeps shortcuts long
+            // after what they pointed at is gone — Steam in particular leaves
+            // its .url behind when a game is uninstalled, which is why PUBG and
+            // Rocket League were on a café's menu wearing Steam's logo with
+            // neither installed.
+            //
+            // Deliberately one-sided: this only removes a tile when the target
+            // can be shown to be missing. Anything it cannot check stays, since
+            // guessing a game is not real is the failure that cost twenty
+            // rounds of this.
+            if (TargetIsProvablyMissing(target, out var missingReason))
+            {
+                AgentLog.Info($"Skipped '{label}': {missingReason}");
+                return null;
+            }
+
             return new GameEntry
             {
                 Name = label,
@@ -2239,6 +2266,119 @@ internal static class GameDiscovery
             AgentLog.Warn($"Could not read {Path.GetFileName(shortcut)}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>Whether a shortcut launches this agent.</summary>
+    private static bool PointsAtThisAgent(string shortcut)
+    {
+        try
+        {
+            var (target, _) = shortcut.EndsWith(".url", StringComparison.OrdinalIgnoreCase)
+                ? ResolveUrlShortcut(shortcut)
+                : ResolveShortcut(shortcut);
+
+            return !string.IsNullOrWhiteSpace(target)
+                && Path.GetFileName(target).Equals("PcLockAgent.exe", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Whether a shortcut's target can be shown to no longer exist.
+    /// </summary>
+    /// <remarks>
+    /// False whenever there is any doubt. A tile for a game that has been
+    /// uninstalled is a small annoyance; hiding one that is installed is the
+    /// bug this project spent weeks on.
+    /// </remarks>
+    private static bool TargetIsProvablyMissing(string? target, out string reason)
+    {
+        reason = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            // Store and Xbox shortcuts have no target at all. Nothing to check.
+            return false;
+        }
+
+        // steam://rungameid/<id> and steam://run/<id>. Steam records what it has
+        // installed in appmanifest_<id>.acf, so this is a fact rather than a
+        // guess.
+        var steamAppId = SteamAppIdFromUrl(target);
+        if (steamAppId is not null)
+        {
+            if (SteamAppIsInstalled(steamAppId))
+            {
+                return false;
+            }
+
+            reason = $"Steam app {steamAppId} is not installed on this PC (the shortcut is left over).";
+            return true;
+        }
+
+        // Any other protocol — Epic, Battle.net, a web link — cannot be checked
+        // from here, so it stays.
+        if (IsProtocolLaunch(target))
+        {
+            return false;
+        }
+
+        // A plain path. Rooted, so a relative or malformed one is not judged.
+        try
+        {
+            if (!Path.IsPathRooted(target))
+            {
+                return false;
+            }
+
+            if (File.Exists(target) || Directory.Exists(target))
+            {
+                return false;
+            }
+
+            reason = $"its target {target} no longer exists.";
+            return true;
+        }
+        catch
+        {
+            // An unreadable path is not a missing one.
+            return false;
+        }
+    }
+
+    private static readonly Regex SteamUrlAppId =
+        new(@"^steam://(?:rungameid|run)/(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static string? SteamAppIdFromUrl(string target)
+    {
+        var match = SteamUrlAppId.Match(target.Trim());
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>Whether Steam still has a manifest for this app id.</summary>
+    private static bool SteamAppIsInstalled(string appId)
+    {
+        try
+        {
+            foreach (var library in InstalledGames.FindSteamLibraries())
+            {
+                var manifest = Path.Combine(library, "steamapps", $"appmanifest_{appId}.acf");
+                if (File.Exists(manifest))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Cannot tell, so do not claim it is gone.
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>Reads a .url internet shortcut (Steam and Epic write these).</summary>

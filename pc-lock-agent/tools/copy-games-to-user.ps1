@@ -37,7 +37,10 @@ param(
     [switch]$WhatIfOnly,
 
     # Remove shortcuts on the customer desktop that are no longer on yours.
-    [switch]$Mirror
+    [switch]$Mirror,
+
+    # Where the agent lives, so a "Lock this PC" shortcut can point at it.
+    [string]$InstallDir = "C:\BookMyGame\PcLockAgent"
 )
 
 $ErrorActionPreference = "Stop"
@@ -102,6 +105,78 @@ $notGames = @(
 # are installed, so copying them would only duplicate the tile.
 $launchers = @('steam', 'epic games launcher', 'xbox', 'discord', 'riot client', 'battle.net')
 
+function Get-ShortcutInfo {
+    param([string]$Path)
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $link = $shell.CreateShortcut($Path)
+        return [PSCustomObject]@{ Target = [string]$link.TargetPath }
+    } catch {
+        return $null
+    }
+}
+
+function Get-SteamLibraries {
+    $libs = New-Object System.Collections.Generic.List[string]
+    $roots = @("${env:ProgramFiles(x86)}\Steam", "$env:ProgramFiles\Steam")
+    foreach ($r in $roots) { if (Test-Path $r) { $libs.Add($r) } }
+
+    foreach ($r in $roots) {
+        $vdf = Join-Path $r "steamapps\libraryfolders.vdf"
+        if (-not (Test-Path $vdf)) { continue }
+        try {
+            $text = Get-Content -LiteralPath $vdf -Raw
+            foreach ($m in [regex]::Matches($text, '"path"\s*"([^"]+)"')) {
+                $p = $m.Groups[1].Value.Replace('\\', '\')
+                if (Test-Path $p) { $libs.Add($p) }
+            }
+        } catch {}
+    }
+
+    return $libs | Select-Object -Unique
+}
+
+function Test-TargetExists {
+    <#
+        Whether a shortcut still points at something that is here.
+
+        Only returns $false when the target can be shown to be gone. Steam
+        leaves its .url files behind when a game is uninstalled, which is how
+        PUBG and Rocket League reached a lock screen with neither installed.
+        Anything this cannot check is copied, because failing to copy a game
+        that IS installed is the worse mistake by a distance.
+    #>
+    param([string]$Path)
+
+    try {
+        if ($Path.ToLowerInvariant().EndsWith('.url')) {
+            $url = $null
+            foreach ($line in Get-Content -LiteralPath $Path -ErrorAction Stop) {
+                if ($line -match '^\s*URL\s*=\s*(.+)$') { $url = $Matches[1].Trim(); break }
+            }
+            if (-not $url) { return $true }
+
+            if ($url -match '(?i)^steam://(?:rungameid|run)/(\d+)') {
+                $appId = $Matches[1]
+                foreach ($lib in Get-SteamLibraries) {
+                    if (Test-Path -LiteralPath (Join-Path $lib "steamapps\appmanifest_$appId.acf")) { return $true }
+                }
+                return $false
+            }
+
+            return $true
+        }
+
+        $info = Get-ShortcutInfo -Path $Path
+        if (-not $info -or [string]::IsNullOrWhiteSpace($info.Target)) { return $true }
+        if ($info.Target -match '^[a-z]+://') { return $true }
+
+        return (Test-Path -LiteralPath $info.Target)
+    } catch {
+        return $true
+    }
+}
+
 function Test-IsGame {
     param([string]$Name)
 
@@ -130,12 +205,18 @@ if ($shortcuts.Count -eq 0) {
 $copied  = New-Object System.Collections.Generic.List[string]
 $skipped = New-Object System.Collections.Generic.List[string]
 $failed  = New-Object System.Collections.Generic.List[string]
+$dead    = New-Object System.Collections.Generic.List[string]
 
 foreach ($shortcut in $shortcuts) {
     $label = [System.IO.Path]::GetFileNameWithoutExtension($shortcut.Name)
 
     if (-not (Test-IsGame $label)) {
         $skipped.Add($label)
+        continue
+    }
+
+    if (-not (Test-TargetExists $shortcut.FullName)) {
+        $dead.Add($label)
         continue
     }
 
@@ -185,6 +266,14 @@ if ($WhatIfOnly) { Say "Nothing was changed. This is what would happen:" "Cyan" 
 Say "Games put on the customer desktop ($($copied.Count)):" "Green"
 foreach ($name in $copied) { Say "   $name" }
 
+if ($dead.Count -gt 0) {
+    Say ""
+    Say "Not copied, because what they point at is gone ($($dead.Count)):" "DarkYellow"
+    foreach ($name in $dead) { Say "   $name" }
+    Say "   Steam leaves its shortcut behind when a game is uninstalled." "DarkGray"
+    Say "   Worth deleting these from your own desktop too." "DarkGray"
+}
+
 if ($skipped.Count -gt 0) {
     Say ""
     Say "Not copied, because these are not games ($($skipped.Count)):" "DarkYellow"
@@ -203,6 +292,43 @@ if ($failed.Count -gt 0) {
     Say ""
     Say "Could not copy ($($failed.Count)):" "Red"
     foreach ($name in $failed) { Say "   $name" }
+}
+
+
+# --- A way back in ------------------------------------------------------------
+#
+# Quitting the lock with Ctrl+Alt+Shift+Q leaves the customer desktop showing
+# and, until now, nothing to press to get the lock back. The watchdog restarts
+# it within a minute, which is not the same as being able to do it deliberately
+# — and if the task is disabled, nothing happens at all.
+#
+# The agent ignores this shortcut when building its menu: it matches on what a
+# shortcut points at, so this never appears as something to play.
+
+$agentExe = Join-Path $InstallDir "PcLockAgent.exe"
+
+if (Test-Path -LiteralPath $agentExe) {
+    try {
+        $lockShortcut = Join-Path $targetDesktop "Lock this PC.lnk"
+        $shell = New-Object -ComObject WScript.Shell
+        $link = $shell.CreateShortcut($lockShortcut)
+        $link.TargetPath = $agentExe
+        $link.WorkingDirectory = $InstallDir
+        $link.Description = "Start the BookMyGame lock screen again"
+        $link.Save()
+
+        Say ""
+        Say "Put 'Lock this PC' on the customer desktop." "Green"
+        Say "   Double-click it after quitting the lock to bring it straight back." "DarkGray"
+    } catch {
+        Say ""
+        Say "Could not create the 'Lock this PC' shortcut: $_" "Yellow"
+        Say "   Not fatal — the watchdog still restarts the lock within a minute." "DarkGray"
+    }
+} else {
+    Say ""
+    Say "No agent at $agentExe, so no 'Lock this PC' shortcut was made." "Yellow"
+    Say "   Pass -InstallDir if the lock is installed somewhere else." "DarkGray"
 }
 
 Say ""

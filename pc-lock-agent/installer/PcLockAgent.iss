@@ -253,6 +253,7 @@ end;
 procedure InstallStartupTask;
 var
   ResultCode: Integer;
+  CopyResult: Integer;
 begin
   { Routed through cmd so the script's own output lands in the log. Running
     powershell.exe directly would discard it, which is what made an earlier
@@ -284,6 +285,33 @@ begin
            'What went wrong:' + #13#10 + #13#10 +
            TailOfSetupLog(14) + #13#10 +
            'Full log: ' + SetupLogPath, mbError, MB_OK);
+
+  // Put the games on the customer desktop, and a way back into the lock.
+  //
+  // The menu is that desktop, so without this a fresh install ends with an
+  // empty menu and somebody has to know to run a script. This also drops a
+  // "Lock this PC" shortcut there, which is the way back after quitting with
+  // the password.
+  //
+  // Never fatal. The customer profile folder does not exist until that account
+  // has signed in once, so on a brand new account this cannot work yet and
+  // says so rather than failing the install.
+  RunViaCmd(
+    '"' + ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe') +
+    '" -ExecutionPolicy Bypass -NoProfile -File "' +
+    ExpandConstant('{app}\copy-games-to-user.ps1') +
+    '" -GamingUser "' + GamingUser +
+    '" -InstallDir "' + ExpandConstant('{app}') +
+    '" >> "' + SetupLogPath + '" 2>&1', CopyResult);
+
+  if CopyResult <> 0 then
+    MsgBox('The games were not copied to the ' + GamingUser + ' desktop yet.' + #13#10 + #13#10 +
+           'That account needs to sign in to Windows once before its desktop' + #13#10 +
+           'exists. Sign in as ' + GamingUser + ', sign out, then run this from' + #13#10 +
+           'the install folder as an administrator:' + #13#10 + #13#10 +
+           'copy-games-to-user.ps1 -GamingUser ' + GamingUser + #13#10 + #13#10 +
+           'The lock works either way - its menu will just be empty until then.',
+           mbInformation, MB_OK);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
