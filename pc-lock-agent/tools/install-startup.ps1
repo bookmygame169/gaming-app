@@ -279,18 +279,26 @@ if (Test-Path $updateScript) {
 # --- Find the games, as an account that can see them all ---------------------
 #
 # Also SYSTEM, and for a reason worth stating: the agent runs as the customer,
-# and Windows refuses one user sight of another's profile. Games installed "just
-# for me" by whoever set the PC up therefore sit on the administrator's desktop
-# where the agent cannot look. SYSTEM can, so it does the looking and leaves the
-# answer in ProgramData.
-$refreshScript = Join-Path (Split-Path $ExePath -Parent) "refresh-games.ps1"
+# and Windows refuses one user sight of another's profile. A game installed by
+# whoever set the PC up puts its shortcut on the administrator's desktop, where
+# the agent cannot look. SYSTEM can look at both, so it carries the shortcut
+# across.
+#
+# This used to run refresh-games.ps1, which wrote a list to ProgramData that
+# nothing reads any more — the menu became the customer's desktop, so the useful
+# work is copying shortcuts onto it rather than describing them in a file.
+#
+# It only adds. Mirroring is not passed, so a shortcut the café put on the
+# customer desktop by hand is never removed by this.
+$refreshScript = Join-Path (Split-Path $ExePath -Parent) "copy-games-to-user.ps1"
 if (Test-Path $refreshScript) {
     $refreshTaskName = "BookMyGame Game List"
 
     try {
         $refreshAction = New-ScheduledTaskAction `
             -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$refreshScript`""
+            -Argument ("-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$refreshScript`" " +
+                       "-GamingUser `"$GamingUser`" -FromAllUsers -InstallDir `"$(Split-Path $ExePath -Parent)`"")
 
         # At startup and twice an hour. A game installed during the day should
         # appear on the menu the same day, without anyone restarting anything.
@@ -313,10 +321,10 @@ if (Test-Path $refreshScript) {
             -Trigger $refreshTriggers `
             -Settings $refreshSettings `
             -Principal (New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest) `
-            -Description "Lists the games installed on this PC for the BookMyGame lock screen." `
+            -Description "Copies newly installed game shortcuts onto the BookMyGame customer desktop." `
             -Force | Out-Null
 
-        Write-Host "Game list scan is on - at startup and every 30 minutes." -ForegroundColor Green
+        Write-Host "Game shortcut copy is on - at startup and every 30 minutes." -ForegroundColor Green
 
         # Once now, so the first customer does not wait half an hour for a menu.
         Start-ScheduledTask -TaskName $refreshTaskName -ErrorAction SilentlyContinue

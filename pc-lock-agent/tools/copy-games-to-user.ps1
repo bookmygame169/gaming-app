@@ -40,7 +40,11 @@ param(
     [switch]$Mirror,
 
     # Where the agent lives, so a "Lock this PC" shortcut can point at it.
-    [string]$InstallDir = "C:\BookMyGame\PcLockAgent"
+    [string]$InstallDir = "C:\BookMyGame\PcLockAgent",
+
+    # Copy from every account's desktop rather than just this one. Used by the
+    # scheduled task, which runs as SYSTEM and has no desktop of its own.
+    [switch]$FromAllUsers
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,21 +54,48 @@ function Say {
     Write-Host $Text -ForegroundColor $Colour
 }
 
-# --- Where from, where to ----------------------------------------------------
+# --- Where from --------------------------------------------------------------
 
-if (-not $FromDesktop) {
-    $FromDesktop = [Environment]::GetFolderPath("Desktop")
+$sourceDesktops = New-Object System.Collections.Generic.List[string]
+
+if ($FromAllUsers) {
+    # Every real profile's desktop, plus the shared one.
+    #
+    # This is how the scheduled task runs it. That task is SYSTEM, so
+    # [Environment]::GetFolderPath("Desktop") would be SYSTEM's own desktop and
+    # find nothing — it has to be told to look at the accounts people use.
+    Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.Name -in @('Default', 'Default User', 'All Users', 'Public')) { return }
+        if ($_.Name -eq $GamingUser) { return }   # its own desktop is the target
+        $d = Join-Path $_.FullName "Desktop"
+        if (Test-Path -LiteralPath $d) { $sourceDesktops.Add($d) }
+    }
+    $publicDesktop = Join-Path $env:PUBLIC "Desktop"
+    if (Test-Path -LiteralPath $publicDesktop) { $sourceDesktops.Add($publicDesktop) }
+} else {
+    if (-not $FromDesktop) { $FromDesktop = [Environment]::GetFolderPath("Desktop") }
+    if (-not (Test-Path -LiteralPath $FromDesktop)) {
+        Say "Cannot find the desktop to copy from: $FromDesktop" "Red"
+        exit 1
+    }
+    $sourceDesktops.Add($FromDesktop)
 }
 
-if (-not (Test-Path -LiteralPath $FromDesktop)) {
-    Say "Cannot find the desktop to copy from: $FromDesktop" "Red"
-    exit 1
+if ($sourceDesktops.Count -eq 0) {
+    Say "No desktops to copy from." "Yellow"
+    exit 0
 }
 
 $targetProfile = Join-Path "C:\Users" $GamingUser
 if (-not (Test-Path -LiteralPath $targetProfile)) {
-    Say "There is no Windows account folder at $targetProfile." "Red"
-    Say "Check the account name. It must have signed in at least once." "Yellow"
+    Say "There is no Windows account folder at $targetProfile." "Yellow"
+    Say "That account has to sign in to Windows once before its desktop exists." "Yellow"
+
+    # Quiet when the scheduled task runs it. Before the customer account's first
+    # sign-in there is nothing to copy to, and that is a state to wait through
+    # rather than a failure to record every thirty minutes. Run by a person, it
+    # still reports a failure so the installer can say what to do.
+    if ($FromAllUsers) { exit 0 }
     exit 1
 }
 
@@ -74,7 +105,7 @@ if (-not (Test-Path -LiteralPath $targetDesktop)) {
 }
 
 Say ""
-Say "From: $FromDesktop"
+Say "From: $($sourceDesktops -join ', ')"
 Say "To:   $targetDesktop"
 Say ""
 
@@ -194,11 +225,13 @@ function Test-IsGame {
 # --- Copy --------------------------------------------------------------------
 
 $shortcuts = @()
-$shortcuts += Get-ChildItem -LiteralPath $FromDesktop -Filter *.lnk -File -ErrorAction SilentlyContinue
-$shortcuts += Get-ChildItem -LiteralPath $FromDesktop -Filter *.url -File -ErrorAction SilentlyContinue
+foreach ($source in $sourceDesktops) {
+    $shortcuts += Get-ChildItem -LiteralPath $source -Filter *.lnk -File -ErrorAction SilentlyContinue
+    $shortcuts += Get-ChildItem -LiteralPath $source -Filter *.url -File -ErrorAction SilentlyContinue
+}
 
 if ($shortcuts.Count -eq 0) {
-    Say "No shortcuts found on $FromDesktop." "Yellow"
+    Say "No shortcuts found on any source desktop." "Yellow"
     exit 0
 }
 
