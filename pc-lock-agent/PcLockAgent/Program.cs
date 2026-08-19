@@ -49,6 +49,19 @@ internal static class Program
 
             config = await GameCatalogSync.TryRefreshAsync(config);
 
+            // With no reachable site, fall back to the last hash the dashboard
+            // sent. A station that cannot get online is exactly when somebody is
+            // standing at it needing the exit, so it has to keep working.
+            if (!config.HasExitPassword)
+            {
+                var cached = GameCatalogSync.LoadCachedExitPasswordHash();
+                if (!string.IsNullOrWhiteSpace(cached))
+                {
+                    config = config.WithExitPasswordHash(cached);
+                    AgentLog.Info("Using the cached exit password; the site was not reachable.");
+                }
+            }
+
             // Ask SYSTEM to refresh the shared game list if the task exists.
             // Best-effort: the lock user may not be allowed to start it.
             TryRequestSharedGameScan();

@@ -226,6 +226,9 @@ const optional = new Set([
   // trigger rather than by the application, so the code works either side of
   // its migration.
   "booking_items.station_names",
+  // Read with a try/catch on the station side and reported as "migration
+  // needed" on the owner side, so both work before it exists.
+  "cafes.station_exit_password_hash",
 ]);
 
 const problems = [];

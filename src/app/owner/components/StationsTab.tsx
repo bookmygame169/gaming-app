@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { StationExitPassword } from './StationExitPassword';
 import React, { useState } from 'react';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { CafeRow, BookingRow } from '../types';
@@ -229,6 +230,14 @@ export function StationsTab({
                     <span style={{ fontSize: 18 }}>+</span> Add New Station
                 </button>
             </div>
+
+            {/* One password for every station here, rather than a script run at
+                each PC. Café-level, so it sits outside the per-station grid. */}
+            {currentCafe?.id && (
+                <div style={{ marginBottom: isMobile ? 14 : 16 }}>
+                    <StationExitPassword cafeId={currentCafe.id} />
+                </div>
+            )}
 
             {/* Quick occupancy summary pills */}
             <div style={{ display: 'flex', gap: 8, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>

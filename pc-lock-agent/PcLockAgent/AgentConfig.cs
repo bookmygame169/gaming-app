@@ -142,9 +142,13 @@ internal sealed class AgentConfig
     /// is read from sits on a café PC that a customer is signed into — neither
     /// is a place a working password may exist.
     /// <para>
-    /// Set per machine by set-exit-password.ps1. With none set, the exit chord
-    /// does nothing at all, which is the right default for a station nobody has
-    /// deliberately configured.
+    /// Normally set once by the owner in the dashboard and delivered with the
+    /// game list, which is why an owner can change it without visiting three
+    /// machines. set-exit-password.ps1 still writes it locally, and that value
+    /// stands for a café that has not set one centrally.
+    /// <para>
+    /// With none set anywhere the exit chord does nothing at all, which is the
+    /// right default for a station nobody has deliberately configured.
     /// </para>
     /// </remarks>
     [JsonPropertyName("exitPasswordHash")]
@@ -153,6 +157,22 @@ internal sealed class AgentConfig
     /// <summary>Whether an administrator can close the agent with a password.</summary>
     [JsonIgnore]
     public bool HasExitPassword => !string.IsNullOrWhiteSpace(ExitPasswordHash);
+
+    /// <summary>The same config with a different exit password hash.</summary>
+    public AgentConfig WithExitPasswordHash(string? hash) => new()
+    {
+        ExitPasswordHash = hash,
+        StationId = StationId,
+        Games = Games,
+        ShowOnlyInstalledGames = ShowOnlyInstalledGames,
+        AllowBrowsing = AllowBrowsing,
+        ShowInstalledGames = ShowInstalledGames,
+        ShowLaunchers = ShowLaunchers,
+        EnrollUrl = EnrollUrl,
+        IsEnrolled = IsEnrolled,
+        Heartbeat = Heartbeat,
+        Mqtt = Mqtt,
+    };
 
     public AgentConfig WithGames(List<GameEntry> games) => new()
     {

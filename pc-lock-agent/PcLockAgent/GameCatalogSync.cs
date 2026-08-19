@@ -46,6 +46,24 @@ internal static class GameCatalogSync
             }
 
             using var document = JsonDocument.Parse(body);
+
+            // The café's exit password, set once by the owner in the dashboard
+            // instead of typed at each machine. Absent means this café has not
+            // set one, or is running a build that predates it — either way the
+            // local appsettings value stands.
+            var exitPasswordHash =
+                document.RootElement.TryGetProperty("exitPasswordHash", out var hashElement)
+                && hashElement.ValueKind == JsonValueKind.String
+                    ? hashElement.GetString()
+                    : null;
+
+            if (!string.IsNullOrWhiteSpace(exitPasswordHash))
+            {
+                config = config.WithExitPasswordHash(exitPasswordHash);
+                SaveExitPasswordCache(exitPasswordHash);
+                AgentLog.Info("Exit password came from the café's dashboard settings.");
+            }
+
             if (!document.RootElement.TryGetProperty("games", out var gamesElement))
             {
                 AgentLog.Warn("Game catalog response had no games array. Using cached games.");
@@ -102,6 +120,44 @@ internal static class GameCatalogSync
         {
             AgentLog.Warn($"Could not read {GamesCacheFileName}: {ex.Message}");
             return fallback;
+        }
+    }
+
+    /// <summary>
+    /// Remembers the password hash so the chord still works with no internet.
+    /// </summary>
+    /// <remarks>
+    /// A station that cannot reach the site is exactly when somebody is likely
+    /// to be standing at it trying to fix something, so the exit has to keep
+    /// working. The hash is no more sensitive on disk than it is in the
+    /// settings file it replaces.
+    /// </remarks>
+    private static void SaveExitPasswordCache(string hash)
+    {
+        try
+        {
+            File.WriteAllText(Path.Combine(AgentPaths.DataFolder, "exit-password.cache"), hash);
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not cache the exit password: {ex.Message}");
+        }
+    }
+
+    /// <summary>The last hash the dashboard sent, or null.</summary>
+    public static string? LoadCachedExitPasswordHash()
+    {
+        try
+        {
+            var path = Path.Combine(AgentPaths.DataFolder, "exit-password.cache");
+            if (!File.Exists(path)) return null;
+
+            var hash = File.ReadAllText(path).Trim();
+            return string.IsNullOrWhiteSpace(hash) ? null : hash;
+        }
+        catch
+        {
+            return null;
         }
     }
 

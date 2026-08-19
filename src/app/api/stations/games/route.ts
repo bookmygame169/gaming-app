@@ -43,6 +43,27 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    // The exit password travels with the games because the agent already makes
+    // this call at startup and caches what comes back — so a station keeps
+    // working offline, and there is no second round trip to get wrong.
+    //
+    // Read separately and never fatally: a café with no password set, or a
+    // database without the column, must still get its games.
+    let exitPasswordHash: string | null = null;
+    try {
+      const { data: cafe, error: cafeError } = await supabase
+        .from("cafes")
+        .select("station_exit_password_hash")
+        .eq("id", cafeId)
+        .maybeSingle();
+
+      if (!cafeError) {
+        exitPasswordHash = (cafe?.station_exit_password_hash as string | null) ?? null;
+      }
+    } catch {
+      // Leaves the station on whatever password it already had.
+    }
+
     const { data, error } = await supabase
       .from("cafe_pc_games")
       .select(
@@ -57,6 +78,7 @@ export async function GET(request: NextRequest) {
       // Table may not exist yet — still return defaults so kiosks show real games.
       return NextResponse.json({
         games: DEFAULT_CAFE_PC_GAMES.map(mapGameRowToAgentJson),
+        exitPasswordHash,
       });
     }
 
@@ -66,7 +88,7 @@ export async function GET(request: NextRequest) {
         ? rows.map(mapGameRowToAgentJson)
         : DEFAULT_CAFE_PC_GAMES.map(mapGameRowToAgentJson);
 
-    return NextResponse.json({ games });
+    return NextResponse.json({ games, exitPasswordHash });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load games";
     console.error("Station games error:", err);
