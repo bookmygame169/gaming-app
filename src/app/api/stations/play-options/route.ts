@@ -5,7 +5,12 @@ import {
   requireKnownStation,
   requireStationToken,
 } from "@/lib/stationAgentAuth";
-import { consoleTypeOf, durationOptions, type PricingRow } from "@/lib/stationPlayPricing";
+import {
+  consoleTypeOf,
+  durationOptions,
+  withWholeHourBlocks,
+  type PricingRow,
+} from "@/lib/stationPlayPricing";
 import { toRupees } from "@/lib/wallet";
 
 export const dynamic = "force-dynamic";
@@ -104,11 +109,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       station: identity.stationName,
       cafeName: cafe?.name || "the café",
-      hourly: durationOptions((prices || []) as PricingRow[]),
-      memberships: forThisStation
-        .filter((plan) => plan.plan_type === "hourly_package")
-        .map(planShape)
-        .sort((a, b) => a.price - b.price),
+      hourly: withWholeHourBlocks(durationOptions((prices || []) as PricingRow[])),
+      // Deliberately empty, and kept in the response so an older agent that
+      // still renders the section simply finds nothing to show.
+      //
+      // A membership is joined to its owner by the phone number typed when it
+      // is sold, and nothing checks that number. At a counter it can be read
+      // back; in the app it is already their account; on a locked PC it is a
+      // stranger typing into a box, and one wrong digit puts thousands of
+      // rupees of hours on a phone that does not exist - which the customer
+      // cannot discover, because seeing their membership requires the number
+      // they got wrong. Day passes and hours are consumed on the spot, so a
+      // typo there costs nobody anything.
+      //
+      // Members are pointed at the QR instead: that flow knows who they are.
+      memberships: [],
       dayPasses: forThisStation
         .filter((plan) => plan.plan_type === "day_pass")
         .map(planShape)

@@ -5,7 +5,12 @@ import {
   requireKnownStation,
   requireStationToken,
 } from "@/lib/stationAgentAuth";
-import { consoleTypeOf, priceForSingleStation, type PricingRow } from "@/lib/stationPlayPricing";
+import {
+  MAX_HOURS_IN_ONE_GO,
+  consoleTypeOf,
+  priceForDuration,
+  type PricingRow,
+} from "@/lib/stationPlayPricing";
 import { buildStationPaymentUrl, getCafePayee } from "@/lib/upi";
 import { dialableDigits } from "@/lib/phone";
 import { toRupees } from "@/lib/wallet";
@@ -39,13 +44,17 @@ async function resolvePrice(
       return { error: "Choose how long you want to play." };
     }
 
+    if (durationMinutes > MAX_HOURS_IN_ONE_GO * 60) {
+      return { error: `You can book up to ${MAX_HOURS_IN_ONE_GO} hours at a time here.` };
+    }
+
     const { data: rows } = await supabase
       .from("console_pricing")
       .select("duration_minutes, price, quantity")
       .eq("cafe_id", cafeId)
       .eq("console_type", consoleType);
 
-    const price = priceForSingleStation((rows || []) as PricingRow[], durationMinutes);
+    const price = priceForDuration((rows || []) as PricingRow[], durationMinutes);
 
     // No row means the café does not sell that length, whatever the PC asked
     // for. Refusing beats inventing a price.
@@ -59,6 +68,13 @@ async function resolvePrice(
         : `${durationMinutes} minutes`;
 
     return { amount: price, label };
+  }
+
+  // Memberships are not sold from a locked PC - see the note in play-options.
+  // Refused here as well as hidden there, because leaving a choice out of the
+  // UI is not the same as refusing it at the door.
+  if (type === "membership") {
+    return { error: "Memberships are bought in the app or at the counter." };
   }
 
   if (!planId) {
@@ -76,8 +92,8 @@ async function resolvePrice(
     return { error: "That plan is no longer available." };
   }
 
-  const wantedType = type === "membership" ? "hourly_package" : "day_pass";
-  if (plan.plan_type !== wantedType) {
+  // Only day passes reach here now; memberships were refused above.
+  if (plan.plan_type !== "day_pass") {
     return { error: "That plan cannot be used here." };
   }
 

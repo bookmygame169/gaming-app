@@ -63,3 +63,67 @@ export function durationOptions(rows: PricingRow[]): { durationMinutes: number; 
     .sort((a, b) => a[0] - b[0])
     .map(([durationMinutes, price]) => ({ durationMinutes, price }));
 }
+
+/**
+ * How many hours a customer may buy in one go from a screen.
+ *
+ * A cap rather than a preference: this is an unattended purchase, and somebody
+ * mistapping a longer block should be out a couple of hundred rupees at worst.
+ */
+export const MAX_HOURS_IN_ONE_GO = 5;
+
+/**
+ * The café's own durations, plus whole-hour blocks up to the cap.
+ *
+ * console_pricing is constrained to 30 and 60 minutes - the check constraint
+ * spells out `ANY (ARRAY[30, 60])` - so longer blocks cannot be rows in it
+ * without changing the schema the whole booking flow and the owner's pricing
+ * editor are built around. They are derived from the hourly price instead.
+ *
+ * That is not a shortcut, it is the safer answer: multiples of a café's real
+ * hourly rate stay correct on their own when the owner changes that rate, where
+ * copied rows would quietly keep charging yesterday's price.
+ *
+ * Nothing is invented. If a café has no 60-minute price, no longer blocks are
+ * offered - a made-up figure is worse than a shorter list.
+ */
+export function withWholeHourBlocks(
+  options: { durationMinutes: number; price: number }[],
+  maxHours = MAX_HOURS_IN_ONE_GO
+): { durationMinutes: number; price: number }[] {
+  const hourly = options.find((option) => option.durationMinutes === 60)?.price;
+  if (!hourly || hourly <= 0) {
+    return options;
+  }
+
+  const byDuration = new Map(options.map((option) => [option.durationMinutes, option]));
+
+  for (let hours = 2; hours <= maxHours; hours++) {
+    const minutes = hours * 60;
+    // Never overwrite a price the café actually set.
+    if (!byDuration.has(minutes)) {
+      byDuration.set(minutes, { durationMinutes: minutes, price: hourly * hours });
+    }
+  }
+
+  return [...byDuration.values()].sort((a, b) => a.durationMinutes - b.durationMinutes);
+}
+
+/**
+ * The price for one seat for a given length, including the derived blocks.
+ *
+ * Used where a price must be re-checked rather than trusted, so it has to agree
+ * exactly with what was quoted.
+ */
+export function priceForDuration(rows: PricingRow[], durationMinutes: number): number | null {
+  const exact = priceForSingleStation(rows, durationMinutes);
+  if (exact !== null) {
+    return exact;
+  }
+
+  const derived = withWholeHourBlocks(durationOptions(rows)).find(
+    (option) => option.durationMinutes === durationMinutes
+  );
+
+  return derived ? derived.price : null;
+}

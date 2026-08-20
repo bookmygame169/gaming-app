@@ -525,8 +525,70 @@ internal sealed class PayNowForm : Form
             top += 10;
         }
 
+        // Memberships are not sold here. The server no longer offers any, and
+        // this says why rather than leaving a member to pay twice for hours
+        // they already own.
         AddPlanSection("MEMBERSHIPS", _options.Memberships, "membership", ref top);
         AddPlanSection("DAY PASS", _options.DayPasses, "day_pass", ref top);
+
+        _content.Controls.Add(MemberHint(top));
+    }
+
+    /// <summary>
+    /// Points a member at the code on the lock screen.
+    /// </summary>
+    /// <remarks>
+    /// Without this, taking memberships off this screen quietly charges members
+    /// twice: they sit down, see only hours and a day pass, and buy time they
+    /// already have. The scanned code is the one route that knows who they are,
+    /// so it is the one that can spend their hours instead of their money.
+    /// </remarks>
+    private Panel MemberHint(int top)
+    {
+        var hint = new Panel
+        {
+            Left = 2,
+            Top = top + 4,
+            Width = _content.Width - 26,
+            Height = 66,
+            BackColor = Palette.Background,
+        };
+
+        hint.Controls.Add(new Label
+        {
+            Text = "Already have a membership?",
+            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+            ForeColor = Palette.TextPrimary,
+            AutoSize = false,
+            Left = 16,
+            Top = 12,
+            Width = hint.Width - 32,
+            Height = 20,
+            BackColor = Color.Transparent,
+        });
+
+        hint.Controls.Add(new Label
+        {
+            Text = "Go back and scan the code on the lock screen to use your hours.",
+            Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+            ForeColor = Palette.TextMuted,
+            AutoSize = false,
+            Left = 16,
+            Top = 34,
+            Width = hint.Width - 32,
+            Height = 20,
+            BackColor = Color.Transparent,
+        });
+
+        Theme.RoundCorners(hint, 10);
+        hint.Paint += (_, e) => Theme.DrawBorder(
+            e.Graphics,
+            new Rectangle(0, 0, hint.Width - 1, hint.Height - 1),
+            Palette.CardBorder,
+            1f,
+            10);
+
+        return hint;
     }
 
     private void AddPlanSection(string heading, List<PlanOption>? plans, string type, ref int top)
