@@ -3,6 +3,12 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/userAuth";
 import { phoneKey } from "@/lib/loyalty";
 import { getWalletBalance, toRupees } from "@/lib/wallet";
+import {
+  consoleTypeOf,
+  durationOptions,
+  priceForSingleStation,
+  type PricingRow,
+} from "@/lib/stationPlayPricing";
 import { sendStationCommands } from "@/lib/stationCommands";
 import { getIndiaDateString } from "@/lib/bookingFilters";
 import { buildAndroidUpiChooserUrl, buildUpiAppOptions, buildUpiPaymentUrl, getCafePayee } from "@/lib/upi";
@@ -16,58 +22,6 @@ type RouteContext = { params: Promise<{ token: string }> };
 
 /** A station is considered reachable if it reported in this recently. */
 const ONLINE_WITHIN_SECONDS = 90;
-
-/** pc-01 -> pc, ps5-02 -> ps5. Matches how console_pricing is keyed. */
-function consoleTypeOf(stationName: string): string {
-  const prefix = stationName.split("-")[0]?.toLowerCase() || "";
-  return prefix === "ps5" ? "ps5" : "pc";
-}
-
-type PricingRow = {
-  duration_minutes: number;
-  price: number | string | null;
-  quantity: number | string | null;
-};
-
-/**
- * One seat on a lock-screen PC is quantity 1. Owner prices are stored per
- * player-count as well as duration, so reading every row and calling
- * maybeSingle() on a duration blows up the moment a café has a 2-player price.
- *
- * Prefer quantity 1; if that row is missing, take the lowest quantity that
- * exists for that duration so the phone still has something to charge.
- */
-function priceForSingleStation(rows: PricingRow[], durationMinutes?: number): number | null {
-  const matching = rows.filter((row) =>
-    durationMinutes === undefined ? true : Number(row.duration_minutes) === durationMinutes
-  );
-  if (matching.length === 0) return null;
-
-  const qtyOne = matching.find((row) => Number(row.quantity) === 1);
-  const chosen = qtyOne || [...matching].sort((a, b) => Number(a.quantity) - Number(b.quantity))[0];
-  return toRupees(chosen.price);
-}
-
-function durationOptions(rows: PricingRow[]): { durationMinutes: number; price: number }[] {
-  const byDuration = new Map<number, number>();
-
-  const ordered = [...rows].sort((a, b) => {
-    const qtyDiff = Number(a.quantity || 99) - Number(b.quantity || 99);
-    if (qtyDiff !== 0) return qtyDiff;
-    return Number(a.duration_minutes) - Number(b.duration_minutes);
-  });
-
-  for (const row of ordered) {
-    const duration = Number(row.duration_minutes);
-    if (!Number.isFinite(duration) || duration <= 0) continue;
-    if (byDuration.has(duration)) continue;
-    byDuration.set(duration, toRupees(row.price));
-  }
-
-  return [...byDuration.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([durationMinutes, price]) => ({ durationMinutes, price }));
-}
 
 /**
  * Reads a token without spending it.

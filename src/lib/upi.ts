@@ -233,3 +233,31 @@ export function buildUpiAppOptions(
     androidHref: androidPackagePay(app.packageName, query),
   }));
 }
+
+/**
+ * The link behind the QR on a locked PC's Pay Now screen.
+ *
+ * Separate from the booking link only because of the note. A booking carries an
+ * id the owner reconciles against; a customer standing at a machine has not got
+ * one yet, and the useful thing on the owner's statement is which seat the
+ * money came from.
+ *
+ * The amount is in the link, which is most of the value of generating this
+ * rather than showing a printed QR: the customer scans, sees the right figure
+ * already filled in, and cannot pay ₹70 for an hour by mistyping.
+ */
+export function buildStationPaymentUrl(
+  payee: UpiPayee,
+  amount: number,
+  stationName: string
+): string {
+  const query = new URLSearchParams({
+    pa: payee.upiId,
+    pn: payee.displayName,
+    am: amount.toFixed(2),
+    cu: "INR",
+    tn: `${stationName.toUpperCase()} gaming`,
+  }).toString();
+
+  return `upi://pay?${query}`;
+}
