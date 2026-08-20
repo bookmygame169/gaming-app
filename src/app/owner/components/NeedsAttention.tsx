@@ -8,6 +8,7 @@ import {
     Trophy,
     ChevronRight,
     ShieldAlert,
+    MonitorPlay,
 } from 'lucide-react';
 import type { NavTab } from '../types';
 
@@ -37,6 +38,12 @@ export type OwnerSummary = {
         upcoming: number;
         nextName: string | null;
         nextDate: string | null;
+    };
+    playRequests: {
+        available: boolean;
+        waiting: number;
+        waitingAmount: number;
+        oldestWaitingAt: string | null;
     };
 };
 
@@ -111,7 +118,12 @@ export function useOwnerSummary(cafeId?: string, refreshKey = 0) {
             if (!res.ok) return;
 
             const next = (await res.json()) as OwnerSummary;
-            const waiting = next?.payments?.waiting ?? 0;
+
+            // Both queues, counted together. A lock-screen request is the more
+            // urgent of the two - that customer is in the room, sat at a
+            // machine - and a chime that only tracked payment claims would stay
+            // silent for the one person who cannot do anything until it rings.
+            const waiting = (next?.payments?.waiting ?? 0) + (next?.playRequests?.waiting ?? 0);
             const previous = lastWaitingRef.current;
 
             // Not on the first load. Opening the dashboard to a payment that has
@@ -182,6 +194,24 @@ export function NeedsAttention({ summary, onNavigate }: NeedsAttentionProps) {
     const amber = { border: 'rgba(245,158,11,0.28)', bg: 'rgba(245,158,11,0.06)', fg: '#fbbf24' };
     const cyan = { border: 'rgba(34,211,238,0.28)', bg: 'rgba(34,211,238,0.06)', fg: '#22d3ee' };
     const violet = { border: 'rgba(168,85,247,0.28)', bg: 'rgba(168,85,247,0.06)', fg: '#c084fc' };
+    const rose = { border: 'rgba(244,63,94,0.34)', bg: 'rgba(244,63,94,0.08)', fg: '#fb7185' };
+
+    // Ahead of everything, including payment claims. Both are people waiting to
+    // play, but this one is sitting at the machine right now: they filled the
+    // form in on the locked screen and it will say "waiting" until this is
+    // answered.
+    if (summary.playRequests?.waiting > 0) {
+        const waiting = summary.playRequests.waiting;
+
+        cards.push({
+            key: 'play-requests',
+            tab: 'stations',
+            icon: <MonitorPlay size={15} />,
+            tone: rose,
+            title: `${waiting} ${waiting > 1 ? 'people are' : 'person is'} waiting at a PC`,
+            detail: `₹${summary.playRequests.waitingAmount.toLocaleString('en-IN')} · approving unlocks the machine and starts their time`,
+        });
+    }
 
     // Money first. Somebody is waiting to play.
     if (summary.payments.waiting > 0) {

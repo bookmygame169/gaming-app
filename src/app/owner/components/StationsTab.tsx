@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { StationExitPassword } from './StationExitPassword';
+import { StationPlayRequests } from './StationPlayRequests';
 import React, { useState } from 'react';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { CafeRow, BookingRow } from '../types';
@@ -230,6 +231,15 @@ export function StationsTab({
                     <span style={{ fontSize: 18 }}>+</span> Add New Station
                 </button>
             </div>
+
+            {/* First on the page, above the grid and the settings card: every
+                other thing on this tab can wait, and a person sat at a locked
+                PC cannot. Renders nothing at all when the queue is empty. */}
+            {currentCafe?.id && (
+                <div style={{ marginBottom: isMobile ? 14 : 16 }}>
+                    <StationPlayRequests cafeId={currentCafe.id} />
+                </div>
+            )}
 
             {/* One password for every station here, rather than a script run at
                 each PC. Café-level, so it sits outside the per-station grid. */}

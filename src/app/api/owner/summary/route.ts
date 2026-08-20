@@ -42,14 +42,52 @@ export async function GET(request: NextRequest) {
 
   // Run together: this is on the dashboard's critical path, and one slow
   // section should not delay the rest.
-  const [loyalty, reviews, payments, tournaments] = await Promise.all([
+  const [loyalty, reviews, payments, tournaments, playRequests] = await Promise.all([
     loadLoyalty(),
     loadReviews(),
     loadPayments(),
     loadTournaments(),
+    loadPlayRequests(),
   ]);
 
-  return NextResponse.json({ loyalty, reviews, payments, tournaments });
+  return NextResponse.json({ loyalty, reviews, payments, tournaments, playRequests });
+
+  // ------------------------------------------------------- lock-screen requests
+
+  /**
+   * Customers sitting at a locked PC waiting to be let on.
+   *
+   * The most time-critical thing on this summary by some distance. Every other
+   * section counts something an owner can get to this afternoon; this one
+   * counts people who are in the room, at a machine, doing nothing.
+   */
+  async function loadPlayRequests() {
+    const zero = { waiting: 0, waitingAmount: 0, oldestWaitingAt: null as string | null };
+
+    try {
+      const { data, error } = await supabase
+        .from("station_play_requests")
+        .select("amount, created_at")
+        .eq("cafe_id", cafeId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+
+      // The table arrives in a migration run by hand, so code can be live
+      // before it exists. A quiet section beats a broken dashboard.
+      if (error) return unavailable(zero);
+
+      const rows = data ?? [];
+
+      return {
+        available: true,
+        waiting: rows.length,
+        waitingAmount: rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+        oldestWaitingAt: (rows[0]?.created_at as string | undefined) ?? null,
+      };
+    } catch {
+      return unavailable(zero);
+    }
+  }
 
   // ------------------------------------------------------------------ loyalty
 
