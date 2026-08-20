@@ -53,13 +53,10 @@ internal sealed class AgentShell : ApplicationContext
         _session.WarningDue += (_, secondsRemaining) => ShowSessionWarning(secondsRemaining);
         _session.Remaining += (_, remaining) => _gameMenu.UpdateRemaining(remaining);
 
-        _warningOverlay.Hidden += (_, _) =>
-        {
-            if (_gameMenu.IsGameRunning)
-            {
-                _gameMenu.TryRestoreGameForeground();
-            }
-        };
+        // Guarded for the same reason as the warning itself: the banner never
+        // takes focus, so hiding it almost never costs the game anything, and
+        // grabbing the foreground "just in case" is what minimised it.
+        _warningOverlay.Hidden += (_, _) => RestoreGameOnlyIfItLostFocus();
 
         _returnToGamePrompt.ReturnClicked += (_, _) => OnReturnToGameClicked();
 
@@ -308,20 +305,50 @@ internal sealed class AgentShell : ApplicationContext
         ShowSessionWarning(remainingSeconds);
     }
 
+    /// <summary>
+    /// Puts the "time remaining" banner on screen.
+    /// </summary>
+    /// <remarks>
+    /// The restore below is guarded, and the guard is the whole fix for a game
+    /// minimising itself every time the clock was shown.
+    /// <para>
+    /// Restoring the game used to run unconditionally. When the game was
+    /// already in front — the normal case, because the banner cannot take focus
+    /// — that meant calling AttachThreadInput, BringWindowToTop and
+    /// SetForegroundWindow on a window that already had the foreground. To a
+    /// fullscreen game that is a focus transition arriving out of nowhere, and
+    /// the usual response is to minimise and restore. So the warning did not
+    /// merely appear over the game: it threw the customer out of it, mid-match,
+    /// once per warning and again seven seconds later when the banner hid.
+    /// </para>
+    /// <para>
+    /// Nothing needs restoring when nothing was taken. The call stays for the
+    /// case it was written for — the game genuinely having lost the foreground
+    /// — and is now skipped in the case where it was doing the damage.
+    /// </para>
+    /// </remarks>
     private void ShowSessionWarning(int secondsRemaining)
     {
-        var gameRunning = _gameMenu.IsGameRunning;
-        var anchor = gameRunning
-            ? GameWindowFocus.FindBestWindow(_gameMenu.GetActiveProcessNames())
-            : IntPtr.Zero;
+        _warningOverlay.ShowWarning(secondsRemaining);
+        RestoreGameOnlyIfItLostFocus();
+    }
 
-        _warningOverlay.ShowWarning(secondsRemaining, gameRunning, anchor);
-
-        if (gameRunning)
+    private void RestoreGameOnlyIfItLostFocus()
+    {
+        if (!_gameMenu.IsGameRunning || _gameMenu.IsGameForeground())
         {
-            // Run after the warning paints so the game is not left behind the menu.
-            _gameMenu.BeginInvoke(new Action(() => _gameMenu.TryRestoreGameForeground()));
+            return;
         }
+
+        _gameMenu.BeginInvoke(new Action(() =>
+        {
+            // Checked again inside the post: the game may have come back by
+            // itself between the two, and this is the call that costs a match.
+            if (_gameMenu.IsGameRunning && !_gameMenu.IsGameForeground())
+            {
+                _gameMenu.TryRestoreGameForeground();
+            }
+        }));
     }
 
     private void CheckGameForeground()

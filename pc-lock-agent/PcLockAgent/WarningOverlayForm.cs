@@ -83,46 +83,44 @@ internal sealed class WarningOverlayForm : Form
         }
     }
 
-    /// <summary>Shows the banner for a few seconds.</summary>
+    /// <summary>
+    /// Shows the banner for a few seconds, above whatever is playing.
+    /// </summary>
+    /// <remarks>
+    /// This used to take the game's window and pass it as hWndInsertAfter,
+    /// meaning to stack the banner "directly above" it. That argument does the
+    /// opposite: hWndInsertAfter is the window that PRECEDES the positioned one
+    /// in Z order, so the banner was placed one step BELOW the game — behind a
+    /// fullscreen window, which is to say nowhere.
+    /// <para>
+    /// Topmost instead, which is what an on-screen overlay is. It costs the
+    /// game nothing because this window is WS_EX_NOACTIVATE: it is painted over
+    /// the top and can never become the foreground window, so nothing about the
+    /// game's focus changes. A genuinely exclusive-fullscreen title may still
+    /// refuse to be drawn over, and that is the right way to lose — a warning
+    /// the customer misses is a far smaller problem than one that throws them
+    /// out of their match.
+    /// </para>
+    /// </remarks>
     /// <param name="secondsRemaining">Seconds left in the session.</param>
-    /// <param name="gameIsRunning">
-    /// When true, TopMost is avoided so exclusive-fullscreen games are not
-    /// forced behind the kiosk menu.
-    /// </param>
-    /// <param name="anchorWindow">
-    /// Optional game window to stack directly above instead of using TopMost.
-    /// </param>
-    // `default` rather than IntPtr.Zero: the latter is a static readonly field,
-    // not a compile-time constant, and C# only accepts constants as default
-    // parameter values. Same value, and this one builds.
-    public void ShowWarning(int secondsRemaining, bool gameIsRunning, IntPtr anchorWindow = default)
+    public void ShowWarning(int secondsRemaining)
     {
         _messageLabel.Text = FormatMessage(secondsRemaining);
         _hideTimer.Stop();
 
-        if (gameIsRunning)
+        if (!Visible)
         {
-            TopMost = false;
             Show();
+        }
 
-            if (anchorWindow != IntPtr.Zero)
-            {
-                NativeMethods.SetWindowPos(
-                    Handle,
-                    anchorWindow,
-                    Location.X,
-                    Location.Y,
-                    Width,
-                    Height,
-                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
-            }
-        }
-        else
-        {
-            Show();
-            TopMost = false;
-            TopMost = true;
-        }
+        NativeMethods.SetWindowPos(
+            Handle,
+            NativeMethods.HWND_TOPMOST,
+            Location.X,
+            Location.Y,
+            Width,
+            Height,
+            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
 
         _hideTimer.Start();
     }
@@ -165,6 +163,7 @@ internal sealed class WarningOverlayForm : Form
     {
         public const uint SWP_NOACTIVATE = 0x0010;
         public const uint SWP_SHOWWINDOW = 0x0040;
+        public static readonly IntPtr HWND_TOPMOST = new(-1);
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
