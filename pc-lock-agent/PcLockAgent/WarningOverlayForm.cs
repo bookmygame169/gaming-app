@@ -96,15 +96,37 @@ internal sealed class WarningOverlayForm : Form
     /// Topmost instead, which is what an on-screen overlay is. It costs the
     /// game nothing because this window is WS_EX_NOACTIVATE: it is painted over
     /// the top and can never become the foreground window, so nothing about the
-    /// game's focus changes. A genuinely exclusive-fullscreen title may still
-    /// refuse to be drawn over, and that is the right way to lose — a warning
-    /// the customer misses is a far smaller problem than one that throws them
-    /// out of their match.
+    /// game's focus changes.
+    /// </para>
+    /// <para>
+    /// None of which helps against a title that owns the display outright, and
+    /// Valorant does. That case is not handled by drawing more carefully — it
+    /// is handled by not drawing at all; see ExclusiveFullscreen.
     /// </para>
     /// </remarks>
     /// <param name="secondsRemaining">Seconds left in the session.</param>
     public void ShowWarning(int secondsRemaining)
     {
+        // Always, whether or not anything is drawn. It is the only half of this
+        // that reaches a customer in a fullscreen game, and it is worth having
+        // on the desktop too — the banner is small, and somebody two minutes
+        // into a match is not reading the top of their screen.
+        AudioAlert.PlayTimeWarning(secondsRemaining);
+
+        // The line this whole thing turns on. A window shown over a game that
+        // owns the display forces Windows out of exclusive mode and the game
+        // minimises — topmost, non-activating, click-through, it makes no
+        // difference, because the problem is that a window appeared at all.
+        //
+        // So when a game owns the screen, none does. The customer hears the
+        // warning and keeps playing, which is what was asked for.
+        if (ExclusiveFullscreen.IsGameOwningTheScreen())
+        {
+            AgentLog.Info(
+                $"Time warning ({secondsRemaining}s) played as sound only: a fullscreen game owns the screen.");
+            return;
+        }
+
         _messageLabel.Text = FormatMessage(secondsRemaining);
         _hideTimer.Stop();
 
