@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, Button, Input, Select } from './ui';
-import { Search, XCircle, Plus, Edit2, Trash2, Smartphone, Monitor, User, Users } from 'lucide-react';
+import { Search, XCircle, Plus, Edit2, Trash2, Smartphone, Monitor, User, Users, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 type MembershipPlanType = 'day_pass' | 'hourly_package';
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -121,6 +121,42 @@ export function Memberships({
     const [savingSub, setSavingSub] = useState(false);
     const [subCustomerName, setSubCustomerName] = useState('');
     const [subCustomerPhone, setSubCustomerPhone] = useState('');
+
+    // Whether this number reaches a BookMyGame account.
+    //
+    // A membership is joined to its owner by phone number alone, so one typed
+    // against a number nobody has registered goes nowhere - and nothing used to
+    // say so. This is the only moment it can still be fixed: the customer is at
+    // the counter and can be asked to install the app.
+    const [accountState, setAccountState] = useState<'idle' | 'checking' | 'yes' | 'no'>('idle');
+
+    useEffect(() => {
+        const digits = subCustomerPhone.replace(/\D/g, '');
+        if (digits.length < 10) {
+            setAccountState('idle');
+            return;
+        }
+
+        let cancelled = false;
+        setAccountState('checking');
+
+        // Debounced: this fires on every keystroke once ten digits are in, and
+        // the owner is often still typing a longer number.
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/owner/account-check?phone=${encodeURIComponent(digits)}`, {
+                    credentials: 'include',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!cancelled) setAccountState(data?.hasAccount ? 'yes' : 'no');
+            } catch {
+                // Silent: this sits beside a sale and must never block one.
+                if (!cancelled) setAccountState('idle');
+            }
+        }, 400);
+
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [subCustomerPhone]);
     const [subSelectedPlanId, setSubSelectedPlanId] = useState('');
     const [subAmountPaid, setSubAmountPaid] = useState('');
     const [subPaymentMode, setSubPaymentMode] = useState('cash');
@@ -880,13 +916,37 @@ export function Memberships({
                                 )}
                             </div>
 
-                            <Input
-                                label="Phone Number"
-                                placeholder="Enter phone number (10 digits)"
-                                value={subCustomerPhone}
-                                onChange={v => setSubCustomerPhone(v.replace(/[^\d+\-\s()]/g, '').slice(0, 15))}
-                                type="tel"
-                            />
+                            <div>
+                                <Input
+                                    label="Phone Number"
+                                    placeholder="Enter phone number (10 digits)"
+                                    value={subCustomerPhone}
+                                    onChange={v => setSubCustomerPhone(v.replace(/[^\d+\-\s()]/g, '').slice(0, 15))}
+                                    type="tel"
+                                />
+
+                                {accountState === 'yes' && (
+                                    <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
+                                        <CheckCircle2 size={13} />
+                                        Has a BookMyGame account — the hours will show in their app.
+                                    </div>
+                                )}
+
+                                {accountState === 'no' && (
+                                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-300/90">
+                                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-400" />
+                                        <span>
+                                            No account on this number yet. The membership still works at the
+                                            counter — ask them to sign up with <span className="font-semibold">this same number</span> to
+                                            see their hours in the app.
+                                        </span>
+                                    </div>
+                                )}
+
+                                {accountState === 'checking' && (
+                                    <div className="mt-1.5 text-[11px] text-slate-500">Checking…</div>
+                                )}
+                            </div>
 
                             <Select
                                 label="Membership Plan"
