@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   applyOwnerSessionCookie,
   clearOwnerSessionCookie,
@@ -7,9 +7,14 @@ import {
 } from "@/lib/ownerAuth";
 import { authRateLimiter, enforceRateLimit } from "@/lib/ratelimit";
 
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  // Service role, not the browser client: this route calls a function
+  // that runs as its owner and is deliberately not callable by anon.
+  const supabase = getSupabaseAdmin();
+
   try {
     const rateLimitResponse = await enforceRateLimit(
       request,
@@ -76,6 +81,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE() {
+  // Signing out only clears a cookie — no database work, so no client.
   const response = NextResponse.json({ success: true });
   clearOwnerSessionCookie(response);
   return response;

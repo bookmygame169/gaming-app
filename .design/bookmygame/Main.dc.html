@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #08080c; font-family: Inter, system-ui, sans-serif; }
+    a { color: #00f0ff; text-decoration: none; }
+    a:hover { color: #7df6ff; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 844px; background: #08080c; color: #e7e9ee; position: relative; overflow: hidden;">
+
+  <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(34,211,238,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.055) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none;"></div>
+  <div style="position: absolute; inset: 0; background-image: radial-gradient(circle at 15% 8%, rgba(255,7,58,0.16) 0%, transparent 46%), radial-gradient(circle at 92% 2%, rgba(0,240,255,0.10) 0%, transparent 42%); pointer-events: none;"></div>
+
+  <div style="position: relative;">
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px 20px;">
+      <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 900; font-size: 17px; letter-spacing: 0.5px;">
+        <span style="color: {{accent}};">BOOK</span><span style="color: #ffffff;">MYGAME</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px; height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); font-size: 13px; font-weight: 600; color: #cdd2dc;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+        Login
+      </div>
+    </div>
+
+    <div style="padding: 6px 20px 0 20px;">
+      <h1 style="margin: 0; font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 27px; line-height: 1.16; letter-spacing: -0.3px; color: #ffffff; text-wrap: balance;">
+        Book your seat.<br>Walk in and play.
+      </h1>
+      <p style="margin: 9px 0 0 0; font-size: 13.5px; line-height: 1.5; color: #8a8f9c;">
+        See which machines are free right now, pay online, and your PC is ready when you sit down.
+      </p>
+    </div>
+
+    <div style="margin: 18px 20px 0 20px; border-radius: 20px; border: 1px solid rgba(0,240,255,0.26); background: linear-gradient(145deg, rgba(0,240,255,0.07) 0%, rgba(16,16,22,0.9) 62%); padding: 15px 16px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 999px; background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.9);"></span>
+        <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 1.4px; color: #00f0ff;">FREE RIGHT NOW</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; gap: 18px; margin-top: 12px;">
+        <sc-for list="{{liveCounts}}" as="row" hint-placeholder-count="3">
+          <div>
+            <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 25px; line-height: 1; color: #ffffff;">
+              {{row.free}}<span style="font-size: 13px; color: #5b6170;">/{{row.total}}</span>
+            </div>
+            <div style="margin-top: 5px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.9px; color: #8a8f9c;">{{row.label}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin: 16px 20px 0 20px; height: 46px; padding: 0 15px; border-radius: 14px; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b6170" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.7" y2="16.7"></line></svg>
+      <span style="font-size: 14px; color: #5b6170;">Search cafés in Delhi</span>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin: 14px 0 0 0; padding: 0 20px 2px 20px; overflow: hidden;">
+      <sc-for list="{{chips}}" as="chip" hint-placeholder-count="4">
+        <div style="flex: 0 0 auto; height: 44px; display: flex; align-items: center; padding: 0 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; border: 1px solid {{chip.border}}; background: {{chip.bg}}; color: {{chip.fg}};">
+          {{chip.label}}
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; margin: 22px 20px 10px 20px;">
+      <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 1.2px; color: #ffffff;">NEAR YOU</div>
+      <div style="font-size: 12px; color: #5b6170;">1 café</div>
+    </div>
+
+    <div style="margin: 0 20px; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(145deg, rgba(16,16,22,0.9) 0%, rgba(10,10,15,0.9) 100%);">
+
+      <div style="height: 132px; position: relative; background: linear-gradient(135deg, #1b1020 0%, #0d0d14 58%, #101822 100%);">
+        <div style="position: absolute; inset: 0; background-image: radial-gradient(circle at 78% 26%, rgba(255,7,58,0.30) 0%, transparent 52%), radial-gradient(circle at 20% 76%, rgba(0,240,255,0.18) 0%, transparent 50%);"></div>
+        <div style="position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; background: rgba(0,0,0,0.62); border: 1px solid rgba(16,185,129,0.4);">
+          <span style="width: 6px; height: 6px; border-radius: 999px; background: #10b981;"></span>
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.7px; color: #34d399;">OPEN TILL 10 PM</span>
+        </div>
+        <div style="position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 11px; border-radius: 999px; background: rgba(0,0,0,0.62);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"><polygon points="12 2 15.1 8.6 22 9.5 17 14.5 18.2 21.5 12 18.2 5.8 21.5 7 14.5 2 9.5 8.9 8.6"></polygon></svg>
+          <span style="font-size: 11.5px; font-weight: 700; color: #ffffff;">4.8</span>
+        </div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: linear-gradient(to top, rgba(8,8,12,0.97) 12%, rgba(8,8,12,0.72) 52%, transparent 100%);"></div>
+        <div style="position: absolute; left: 16px; bottom: 11px;">
+          <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 17px; color: #ffffff;">PlayTime Gaming Cafe</div>
+          <div style="display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px; color: #8a8f9c;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
+            Delhi
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 14px 16px 16px 16px;">
+
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+          <sc-for list="{{kit}}" as="k" hint-placeholder-count="3">
+            <div style="border-radius: 12px; border: 1px solid {{k.border}}; background: rgba(255,255,255,0.028); padding: 9px 10px;">
+              <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #8a8f9c;">{{k.label}}</div>
+              <div style="margin-top: 3px; font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 14px; color: {{k.fg}};">{{k.free}} free</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08);">
+          <div>
+            <div style="display: flex; align-items: baseline; gap: 3px;">
+              <span style="font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 22px; color: #ffffff;">₹100</span>
+              <span style="font-size: 12.5px; color: #8a8f9c;">/hour</span>
+            </div>
+            <div style="margin-top: 2px; font-size: 11.5px; color: #5b6170;">₹70 for 30 minutes</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 7px; height: 46px; padding: 0 22px; border-radius: 999px; background: linear-gradient(90deg, {{accent}}, #ff6b7a); font-size: 14.5px; font-weight: 700; color: #ffffff; box-shadow: 0 8px 22px -8px rgba(255,7,58,0.75);">
+            Book
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="18" y2="12"></line><polyline points="12 6 18 12 12 18"></polyline></svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="height: 92px;"></div>
+
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 9px 6px 20px 6px; background: rgba(8,8,12,0.96); border-top: 1px solid rgba(255,255,255,0.08);">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 46px; justify-content: center; color: {{accent}};">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
+        <div style="font-size: 10px; font-weight: 600;">Home</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 46px; justify-content: center; color: #5b6170;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"></rect><path d="M8 3v3M16 3v3M3.5 9.5h17"></path><path d="m9 14.5 2 2 4-4"></path></svg>
+        <div style="font-size: 10px; font-weight: 600;">Bookings</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 46px; justify-content: center; color: #5b6170;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5"></path><line x1="4" y1="12" x2="20" y2="12"></line></svg>
+        <div style="font-size: 10px; font-weight: 600;">Scan</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 46px; justify-content: center; color: #5b6170;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9z"></path></svg>
+        <div style="font-size: 10px; font-weight: 600;">Points</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 46px; justify-content: center; color: #5b6170;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20.5c1.2-4 4-6 7.5-6s6.3 2 7.5 6"></path></svg>
+        <div style="font-size: 10px; font-weight: 600;">Profile</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#ff073a","options":["#ff073a","#00f0ff","#8b5cf6","#10b981"]},"pcsFree":{"editor":"int","default":3,"min":0,"max":4,"section":"Live"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#ff073a';
+    const pcsFree = Math.max(0, Math.min(4, this.props.pcsFree ?? 3));
+
+    const chip = (label, on) => ({
+      label,
+      bg: on ? 'rgba(255,7,58,0.14)' : 'rgba(255,255,255,0.04)',
+      border: on ? 'rgba(255,7,58,0.5)' : 'rgba(255,255,255,0.09)',
+      fg: on ? '#ff8ea0' : '#cdd2dc',
+    });
+
+    const kit = (label, free, total) => ({
+      label,
+      free: free + '/' + total,
+      fg: free > 0 ? '#34d399' : '#5b6170',
+      border: free > 0 ? 'rgba(16,185,129,0.28)' : 'rgba(255,255,255,0.07)',
+    });
+
+    return {
+      accent,
+
+      // The one thing this café already knows and the old site never showed:
+      // whether it is worth walking over right now.
+      liveCounts: [
+        { label: 'GAMING PCs', free: pcsFree, total: 4 },
+        { label: 'PS5', free: 1, total: 3 },
+        { label: 'RACING', free: 2, total: 2 },
+      ],
+
+      chips: [chip('PC', true), chip('PS5', false), chip('Racing', false), chip('VR', false), chip('Snooker', false)],
+
+      kit: [kit('PC', pcsFree, 4), kit('PS5', 1, 3), kit('RACING', 2, 2)],
+
+    };
+  }
+}
+</script>
+</body>
+</html>

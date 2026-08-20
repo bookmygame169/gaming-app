@@ -1,12 +1,17 @@
 // src/app/api/tournaments/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUser } from "@/lib/userAuth";
+
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/tournaments/register - Register for a tournament
 export async function POST(request: NextRequest) {
+  // Service role, not the browser client: this route calls a function
+  // that runs as its owner and is deliberately not callable by anon.
+  const supabase = getSupabaseAdmin();
+
   try {
     const { userId, response: authResponse } = await requireUser(request);
     if (authResponse) return authResponse;
@@ -184,6 +189,10 @@ export async function POST(request: NextRequest) {
 
 // GET /api/tournaments/register?user_id=xxx - Get user's tournament registrations
 export async function GET(request: NextRequest) {
+  // Service role, not the browser client: this route calls a function
+  // that runs as its owner and is deliberately not callable by anon.
+  const supabase = getSupabaseAdmin();
+
   try {
     const { userId, response: authResponse } = await requireUser(request);
     if (authResponse) return authResponse;

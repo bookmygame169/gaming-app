@@ -1,0 +1,35 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",     "x": 0,    "y": 0, "w": 390, "h": 844, "title": "Home" },
+    { "file": "Cafe.dc.html",     "x": 470,  "y": 0, "w": 390, "h": 980, "title": "Cafe + seat" },
+    { "file": "Checkout.dc.html", "x": 940,  "y": 0, "w": 390, "h": 844, "title": "Pay" }
+  ],
+  "annotations": [
+    {
+      "id": "note-home",
+      "x": 0, "y": -186, "w": 390,
+      "text": "HOME — what changed\n\nThe hero was a full screen of branding before the customer saw a single cafe. It is now four lines, and the cafe card is visible without scrolling.\n\nThe stats strip is gone. \"50K+ GAMERS / 10+ ACHIVMENT\" reads as invented when the site lists one cafe, and it was misspelled. In its place: what is free right now, which you already track and never showed."
+    },
+    {
+      "id": "note-cafe",
+      "x": 470, "y": -186, "w": 390,
+      "text": "CAFE + SEAT — what changed\n\nFour numbered steps down one screen: what, how long, which seat, when.\n\nThe seat map is new and it is the point. Bookings now hold a specific machine, so the customer picks it rather than being assigned one. Busy seats are visibly unavailable, so nobody picks a seat that is taken."
+    },
+    {
+      "id": "note-pay",
+      "x": 940, "y": -186, "w": 390,
+      "text": "PAY — what changed\n\nThe QR carries the amount, so there is nothing to type and nothing to get wrong.\n\nThe amber note says plainly what happens next. Without a payment gateway the cafe confirms by hand, and a screen that hides that leaves the customer waiting without knowing why. Paying at the counter stays one tap away."
+    },
+    {
+      "id": "note-kept",
+      "x": 1410, "y": 0, "w": 300,
+      "text": "KEPT FROM YOUR SITE\n\nOrbitron for headings, Inter for body.\n\n#ff073a red, #00f0ff cyan, #08080c background, #101016 cards.\n\n24px cards, 999px pill buttons, the red-to-#ff6b7a gradient on Book.\n\nThe cyber grid is still there, at about half strength. Three overlapping patterns at once was fighting the content."
+    },
+    {
+      "id": "note-check",
+      "x": 1410, "y": 300, "w": 300,
+      "text": "WORTH YOUR CHECK\n\nEvery price and count here is real: PC 100/hr, 70/30min, 4 PCs, 3 PS5, 2 racing, open till 10 PM.\n\nThe 4.8 rating is a placeholder - I did not want to invent a number you would then have to live with."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

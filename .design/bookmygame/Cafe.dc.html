@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #08080c; font-family: Inter, system-ui, sans-serif; }
+    a { color: #00f0ff; text-decoration: none; }
+    a:hover { color: #7df6ff; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 980px; background: #08080c; color: #e7e9ee; position: relative; overflow: hidden;">
+
+  <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(34,211,238,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.05) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none;"></div>
+
+  <div style="position: relative;">
+
+    <div style="height: 160px; position: relative; background: linear-gradient(135deg, #1b1020 0%, #0d0d14 58%, #101822 100%);">
+      <div style="position: absolute; inset: 0; background-image: radial-gradient(circle at 76% 22%, rgba(255,7,58,0.28) 0%, transparent 52%), radial-gradient(circle at 18% 78%, rgba(0,240,255,0.16) 0%, transparent 50%);"></div>
+      <div style="position: absolute; top: 16px; left: 16px; width: 44px; height: 44px; border-radius: 999px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14 6 8 12 14 18"></polyline></svg>
+      </div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(to top, #08080c 8%, rgba(8,8,12,0.7) 54%, transparent 100%);"></div>
+      <div style="position: absolute; left: 20px; bottom: 12px;">
+        <h1 style="margin: 0; font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 21px; color: #ffffff;">PlayTime Gaming Cafe</h1>
+        <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: 12px; color: #8a8f9c;">
+          <span>Delhi</span>
+          <span style="color: #34d399; font-weight: 600;">Open till 10 PM</span>
+          <span style="color: #f59e0b; font-weight: 600;">4.8</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding: 18px 20px 0 20px;">
+      <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 1.2px; color: #ffffff;">1 · WHAT ARE YOU PLAYING?</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 11px;">
+        <sc-for list="{{consoles}}" as="c" hint-placeholder-count="3">
+          <div style="min-height: 62px; border-radius: 14px; border: 1px solid {{c.border}}; background: {{c.bg}}; padding: 10px 11px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="font-size: 12.5px; font-weight: 700; color: {{c.fg}};">{{c.label}}</div>
+            <div style="font-size: 10.5px; color: {{c.sub}};">{{c.free}} free</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding: 20px 20px 0 20px;">
+      <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 1.2px; color: #ffffff;">2 · HOW LONG?</div>
+      <div style="display: flex; gap: 9px; margin-top: 11px;">
+        <sc-for list="{{durations}}" as="d" hint-placeholder-count="3">
+          <div style="flex: 1 1 0; min-height: 60px; border-radius: 14px; border: 1px solid {{d.border}}; background: {{d.bg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;">
+            <div style="font-size: 12.5px; font-weight: 600; color: {{d.fg}};">{{d.label}}</div>
+            <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 15px; color: {{d.priceFg}};">{{d.price}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding: 20px 20px 0 20px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 1.2px; color: #ffffff;">3 · PICK YOUR SEAT</div>
+        <div style="font-size: 11px; color: #5b6170;">Tap a free machine</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 12px;">
+        <sc-for list="{{seats}}" as="s" hint-placeholder-count="4">
+          <div style="min-height: 74px; border-radius: 14px; border: 1px solid {{s.border}}; background: {{s.bg}}; box-shadow: {{s.glow}}; padding: 9px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{s.iconFg}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="4" width="19" height="12.5" rx="2"></rect><path d="M9 20.5h6M12 16.5v4"></path>
+            </svg>
+            <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 11.5px; color: {{s.fg}};">{{s.name}}</div>
+            <div style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.4px; color: {{s.stateFg}};">{{s.state}}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px; margin-top: 12px;">
+        <sc-for list="{{legend}}" as="l" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 7px; height: 7px; border-radius: 999px; background: {{l.dot}};"></span>
+            <span style="font-size: 10.5px; color: #8a8f9c;">{{l.label}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding: 20px 20px 0 20px;">
+      <div style="font-family: Orbitron, Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 1.2px; color: #ffffff;">4 · WHEN?</div>
+      <div style="display: flex; gap: 9px; margin-top: 11px;">
+        <sc-for list="{{times}}" as="t" hint-placeholder-count="4">
+          <div style="flex: 1 1 0; height: 46px; border-radius: 12px; border: 1px solid {{t.border}}; background: {{t.bg}}; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600; color: {{t.fg}};">
+            {{t.label}}
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="height: 118px;"></div>
+
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 22px 20px; background: rgba(8,8,12,0.97); border-top: 1px solid rgba(255,255,255,0.09);">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+        <div>
+          <div style="font-size: 11px; color: #5b6170;">PC-02 · 1 hour · Now</div>
+          <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 2px;">
+            <span style="font-family: Orbitron, Arial, sans-serif; font-weight: 800; font-size: 24px; color: #ffffff;">₹100</span>
+            <span style="font-size: 11.5px; color: #8a8f9c;">total</span>
+          </div>
+        </div>
+        <div style="flex: 1 1 auto; max-width: 190px; display: flex; align-items: center; justify-content: center; gap: 8px; height: 52px; border-radius: 999px; background: linear-gradient(90deg, {{accent}}, #ff6b7a); font-size: 15px; font-weight: 700; color: #ffffff; box-shadow: 0 10px 26px -10px rgba(255,7,58,0.85);">
+          Continue
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="18" y2="12"></line><polyline points="12 6 18 12 12 18"></polyline></svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#ff073a","options":["#ff073a","#00f0ff","#8b5cf6","#10b981"]}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#ff073a';
+
+    const pick = (on) => ({
+      bg: on ? 'rgba(255,7,58,0.13)' : 'rgba(255,255,255,0.035)',
+      border: on ? 'rgba(255,7,58,0.55)' : 'rgba(255,255,255,0.09)',
+      fg: on ? '#ffffff' : '#cdd2dc',
+    });
+
+    const console_ = (label, free, on) => {
+      const p = pick(on);
+      return { label, free, bg: p.bg, border: p.border, fg: p.fg, sub: on ? '#ff8ea0' : '#5b6170' };
+    };
+
+    const duration = (label, price, on) => {
+      const p = pick(on);
+      return { label, price, bg: p.bg, border: p.border, fg: p.fg, priceFg: on ? '#ffffff' : '#8a8f9c' };
+    };
+
+    const time = (label, on) => ({ label, ...pick(on) });
+
+    // Three states, and the seat map is the reason this screen exists: the
+    // booking now holds a specific machine, so the customer should be the one
+    // choosing which.
+    const seat = (name, state) => {
+      if (state === 'busy') {
+        return {
+          name, state: 'BUSY',
+          bg: 'rgba(239,68,68,0.07)', border: 'rgba(239,68,68,0.32)', glow: 'none',
+          fg: '#6f7581', stateFg: '#ef4444', iconFg: '#6f7581',
+        };
+      }
+      if (state === 'picked') {
+        return {
+          name, state: 'YOURS',
+          bg: 'rgba(0,240,255,0.10)', border: '#00f0ff',
+          glow: '0 0 0 1px rgba(0,240,255,0.5), 0 0 28px -6px rgba(0,240,255,0.65)',
+          fg: '#ffffff', stateFg: '#00f0ff', iconFg: '#00f0ff',
+        };
+      }
+      return {
+        name, state: 'FREE',
+        bg: 'rgba(16,185,129,0.055)', border: 'rgba(16,185,129,0.30)', glow: 'none',
+        fg: '#e7e9ee', stateFg: '#34d399', iconFg: '#34d399',
+      };
+    };
+
+    return {
+      accent,
+      consoles: [console_('PC', '3/4', true), console_('PS5', '1/3', false), console_('Racing', '2/2', false)],
+      durations: [duration('30 min', '₹70', false), duration('1 hour', '₹100', true), duration('2 hours', '₹200', false)],
+      seats: [seat('PC-01', 'busy'), seat('PC-02', 'picked'), seat('PC-03', 'free'), seat('PC-04', 'free')],
+      legend: [
+        { label: 'Free', dot: '#34d399' },
+        { label: 'Your pick', dot: '#00f0ff' },
+        { label: 'In use', dot: '#ef4444' },
+      ],
+      times: [time('Now', true), time('4:00', false), time('4:30', false), time('5:00', false)],
+    };
+  }
+}
+</script>
+</body>
+</html>
