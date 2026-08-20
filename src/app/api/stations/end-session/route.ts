@@ -7,6 +7,7 @@ import {
   requireStationToken,
 } from "@/lib/stationAgentAuth";
 import { getIndiaDateString } from "@/lib/bookingFilters";
+import { stationAssignmentFields } from "@/lib/ownerStationAssignments";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,16 @@ export async function POST(request: NextRequest) {
     const endedAt = new Date();
 
     const settled = await settleSubscriptions(supabase, identity.cafeId, identity.stationName, endedAt);
-    await completeBooking(supabase, identity.cafeId, identity.stationName, settled.minutesPlayed);
+
+    // At least a minute once anything settled at all. Rounding a very short
+    // sitting to zero used to leave the booking claiming its full backstop -
+    // five hours for a membership - and the dashboard reads a booking's
+    // duration to decide whether a seat is busy, so the café would have been
+    // unable to sell that machine for the rest of the block the customer had
+    // already walked away from.
+    const minutesPlayed = settled.count > 0 ? Math.max(1, settled.minutesPlayed) : 0;
+
+    await completeBooking(supabase, identity.cafeId, identity.stationName, minutesPlayed);
 
     return NextResponse.json({
       settled: settled.count > 0,
@@ -223,7 +233,8 @@ async function completeBooking(
     // anybody bought — it was the backstop that stops a walked-away machine
     // sitting unlocked. Once the session really ends, what they played is the
     // truthful number. An hourly booking keeps the block they paid for.
-    if (request.request_type !== "hourly" && minutesPlayed > 0) {
+    const rewriteDuration = request.request_type !== "hourly" && minutesPlayed > 0;
+    if (rewriteDuration) {
       updates.duration = minutesPlayed;
     }
 
@@ -235,6 +246,23 @@ async function completeBooking(
 
     if (error) {
       console.warn("Could not complete the booking on session end:", error.message);
+      return;
+    }
+
+    // The item's title carries the minutes too, and it is the one that counts:
+    // reports read the duration out of "300|pc-01" and fall back to the
+    // booking's own column only when that cannot be parsed. Leaving the title
+    // alone would have every membership sitting reported at its full backstop
+    // however briefly the customer actually played.
+    if (rewriteDuration) {
+      const { error: itemError } = await supabase
+        .from("booking_items")
+        .update(stationAssignmentFields(minutesPlayed, [stationName]))
+        .eq("booking_id", request.booking_id);
+
+      if (itemError) {
+        console.warn("Could not correct the booking item on session end:", itemError.message);
+      }
     }
   } catch (err) {
     console.warn("Could not complete the booking on session end:", err);
