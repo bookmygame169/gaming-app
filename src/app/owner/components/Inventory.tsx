@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import {
   Package,
   Plus,
@@ -23,6 +22,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import InventoryAnalytics from "./InventoryAnalytics";
+import { fetchInventory } from "@/app/owner/ownerLookup";
 import {
   InventoryItem,
   InventoryCategory,
@@ -93,14 +93,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
   const loadItems = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("inventory_items")
-        .select("*")
-        .eq("cafe_id", cafeId)
-        .order("category", { ascending: true })
-        .order("name", { ascending: true });
-      if (error) throw error;
-      setItems(data || []);
+      setItems(await fetchInventory<InventoryItem>(cafeId));
     } catch (err) {
       console.error("Error loading inventory:", err);
       setError("Failed to load inventory");

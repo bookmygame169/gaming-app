@@ -4,7 +4,6 @@
 
 import { ChevronRight, Clock3, Loader2, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { supabase } from '@/lib/supabaseClient';
 import { buildStationPricingMap } from '@/lib/stationNames';
 import { formatDurationLabel } from '../utils';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
@@ -14,6 +13,7 @@ import { ToastContainer } from './ToastContainer';
 import OwnerPWAInstaller from './OwnerPWAInstaller';
 import { useOwnerDashboard } from '../context/OwnerDashboardContext';
 import { findMembershipSubscriptionForBooking, type TimeAdjustmentTarget } from '../utils/dashboardHelpers';
+import { fetchStationPricing } from "@/app/owner/ownerLookup";
 
 const SnackSaleModal = dynamic(() => import('./SnackSaleModal'), { ssr: false });
 const AddItemsModal = dynamic(() => import('./AddItemsModal'), { ssr: false });
@@ -1070,12 +1070,9 @@ export function OwnerDashboardModals() {
                       }
 
                       // Reload station pricing to update the table
-                      const { data: updatedPricing } = await supabase
-                        .from("station_pricing")
-                        .select("*")
-                        .eq("cafe_id", currentCafeId);
+                      const updatedPricing = await fetchStationPricing<Record<string, unknown>>(currentCafeId);
 
-                      if (updatedPricing) {
+                      if (updatedPricing.length > 0) {
                         setStationPricing(buildStationPricingMap(updatedPricing as any[]));
                       }
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Button, Select } from './ui';
-import { supabase } from '@/lib/supabaseClient';
 import {
     getBookingGamingTotal,
     getBookingRevenueTotal,
@@ -11,6 +10,7 @@ import {
     isBillableRevenueBooking,
 } from '@/lib/ownerRevenue';
 import { getTimezoneOffset } from '../utils';
+import { fetchInventory, fetchOrdersInRange } from "@/app/owner/ownerLookup";
 import {
     InventoryItem,
     BookingOrder as InventoryBookingOrder,
@@ -261,12 +261,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             const now = new Date();
 
             // Step 1: get cafe's inventory items (for cost/category data)
-            const { data: items } = await supabase
-                .from('inventory_items')
-                .select('*')
-                .eq('cafe_id', cafeId);
-
-            const inventoryRows = (items || []) as InventoryItem[];
+            const inventoryRows = await fetchInventory<InventoryItem>(cafeId);
             setSnackInventoryItems(inventoryRows);
             const itemIds = inventoryRows.map((item) => item.id);
 
@@ -276,19 +271,13 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             }
 
             // Step 2: get booking_orders for those item IDs in the date range
-            const { data: orders, error } = await supabase
-                .from('booking_orders')
-                .select('*, bookings!inner(id, customer_name, customer_phone, booking_date, start_time, payment_mode, status)')
-                .in('inventory_item_id', itemIds)
-                .neq('bookings.status', 'cancelled')
-                .neq('bookings.payment_mode', 'owner')
-                .is('bookings.deleted_at', null)
-                .gte('ordered_at', `${startDate}T00:00:00.000${getTimezoneOffset(now)}`)
-                .lte('ordered_at', `${endDate}T23:59:59.999${getTimezoneOffset(now)}`)
-                .order('ordered_at', { ascending: false });
-
-            if (error) console.error('Error fetching snack orders:', error);
-            setSnackOrders((orders as EnrichedSnackOrder[]) || []);
+            setSnackOrders(
+                await fetchOrdersInRange<EnrichedSnackOrder>(
+                    cafeId,
+                    `${startDate}T00:00:00.000${getTimezoneOffset(now)}`,
+                    `${endDate}T23:59:59.999${getTimezoneOffset(now)}`
+                )
+            );
         } catch (err) {
             console.error('Error fetching snack data:', err);
         } finally {

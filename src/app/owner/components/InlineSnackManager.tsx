@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { Plus, Minus, Trash2, Loader2, ShoppingCart, Check, Package } from 'lucide-react';
 import { InventoryItem, BookingOrder } from '@/types/inventory';
+import { fetchBookingUpdatedAt, fetchInventory, fetchOrdersForBooking } from "@/app/owner/ownerLookup";
 
 interface Props {
   bookingId: string;
@@ -22,9 +22,8 @@ interface CartItem {
   quantity: number;
 }
 
-async function getBookingUpdatedAt(bookingId: string): Promise<string | null> {
-  const { data } = await supabase.from('bookings').select('updated_at').eq('id', bookingId).single();
-  return data?.updated_at ?? null;
+async function getBookingUpdatedAt(cafeId: string, bookingId: string): Promise<string | null> {
+  return fetchBookingUpdatedAt(cafeId, bookingId);
 }
 
 export default function InlineSnackManager({ bookingId, cafeId, existingOrders, onOrdersUpdated }: Props) {
@@ -43,16 +42,7 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
   const loadInventory = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('inventory_items')
-        .select('*')
-        .eq('cafe_id', cafeId)
-        .eq('is_available', true)
-        .gt('stock_quantity', 0)
-        .order('category')
-        .order('name');
-      if (error) throw error;
-      setInventory(data || []);
+      setInventory(await fetchInventory<InventoryItem>(cafeId, { availableOnly: true, inStockOnly: true }));
     } catch (e) {
       console.error('InlineSnackManager: failed to load inventory', e);
     } finally {
@@ -109,13 +99,13 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
       }
 
       // Reload orders
-      const { data: latestOrders } = await supabase.from('booking_orders').select('*').eq('booking_id', bookingId).order('ordered_at', { ascending: false });
+      const latestOrders = await fetchOrdersForBooking<BookingOrder>(cafeId, bookingId);
       const next = latestOrders || [];
       setOrders(next);
       setCart([]);
       loadInventory();
 
-      const updatedAt = await getBookingUpdatedAt(bookingId);
+      const updatedAt = await getBookingUpdatedAt(cafeId, bookingId);
       onOrdersUpdated({ amountDelta: Number(result.amountAdded) || 0, bookingId, orders: next, updatedAt });
 
       setAddedAnim(true);
@@ -145,7 +135,7 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
       setOrders(next);
       loadInventory();
 
-      const updatedAt = await getBookingUpdatedAt(bookingId);
+      const updatedAt = await getBookingUpdatedAt(cafeId, bookingId);
       onOrdersUpdated({ amountDelta: -(Number(result.amountRemoved ?? order.total_price) || 0), bookingId, orders: next, updatedAt });
     } catch (e) {
       console.error('InlineSnackManager: remove failed', e);

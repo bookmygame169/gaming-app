@@ -7,6 +7,7 @@ import {
   Coffee, Cookie, Gift, GlassWater, Banknote, Smartphone, User, Lock, ChevronRight,
 } from "lucide-react";
 import { InventoryItem, InventoryCategory, CartItem, CATEGORY_LABELS } from "@/types/inventory";
+import { fetchInventory, searchCustomersByName } from "@/app/owner/ownerLookup";
 
 interface SnackSaleModalProps {
   isOpen: boolean;
@@ -45,16 +46,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
   const loadInventory = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("inventory_items")
-        .select("*")
-        .eq("cafe_id", cafeId)
-        .eq("is_available", true)
-        .gt("stock_quantity", 0)
-        .order("category")
-        .order("name");
-      if (error) throw error;
-      setItems(data || []);
+      setItems(await fetchInventory<InventoryItem>(cafeId, { availableOnly: true, inStockOnly: true }));
     } catch (err) {
       console.error("Error loading inventory:", err);
     } finally {
@@ -79,14 +71,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
 
   const searchCustomers = useCallback(async (query: string) => {
     if (query.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
-    const [bookingsRes, profilesRes] = await Promise.all([
-      supabase
-        .from("bookings")
-        .select("customer_name, customer_phone")
-        .eq("cafe_id", cafeId)
-        .ilike("customer_name", `%${query}%`)
-        .not("customer_name", "is", null)
-        .limit(8),
+    const [bookingMatches, profilesRes] = await Promise.all([
+      searchCustomersByName<{ customer_name: string | null; customer_phone: string | null }>(cafeId, query),
       supabase
         .from("profiles")
         .select("first_name, last_name, phone")
@@ -105,7 +91,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
       }
     });
 
-    bookingsRes.data?.forEach((b) => {
+    bookingMatches.forEach((b) => {
       if (b.customer_name && !seen.has(b.customer_name.toLowerCase())) {
         seen.add(b.customer_name.toLowerCase());
         results.push({ name: b.customer_name, phone: b.customer_phone || null });

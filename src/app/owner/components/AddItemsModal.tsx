@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchInventory } from "@/app/owner/ownerLookup";
 import {
   X,
   Plus,
@@ -59,17 +59,7 @@ export default function AddItemsModal({
   const loadInventory = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("inventory_items")
-        .select("*")
-        .eq("cafe_id", cafeId)
-        .eq("is_available", true)
-        .gt("stock_quantity", 0)
-        .order("category")
-        .order("name");
-
-      if (error) throw error;
-      setItems(data || []);
+      setItems(await fetchInventory<InventoryItem>(cafeId, { availableOnly: true, inStockOnly: true }));
     } catch (err) {
       console.error("Error loading inventory:", err);
     } finally {

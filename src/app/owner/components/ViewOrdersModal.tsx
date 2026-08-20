@@ -3,9 +3,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { X, Trash2, Loader2, ShoppingBag, Package, Plus, Minus } from "lucide-react";
 import { BookingOrder, InventoryItem } from "@/types/inventory";
+import { fetchBookingUpdatedAt, fetchInventory, fetchOrdersForBooking } from "@/app/owner/ownerLookup";
 
 interface ViewOrdersModalProps {
   isOpen: boolean;
@@ -24,11 +24,6 @@ interface ViewOrdersModalProps {
 interface CartItem {
   item: InventoryItem;
   quantity: number;
-}
-
-function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
-  const message = error?.message?.toLowerCase() || "";
-  return message.includes("bookings.updated_at") && message.includes("does not exist");
 }
 
 export default function ViewOrdersModal({
@@ -50,14 +45,7 @@ export default function ViewOrdersModal({
   const loadOrders = useCallback(async (): Promise<BookingOrder[]> => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("booking_orders")
-        .select("*")
-        .eq("booking_id", bookingId)
-        .order("ordered_at", { ascending: false });
-
-      if (error) throw error;
-      const nextOrders = data || [];
+      const nextOrders = await fetchOrdersForBooking<BookingOrder>(cafeId, bookingId);
       setOrders(nextOrders);
       return nextOrders;
     } catch (err) {
@@ -66,37 +54,17 @@ export default function ViewOrdersModal({
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  }, [bookingId, cafeId]);
 
   async function loadBookingUpdatedAt(): Promise<string | null> {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("updated_at")
-      .eq("id", bookingId)
-      .single();
-
-    if (error) {
-      if (!isMissingBookingsUpdatedAtError(error)) {
-        console.error("Error fetching booking metadata:", error);
-      }
-      return null;
-    }
-
-    return data?.updated_at ?? null;
+    return fetchBookingUpdatedAt(cafeId, bookingId);
   }
 
   const loadInventory = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("inventory_items")
-        .select("*")
-        .eq("cafe_id", cafeId)
-        .eq("is_available", true)
-        .gt("stock_quantity", 0)
-        .order("name");
-
-      if (error) throw error;
-      setInventoryItems(data || []);
+      setInventoryItems(
+        await fetchInventory<InventoryItem>(cafeId, { availableOnly: true, inStockOnly: true, orderBy: "name" })
+      );
     } catch (err) {
       console.error("Error loading inventory:", err);
     }
