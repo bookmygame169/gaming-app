@@ -18,12 +18,16 @@ internal sealed class LockedScreenForm : Form
     /// <summary>Fallback for the dev chords if the keyboard hook is not installed.</summary>
     public event EventHandler<DevChord>? DevChordPressed;
 
+    /// <summary>Raised when the customer wants to buy time from this screen.</summary>
+    public event EventHandler? PayNowRequested;
+
     private readonly AgentConfig _config;
 
     private Label _connectionLabel = null!;
     private Label? _devBadge;
     private Panel? _stationBadge;
     private Panel? _card;
+    private Button? _payNowButton;
     private Image? _scanCode;
 
     // Every measurement here was laid out as a browser page first and looked
@@ -49,8 +53,14 @@ internal sealed class LockedScreenForm : Form
     private const int StationGap = 78;
     private const int HintGap = 118;
 
+    /// <summary>Where the Pay Now button sits, below the hint line.</summary>
+    private const int PayButtonGap = HintGap + 34;
+
+    private const int PayButtonWidth = 300;
+    private const int PayButtonHeight = 52;
+
     /// <summary>What sits below the content block, plus the margin under it.</summary>
-    private const int TailHeight = HintGap + 18 + 44;
+    private const int TailHeight = PayButtonGap + PayButtonHeight + 34;
 
     private static int CardHeightFor(bool withCode) =>
         ContentTop + (withCode ? CodeSize : PlateHeight) + TailHeight;
@@ -93,6 +103,7 @@ internal sealed class LockedScreenForm : Form
             // cell, so changing the height moves it back to the middle on its
             // own rather than growing downwards off the bottom.
             _card.Height = CardHeightFor(withCode: code is not null);
+            PositionPayNowButton();
             _card.Invalidate();
         }
     }
@@ -275,6 +286,27 @@ internal sealed class LockedScreenForm : Form
 
         _card = card;
 
+        // A real control rather than another thing drawn in the Paint handler:
+        // this one has to be clickable, and the rest of the card is a picture.
+        _payNowButton = new Button
+        {
+            Text = "Pay and play",
+            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            ForeColor = Color.White,
+            BackColor = Palette.Accent,
+            FlatStyle = FlatStyle.Flat,
+            Width = PayButtonWidth,
+            Height = PayButtonHeight,
+            Cursor = Cursors.Hand,
+            FlatAppearance = { BorderSize = 0 },
+        };
+
+        _payNowButton.Click += (_, _) => PayNowRequested?.Invoke(this, EventArgs.Empty);
+        Theme.RoundCorners(_payNowButton, 12);
+
+        card.Controls.Add(_payNowButton);
+        PositionPayNowButton();
+
         card.Paint += (_, e) =>
         {
             var g = e.Graphics;
@@ -310,9 +342,15 @@ internal sealed class LockedScreenForm : Form
 
             var below = (float)(ContentTop + (_scanCode is not null ? CodeSize : PlateHeight));
 
+            // Both routes named, because both now exist on this screen. The
+            // second half used to read "ASK AT THE COUNTER TO START", which was
+            // the whole truth until the button below was added and would now
+            // send a customer across the room past the thing they can tap.
             Theme.DrawTrackedCentred(
                 g,
-                _scanCode is not null ? "SCAN TO PAY FROM YOUR APP" : "ASK AT THE COUNTER TO START",
+                _scanCode is not null
+                    ? "SCAN WITH YOUR PHONE, OR PAY BELOW"
+                    : "PAY BELOW, OR ASK AT THE COUNTER",
                 callFont, Palette.TextMuted, card.Width, below + CallGap, 3f);
 
             Theme.DrawDivider(g, card.Width, below + RuleGap, 300, Palette.Divider);
@@ -323,11 +361,33 @@ internal sealed class LockedScreenForm : Form
             Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont,
                 Palette.Accent, card.Width, below + StationGap, 6f);
 
-            Theme.DrawTrackedCentred(g, "Or ask at the counter and tell them this number.",
+            Theme.DrawTrackedCentred(g, "At the counter, tell them this number.",
                 noteFont, Palette.TextFaint, card.Width, below + HintGap, 0.4f);
         };
 
         return card;
+    }
+
+    /// <summary>
+    /// Puts the button under the hint line, wherever that has ended up.
+    /// </summary>
+    /// <remarks>
+    /// The card grows and shrinks as the scan code comes and goes, so this is
+    /// recomputed rather than set once. Everything else on the card is painted
+    /// from the same `below` measurement; the button is the only child control,
+    /// and it has to agree with the picture around it.
+    /// </remarks>
+    private void PositionPayNowButton()
+    {
+        if (_payNowButton is null || _card is null)
+        {
+            return;
+        }
+
+        var below = ContentTop + (_scanCode is not null ? CodeSize : PlateHeight);
+
+        _payNowButton.Left = (_card.Width - PayButtonWidth) / 2;
+        _payNowButton.Top = below + PayButtonGap;
     }
 
     /// <summary>

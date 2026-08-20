@@ -29,6 +29,8 @@ internal sealed class AgentShell : ApplicationContext
     private readonly ReturnToGamePromptForm _returnToGamePrompt;
     private readonly ScreenBlanker _screenBlanker;
     private readonly UnlockQrProvider _unlockQr;
+    private readonly PlayRequestClient _playRequests;
+    private PayNowForm? _payNow;
     private readonly System.Windows.Forms.Timer _foregroundWatchTimer;
 
     private bool _exiting;
@@ -75,6 +77,9 @@ internal sealed class AgentShell : ApplicationContext
 
         _lockedScreen.DevChordPressed += OnDevChordPressed;
         _gameMenu.DevChordPressed += OnDevChordPressed;
+
+        _playRequests = new PlayRequestClient(config);
+        _lockedScreen.PayNowRequested += (_, _) => OpenPayNow();
 
         _mqttService.UnlockRequested += OnUnlockRequested;
         _mqttService.LockRequested += (_, _) => ApplyLocked();
@@ -175,6 +180,12 @@ internal sealed class AgentShell : ApplicationContext
 
     private void EnterUnlockedState(string? sessionId)
     {
+        // Whatever opened this station, the Pay Now window is finished with.
+        // It closes on the unlock rather than on its own poll seeing an
+        // approval, so that staff unlocking from the dashboard clears it too —
+        // and so there is only ever one path from "approved" to "playing".
+        _payNow?.CloseAfterUnlock();
+
         // Stops asking, and clears whatever was drawn. Both matter: a code left
         // on a machine somebody has just paid for is one another customer could
         // scan to buy time on a PC already in use.
@@ -187,6 +198,31 @@ internal sealed class AgentShell : ApplicationContext
         _lockedScreen.Hide();
 
         ReportState(locked: false, sessionId: sessionId);
+    }
+
+    /// <summary>
+    /// Opens the buy-time flow over the lock screen.
+    /// </summary>
+    /// <remarks>
+    /// Built on first use and kept afterwards. Most stations never see it — the
+    /// counter and the phone QR are still the common routes — and a form this
+    /// size is not worth holding open on every machine for the ones that do not.
+    /// </remarks>
+    private void OpenPayNow()
+    {
+        if (_payNow is null || _payNow.IsDisposed)
+        {
+            _payNow = new PayNowForm(_config, _playRequests);
+            _payNow.Dismissed += (_, _) =>
+            {
+                // Back to the lock screen, and back on top of it: the lock
+                // screen is TopMost, and closing a window over it must not
+                // leave the desktop reachable underneath.
+                _lockedScreen.ShowLocked(reassertTopMost: !_lockService.Passthrough);
+            };
+        }
+
+        _ = _payNow.StartAsync();
     }
 
     private void OnSessionExpired()

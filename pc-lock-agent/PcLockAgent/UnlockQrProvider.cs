@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using QRCoder;
 
 namespace PcLockAgent;
 
@@ -134,7 +133,7 @@ internal sealed class UnlockQrProvider : IDisposable
                 return;
             }
 
-            var image = Render(url);
+            var image = QrImage.Render(url);
 
             // The timer runs on the UI thread but the await above did not, so
             // this continuation may not be there either. The subscriber marshals
@@ -154,38 +153,6 @@ internal sealed class UnlockQrProvider : IDisposable
             // means the customer walks to the counter, which is what the screen
             // tells them anyway.
             AgentLog.Warn($"Scan code refresh failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>Draws the code as a black-on-white square.</summary>
-    /// <remarks>
-    /// Deliberately not themed. Phone cameras read a QR by contrast, and a
-    /// tastefully dark one on a dark screen is a support call — the white
-    /// quiet zone around it is part of the specification, not a border that
-    /// can be trimmed for looks.
-    /// </remarks>
-    private static Image? Render(string url)
-    {
-        try
-        {
-            using var generator = new QRCodeGenerator();
-
-            // Q corrects about a quarter of the symbol. Worth the extra density
-            // here: these are read at an angle, off a glossy panel, in a room
-            // lit for gaming rather than for scanning.
-            using var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
-            using var code = new PngByteQRCode(data);
-
-            var png = code.GetGraphic(10);
-            using var stream = new MemoryStream(png);
-            using var loaded = Image.FromStream(stream);
-
-            return new Bitmap(loaded);
-        }
-        catch (Exception ex)
-        {
-            AgentLog.Warn($"Could not draw the scan code: {ex.Message}");
-            return null;
         }
     }
 
