@@ -141,6 +141,10 @@ internal static class GameWindowFocus
         return TrySetForeground(hwnd);
     }
 
+    /// <summary>Brings one known window to the front, restoring it if minimised.</summary>
+    public static bool TryBringToFront(IntPtr hwnd)
+        => hwnd != IntPtr.Zero && TrySetForeground(hwnd);
+
     private static IntPtr FindBestWindowForProcessName(string processName)
     {
         var processes = Process.GetProcessesByName(processName);

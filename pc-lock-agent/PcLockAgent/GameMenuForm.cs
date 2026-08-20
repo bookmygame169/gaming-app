@@ -65,6 +65,7 @@ internal sealed class GameMenuForm : Form
 
     private readonly AgentConfig _config;
     private Process? _runningProcess;
+    private TaskbarStrip _taskbar = null!;
     private Label _statusLabel = null!;
     private Label _remainingLabel = null!;
 
@@ -210,19 +211,108 @@ internal sealed class GameMenuForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 4,
             BackColor = Color.Transparent,
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, TaskbarStrip.PreferredHeight));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         root.Controls.Add(BuildHeader(), 0, 0);
         root.Controls.Add(BuildTileArea(), 0, 1);
-        root.Controls.Add(BuildFooter(), 0, 2);
+        root.Controls.Add(BuildTaskbar(), 0, 2);
+        root.Controls.Add(BuildFooter(), 0, 3);
 
         Controls.Add(root);
+    }
+
+    /// <summary>
+    /// The strip of open windows along the bottom of the menu.
+    /// </summary>
+    /// <remarks>
+    /// Put here, on the menu itself, rather than floating over everything.
+    /// A bar that stayed on top during play would be a strip of this agent's
+    /// pixels across a fullscreen game, and it is only needed at the moment the
+    /// customer is looking at this screen wondering where their game went.
+    /// </remarks>
+    private Control BuildTaskbar()
+    {
+        _taskbar = new TaskbarStrip { Dock = DockStyle.Fill };
+
+        _taskbar.WindowActivated += (_, window) => SwitchToWindow(window);
+        _taskbar.WindowClosed += (_, window) =>
+        {
+            _statusLabel.Text = $"Closing {window.Title}…";
+            _statusLabel.ForeColor = Palette.TextMuted;
+        };
+
+        return _taskbar;
+    }
+
+    /// <summary>
+    /// Brings a window the customer picked from the strip to the front.
+    /// </summary>
+    /// <remarks>
+    /// This is the manual way out of the problem the foreground watch is meant
+    /// to handle automatically: a game that started but never came forward. The
+    /// watch has to guess which window matters and when, and has been wrong
+    /// about it more than once. A customer pointing at the thing they want
+    /// cannot be wrong about it.
+    /// </remarks>
+    private void SwitchToWindow(RunningWindow window)
+    {
+        // This menu is deliberately above everything else on the screen.
+        // Nothing the customer picks can come forward while it stays that way.
+        TopMost = false;
+
+        if (!RunningWindows.Activate(window))
+        {
+            AgentLog.Warn($"Could not bring '{window.Title}' to the front.");
+            _statusLabel.Text = $"{window.Title} did not come forward. Tap it again.";
+            _statusLabel.ForeColor = Palette.Accent;
+            return;
+        }
+
+        AgentLog.Info($"Customer switched to '{window.Title}' from the taskbar.");
+        _statusLabel.Text = $"Switched to {window.Title}.";
+        _statusLabel.ForeColor = Palette.TextMuted;
+
+        // Only the game gets the menu hidden out from under it. Everything else
+        // — a launcher, a browser — sits in front of a menu that stays opaque,
+        // which is what keeps the desktop covered while they use it.
+        if (BelongsToRunningGame(window))
+        {
+            StepAsideForGame();
+        }
+    }
+
+    private bool BelongsToRunningGame(RunningWindow window)
+    {
+        if (!IsGameRunning || string.IsNullOrWhiteSpace(window.ProcessName))
+        {
+            return false;
+        }
+
+        foreach (var name in GetActiveProcessNames())
+        {
+            if (string.Equals(name, window.ProcessName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Polls for open windows only while this menu can actually be seen.
+    /// </summary>
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        _taskbar?.SetActive(Visible && !_playingHiddenOverlay);
     }
 
     private Control BuildHeader()
@@ -1294,6 +1384,7 @@ internal sealed class GameMenuForm : Form
         _playingHiddenOverlay = true;
         Opacity = 0;
         WindowClickThrough.SetEnabled(this, true);
+        _taskbar?.SetActive(false);
     }
 
     /// <summary>
@@ -1355,6 +1446,11 @@ internal sealed class GameMenuForm : Form
 
     private void RestoreVisibleOverlay()
     {
+        // Before the early return, not after: the menu is also made visible by
+        // paths that never hid it, and the strip would be a row of stale
+        // buttons on every one of them.
+        _taskbar?.SetActive(true);
+
         if (!_playingHiddenOverlay)
         {
             return;
