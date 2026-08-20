@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { colors, fonts } from "@/lib/constants";
+import { fetchAdminCafeBookings } from "@/app/admin/adminLookup";
 
 type CafeRow = {
   id: string;
@@ -75,26 +76,12 @@ export default function AdminCafeDetailPage() {
         setCafe(cafeRow as CafeRow);
       }
 
-      // 2) Load bookings for this café
-      const { data: bookingRows, error: bError } = await supabase
-        .from("bookings")
-        .select(
-          "id, cafe_id, booking_date, start_time, total_amount, status, source, created_at"
-        )
-        .eq("cafe_id", cafeId)
-        .order("booking_date", { ascending: false })
-        .order("start_time", { ascending: false });
-
-      if (bError) {
-        console.error("[AdminCafeDetail] bookings error:", bError);
-        if (!cancelled) {
-          setBookingsError(
-            bError.message || "Could not load bookings for this café."
-          );
-          setBookings([]);
-        }
-      } else if (!cancelled) {
-        setBookings((bookingRows ?? []) as BookingRow[]);
+      // 2) Load bookings for this café, through the server: the browser can
+      //    no longer read this table directly, and should never have been able
+      //    to read every café's.
+      const bookingRows = await fetchAdminCafeBookings<BookingRow>(cafeId);
+      if (!cancelled) {
+        setBookings(bookingRows);
       }
 
       if (!cancelled) setLoading(false);

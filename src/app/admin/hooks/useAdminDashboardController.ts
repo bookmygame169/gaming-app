@@ -9,6 +9,20 @@ import { logAdminAction } from "@/lib/auditLog";
 import { useAdminAuth } from "@/app/admin/hooks/useAdminAuth";
 import { adminPathForTab } from "@/app/admin/navigation";
 import type { AdminRouteTab } from "@/app/admin/navigation";
+import {
+  fetchAdminBookings,
+  fetchAdminCoupons,
+  fetchAdminCustomers,
+  fetchAdminSubscriptions,
+  fetchBookingStats,
+  fetchCafeRollup,
+  fetchUserRollup,
+  fetchAdminCafeBookings,
+  fetchAdminCafeCoupons,
+  fetchAdminCafeMembershipPlans,
+  fetchAdminReportBookings,
+  fetchAdminUserBookings,
+} from "@/app/admin/adminLookup";
 import type {
   AdminStats,
   CafeRow,
@@ -307,42 +321,32 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
           { count: totalCafes },
           { count: activeCafes },
           { count: pendingCafes },
-          { count: totalBookings },
-          { count: todayBookings },
           { count: totalUsers },
           { count: totalOwners },
-          { data: todayRevData },
-          { data: weekRevData },
-          { data: monthRevData },
-          { data: totalRevData },
+          bookingStats,
         ] = await Promise.all([
           supabase.from("cafes").select("id", { count: "exact", head: true }),
           supabase.from("cafes").select("id", { count: "exact", head: true }).eq("is_active", true),
           supabase.from("cafes").select("id", { count: "exact", head: true }).eq("is_active", false),
-          supabase.from("bookings").select("id", { count: "exact", head: true }).is("deleted_at", null),
-          supabase.from("bookings").select("id", { count: "exact", head: true }).eq("booking_date", todayStr).is("deleted_at", null),
           supabase.from("profiles").select("id", { count: "exact", head: true }),
           supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "owner"),
-          supabase.from("bookings").select("total_amount").eq("booking_date", todayStr).is("deleted_at", null).neq("status", "cancelled"),
-          supabase.from("bookings").select("total_amount").gte("booking_date", weekStr).is("deleted_at", null).neq("status", "cancelled"),
-          supabase.from("bookings").select("total_amount").gte("booking_date", monthStr).is("deleted_at", null).neq("status", "cancelled"),
-          supabase.from("bookings").select("total_amount").is("deleted_at", null).neq("status", "cancelled"),
+          // Every booking figure in one server call. The browser may no longer
+          // read this table, and these were four separate scans of it besides.
+          fetchBookingStats(todayStr, weekStr, monthStr),
         ]);
-
-        const sum = (rows: any[] | null) => (rows || []).reduce((s, b) => s + (b.total_amount || 0), 0);
 
         setStats({
           totalCafes: totalCafes || 0,
           activeCafes: activeCafes || 0,
           pendingCafes: pendingCafes || 0,
-          totalBookings: totalBookings || 0,
-          todayBookings: todayBookings || 0,
+          totalBookings: bookingStats.totalBookings,
+          todayBookings: bookingStats.todayBookings,
           totalUsers: totalUsers || 0,
           totalOwners: totalOwners || 0,
-          todayRevenue: sum(todayRevData),
-          weekRevenue: sum(weekRevData),
-          monthRevenue: sum(monthRevData),
-          totalRevenue: sum(totalRevData),
+          todayRevenue: bookingStats.revenueToday,
+          weekRevenue: bookingStats.revenueWeek,
+          monthRevenue: bookingStats.revenueMonth,
+          totalRevenue: bookingStats.revenueAll,
         });
       } catch (err) {
         console.error("Error loading stats:", err);
@@ -396,6 +400,10 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
 
         if (error) throw error;
 
+        // Counts and revenue for every café in one server call, instead of two
+        // browser round trips per café.
+        const cafeRollup = await fetchCafeRollup();
+
         const enrichedCafes = await Promise.all(
           (data || []).map(async (cafe) => {
             const { data: owner } = await supabase
@@ -404,17 +412,8 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
               .eq("id", cafe.owner_id)
               .maybeSingle();
 
-            const { count: bookingCount } = await supabase
-              .from("bookings")
-              .select("id", { count: "exact", head: true })
-              .eq("cafe_id", cafe.id);
-
-            const { data: revenueData } = await supabase
-              .from("bookings")
-              .select("total_amount")
-              .eq("cafe_id", cafe.id);
-
-            const totalRevenue = revenueData?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+            const bookingCount = cafeRollup[cafe.id]?.bookings ?? 0;
+            const totalRevenue = cafeRollup[cafe.id]?.revenue ?? 0;
 
             const ownerName = owner
               ? [owner.first_name, owner.last_name].filter(Boolean).join(" ") || "Unknown Owner"
@@ -465,26 +464,17 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
           return;
         }
 
+        // Same again for users: one pass server-side rather than three queries
+        // per person in a browser loop.
+        const userRollup = await fetchUserRollup();
+
         const enrichedUsers = await Promise.all(
           (data || []).map(async (profile) => {
-            const { count: bookingCount } = await supabase
-              .from("bookings")
-              .select("id", { count: "exact", head: true })
-              .eq("user_id", profile.id);
-
-            const { data: bookingData } = await supabase
-              .from("bookings")
-              .select("total_amount, created_at")
-              .eq("user_id", profile.id)
-              .order("created_at", { ascending: false })
-              .limit(1);
-
-            const { data: revenueData } = await supabase
-              .from("bookings")
-              .select("total_amount")
-              .eq("user_id", profile.id);
-
-            const totalSpent = revenueData?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+            const bookingCount = userRollup[profile.id]?.bookings ?? 0;
+            const totalSpent = userRollup[profile.id]?.revenue ?? 0;
+            const bookingData = userRollup[profile.id]?.lastBookingAt
+              ? [{ created_at: userRollup[profile.id]!.lastBookingAt }]
+              : [];
 
             // Combine first_name and last_name into name
             const name = [profile.first_name, profile.last_name]
@@ -503,7 +493,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
               created_at: profile.created_at,
               total_bookings: bookingCount || 0,
               total_spent: totalSpent,
-              last_booking: bookingData?.[0]?.created_at || null,
+              last_booking: bookingData?.[0]?.created_at ?? undefined,
             };
           })
         );
@@ -528,26 +518,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
       try {
         setLoadingData(true);
 
-        const { data, error } = await supabase
-          .from("bookings")
-          .select(`
-            id,
-            cafe_id,
-            user_id,
-            booking_date,
-            start_time,
-            duration,
-            total_amount,
-            status,
-            source,
-            customer_name,
-            customer_phone,
-            created_at
-          `)
-          .order("created_at", { ascending: false })
-          .limit(100);
-
-        if (error) throw error;
+        const data = await fetchAdminBookings<BookingRow>(100);
 
         const enrichedBookings = await Promise.all(
           (data || []).map(async (booking) => {
@@ -595,15 +566,14 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     async function loadOfflineCustomers() {
       try {
         setOfflineCustomersLoading(true);
-        const { data, error } = await supabase
-          .from("bookings")
-          .select("customer_name, customer_phone, cafe_id, total_amount, booking_date, cafes(name)")
-          .not("customer_phone", "is", null)
-          .not("customer_name", "is", null)
-          .neq("customer_name", "")
-          .is("deleted_at", null)
-          .order("booking_date", { ascending: false });
-        if (error) throw error;
+        const data = await fetchAdminCustomers<{
+          customer_name: string;
+          customer_phone: string;
+          cafe_id: string;
+          total_amount: number | string | null;
+          booking_date: string;
+          cafes?: { name?: string } | null;
+        }>();
         // Group by phone number
         const map = new Map<string, OfflineCustomer>();
         for (const b of data || []) {
@@ -707,10 +677,8 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
         setLoadingData(true);
         setError(null);
 
-        const { data, error } = await supabase
-          .from("coupons")
-          .select("*")
-          .order("created_at", { ascending: false });
+        const data = await fetchAdminCoupons<CouponRow>();
+        const error = null;
 
         if (error) throw error;
 
@@ -748,11 +716,18 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     async function loadSubscriptions() {
       setLoadingSubscriptions(true);
       try {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('id, cafe_id, customer_name, customer_phone, amount_paid, purchase_date, hours_remaining, timer_active, membership_plans(name, console_type, plan_type)')
-          .order('purchase_date', { ascending: false })
-          .limit(300);
+        const data = await fetchAdminSubscriptions<{
+          id: string;
+          cafe_id: string;
+          customer_name: string | null;
+          customer_phone: string | null;
+          amount_paid: number | string | null;
+          purchase_date: string | null;
+          hours_remaining: number | string | null;
+          timer_active: boolean | null;
+          membership_plans?: { name?: string; console_type?: string; plan_type?: string } | null;
+        }>();
+        const error = null;
         if (error) throw error;
         // Enrich with cafe name using already-loaded cafes if available
         const enriched = await Promise.all((data || []).map(async (s) => {
@@ -775,12 +750,10 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
         const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
         const fromDate = new Date(istNow.getTime() - reportDays * 86400_000).toISOString().slice(0, 10);
 
-        const { data } = await supabase
-          .from('bookings')
-          .select('booking_date, start_time, total_amount, status, source')
-          .gte('booking_date', fromDate)
-          .is('deleted_at', null)
-          .order('booking_date', { ascending: true });
+        const data = await fetchAdminReportBookings<{
+          booking_date: string; start_time: string;
+          total_amount: number; status: string; source: string | null;
+        }>(fromDate);
 
         const rows = data || [];
 
@@ -1490,13 +1463,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
   async function loadCafeMemberships(cafeId: string) {
     setLoadingMemberships(true);
     try {
-      const { data, error } = await supabase
-        .from('membership_plans')
-        .select('*')
-        .eq('cafe_id', cafeId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setCafeMembershipPlans(data || []);
+      setCafeMembershipPlans(await fetchAdminCafeMembershipPlans(cafeId));
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -1629,13 +1596,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
   async function loadCafeCoupons(cafeId: string) {
     setLoadingCoupons(true);
     try {
-      const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('cafe_id', cafeId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setCafeCoupons(data || []);
+      setCafeCoupons(await fetchAdminCafeCoupons<CouponRow>(cafeId));
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -1729,14 +1690,8 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
   async function loadCafeBookings(cafeId: string) {
     setLoadingCafeBookings(true);
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('id, cafe_id, user_id, booking_date, start_time, duration, total_amount, status, source, customer_name, customer_phone, created_at')
-        .eq('cafe_id', cafeId)
-        .order('booking_date', { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      setCafeBookings((data || []).map(b => ({ ...b, cafe_name: '', user_name: b.customer_name || 'Walk-in' })));
+      const data = await fetchAdminCafeBookings<BookingRow>(cafeId);
+      setCafeBookings(data.map(b => ({ ...b, cafe_name: '', user_name: b.customer_name || 'Walk-in' })));
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -1866,7 +1821,7 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
       setGlobalCouponCafeId('');
       setShowGlobalCouponForm(false);
       // Reload coupons list
-      const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+      const data = await fetchAdminCoupons<CouponRow>();
       const enriched = await Promise.all((data || []).map(async (c) => {
         const { data: cafe } = await supabase.from('cafes').select('name').eq('id', c.cafe_id).maybeSingle();
         return { ...c, cafe_name: cafe?.name || 'Unknown Café' };
@@ -1905,13 +1860,8 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
     setManagedUserId(userId);
     setLoadingUserBookings(true);
     try {
-      const { data } = await supabase
-        .from('bookings')
-        .select('id, cafe_id, booking_date, start_time, duration, total_amount, status, source, customer_name, customer_phone, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      const enriched = await Promise.all((data || []).map(async (b) => {
+      const data = await fetchAdminUserBookings<BookingRow>(userId);
+      const enriched = await Promise.all(data.map(async (b) => {
         const { data: cafe } = await supabase.from('cafes').select('name').eq('id', b.cafe_id).maybeSingle();
         return { ...b, cafe_name: cafe?.name || 'Unknown', user_name: '', user_id: userId };
       }));
