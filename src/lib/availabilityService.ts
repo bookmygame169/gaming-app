@@ -4,7 +4,6 @@
  * Computes real-time console availability based on existing bookings
  */
 
-import { supabase } from "@/lib/supabaseClient";
 import { ConsoleId } from "@/lib/constants";
 import { ConsoleAvailability } from "@/types/booking";
 import { BookingWithNestedItems } from "@/types/database";
@@ -34,28 +33,19 @@ export async function fetchLiveAvailability(options: {
   try {
     const selectedTimeMinutes = timeStringToMinutes(selectedTime);
 
-    // Fetch all active bookings for this cafe and date
-    const { data: bookings, error: bookingsError } = await supabase
-      .from("bookings")
-      .select(
-        `
-        id,
-        start_time,
-        duration,
-        booking_items (
-          console,
-          quantity
-        )
-      `
-      )
-      .eq("cafe_id", cafeId)
-      .eq("booking_date", selectedDate)
-      .neq("status", "cancelled");
+    // Through the server, which returns occupancy and nothing else. Read
+    // straight from the browser this handed out customer names and phone
+    // numbers along with the times.
+    const res = await fetch(
+      `/api/cafes/${encodeURIComponent(cafeId)}/availability?date=${encodeURIComponent(selectedDate)}`
+    );
 
-    if (bookingsError) {
-      logger.error("Error fetching bookings:", bookingsError);
+    if (!res.ok) {
+      logger.error("Error fetching bookings:", res.status);
       return {};
     }
+
+    const bookings = ((await res.json())?.bookings || []) as BookingWithNestedItems[];
 
     // Initialize availability for all consoles
     const availability: Partial<Record<ConsoleId, ConsoleAvailability>> = {};
