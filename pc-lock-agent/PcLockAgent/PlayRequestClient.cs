@@ -46,6 +46,14 @@ internal sealed record PlayRequestResult(
     [property: JsonPropertyName("upiLink")] string? UpiLink,
     [property: JsonPropertyName("alreadyWaiting")] bool AlreadyWaiting);
 
+/// <summary>What ending a session gave back.</summary>
+internal sealed record EndSessionResult(
+    [property: JsonPropertyName("settled")] bool Settled,
+    [property: JsonPropertyName("planName")] string? PlanName,
+    [property: JsonPropertyName("hoursUsed")] double HoursUsed,
+    [property: JsonPropertyName("hoursRemaining")] double HoursRemaining,
+    [property: JsonPropertyName("isDayPass")] bool IsDayPass);
+
 /// <summary>Where a request has got to.</summary>
 internal sealed record PlayRequestStatus(
     [property: JsonPropertyName("status")] string Status,
@@ -212,6 +220,59 @@ internal sealed class PlayRequestClient
         {
             AgentLog.Warn($"Play request failed: {ex.Message}");
             return (null, "Could not reach the counter system. Please ask at the counter.");
+        }
+    }
+
+    /// <summary>
+    /// Tells the server the customer has finished, and reads what they get back.
+    /// </summary>
+    /// <remarks>
+    /// Returns null when there was nothing to settle or nothing could be
+    /// reached. Both are the same to the caller, and the caller locks the
+    /// machine either way: a café whose internet is down still has to be able
+    /// to end a session, and holding the PC open until a web request succeeds
+    /// would be the wrong way to fail.
+    /// </remarks>
+    public async Task<EndSessionResult?> EndSessionAsync()
+    {
+        if (!IsConfigured)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var request = Build(HttpMethod.Post, "/api/stations/end-session", new
+            {
+                cafeId = _config.Heartbeat.CafeId,
+                stationName = _config.StationId,
+            });
+
+            using var response = await _http.SendAsync(request).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                AgentLog.Warn($"Could not end the session cleanly: HTTP {(int)response.StatusCode}.");
+                return null;
+            }
+
+            var result = JsonSerializer.Deserialize<EndSessionResult>(body);
+
+            if (result is { Settled: true })
+            {
+                AgentLog.Info(
+                    $"Session settled: {result.HoursUsed:0.00}h used, {result.HoursRemaining:0.00}h left "
+                    + $"on '{result.PlanName ?? "plan"}'.");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            // Logged, not surfaced. The machine locks regardless.
+            AgentLog.Warn($"Could not end the session cleanly: {ex.Message}");
+            return null;
         }
     }
 

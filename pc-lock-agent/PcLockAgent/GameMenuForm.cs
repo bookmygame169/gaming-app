@@ -21,6 +21,9 @@ internal sealed class GameMenuForm : Form
     /// <summary>Raised when the customer opens an application from the menu.</summary>
     public event EventHandler? AppLaunched;
 
+    /// <summary>Raised when the customer says they have finished playing.</summary>
+    public event EventHandler? EndSessionRequested;
+
     /// <summary>
     /// Whether this window is allowed to close.
     /// </summary>
@@ -662,6 +665,30 @@ internal sealed class GameMenuForm : Form
         };
 
         footer.Controls.Add(_statusLabel);
+
+        // Quiet on purpose. A customer looking for it will find it, and one
+        // reaching for a game tile will not hit it by accident — which matters,
+        // because the confirmation behind it is the only thing between a
+        // mis-tap and somebody's paid session ending.
+        var endSession = new Button
+        {
+            Text = "End session",
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+            ForeColor = Palette.TextMuted,
+            BackColor = Palette.Border,
+            FlatStyle = FlatStyle.Flat,
+            Width = 150,
+            Height = 34,
+            Cursor = Cursors.Hand,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Location = new Point(Bounds.Width - 202, 10),
+            FlatAppearance = { BorderSize = 0 },
+        };
+
+        endSession.Click += (_, _) => EndSessionRequested?.Invoke(this, EventArgs.Empty);
+        Theme.RoundCorners(endSession, 10);
+
+        footer.Controls.Add(endSession);
 
         if (AgentSettings.AllowDevExit)
         {

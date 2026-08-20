@@ -31,6 +31,7 @@ internal sealed class AgentShell : ApplicationContext
     private readonly UnlockQrProvider _unlockQr;
     private readonly PlayRequestClient _playRequests;
     private PayNowForm? _payNow;
+    private EndSessionForm? _endSession;
     private readonly System.Windows.Forms.Timer _foregroundWatchTimer;
 
     private bool _exiting;
@@ -80,6 +81,7 @@ internal sealed class AgentShell : ApplicationContext
 
         _playRequests = new PlayRequestClient(config);
         _lockedScreen.PayNowRequested += (_, _) => OpenPayNow();
+        _gameMenu.EndSessionRequested += (_, _) => AskToEndSession();
 
         _mqttService.UnlockRequested += OnUnlockRequested;
         _mqttService.LockRequested += (_, _) => ApplyLocked();
@@ -185,6 +187,7 @@ internal sealed class AgentShell : ApplicationContext
         // approval, so that staff unlocking from the dashboard clears it too —
         // and so there is only ever one path from "approved" to "playing".
         _payNow?.CloseAfterUnlock();
+        _endSession?.Hide();
 
         // Stops asking, and clears whatever was drawn. Both matter: a code left
         // on a machine somebody has just paid for is one another customer could
@@ -225,6 +228,28 @@ internal sealed class AgentShell : ApplicationContext
         _ = _payNow.StartAsync();
     }
 
+    /// <summary>
+    /// Asks the customer to confirm, then locks up.
+    /// </summary>
+    /// <remarks>
+    /// The window settles the session itself so it can show what went back onto
+    /// the customer's number, which is the whole reason for ending a session
+    /// rather than walking away from one. ApplyLocked settles again a moment
+    /// later and that is harmless: the server only deducts from a subscription
+    /// whose timer is still running, so the second call finds nothing to do.
+    /// </remarks>
+    private void AskToEndSession()
+    {
+        if (_endSession is null || _endSession.IsDisposed)
+        {
+            _endSession = new EndSessionForm(_playRequests);
+            _endSession.SessionEnded += (_, _) => ApplyLocked();
+            _endSession.KeptPlaying += (_, _) => _gameMenu.ShowMenu();
+        }
+
+        _endSession.AskToEnd();
+    }
+
     private void OnSessionExpired()
     {
         ShowSessionWarning(0);
@@ -254,6 +279,16 @@ internal sealed class AgentShell : ApplicationContext
         // and the lock screen two lines below must not wait for that. By the
         // time anyone unlocks this station again it is long finished.
         _ = Task.Run(BrowserAccess.ClearProfile);
+
+        // Settled on every path into the lock, not just the customer pressing
+        // End session. Time running out on a membership and staff locking the
+        // station from the dashboard both end a sitting, and hours that are not
+        // given back on those paths are hours a member paid for and lost.
+        //
+        // Fire and forget: the machine locks now, not when the network answers.
+        // The server deducts only from a subscription whose timer is still
+        // running, so calling this twice for one sitting costs nothing.
+        _ = _playRequests.EndSessionAsync();
 
         _lockService.SetGameRunning(false);
         _screenBlanker.SetTopMost(!_lockService.Passthrough);
