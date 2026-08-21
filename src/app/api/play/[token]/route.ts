@@ -15,6 +15,7 @@ import { buildAndroidUpiChooserUrl, buildUpiAppOptions, buildUpiPaymentUrl, getC
 import { getIndiaCurrentMinutes } from "@/lib/bookingFilters";
 import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
 import { encodeAssignedStationsTitle } from "@/lib/ownerStationAssignments";
+import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -212,6 +213,216 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 }
 
 /**
+ * The longest a plan session may run before something re-locks the machine.
+ *
+ * A member plays until they end the session, which is the point of it. The one
+ * case that leaves behind is a member who simply walks out - nothing would ever
+ * re-lock that PC - so an open-ended session is really a very long one. The
+ * customer never meets this; it exists for the walk-away.
+ */
+const MAX_PLAN_SESSION_MINUTES = 12 * 60;
+
+/**
+ * Start a session on hours the member already owns.
+ *
+ * This is deliberately NOT the paid path above, and the difference is the whole
+ * fix. The paid path deducts a chosen block up front, which is right when money
+ * has been handed over for a specific length - and wrong for a member, who then
+ * loses whatever they did not sit through. A member who buys five hours has
+ * bought five hours, not five hours used in one sitting.
+ *
+ * So nothing is deducted here. The subscription's timer is started, exactly as
+ * the counter does it, and /api/stations/end-session settles the minutes
+ * actually played when they press End session or the backstop expires. The two
+ * routes into a member's session now behave the same way, because they now use
+ * the same mechanism.
+ */
+async function startOnPlan(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  station: { cafe_id: string; station_name: string },
+  userId: string,
+  token: string
+) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("phone, first_name, last_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const phone = profile?.phone?.trim() || null;
+  const key = phoneKey(phone);
+
+  if (!key) {
+    return NextResponse.json(
+      { error: "Add your phone number to your profile first — your hours are held against it." },
+      { status: 400 }
+    );
+  }
+
+  // Every usable membership on this number, soonest to expire first: hours
+  // about to lapse should be the ones spent.
+  const { data: allSubs } = await supabase
+    .from("subscriptions")
+    .select("id, customer_phone, hours_remaining, status, expiry_date, timer_active")
+    .eq("cafe_id", station.cafe_id)
+    .eq("status", "active");
+
+  const today = getIndiaDateString();
+
+  const usable = (allSubs || [])
+    .filter((row) => phoneKey(row.customer_phone as string | null) === key)
+    .filter((row) => !row.expiry_date || String(row.expiry_date) >= today)
+    .filter((row) => (Number(row.hours_remaining) || 0) > 0)
+    .sort((a, b) => String(a.expiry_date || "").localeCompare(String(b.expiry_date || "")));
+
+  if (usable.length === 0) {
+    return NextResponse.json(
+      { error: "No hours left on your plan. Buy time instead, or ask at the counter." },
+      { status: 402 }
+    );
+  }
+
+  // One already running means they are playing somewhere else, or a previous
+  // session was never ended. Either way, starting a second would have two
+  // stations draining one balance.
+  const running = usable.find((row) => row.timer_active === true);
+  if (running) {
+    return NextResponse.json(
+      { error: "Your plan is already running on another machine. Please ask at the counter." },
+      { status: 409 }
+    );
+  }
+
+  const chosen = usable[0];
+  const hoursLeft = Number(chosen.hours_remaining) || 0;
+  const minutes = Math.max(15, Math.min(MAX_PLAN_SESSION_MINUTES, Math.round(hoursLeft * 60)));
+
+  // Claimed before anything is written, and it is single-use: two people
+  // scanning the same screen cannot both start a session on it.
+  const { data: claimed, error: claimError } = await supabase.rpc("claim_unlock_token", {
+    p_token: token,
+    p_user_id: userId,
+  });
+
+  if (claimError || !claimed || (Array.isArray(claimed) && claimed.length === 0)) {
+    return NextResponse.json(
+      { error: "This code has just been used. Scan the screen again." },
+      { status: 410 }
+    );
+  }
+
+  const customerName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() || "Member";
+
+  // Amount zero, and that is correct rather than a placeholder: the money was
+  // taken when the membership was sold. Counting it again here would report the
+  // same rupees twice.
+  const { data: booking, error: bookingError } = await supabase
+    .from("bookings")
+    .insert({
+      cafe_id: station.cafe_id,
+      user_id: userId,
+      customer_name: customerName,
+      customer_phone: phone,
+      booking_date: today,
+      start_time: convertTo12Hour(minutesToTimeString(getIndiaCurrentMinutes())),
+      duration: minutes,
+      total_amount: 0,
+      status: "in-progress",
+      payment_mode: "membership",
+      source: "qr",
+    })
+    .select("id")
+    .single();
+
+  if (bookingError || !booking?.id) {
+    console.error("Could not record the plan session:", bookingError?.message);
+    return NextResponse.json({ error: "Could not start the session" }, { status: 500 });
+  }
+
+  await supabase.from("booking_items").insert({
+    booking_id: booking.id,
+    console: consoleTypeOf(station.station_name),
+    quantity: 1,
+    price: 0,
+    title: encodeAssignedStationsTitle(minutes, [station.station_name]),
+    station_names: [station.station_name],
+  });
+
+  // The timer, not a deduction. Guarded on timer_active still being false so
+  // two scans a second apart cannot both start it.
+  const { data: started, error: timerError } = await supabase
+    .from("subscriptions")
+    .update({
+      timer_active: true,
+      timer_start_time: new Date().toISOString(),
+      assigned_console_station: station.station_name,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", chosen.id)
+    .eq("timer_active", false)
+    .select("id")
+    .maybeSingle();
+
+  if (timerError || !started) {
+    await supabase.from("booking_items").delete().eq("booking_id", booking.id);
+    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+    return NextResponse.json(
+      { error: "Your plan just started somewhere else. Please ask at the counter." },
+      { status: 409 }
+    );
+  }
+
+  const sessionId = randomUUID();
+
+  try {
+    await sendStationCommands([station.station_name], () => ({
+      action: "unlock",
+      duration_seconds: minutes * 60,
+      session_id: sessionId,
+    }));
+  } catch (err) {
+    console.error("Could not unlock for a plan session:", err);
+
+    // Everything back: the member has spent nothing, and must not be left
+    // having "started" a session in front of a locked PC.
+    await supabase
+      .from("subscriptions")
+      .update({ timer_active: false, timer_start_time: null, assigned_console_station: null })
+      .eq("id", chosen.id);
+    await supabase.from("booking_items").delete().eq("booking_id", booking.id);
+    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", booking.id);
+
+    return NextResponse.json(
+      { error: "Could not reach that PC. Nothing has been used — please ask at the counter." },
+      { status: 502 }
+    );
+  }
+
+  await supabase.from("station_unlock_log").insert({
+    cafe_id: station.cafe_id,
+    station_name: station.station_name,
+    action: "unlock",
+    booking_id: booking.id,
+    trigger_source: "qr-plan",
+    booking_amount: 0,
+    booking_status: "in-progress",
+    duration_seconds: minutes * 60,
+    payment_mode: "membership",
+  });
+
+  return NextResponse.json({
+    started: true,
+    onPlan: true,
+    station: station.station_name,
+    hoursOnPlan: Number(hoursLeft.toFixed(2)),
+    // What the screen should say: they are not buying a block, they are
+    // playing until they stop.
+    message: "You are playing on your plan. Press End session on the PC when you finish.",
+  });
+}
+
+/**
  * POST — pay for and start a session on the station this code came from.
  *
  * The order of what follows is the whole point of this route, so it is worth
@@ -228,8 +439,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     const body = await request.json().catch(() => ({}));
     const durationMinutes = Number(body.durationMinutes);
-    const method = body.method === "upi" ? "upi" : "wallet";
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+
+    // "plan" is a session paid for by hours the member already owns, and it
+    // carries no length: they play until they end it, and only the minutes they
+    // used come off. See startOnPlan.
+    const method: "plan" | "upi" | "wallet" =
+      body.method === "plan" ? "plan" : body.method === "upi" ? "upi" : "wallet";
+
+    if (method !== "plan" && (!Number.isFinite(durationMinutes) || durationMinutes <= 0)) {
       return NextResponse.json({ error: "Choose how long you want to play" }, { status: 400 });
     }
 
@@ -257,6 +474,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { error: "That PC is not responding right now. Please ask at the counter." },
         { status: 409 }
       );
+    }
+
+    if (method === "plan") {
+      return startOnPlan(supabase, station, userId, token);
     }
 
     // 2. What does this cost? Read from the café's own price list rather than

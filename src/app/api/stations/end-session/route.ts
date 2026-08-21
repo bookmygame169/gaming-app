@@ -198,6 +198,33 @@ async function settleSubscriptions(
 }
 
 /**
+ * The booking still running on this station, whoever started it.
+ *
+ * Sessions reach a PC by three routes - the counter, the lock screen's own Pay
+ * and play, and a member scanning the QR - and only one of them leaves a
+ * station_play_request behind. Matching on the station itself closes the other
+ * two as well, rather than leaving their bookings showing "in progress" long
+ * after the customer went home.
+ */
+async function inProgressBookingFor(
+  supabase: SupabaseClient,
+  cafeId: string,
+  stationName: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("booking_items")
+    .select("booking_id, bookings!inner(id, cafe_id, status, deleted_at, created_at)")
+    .contains("station_names", [stationName])
+    .eq("bookings.cafe_id", cafeId)
+    .eq("bookings.status", "in-progress")
+    .is("bookings.deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  return (data?.[0]?.booking_id as string | undefined) ?? null;
+}
+
+/**
  * Closes off the booking this session was started from.
  *
  * Only bookings this feature created — found through the play request that
@@ -223,7 +250,13 @@ async function completeBooking(
       .limit(1)
       .maybeSingle();
 
-    if (!request?.booking_id) {
+    // No play request means the session started somewhere else - the counter,
+    // or a member scanning the QR. Those bookings need closing just the same,
+    // so fall back to whatever is still in progress on this station.
+    const bookingId = request?.booking_id ?? (await inProgressBookingFor(supabase, cafeId, stationName));
+    const requestType = request?.request_type ?? "membership";
+
+    if (!bookingId) {
       return;
     }
 
@@ -233,7 +266,7 @@ async function completeBooking(
     // anybody bought — it was the backstop that stops a walked-away machine
     // sitting unlocked. Once the session really ends, what they played is the
     // truthful number. An hourly booking keeps the block they paid for.
-    const rewriteDuration = request.request_type !== "hourly" && minutesPlayed > 0;
+    const rewriteDuration = requestType !== "hourly" && minutesPlayed > 0;
     if (rewriteDuration) {
       updates.duration = minutesPlayed;
     }
@@ -241,7 +274,7 @@ async function completeBooking(
     const { error } = await supabase
       .from("bookings")
       .update(updates)
-      .eq("id", request.booking_id)
+      .eq("id", bookingId)
       .eq("status", "in-progress");
 
     if (error) {
@@ -258,7 +291,7 @@ async function completeBooking(
       const { error: itemError } = await supabase
         .from("booking_items")
         .update(stationAssignmentFields(minutesPlayed, [stationName]))
-        .eq("booking_id", request.booking_id);
+        .eq("booking_id", bookingId);
 
       if (itemError) {
         console.warn("Could not correct the booking item on session end:", itemError.message);

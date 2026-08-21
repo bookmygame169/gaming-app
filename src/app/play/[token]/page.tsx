@@ -51,6 +51,7 @@ export default function PlayPage() {
     const [error, setError] = useState<string | null>(null);
     const [starting, setStarting] = useState<number | null>(null);
     const [done, setDone] = useState<{ minutes: number; station: string } | null>(null);
+    const [onPlan, setOnPlan] = useState<{ station: string; hoursOnPlan: number } | null>(null);
 
     // The UPI half. Once a session is pending the page stops being a price list
     // and becomes one thing: get this payment confirmed.
@@ -175,6 +176,45 @@ export default function PlayPage() {
             }
 
             setDone({ minutes: option.durationMinutes, station: data.station });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not start the session');
+        } finally {
+            setStarting(null);
+        }
+    };
+
+    /**
+     * Start on hours the member already owns.
+     *
+     * Deliberately asks for no length. A member who picks "1 hour" and leaves
+     * after twenty minutes used to lose the other forty - the hours came off
+     * the moment they started. Nothing is deducted now: the plan's timer runs,
+     * and only the minutes actually played are settled when they press End
+     * session on the PC.
+     */
+    const startOnPlan = async () => {
+        if (!token || starting !== null) return;
+
+        setStarting(-1);
+        setError(null);
+
+        try {
+            const bearer = await accessToken();
+            if (!bearer) {
+                signIn();
+                return;
+            }
+
+            const res = await fetch(`/api/play/${encodeURIComponent(token)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+                body: JSON.stringify({ method: 'plan' }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Could not start the session');
+
+            setOnPlan({ station: data.station, hoursOnPlan: data.hoursOnPlan });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Could not start the session');
         } finally {
@@ -341,6 +381,33 @@ export default function PlayPage() {
                 <div className="flex flex-col items-center gap-3 py-20 text-slate-400">
                     <Loader2 className="h-7 w-7 animate-spin text-rose-400" />
                     <p className="text-sm">Reading the code…</p>
+                </div>
+            </Shell>
+        );
+    }
+
+    if (onPlan) {
+        return (
+            <Shell>
+                <div className="relative overflow-hidden rounded-[28px] border border-emerald-400/20 bg-gradient-to-b from-emerald-500/15 to-white/[0.03] px-6 py-12 text-center">
+                    <div className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-emerald-400/20 blur-3xl" />
+                    <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-emerald-950 shadow-[0_0_40px_rgba(16,185,129,0.45)]">
+                        <Check className="h-10 w-10" strokeWidth={3} />
+                    </div>
+                    <h1 className="relative mt-6 text-3xl font-black tracking-tight text-white">
+                        {onPlan.station.toUpperCase()} unlocked
+                    </h1>
+                    <p className="relative mt-2 text-sm text-emerald-100/70">
+                        Playing on your plan. Nothing has come off it yet.
+                    </p>
+                    <div className="relative mt-5 rounded-2xl border border-white/[0.10] bg-black/30 px-4 py-3 text-left">
+                        <p className="text-xs font-bold text-white">When you finish</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                            Press <span className="font-semibold text-slate-200">End session</span> on the PC.
+                            Only the time you actually played comes off your{' '}
+                            <span className="font-semibold text-emerald-300">{onPlan.hoursOnPlan}h</span> — the rest stays for next time.
+                        </p>
+                    </div>
                 </div>
             </Shell>
         );
@@ -535,7 +602,55 @@ export default function PlayPage() {
                 </div>
             )}
 
-            {canPlay && !chosen && (
+            {/* A member starts here and is asked nothing else. Picking a length
+                is what used to cost them the part they did not sit through, so
+                for somebody with hours in hand it is not a question worth
+                asking - they play, then press End session. Buying time stays
+                below, for topping up or for a longer stretch than they hold. */}
+            {canPlay && !chosen && info.planHours > 0 && (
+                <>
+                    <p className="mt-7 text-sm font-bold text-white">You have hours on your plan</p>
+                    <button
+                        type="button"
+                        onClick={startOnPlan}
+                        disabled={starting !== null}
+                        className="mt-3 flex w-full items-center justify-between gap-3 rounded-[22px] bg-emerald-500 px-5 py-4 text-left text-emerald-950 shadow-[0_12px_30px_-12px_rgba(16,185,129,0.85)] transition active:scale-[0.98] disabled:opacity-50"
+                    >
+                        <span>
+                            <span className="flex items-center gap-2 text-base font-black">
+                                <Clock size={16} />
+                                {starting === -1 ? 'Starting…' : 'Start playing'}
+                            </span>
+                            <span className="mt-0.5 block text-xs font-semibold opacity-80">
+                                Play as long as you like — only what you use comes off
+                            </span>
+                        </span>
+                        <span className="text-xl font-black">{info.planHours}h</span>
+                    </button>
+
+                    <p className="mt-6 text-sm font-bold text-white">Or buy time</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2.5">
+                        {info.options.map((option) => (
+                            <button
+                                key={option.durationMinutes}
+                                type="button"
+                                onClick={() => setChosen(option)}
+                                className="rounded-[22px] border border-white/[0.08] bg-white/[0.04] p-4 text-left transition hover:border-rose-400/40 hover:bg-white/[0.07] active:scale-[0.98]"
+                            >
+                                <span className="block text-2xl font-black text-white">
+                                    {option.durationMinutes}
+                                    <span className="ml-1 text-sm font-semibold text-slate-500">min</span>
+                                </span>
+                                <span className="mt-2 block text-sm font-bold text-slate-300">
+                                    ₹{option.price}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {canPlay && !chosen && info.planHours <= 0 && (
                 <>
                     <p className="mt-7 text-sm font-bold text-white">How long?</p>
                     <div className="mt-3 grid grid-cols-2 gap-2.5">
