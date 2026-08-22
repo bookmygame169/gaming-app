@@ -8,7 +8,7 @@ type PlayRequest = {
     stationName: string;
     customerName: string;
     customerPhone: string;
-    requestType: 'hourly' | 'membership' | 'day_pass';
+    requestType: 'hourly' | 'membership' | 'day_pass' | 'extend';
     durationMinutes: number | null;
     amount: number;
     paymentMethod: 'online' | 'counter';
@@ -35,6 +35,7 @@ const TYPE_LABEL: Record<PlayRequest['requestType'], string> = {
     hourly: 'By the hour',
     membership: 'Membership',
     day_pass: 'Day pass',
+    extend: 'More time',
 };
 
 function waitedFor(iso: string): string {
@@ -47,7 +48,7 @@ function waitedFor(iso: string): string {
 }
 
 function whatTheyAskedFor(request: PlayRequest): string {
-    if (request.requestType === 'hourly') {
+    if (request.requestType === 'hourly' || request.requestType === 'extend') {
         const minutes = request.durationMinutes || 0;
         return minutes % 60 === 0 ? `${minutes / 60} hour${minutes === 60 ? '' : 's'}` : `${minutes} minutes`;
     }
@@ -120,11 +121,19 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
             if (!sure) return;
         }
 
+        // More time for somebody already playing is answered elsewhere: it
+        // lengthens the booking they are in rather than starting a new one, and
+        // never unlocks anything.
+        const endpoint =
+            request.requestType === 'extend'
+                ? '/api/owner/play-requests/extend'
+                : '/api/owner/play-requests';
+
         setBusyId(request.id);
         setError(null);
 
         try {
-            const res = await fetch('/api/owner/play-requests', {
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -227,7 +236,12 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
 
                                 <p className="mt-1.5 text-[11px] font-semibold text-slate-300">
                                     {TYPE_LABEL[request.requestType]} — {whatTheyAskedFor(request)}
-                                    {request.requestType !== 'hourly' && (
+                                    {request.requestType === 'extend' && (
+                                        <span className="font-normal text-slate-500">
+                                            {' '}· already playing, adds to their clock
+                                        </span>
+                                    )}
+                                    {request.requestType !== 'hourly' && request.requestType !== 'extend' && (
                                         <span className="font-normal text-slate-500">
                                             {' '}· plays until they end the session
                                         </span>

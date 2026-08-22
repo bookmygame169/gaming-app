@@ -14,13 +14,14 @@ import {
 import { buildStationPaymentUrl, getCafePayee } from "@/lib/upi";
 import { dialableDigits } from "@/lib/phone";
 import { toRupees } from "@/lib/wallet";
+import { findLiveBookingForStation } from "@/lib/stationLiveSession";
 
 export const dynamic = "force-dynamic";
 
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 60;
 
-type RequestType = "hourly" | "membership" | "day_pass";
+type RequestType = "hourly" | "membership" | "day_pass" | "extend";
 
 /**
  * What the customer will be charged, decided here and nowhere else.
@@ -39,7 +40,7 @@ async function resolvePrice(
 ): Promise<{ amount: number; label: string } | { error: string }> {
   const consoleType = consoleTypeOf(stationName);
 
-  if (type === "hourly") {
+  if (type === "hourly" || type === "extend") {
     if (!durationMinutes) {
       return { error: "Choose how long you want to play." };
     }
@@ -134,21 +135,24 @@ export async function POST(request: NextRequest) {
       : null;
     const planId = typeof body.planId === "string" && body.planId ? body.planId : null;
 
-    if (name.length < MIN_NAME_LENGTH || name.length > MAX_NAME_LENGTH) {
+    // An extension asks for none of this. The person is already playing, so
+    // who they are is a matter of record - and asking a customer to type their
+    // name again to buy a second hour is the friction this exists to remove.
+    if (type !== "extend" && (name.length < MIN_NAME_LENGTH || name.length > MAX_NAME_LENGTH)) {
       return NextResponse.json({ error: "Please enter your name." }, { status: 400 });
     }
 
     // Ten digits, which is every Indian mobile number. Checked because this is
     // the only way the owner can identify the person at the machine, and the
     // only thing a membership's leftover hours can later be found by.
-    if (phone.length !== 10) {
+    if (type !== "extend" && phone.length !== 10) {
       return NextResponse.json(
         { error: "Please enter your 10-digit mobile number." },
         { status: 400 }
       );
     }
 
-    if (type !== "hourly" && type !== "membership" && type !== "day_pass") {
+    if (type !== "hourly" && type !== "membership" && type !== "day_pass" && type !== "extend") {
       return NextResponse.json({ error: "Choose what you want to buy." }, { status: 400 });
     }
 
@@ -159,6 +163,9 @@ export async function POST(request: NextRequest) {
 
     // Someone is already playing here. Taking a request for an occupied seat
     // would have the owner approve time on a machine that is not free.
+    //
+    // An extension is the exact opposite and wants the same fact: there has to
+    // be a session to lengthen.
     const { data: live } = await supabase
       .from("station_status")
       .select("status")
@@ -166,11 +173,41 @@ export async function POST(request: NextRequest) {
       .eq("station_name", identity.stationName)
       .maybeSingle();
 
-    if ((live?.status || "").toLowerCase() === "unlocked") {
+    const unlocked = (live?.status || "").toLowerCase() === "unlocked";
+
+    if (type !== "extend" && unlocked) {
       return NextResponse.json(
         { error: "This PC is already unlocked. Please ask at the counter." },
         { status: 409 }
       );
+    }
+
+    // Whose session is being lengthened, decided here rather than when the
+    // owner answers. Between the asking and the answering this customer may
+    // have finished and the next one may have sat down, and an hour landing on
+    // the wrong booking is money in the wrong place.
+    let liveBooking = null;
+
+    if (type === "extend") {
+      if (!unlocked) {
+        return NextResponse.json(
+          { error: "This PC is locked. Buy time from the lock screen instead." },
+          { status: 409 }
+        );
+      }
+
+      liveBooking = await findLiveBookingForStation(
+        supabase,
+        identity.cafeId,
+        identity.stationName
+      );
+
+      if (!liveBooking) {
+        return NextResponse.json(
+          { error: "No running session was found for this PC. Please ask at the counter." },
+          { status: 409 }
+        );
+      }
     }
 
     const priced = await resolvePrice(
@@ -203,11 +240,14 @@ export async function POST(request: NextRequest) {
       .insert({
         cafe_id: identity.cafeId,
         station_name: identity.stationName,
-        customer_name: name,
-        customer_phone: phone,
+        // Taken from the booking for an extension, never from the PC: the
+        // name on the second hour has to be the name on the first.
+        customer_name: liveBooking ? liveBooking.customerName || "Guest" : name,
+        customer_phone: liveBooking ? liveBooking.customerPhone || "" : phone,
         request_type: type,
-        duration_minutes: type === "hourly" ? durationMinutes : null,
-        membership_plan_id: type === "hourly" ? null : planId,
+        duration_minutes: type === "hourly" || type === "extend" ? durationMinutes : null,
+        membership_plan_id: type === "hourly" || type === "extend" ? null : planId,
+        extends_booking_id: liveBooking?.id ?? null,
         amount: priced.amount,
         payment_method: method,
       })
