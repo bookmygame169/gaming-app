@@ -4,10 +4,6 @@
     {
       "path": "/api/cron/daily-report",
       "schedule": "30 17 * * *"
-    },
-    {
-      "path": "/api/cron/housekeeping",
-      "schedule": "*/20 * * * *"
     }
   ]
 }

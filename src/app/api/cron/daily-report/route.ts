@@ -206,6 +206,30 @@ async function generateReportForCafe(cafeId: string, cafeName: string, cafeEmail
   return result;
 }
 
+/**
+ * Three jobs the database can do and was never asked to.
+ *
+ * Each runs on its own and one failing does not stop the next: they have
+ * nothing to do with each other, and losing all three because one threw is how
+ * this quietly stops working again.
+ */
+async function runHousekeeping(): Promise<void> {
+  for (const job of [
+    "check_subscription_expiry",
+    "auto_complete_ended_bookings",
+    "purge_expired_unlock_tokens",
+  ]) {
+    try {
+      const { error } = await supabase.rpc(job);
+      if (error) {
+        console.error(`[Housekeeping] ${job} failed:`, error.message);
+      }
+    } catch (err) {
+      console.error(`[Housekeeping] ${job} threw:`, err);
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET?.trim();
   if (!cronSecret) {
@@ -217,6 +241,18 @@ export async function GET(request: NextRequest) {
   if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // The housekeeping rides along with this rather than having a cron of its
+  // own. Two reasons, and the second is the one that matters: the plan this is
+  // hosted on takes a small number of cron jobs and only daily schedules, so a
+  // second entry on */20 did not merely fail to run - it made the whole
+  // deployment invalid, and production silently stopped updating at all.
+  //
+  // Daily is enough for what these do. A membership expires on a date, and a
+  // booking left showing in progress is cosmetic: the dashboard decides whether
+  // a seat is busy from the booking's own start time and length, not from that
+  // column.
+  await runHousekeeping();
 
   try {
     // Get current hour in IST (UTC+5:30)
