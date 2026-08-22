@@ -376,3 +376,220 @@ internal static class Theme
         graphics.DrawPath(pen, path);
     }
 }
+
+// ---------------------------------------------------------------------------
+// The arena look.
+//
+// Everything below belongs to the redesign: hard cut corners instead of rounded
+// ones, a diagonal accent, and two typefaces that are both already on every
+// Windows machine. Kept apart from the older helpers above so the two can live
+// side by side while screens are moved across one at a time.
+// ---------------------------------------------------------------------------
+internal static class Arena
+{
+    /// <summary>How much corner a panel loses, in pixels.</summary>
+    public const int Cut = 22;
+
+    /// <summary>
+    /// Words.
+    /// </summary>
+    /// <remarks>
+    /// Segoe UI, and only ever Regular or Bold: those are the two weights
+    /// WinForms can render from it, so a design asking for anything heavier is
+    /// a design this cannot build.
+    /// </remarks>
+    public static Font Sans(float size, FontStyle style = FontStyle.Regular)
+        => new("Segoe UI", size, style);
+
+    /// <summary>
+    /// Numbers.
+    /// </summary>
+    /// <remarks>
+    /// Consolas, for the station number, the countdown and every price. A
+    /// monospaced face with lining figures is what makes a clock read as
+    /// equipment rather than as a document - and, more practically, it stops
+    /// the countdown shuffling sideways every time a digit changes width.
+    /// <para>
+    /// Ships with Windows, so this costs nothing to install. If it is ever
+    /// missing GDI+ substitutes silently and the screen still works.
+    /// </para>
+    /// </remarks>
+    public static Font Mono(float size, FontStyle style = FontStyle.Bold)
+        => new("Consolas", size, style);
+
+    /// <summary>
+    /// A rectangle with its bottom-right corner cut away.
+    /// </summary>
+    /// <remarks>
+    /// The shape the whole redesign is built from. Rounded corners read as
+    /// software; a cut corner reads as hardware, which is what a screen sitting
+    /// on a gaming PC should look like.
+    /// </remarks>
+    public static GraphicsPath CutRect(Rectangle rect, int cut = Cut)
+    {
+        var path = new GraphicsPath();
+
+        // Never more than the box can give. A cut deeper than the shorter side
+        // turns the shape inside out.
+        var c = Math.Max(0, Math.Min(cut, Math.Min(rect.Width, rect.Height) / 2));
+
+        if (c == 0)
+        {
+            path.AddRectangle(rect);
+            return path;
+        }
+
+        path.AddLines(new[]
+        {
+            new Point(rect.Left, rect.Top),
+            new Point(rect.Right, rect.Top),
+            new Point(rect.Right, rect.Bottom - c),
+            new Point(rect.Right - c, rect.Bottom),
+            new Point(rect.Left, rect.Bottom),
+        });
+
+        path.CloseFigure();
+        return path;
+    }
+
+    /// <summary>Clips a control to the cut-corner shape.</summary>
+    public static void CutCorners(Control control, int cut = Cut)
+    {
+        if (control.Width <= 0 || control.Height <= 0)
+        {
+            return;
+        }
+
+        using var path = CutRect(new Rectangle(0, 0, control.Width, control.Height), cut);
+        control.Region?.Dispose();
+        control.Region = new Region(path);
+    }
+
+    /// <summary>Draws the edge of a cut-corner panel.</summary>
+    public static void DrawCutBorder(Graphics graphics, Rectangle bounds, Color colour, float width = 1f, int cut = Cut)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var inset = (int)Math.Ceiling(width / 2f);
+        var rect = Rectangle.Inflate(bounds, -inset, -inset);
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            return;
+        }
+
+        using var path = CutRect(rect, cut);
+        using var pen = new Pen(colour, width);
+        graphics.DrawPath(pen, path);
+    }
+
+    /// <summary>
+    /// A bright top edge, which is how these panels are separated rather than
+    /// by a border all the way round.
+    /// </summary>
+    public static void DrawTopEdge(Graphics graphics, Rectangle bounds, Color colour, int thickness = 3)
+    {
+        using var brush = new SolidBrush(colour);
+        graphics.FillRectangle(brush, bounds.Left, bounds.Top, bounds.Width, thickness);
+    }
+
+    private static readonly object BackdropGate = new();
+    private static Bitmap? _backdrop;
+    private static Size _backdropSize;
+
+    /// <summary>
+    /// The screen behind everything: a pool of light, fine diagonal rules, and
+    /// one accent slash.
+    /// </summary>
+    /// <remarks>
+    /// Cached like the old backdrop, and for the same reason: it is redrawn on
+    /// every paint of a fullscreen form, and regenerating a 1920x1080 gradient
+    /// each time is visible as a stutter.
+    /// </remarks>
+    public static void PaintArena(Graphics graphics, Rectangle bounds)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        Bitmap backdrop;
+        lock (BackdropGate)
+        {
+            if (_backdrop is null || _backdropSize != bounds.Size)
+            {
+                _backdrop?.Dispose();
+                _backdrop = RenderArena(bounds.Size);
+                _backdropSize = bounds.Size;
+            }
+
+            backdrop = _backdrop;
+        }
+
+        graphics.DrawImageUnscaled(backdrop, bounds.Location);
+    }
+
+    private static Bitmap RenderArena(Size size)
+    {
+        var bitmap = new Bitmap(size.Width, size.Height);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        using (var flat = new SolidBrush(Palette.Background))
+        {
+            graphics.FillRectangle(flat, 0, 0, size.Width, size.Height);
+        }
+
+        // The pool of light, off to the left where the station number sits.
+        var pool = new Rectangle(
+            (int)(size.Width * 0.18) - size.Width / 2,
+            (int)(size.Height * 0.42) - size.Height / 2,
+            size.Width,
+            size.Height);
+
+        using (var path = new GraphicsPath())
+        {
+            path.AddEllipse(pool);
+            using var glow = new PathGradientBrush(path)
+            {
+                CenterColor = Palette.BackdropCore,
+                SurroundColors = new[] { Palette.Background },
+            };
+            graphics.FillPath(glow, path);
+        }
+
+        // Fine diagonal rules. Barely visible one at a time, and together they
+        // are what stops a very dark screen looking like a dead monitor.
+        using (var rule = new Pen(Color.FromArgb(6, 255, 255, 255)))
+        {
+            for (var x = -size.Height; x < size.Width; x += 46)
+            {
+                graphics.DrawLine(rule, x, size.Height, x + size.Height, 0);
+            }
+        }
+
+        // The accent slash: one hard diagonal, fading as it falls.
+        using (var slash = new LinearGradientBrush(
+                   new Rectangle(0, 0, size.Width, size.Height),
+                   Color.FromArgb(150, Palette.Accent),
+                   Color.FromArgb(0, Palette.Accent),
+                   LinearGradientMode.Vertical))
+        using (var shape = new GraphicsPath())
+        {
+            var top = (int)(size.Width * 0.30);
+            var lean = (int)(size.Height * 0.34);
+
+            shape.AddLines(new[]
+            {
+                new Point(top, -10),
+                new Point(top + 7, -10),
+                new Point(top + 7 - lean, size.Height + 10),
+                new Point(top - lean, size.Height + 10),
+            });
+
+            shape.CloseFigure();
+            graphics.FillPath(slash, shape);
+        }
+
+        return bitmap;
+    }
+}

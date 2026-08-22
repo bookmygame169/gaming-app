@@ -6,7 +6,23 @@ namespace PcLockAgent;
 /// </summary>
 internal static class Palette
 {
-    public static readonly Color Background = Color.FromArgb(0x06, 0x09, 0x11);
+    public static readonly Color Background = Color.FromArgb(0x05, 0x07, 0x0C);
+
+    /// <summary>
+    /// The lift at the centre of the arena backdrop.
+    /// </summary>
+    /// <remarks>
+    /// A single soft pool of light behind the content, rather than a gradient
+    /// across the whole screen. On a 1920px panel a corner-to-corner gradient
+    /// reads as a colour cast; a pool reads as a lit stage.
+    /// </remarks>
+    public static readonly Color BackdropCore = Color.FromArgb(0x14, 0x19, 0x2B);
+
+    /// <summary>Fill for the angular panels the new screens are built from.</summary>
+    public static readonly Color PanelFill = Color.FromArgb(0x0A, 0x0E, 0x18);
+
+    /// <summary>The dimmest text on screen - captions nobody has to read.</summary>
+    public static readonly Color TextDim = Color.FromArgb(0x47, 0x55, 0x69);
 
     /// <summary>Top of the page gradient — a shade lighter than the bottom.</summary>
     public static readonly Color BackgroundTop = Color.FromArgb(0x0E, 0x14, 0x23);
