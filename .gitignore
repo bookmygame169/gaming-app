@@ -44,3 +44,9 @@ next-env.d.ts
 public/sw.js
 public/workbox-*.js
 public/worker-*.js
+
+# Seeded design canvases. These are build output: ~2MB of editor payload each,
+# regenerated from the .dc.html sources beside them whenever the design is
+# republished. The sources and canvas.json are the parts worth keeping.
+.design/**/*.html
+!.design/**/*.dc.html
