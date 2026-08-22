@@ -51,7 +51,7 @@ internal sealed class TaskbarStrip : Panel
 
         _emptyHint = new Label
         {
-            Text = "Nothing open yet — pick a game above.",
+            Text = "Nothing open yet.",
             Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
             ForeColor = Palette.TextFaint,
             AutoSize = true,
@@ -266,12 +266,23 @@ internal sealed class TaskbarButton : Control
 
         var body = new Rectangle(0, 0, Width - 1, Height - 1);
 
-        using (var path = Theme.RoundedRect(body, 10))
-        using (var fill = new SolidBrush(_hovered && !_closing ? Palette.SurfaceHover : Palette.Surface))
-        using (var border = new Pen(_hovered && !_closing ? Palette.Divider : Palette.CardBorder))
+        // Square, with a lit left edge rather than an outline. The rest of
+        // this screen is built from cut and straight edges; a row of rounded
+        // pills along the bottom read as a different application.
+        using (var fill = new SolidBrush(_hovered && !_closing ? Palette.SurfaceHover : Palette.PanelFill))
         {
-            graphics.FillPath(fill, path);
-            graphics.DrawPath(border, path);
+            graphics.FillRectangle(fill, body);
+        }
+
+        using (var edge = new SolidBrush(_closing ? Palette.TextDim : Palette.Accent))
+        {
+            graphics.FillRectangle(edge, body.Left, body.Top, 2, body.Height);
+        }
+
+        if (_hovered && !_closing)
+        {
+            using var outline = new Pen(Color.FromArgb(60, 255, 255, 255));
+            graphics.DrawRectangle(outline, body);
         }
 
         if (_icon is not null)
@@ -316,8 +327,7 @@ internal sealed class TaskbarButton : Control
         if (_overClose)
         {
             using var hot = new SolidBrush(Palette.Accent);
-            using var path = Theme.RoundedRect(box, 7);
-            graphics.FillPath(hot, path);
+            graphics.FillRectangle(hot, box);
         }
 
         var colour = _overClose ? Palette.TextPrimary : Palette.TextFaint;

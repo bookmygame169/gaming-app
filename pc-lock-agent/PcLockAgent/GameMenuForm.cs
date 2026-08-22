@@ -67,10 +67,17 @@ internal sealed class GameMenuForm : Form
     private static readonly TimeSpan MaxLaunchWait = TimeSpan.FromMinutes(12);
 
     private readonly AgentConfig _config;
+
+    // The header and hero are painted rather than assembled from labels, so
+    // what they show lives here instead of on a control.
+    private TimeSpan _remaining;
+    private double _remainingFraction = 1;
+    private TimeSpan _sessionLength = TimeSpan.Zero;
+    private Panel _hero = null!;
+
     private Process? _runningProcess;
     private TaskbarStrip _taskbar = null!;
     private Label _statusLabel = null!;
-    private Label _remainingLabel = null!;
 
     // Name-based watching, used when a game runs as a different process than the
     // one launched. See GameEntry.ProcessName.
@@ -205,7 +212,7 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        Theme.PaintBackdrop(e.Graphics, ClientRectangle);
+        Arena.PaintArena(e.Graphics, ClientRectangle);
     }
 
     private void BuildLayout()
@@ -318,48 +325,104 @@ internal sealed class GameMenuForm : Form
         _taskbar?.SetActive(Visible && !_playingHiddenOverlay);
     }
 
+    /// <summary>
+    /// Café, station, and how long is left.
+    /// </summary>
+    /// <remarks>
+    /// The countdown is the second-largest thing on this screen on purpose: it
+    /// is what a customer keeps glancing at, and it used to be a line of text
+    /// in the corner. Set in Consolas so the digits hold their column and the
+    /// number does not shuffle sideways every second.
+    /// </remarks>
     private Control BuildHeader()
     {
         var header = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 110,
+            Height = 92,
             BackColor = Color.Transparent,
         };
 
-        // Painted, not labelled: a Label cannot letter-space its text, and the
-        // wide capitals are what tie this screen to the lock screen in front of
-        // it. Both are drawn from the same left edge as the tiles below.
         header.Paint += (_, e) =>
         {
-            using var titleFont = new Font("Segoe UI", 24f, FontStyle.Bold);
-            using var kickerFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            Theme.DrawTracked(e.Graphics, "CHOOSE A GAME", titleFont, Palette.TextPrimary, 48f, 30f, 7f);
-            Theme.DrawTracked(e.Graphics, $"PLAYTIME  ·  STATION {_config.StationId.ToUpperInvariant()}",
-                kickerFont, Palette.AccentSoft, 50f, 76f, 4f);
+            using var nameFont = Arena.Sans(15f, FontStyle.Bold);
+            using var stationFont = Arena.Mono(11f);
+            using var labelFont = Arena.Sans(8f, FontStyle.Bold);
+            using var clockFont = Arena.Mono(30f);
 
-            using var rule = new SolidBrush(Palette.Accent);
-            e.Graphics.FillRectangle(rule, 50, 98, 54, 2);
+            var left = 46f;
+
+            var cafe = (_config.CafeName ?? string.Empty).Trim().ToUpperInvariant();
+            if (cafe.Length > 0)
+            {
+                Theme.DrawTracked(g, cafe, nameFont, Palette.TextPrimary, left, 30f, 4.4f);
+                left += Theme.MeasureTracked(g, cafe, nameFont, 4.4f) + 18f;
+
+                using var divider = new Pen(Color.FromArgb(40, 255, 255, 255));
+                g.DrawLine(divider, left, 30f, left, 50f);
+                left += 18f;
+            }
+
+            Theme.DrawTracked(g, _config.StationId.ToUpperInvariant(), stationFont,
+                Palette.AccentSoft, left, 32f, 1.6f);
+
+            // Right side: the countdown, and a bar draining beside it.
+            var text = FormatRemaining();
+            if (text.Length == 0)
+            {
+                return;
+            }
+
+            var clockWidth = g.MeasureString(text, clockFont).Width;
+            var barRight = header.Width - 46f;
+            var clockRight = barRight - 18f;
+
+            Theme.DrawTracked(g, "TIME LEFT", labelFont, Palette.TextFaint,
+                clockRight - clockWidth, 22f, 2.4f);
+
+            var urgent = _remaining > TimeSpan.Zero && _remaining.TotalMinutes <= 5;
+
+            using (var brush = new SolidBrush(urgent ? Palette.Accent : Palette.TextPrimary))
+            {
+                g.DrawString(text, clockFont, brush, clockRight - clockWidth, 38f);
+            }
+
+            var barTop = 26f;
+            var barHeight = 46f;
+
+            using (var track = new SolidBrush(Color.FromArgb(30, 255, 255, 255)))
+            {
+                g.FillRectangle(track, barRight - 5f, barTop, 5f, barHeight);
+            }
+
+            var filled = (float)Math.Max(0, Math.Min(1, _remainingFraction)) * barHeight;
+            using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
+                       new RectangleF(barRight - 5f, barTop, 5f, barHeight),
+                       urgent ? Palette.Accent : Palette.Accent,
+                       Color.FromArgb(0xFF, 0x6B, 0x7A),
+                       System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+            {
+                g.FillRectangle(fill, barRight - 5f, barTop + (barHeight - filled), 5f, filled);
+            }
         };
 
-        // Right-aligned countdown. Anchored so it stays pinned to the right edge
-        // rather than drifting when the header is laid out.
-        _remainingLabel = new Label
-        {
-            Text = string.Empty,
-            Font = new Font("Segoe UI", 22f, FontStyle.Bold),
-            ForeColor = Palette.TextPrimary,
-            TextAlign = ContentAlignment.MiddleRight,
-            AutoSize = false,
-            Width = 320,
-            Height = 46,
-            Location = new Point(Bounds.Width - 368, 40),
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
-        };
-
-        header.Controls.Add(_remainingLabel);
         return header;
+    }
+
+    private string FormatRemaining()
+    {
+        if (_remaining <= TimeSpan.Zero)
+        {
+            // An unbounded session has nothing meaningful to count down.
+            return string.Empty;
+        }
+
+        return _remaining.TotalHours >= 1
+            ? $"{(int)_remaining.TotalHours}:{_remaining.Minutes:00}:{_remaining.Seconds:00}"
+            : $"{_remaining.Minutes:00}:{_remaining.Seconds:00}";
     }
 
     /// <summary>
@@ -385,26 +448,28 @@ internal sealed class GameMenuForm : Form
     /// <summary>Updates the countdown shown in the header.</summary>
     public void UpdateRemaining(TimeSpan remaining)
     {
-        if (_remainingLabel is null)
+        _remaining = remaining;
+
+        // The longest the session has been seen to have left, which is what the
+        // bar drains against. Taken from the first tick rather than from the
+        // unlock, because a resumed session starts part-way through and a bar
+        // measured from its full length would begin half empty.
+        if (remaining > _sessionLength)
         {
-            return;
+            _sessionLength = remaining;
         }
 
-        if (remaining <= TimeSpan.Zero)
+        _remainingFraction = _sessionLength > TimeSpan.Zero
+            ? remaining.TotalSeconds / _sessionLength.TotalSeconds
+            : 0;
+
+        // Only the header, not the whole screen: this fires every second, and
+        // repainting a wall of cover art once a second is a stutter the
+        // customer sees while they are choosing.
+        if (Controls.Count > 0)
         {
-            // Blank rather than "00:00" — an unbounded session (backend sent no
-            // duration) has nothing meaningful to show here.
-            _remainingLabel.Text = string.Empty;
-            return;
+            Invalidate(new Rectangle(0, 0, Width, 92));
         }
-
-        _remainingLabel.Text = remaining.TotalHours >= 1
-            ? $"{(int)remaining.TotalHours}:{remaining.Minutes:00}:{remaining.Seconds:00} left"
-            : $"{remaining.Minutes:00}:{remaining.Seconds:00} left";
-
-        // Turns red for the last five minutes, matching when the warning banner
-        // starts appearing.
-        _remainingLabel.ForeColor = remaining.TotalMinutes <= 5 ? Palette.Accent : Palette.TextPrimary;
     }
 
     private Control BuildTileArea()
@@ -516,8 +581,8 @@ internal sealed class GameMenuForm : Form
 
         heading.Paint += (_, e) =>
         {
-            using var titleFont = new Font("Segoe UI", 12f, FontStyle.Bold);
-            using var subtitleFont = new Font("Segoe UI", 9f, FontStyle.Regular);
+            using var titleFont = Arena.Sans(12f, FontStyle.Bold);
+            using var subtitleFont = Arena.Sans(9f);
 
             Theme.DrawTracked(e.Graphics, title, titleFont, Palette.TextPrimary, 0f, 4f, 4f);
 
@@ -545,103 +610,141 @@ internal sealed class GameMenuForm : Form
         return heading;
     }
 
+    /// <summary>
+    /// Which launcher a game came from, as a colour.
+    /// </summary>
+    /// <remarks>
+    /// A wall of dark tiles all look alike, and the icon is often the only
+    /// thing that differs - which is why "the icons are not clear" kept coming
+    /// back. A coloured top edge per launcher lets somebody pick out the Steam
+    /// ones without reading a word.
+    /// </remarks>
+    private static Color EdgeFor(GameEntry game)
+    {
+        var source = (game.ExePath ?? string.Empty).ToLowerInvariant();
+
+        if (source.Contains("steam")) return Color.FromArgb(0x38, 0xBD, 0xF8);
+        if (source.Contains("epic") || source.Contains("fortnite")) return Color.FromArgb(0xA8, 0x55, 0xF7);
+        if (source.Contains("riot") || source.Contains("valorant")) return Palette.Accent;
+        if (source.Contains("xbox") || source.Contains("gamingservices")) return Color.FromArgb(0x22, 0xC5, 0x5E);
+        if (source.Contains("rockstar")) return Color.FromArgb(0xF9, 0x73, 0x16);
+        if (source.Contains("battle.net") || source.Contains("blizzard")) return Color.FromArgb(0x60, 0xA5, 0xFA);
+        if (source.Contains("ubisoft") || source.Contains("upc")) return Color.FromArgb(0x22, 0xD3, 0xEE);
+
+        return Color.FromArgb(0x47, 0x55, 0x69);
+    }
+
+    /// <summary>
+    /// One game, as a tall cover rather than an icon in an empty square.
+    /// </summary>
+    /// <remarks>
+    /// The old tile was 210x232 with a 96px icon floating in the middle of it,
+    /// so most of the tile was nothing and every game looked like every other
+    /// game. Here the picture fills the block and the name sits on solid ground
+    /// at the bottom, which is how a console dashboard does it and why one is
+    /// scannable at a glance.
+    /// <para>
+    /// Designed to work with no picture at all: where Windows gives up no art,
+    /// the block keeps its launcher colour and its name, which is still more
+    /// than the old empty square managed.
+    /// </para>
+    /// </remarks>
     private Control BuildTile(GameEntry game)
     {
+        const int width = 202;
+        const int height = 252;
+
+        var edge = EdgeFor(game);
+
         var tile = new Panel
         {
-            Width = 210,
-            Height = 232,
-            Margin = new Padding(12),
-            BackColor = Palette.CardFillOpaque,
+            Width = width,
+            Height = height,
+            Margin = new Padding(8),
+            BackColor = Palette.PanelFill,
             Cursor = Cursors.Hand,
         };
 
-        Theme.RoundCorners(tile, Theme.CornerRadius);
-
-        // Tracked on the tile rather than read back from BackColor, so the
-        // border and the fill can never disagree about whether it is hovered.
+        var image = LoadTileImage(game);
         var hovered = false;
 
         tile.Paint += (_, e) =>
         {
-            Theme.DrawBorder(
-                e.Graphics,
-                new Rectangle(0, 0, tile.Width, tile.Height),
-                hovered ? Palette.Accent : Palette.CardBorder,
-                hovered ? 2f : 1f,
-                Theme.CornerRadius);
-        };
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-        var image = LoadTileImage(game);
+            var art = new Rectangle(0, 0, width, height);
 
-        if (image is null)
-        {
-            // Some programs genuinely carry no icon, and a game found on this
-            // PC is worth offering whether or not Windows can draw it. An empty
-            // square reads as a broken tile; initials read as a tile.
-            image = InitialsTile(game.Name, 96);
-        }
-
-        // Real cover art is wide; an extracted program icon is square. They want
-        // different room, so the tile asks the picture which it got rather than
-        // forcing both into one box - a header squeezed into a 96px square is
-        // unreadable, and an icon stretched across the tile is a blur.
-        var isArtwork = image is not null && image.Width > image.Height * 1.4;
-
-        var picture = new PictureBox
-        {
-            Width = isArtwork ? tile.Width - 28 : 96,
-            Height = isArtwork ? 104 : 96,
-            Location = isArtwork
-                ? new Point(14, 22)
-                : new Point((tile.Width - 96) / 2, 34),
-            SizeMode = PictureBoxSizeMode.Zoom,
-            BackColor = Color.Transparent,
-            Image = image,
-            Cursor = Cursors.Hand,
-        };
-
-        var label = new Label
-        {
-            Text = game.Name.ToUpperInvariant(),
-            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Palette.TextPrimary,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Dock = DockStyle.Bottom,
-            Height = 52,
-            BackColor = Color.Transparent,
-            Cursor = Cursors.Hand,
-        };
-
-        tile.Controls.Add(picture);
-        tile.Controls.Add(label);
-
-        // Child controls swallow mouse events, so every one of them needs the
-        // same handlers or the tile only responds around its edges.
-        foreach (Control target in new Control[] { tile, picture, label })
-        {
-            target.Click += (_, _) => LaunchGame(game);
-            target.MouseEnter += (_, _) =>
+            if (image is not null)
             {
-                hovered = true;
-                tile.BackColor = Palette.SurfaceHover;
-                tile.Invalidate();
-            };
-            target.MouseLeave += (_, _) =>
-            {
-                // Only clear the highlight once the pointer has left the tile
-                // entirely — moving from the tile onto its own label would
-                // otherwise flicker it off.
-                if (tile.RectangleToScreen(tile.ClientRectangle).Contains(Cursor.Position))
-                {
-                    return;
-                }
+                // Cover, not contain: the block is filled and the overflow
+                // cropped, because a letterboxed icon in a tall block is the
+                // empty-square problem with extra steps.
+                var scale = Math.Max(width / (float)image.Width, height / (float)image.Height);
+                var w = image.Width * scale;
+                var h = image.Height * scale;
 
-                hovered = false;
-                tile.BackColor = Palette.CardFillOpaque;
-                tile.Invalidate();
+                g.DrawImage(image, (width - w) / 2f, (height - h) / 2f, w, h);
+            }
+            else
+            {
+                using var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    art,
+                    Color.FromArgb(70, edge),
+                    Palette.PanelFill,
+                    System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal);
+
+                g.FillRectangle(fill, art);
+            }
+
+            // The scrim, so a name stays readable over any artwork at all.
+            using (var scrim = new System.Drawing.Drawing2D.LinearGradientBrush(
+                       new Rectangle(0, height - 130, width, 130),
+                       Color.FromArgb(0, 5, 7, 12),
+                       Color.FromArgb(245, 5, 7, 12),
+                       System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+            {
+                g.FillRectangle(scrim, 0, height - 130, width, 130);
+            }
+
+            using (var top = new SolidBrush(hovered ? Color.White : edge))
+            {
+                g.FillRectangle(top, 0, 0, width, 3);
+            }
+
+            using var nameFont = Arena.Sans(11f, FontStyle.Bold);
+            using var name = new SolidBrush(Palette.TextPrimary);
+
+            var box = new RectangleF(14, height - 62, width - 28, 48);
+            using var format = new StringFormat
+            {
+                Trimming = StringTrimming.EllipsisCharacter,
+                FormatFlags = StringFormatFlags.LineLimit,
             };
-        }
+
+            g.DrawString(game.Name, nameFont, name, box, format);
+
+            if (hovered)
+            {
+                using var glow = new Pen(Color.FromArgb(150, 255, 255, 255), 2f);
+                g.DrawRectangle(glow, 1, 1, width - 2, height - 2);
+            }
+        };
+
+        tile.Click += (_, _) => LaunchGame(game);
+        tile.MouseEnter += (_, _) => { hovered = true; tile.Invalidate(); };
+        tile.MouseLeave += (_, _) =>
+        {
+            if (tile.RectangleToScreen(tile.ClientRectangle).Contains(Cursor.Position))
+            {
+                return;
+            }
+
+            hovered = false;
+            tile.Invalidate();
+        };
+
+        tile.Disposed += (_, _) => image?.Dispose();
 
         return tile;
     }
@@ -651,17 +754,23 @@ internal sealed class GameMenuForm : Form
         var footer = new Panel
         {
             Dock = DockStyle.Bottom,
-            Height = 54,
+            Height = 60,
             BackColor = Color.Transparent,
+        };
+
+        footer.Paint += (_, e) =>
+        {
+            using var rule = new Pen(Color.FromArgb(16, 255, 255, 255));
+            e.Graphics.DrawLine(rule, 0, 0, footer.Width, 0);
         };
 
         _statusLabel = new Label
         {
             Text = "Pick a game to start playing.",
-            Font = new Font("Segoe UI", 10f, FontStyle.Regular),
+            Font = Arena.Sans(10f),
             ForeColor = Palette.TextMuted,
             AutoSize = true,
-            Location = new Point(52, 18),
+            Location = new Point(46, 20),
         };
 
         footer.Controls.Add(_statusLabel);
@@ -672,23 +781,35 @@ internal sealed class GameMenuForm : Form
         // mis-tap and somebody's paid session ending.
         var endSession = new Button
         {
-            Text = "End session",
-            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+            Text = "END SESSION",
+            Font = Arena.Sans(9.5f, FontStyle.Bold),
             ForeColor = Palette.TextMuted,
-            BackColor = Palette.Border,
+            BackColor = Palette.PanelFill,
             FlatStyle = FlatStyle.Flat,
-            Width = 150,
-            Height = 34,
+            Width = 168,
+            Height = 42,
             Cursor = Cursors.Hand,
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
-            Location = new Point(Bounds.Width - 202, 10),
-            FlatAppearance = { BorderSize = 0 },
+            Location = new Point(Bounds.Width - 46 - 168, 8),
+            FlatAppearance = { BorderSize = 1, BorderColor = Color.FromArgb(42, 255, 255, 255) },
         };
 
         endSession.Click += (_, _) => EndSessionRequested?.Invoke(this, EventArgs.Empty);
-        Theme.RoundCorners(endSession, 10);
-
         footer.Controls.Add(endSession);
+
+        // Says what the button does before it is pressed. Somebody who does not
+        // know their unused time comes back has no reason to press it at all,
+        // and every minute they leave on the clock is a minute the café cannot
+        // sell to the next person.
+        footer.Controls.Add(new Label
+        {
+            Text = "Finished early? Unused time goes back to your account.",
+            Font = Arena.Sans(9f),
+            ForeColor = Palette.TextDim,
+            AutoSize = true,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Location = new Point(Bounds.Width - 46 - 168 - 336, 20),
+        });
 
         if (AgentSettings.AllowDevExit)
         {
