@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { theme } from "../../../utils/theme";
 import { ErrorBoundary } from "../../ErrorBoundary";
 import { useOwnerDashboard } from "../../../context/OwnerDashboardContext";
+import { DiscoveredGames } from "../../DiscoveredGames";
 
 const StationsTab = dynamic(() => import("../../StationsTab").then((mod) => mod.StationsTab), { ssr: false });
 const StationLiveStatus = dynamic(() => import("../../StationLiveStatus").then((mod) => mod.StationLiveStatus), { ssr: false });
@@ -108,6 +109,7 @@ export function StationsTabRoute() {
       />
       <div className="mt-4 flex flex-col gap-4">
         <StationLiveStatus cafeId={selectedCafeId || undefined} />
+        {selectedCafeId && <DiscoveredGames cafeId={selectedCafeId} />}
         <CafePcGamesEditor cafeId={selectedCafeId || undefined} />
         <UnlockHistory cafeId={selectedCafeId || undefined} />
       </div>
