@@ -318,7 +318,11 @@ internal static class RunningWindows
     {
         // SendMessageTimeout, never SendMessage: a game that is loading does not
         // pump messages, and a plain send would hang the menu until it did.
-        foreach (var kind in new[] { NativeMethods.ICON_BIG, NativeMethods.ICON_SMALL2, NativeMethods.ICON_SMALL })
+        // Two kinds, not three, and a shorter wait. This runs against every
+        // open window on the machine, and a game or an anti-cheat that is busy
+        // starting up does not answer at all - so the timeout is paid in full,
+        // per window, per attempt.
+        foreach (var kind in new[] { NativeMethods.ICON_BIG, NativeMethods.ICON_SMALL2 })
         {
             var sent = NativeMethods.SendMessageTimeout(
                 hwnd,
@@ -326,7 +330,7 @@ internal static class RunningWindows
                 new IntPtr(kind),
                 IntPtr.Zero,
                 NativeMethods.SMTO_ABORTIFHUNG,
-                120,
+                60,
                 out var handle);
 
             if (sent != IntPtr.Zero && handle != IntPtr.Zero)

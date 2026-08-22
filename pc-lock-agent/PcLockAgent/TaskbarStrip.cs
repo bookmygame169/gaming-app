@@ -27,6 +27,9 @@ internal sealed class TaskbarStrip : Panel
     public const int PreferredHeight = 76;
 
     private readonly System.Windows.Forms.Timer _refreshTimer;
+
+    /// <summary>Whether a scan is already out on a background thread.</summary>
+    private int _scanning;
     private readonly FlowLayoutPanel _buttons;
     private readonly Label _emptyHint;
     private IReadOnlyList<RunningWindow> _shown = Array.Empty<RunningWindow>();
@@ -64,7 +67,7 @@ internal sealed class TaskbarStrip : Panel
         // A second is slow enough to cost nothing and fast enough that a game
         // finishing its load shows up before a customer gives up on it.
         _refreshTimer = new System.Windows.Forms.Timer { Interval = 1000 };
-        _refreshTimer.Tick += (_, _) => RebuildIfChanged(RunningWindows.List());
+        _refreshTimer.Tick += (_, _) => BeginScan();
     }
 
     /// <summary>
@@ -80,12 +83,99 @@ internal sealed class TaskbarStrip : Panel
     {
         if (active)
         {
-            RebuildIfChanged(RunningWindows.List());
+            BeginScan();
             _refreshTimer.Start();
             return;
         }
 
         _refreshTimer.Stop();
+    }
+
+    /// <summary>
+    /// Looks at what is open, on a background thread.
+    /// </summary>
+    /// <remarks>
+    /// This used to run on the UI thread, and on a machine launching Valorant
+    /// that was enough to freeze the whole agent for as long as a minute.
+    /// Enumerating every window is cheap; asking each one for its icon is not.
+    /// WM_GETICON is sent with a 120ms timeout and tried three ways, so a
+    /// handful of windows that are busy loading — which is exactly what a game
+    /// and its anti-cheat are while they start — costs seconds per tick, once a
+    /// second.
+    /// <para>
+    /// The damage was worse than a stutter. By then the menu has already gone
+    /// transparent to let the game in front, so it is the only thing between
+    /// the customer and the desktop; a frozen UI thread cannot run the
+    /// foreground watch that puts the cover back, and the desktop simply stays
+    /// on screen until the scan finishes.
+    /// </para>
+    /// <para>
+    /// One scan at a time. If the previous one is still out — which is the
+    /// whole problem case — the tick is skipped rather than queued, because a
+    /// backlog of scans against a hung window is how a stutter becomes a
+    /// freeze.
+    /// </para>
+    /// </remarks>
+    private void BeginScan()
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _scanning, 1) == 1)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            List<RunningWindow> windows;
+            var icons = new Dictionary<IntPtr, Image?>();
+
+            try
+            {
+                windows = RunningWindows.List().ToList();
+
+                // Icons here too, not on the UI thread when the button is
+                // built: extracting one reads the executable off disk.
+                foreach (var window in windows)
+                {
+                    icons[window.Handle] = RunningWindows.IconFor(window);
+                }
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Warn($"Could not scan open windows: {ex.Message}");
+                windows = new List<RunningWindow>();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _scanning, 0);
+            }
+
+            if (IsDisposed || !IsHandleCreated)
+            {
+                foreach (var icon in icons.Values)
+                {
+                    icon?.Dispose();
+                }
+
+                return;
+            }
+
+            try
+            {
+                BeginInvoke(new Action(() => RebuildIfChanged(windows, icons)));
+            }
+            catch (ObjectDisposedException)
+            {
+                foreach (var icon in icons.Values)
+                {
+                    icon?.Dispose();
+                }
+            }
+        });
     }
 
     /// <summary>The strip's own left-hand caption and top rule.</summary>
@@ -97,7 +187,7 @@ internal sealed class TaskbarStrip : Panel
         e.Graphics.DrawLine(rule, 50, 0, Width - 50, 0);
     }
 
-    private void RebuildIfChanged(IReadOnlyList<RunningWindow> windows)
+    private void RebuildIfChanged(IReadOnlyList<RunningWindow> windows, Dictionary<IntPtr, Image?> icons)
     {
         if (IsDisposed || !IsHandleCreated)
         {
@@ -109,6 +199,13 @@ internal sealed class TaskbarStrip : Panel
         // list is only rebuilt when it has actually changed.
         if (!_rebuildWanted && SameAsShown(windows))
         {
+            // Nothing to draw, so the icons this scan fetched are dropped here
+            // rather than leaked. Most ticks land on this line.
+            foreach (var spare in icons.Values)
+            {
+                spare?.Dispose();
+            }
+
             return;
         }
 
@@ -136,16 +233,17 @@ internal sealed class TaskbarStrip : Panel
         {
             foreach (var window in windows)
             {
-                _buttons.Controls.Add(BuildButton(window));
+                icons.TryGetValue(window.Handle, out var icon);
+                _buttons.Controls.Add(BuildButton(window, icon));
             }
         }
 
         _buttons.ResumeLayout();
     }
 
-    private TaskbarButton BuildButton(RunningWindow window)
+    private TaskbarButton BuildButton(RunningWindow window, Image? icon)
     {
-        var button = new TaskbarButton(window, RunningWindows.IconFor(window));
+        var button = new TaskbarButton(window, icon);
 
         button.ActivateRequested += (_, target) => WindowActivated?.Invoke(this, target);
 

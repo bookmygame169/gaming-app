@@ -69,8 +69,10 @@ export function durationOptions(rows: PricingRow[]): { durationMinutes: number; 
  *
  * A cap rather than a preference: this is an unattended purchase, and somebody
  * mistapping a longer block should be out a couple of hundred rupees at worst.
+ * Anyone who wants a longer stretch than this is better served at the counter,
+ * where a person can check what they actually meant.
  */
-export const MAX_HOURS_IN_ONE_GO = 5;
+export const MAX_HOURS_IN_ONE_GO = 3;
 
 /**
  * The café's own durations, plus whole-hour blocks up to the cap.

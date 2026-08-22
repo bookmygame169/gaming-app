@@ -749,6 +749,23 @@ internal sealed class GameMenuForm : Form
         return tile;
     }
 
+    /// <summary>
+    /// The strip along the bottom: what is happening, and the way out.
+    /// </summary>
+    /// <remarks>
+    /// Everything on the right is placed from the footer's own width in a
+    /// Resize handler, not from the form's, and that is the whole reason this
+    /// works.
+    /// <para>
+    /// The first version anchored to the right and set an absolute Location
+    /// from Bounds.Width. The form is screen-sized by then, but the footer is
+    /// not: it is a couple of hundred pixels wide until the layout runs, so
+    /// WinForms recorded the button as sitting far beyond its parent's right
+    /// edge and faithfully kept it there when the parent grew. End session has
+    /// been rendering about seventeen hundred pixels off the side of the screen
+    /// ever since it was added, which is why nobody could find it.
+    /// </para>
+    /// </remarks>
     private Control BuildFooter()
     {
         var footer = new Panel
@@ -775,57 +792,75 @@ internal sealed class GameMenuForm : Form
 
         footer.Controls.Add(_statusLabel);
 
-        // Quiet on purpose. A customer looking for it will find it, and one
-        // reaching for a game tile will not hit it by accident — which matters,
-        // because the confirmation behind it is the only thing between a
-        // mis-tap and somebody's paid session ending.
-        var endSession = new Button
-        {
-            Text = "END SESSION",
-            Font = Arena.Sans(9.5f, FontStyle.Bold),
-            ForeColor = Palette.TextMuted,
-            BackColor = Palette.PanelFill,
-            FlatStyle = FlatStyle.Flat,
-            Width = 168,
-            Height = 42,
-            Cursor = Cursors.Hand,
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
-            Location = new Point(Bounds.Width - 46 - 168, 8),
-            FlatAppearance = { BorderSize = 1, BorderColor = Color.FromArgb(42, 255, 255, 255) },
-        };
-
-        endSession.Click += (_, _) => EndSessionRequested?.Invoke(this, EventArgs.Empty);
-        footer.Controls.Add(endSession);
-
         // Says what the button does before it is pressed. Somebody who does not
         // know their unused time comes back has no reason to press it at all,
         // and every minute they leave on the clock is a minute the café cannot
         // sell to the next person.
-        footer.Controls.Add(new Label
+        var hint = new Label
         {
             Text = "Finished early? Unused time goes back to your account.",
             Font = Arena.Sans(9f),
             ForeColor = Palette.TextDim,
             AutoSize = true,
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
-            Location = new Point(Bounds.Width - 46 - 168 - 336, 20),
-        });
+        };
+
+        var endSession = new Button
+        {
+            Text = "END SESSION",
+            Font = Arena.Sans(9.5f, FontStyle.Bold),
+            ForeColor = Palette.TextPrimary,
+            BackColor = Palette.PanelFill,
+            FlatStyle = FlatStyle.Flat,
+            Width = 176,
+            Height = 42,
+            Cursor = Cursors.Hand,
+            FlatAppearance = { BorderSize = 1, BorderColor = Palette.Accent },
+        };
+
+        endSession.Click += (_, _) => EndSessionRequested?.Invoke(this, EventArgs.Empty);
+
+        footer.Controls.Add(hint);
+        footer.Controls.Add(endSession);
+
+        void PlaceRightHandSide()
+        {
+            if (footer.Width <= 0)
+            {
+                return;
+            }
+
+            endSession.Left = footer.Width - 46 - endSession.Width;
+            endSession.Top = (footer.Height - endSession.Height) / 2;
+
+            hint.Left = endSession.Left - 20 - hint.Width;
+            hint.Top = (footer.Height - hint.Height) / 2;
+
+            // Hidden rather than overlapped on a narrow screen: the button is
+            // the part that has to be reachable.
+            hint.Visible = hint.Left > _statusLabel.Right + 24;
+        }
+
+        footer.Resize += (_, _) => PlaceRightHandSide();
+        PlaceRightHandSide();
 
         if (AgentSettings.AllowDevExit)
         {
             // Repeated here because the lock screen's badge is hidden for the
             // whole of a session — without this there is no on-screen reminder
             // of how to get out once a game menu is up.
-            footer.Controls.Add(new Label
+            var dev = new Label
             {
                 Text = "DEV BUILD — Ctrl+Shift+Alt +  K lock · L suspend · Q quit",
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Font = Arena.Sans(9f, FontStyle.Bold),
                 ForeColor = Palette.Warning,
                 BackColor = Palette.Border,
                 AutoSize = true,
                 Padding = new Padding(8, 5, 8, 5),
-                Location = new Point(Bounds.Width - 460, 14),
-            });
+                Location = new Point(46, 2),
+            };
+
+            footer.Controls.Add(dev);
+            dev.BringToFront();
         }
 
         return footer;

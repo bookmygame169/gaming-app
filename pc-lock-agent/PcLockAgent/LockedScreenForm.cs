@@ -116,6 +116,10 @@ internal sealed class LockedScreenForm : Form
     {
         Show();
 
+        // Re-read on every lock. Fetching once at construction meant a machine
+        // left running for a week quoted last week's prices.
+        _ = LoadPricesAsync();
+
         if (!reassertTopMost)
         {
             return;
