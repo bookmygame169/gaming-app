@@ -65,7 +65,19 @@ internal sealed class DiscoveryReport
         {
             try
             {
+                // Timed because "does this slow the PCs down" is a fair question
+                // with no good answer from reading the code: it depends on how
+                // many Steam libraries a café has and whether they are on a
+                // mechanical drive. The log says what it actually cost on that
+                // machine.
+                var clock = System.Diagnostics.Stopwatch.StartNew();
                 var found = GameDiscovery.ScanForReport();
+                clock.Stop();
+
+                AgentLog.Info(
+                    $"Scanned for installed games in {clock.ElapsedMilliseconds} ms " +
+                    $"(found {found.Count}). Machine was locked and idle.");
+
                 if (found.Count == 0)
                 {
                     return;
