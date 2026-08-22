@@ -42,6 +42,7 @@ internal sealed class MqttService : IAsyncDisposable
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
     private readonly string _commandTopic;
+    private readonly string? _scopedCommandTopic;
     private readonly string _statusTopic;
 
     /// <summary>
@@ -65,6 +66,9 @@ internal sealed class MqttService : IAsyncDisposable
     {
         _config = config;
         _commandTopic = $"cafe/station/{config.StationId}/command";
+        _scopedCommandTopic = string.IsNullOrWhiteSpace(config.Heartbeat.CafeId)
+            ? null
+            : $"cafe/{config.Heartbeat.CafeId}/station/{config.StationId}/command";
         _statusTopic = $"cafe/station/{config.StationId}/status";
 
         _client = new MqttFactory().CreateMqttClient();
@@ -75,7 +79,7 @@ internal sealed class MqttService : IAsyncDisposable
             .WithTcpServer(config.Mqtt.Host, config.Mqtt.Port)
             // Station id doubles as client id: unique per PC, and makes the
             // broker's connection list directly readable during debugging.
-            .WithClientId($"pc-lock-agent-{config.StationId}")
+            .WithClientId($"pc-lock-agent-{config.Heartbeat.CafeId ?? "cafe"}-{config.StationId}")
             .WithCleanSession();
 
         if (!string.IsNullOrWhiteSpace(config.Mqtt.Username))
@@ -156,8 +160,15 @@ internal sealed class MqttService : IAsyncDisposable
                     await _client.ConnectAsync(_options, ct).ConfigureAwait(false);
                     await _client.SubscribeAsync(_commandTopic, MqttQualityOfServiceLevel.AtLeastOnce, ct)
                         .ConfigureAwait(false);
+                    if (_scopedCommandTopic is not null)
+                    {
+                        await _client.SubscribeAsync(_scopedCommandTopic, MqttQualityOfServiceLevel.AtLeastOnce, ct)
+                            .ConfigureAwait(false);
+                    }
 
-                    AgentLog.Info($"Connected to broker, subscribed to {_commandTopic}");
+                    AgentLog.Info(
+                        $"Connected to broker, subscribed to {_commandTopic}" +
+                        (_scopedCommandTopic is null ? "" : $" and {_scopedCommandTopic}"));
                     RaiseOnUi(() => ConnectionChanged?.Invoke(this, true));
 
                     // Announce current state so the backend knows this station

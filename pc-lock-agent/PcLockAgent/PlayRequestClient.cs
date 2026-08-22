@@ -224,6 +224,50 @@ internal sealed class PlayRequestClient
     }
 
     /// <summary>
+    /// Sends the owner a list of what is installed on this PC.
+    /// </summary>
+    /// <remarks>
+    /// Suggestions, not games. Nothing sent here reaches a lock screen until an
+    /// owner has looked at it and added it to the café's list.
+    /// </remarks>
+    public async Task<int> ReportDiscoveredGamesAsync(IReadOnlyList<DiscoveredGame> games)
+    {
+        if (!IsConfigured || games.Count == 0)
+        {
+            return 0;
+        }
+
+        try
+        {
+            using var request = Build(HttpMethod.Post, "/api/stations/discovered-games", new
+            {
+                cafeId = _config.Heartbeat.CafeId,
+                stationName = _config.StationId,
+                games,
+            });
+
+            using var response = await _http.SendAsync(request).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                AgentLog.Warn($"Could not report installed games: HTTP {(int)response.StatusCode}.");
+                return 0;
+            }
+
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.TryGetProperty("accepted", out var accepted)
+                ? accepted.GetInt32()
+                : 0;
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not report installed games: {ex.Message}");
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// Tells the server the customer has finished, and reads what they get back.
     /// </summary>
     /// <remarks>

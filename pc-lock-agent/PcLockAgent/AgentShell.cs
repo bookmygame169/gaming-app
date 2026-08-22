@@ -30,6 +30,7 @@ internal sealed class AgentShell : ApplicationContext
     private readonly ScreenBlanker _screenBlanker;
     private readonly UnlockQrProvider _unlockQr;
     private readonly PlayRequestClient _playRequests;
+    private readonly DiscoveryReport _discoveryReport;
     private PayNowForm? _payNow;
     private EndSessionForm? _endSession;
     private readonly System.Windows.Forms.Timer _foregroundWatchTimer;
@@ -80,6 +81,10 @@ internal sealed class AgentShell : ApplicationContext
         _gameMenu.DevChordPressed += OnDevChordPressed;
 
         _playRequests = new PlayRequestClient(config);
+
+        // Suggestions for the owner, never for the menu. Reported from the lock
+        // screen because that is when the machine is idle.
+        _discoveryReport = new DiscoveryReport(config, _playRequests);
         _lockedScreen.PayNowRequested += (_, _) => OpenPayNow();
         _lockedScreen.RestartRequested += (_, _) => AskToRestart();
         _lockedScreen.ShutDownRequested += (_, _) => AskToShutDown();
@@ -319,6 +324,10 @@ internal sealed class AgentShell : ApplicationContext
         // The screen is the only place the code is ever shown, so it starts and
         // stops with the screen rather than on a schedule of its own.
         _unlockQr.Start();
+
+        // While the machine is idle. The scanners walk the registry and Steam's
+        // library folders, which is not work to do behind somebody's game.
+        _discoveryReport.ReportIfDue();
 
         ReportState(locked: true, sessionId: null);
     }

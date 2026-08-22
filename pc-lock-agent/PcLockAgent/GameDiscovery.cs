@@ -646,6 +646,76 @@ internal static class GameDiscovery
     /// that is the only way that works: most of them check in with Steam on
     /// startup and refuse to run without it.
     /// </remarks>
+    /// <summary>
+    /// Everything this PC can see installed, for the owner to judge.
+    /// </summary>
+    /// <remarks>
+    /// This is the one place the wide scanners are allowed to run, and what
+    /// they produce never reaches a customer. It goes to the dashboard as a
+    /// list of suggestions; the menu is still built from the café's own list
+    /// and the desktop.
+    /// <para>
+    /// That is the whole reason they can be switched on again. Six rounds of
+    /// "not all the games are showing" were spent trying to tell a game from
+    /// File Explorer, the NVIDIA panel and adware by rule, and the rules were
+    /// always wrong in one direction or the other. A person looking at a list
+    /// once a week is better at it than any filter, and cannot be fooled by
+    /// something naming itself "Setup".
+    /// </para>
+    /// <para>
+    /// Each scanner is run inside its own try: a registry key that will not
+    /// read, or a Steam library on a drive that has been removed, must cost its
+    /// own results and not everyone else's.
+    /// </para>
+    /// </remarks>
+    public static List<DiscoveredGame> ScanForReport()
+    {
+        var found = new Dictionary<string, DiscoveredGame>(StringComparer.OrdinalIgnoreCase);
+
+        void Take(string source, Func<IEnumerable<GameEntry>> scan)
+        {
+            try
+            {
+                foreach (var entry in scan())
+                {
+                    if (string.IsNullOrWhiteSpace(entry.ExePath) || string.IsNullOrWhiteSpace(entry.Name))
+                    {
+                        continue;
+                    }
+
+                    // First scanner to claim a path wins. The order below runs
+                    // the specific ones before the general, so a Steam game is
+                    // reported as Steam rather than as a registry entry.
+                    if (found.ContainsKey(entry.ExePath))
+                    {
+                        continue;
+                    }
+
+                    found[entry.ExePath] = new DiscoveredGame(
+                        entry.Name,
+                        entry.ExePath,
+                        entry.Arguments,
+                        entry.ProcessName,
+                        source);
+                }
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Warn($"Could not scan {source} for the report: {ex.Message}");
+            }
+        }
+
+        Take("steam", FromSteam);
+        Take("steam", FromSteamCommonFolders);
+        Take("epic", FromEpic);
+        Take("xbox", FromXboxGames);
+        Take("store", FromStoreApps);
+        Take("registry", FromRegistry);
+        Take("desktop", FromOwnDesktop);
+
+        return found.Values.ToList();
+    }
+
     private static IEnumerable<GameEntry> FromSteam()
     {
         foreach (var library in SteamLibraries())
