@@ -8,6 +8,19 @@ export const dynamic = "force-dynamic";
 const DEFAULT_MANUAL_UNLOCK_MINUTES = 60;
 const MAX_MANUAL_UNLOCK_MINUTES = 480;
 
+/**
+ * The shortest a manual unlock may be.
+ *
+ * Was fifteen minutes, which made the time warnings untestable: they fire at
+ * ten, five and two minutes left, so checking all three needed an hour-long
+ * session and someone watching it. Ten lets a twelve-minute session show the
+ * first warning within two minutes and all three inside ten.
+ *
+ * Not lower than ten, because this unlocks a real machine. Anything shorter is
+ * a session a customer could be sitting in front of when it ends.
+ */
+const MIN_MANUAL_UNLOCK_MINUTES = 10;
+
 async function recordManualStationLog(
   supabase: SupabaseClient,
   entry: {
@@ -87,7 +100,7 @@ export async function POST(request: NextRequest) {
         ? Math.min(
             MAX_MANUAL_UNLOCK_MINUTES,
             Math.max(
-              15,
+              MIN_MANUAL_UNLOCK_MINUTES,
               Number.parseInt(String(body?.durationMinutes || DEFAULT_MANUAL_UNLOCK_MINUTES), 10) ||
                 DEFAULT_MANUAL_UNLOCK_MINUTES
             )
@@ -105,7 +118,7 @@ export async function POST(request: NextRequest) {
               session_id: sessionId,
             }
           : { action: "lock" }
-      );
+      , { cafeId });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error("Manual station command publish failed:", err);

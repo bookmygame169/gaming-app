@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, AlertCircle, Lock, RefreshCw, Unlock, WifiOff } from 'lucide-react';
+import { Activity, AlertCircle, FlaskConical, Lock, RefreshCw, Unlock, WifiOff } from 'lucide-react';
 
 type StationStatus = {
     station_name: string;
@@ -19,6 +19,15 @@ interface StationLiveStatusProps {
 
 const REFRESH_MS = 20000;
 const MANUAL_UNLOCK_MINUTES = 60;
+
+/**
+ * A deliberately short unlock, for checking the machine rather than selling it.
+ *
+ * Twelve minutes because the time warnings fire at ten, five and two minutes
+ * left: the first lands two minutes in and all three are done inside ten, so
+ * the whole sequence can be watched over a coffee instead of an hour.
+ */
+const TEST_UNLOCK_MINUTES = 12;
 
 /**
  * Shows what each station last reported about itself, with direct lock/unlock
@@ -58,7 +67,11 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
         return () => clearInterval(timer);
     }, [load]);
 
-    const sendCommand = async (stationName: string, action: 'unlock' | 'lock') => {
+    const sendCommand = async (
+        stationName: string,
+        action: 'unlock' | 'lock',
+        minutes: number = MANUAL_UNLOCK_MINUTES
+    ) => {
         if (!cafeId) return;
 
         setCommanding(`${stationName}:${action}`);
@@ -73,7 +86,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                     cafeId,
                     stationName,
                     action,
-                    durationMinutes: MANUAL_UNLOCK_MINUTES,
+                    durationMinutes: minutes,
                 }),
             });
 
@@ -169,7 +182,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                     <div>
                         <h3 className="text-sm font-bold text-slate-200">Live machine status</h3>
                         <p className="text-[11px] text-slate-500">
-                            Lock or unlock any PC here — no booking needed ({MANUAL_UNLOCK_MINUTES}m unlock)
+                            Lock or unlock any PC here — no booking needed ({MANUAL_UNLOCK_MINUTES}m unlock, or {TEST_UNLOCK_MINUTES}m to test warnings)
                         </p>
                     </div>
                 </div>
@@ -296,6 +309,22 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                             >
                                                 <Unlock size={12} />
                                                 {unlockBusy ? 'Unlocking…' : 'Unlock'}
+                                            </button>
+                                            {/* Short on purpose, and labelled so nobody
+                                                sells it by mistake. The warnings fire at
+                                                ten, five and two minutes left, so twelve
+                                                shows all three inside ten minutes. */}
+                                            <button
+                                                type="button"
+                                                disabled={!station.online || busy}
+                                                onClick={() =>
+                                                    sendCommand(station.station_name, 'unlock', TEST_UNLOCK_MINUTES)
+                                                }
+                                                title={`Unlock for ${TEST_UNLOCK_MINUTES} minutes to check the time warnings`}
+                                                className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 px-2 py-2 text-[11px] font-bold text-amber-300/90 transition-colors hover:bg-amber-500/10 disabled:opacity-40"
+                                            >
+                                                <FlaskConical size={12} />
+                                                {TEST_UNLOCK_MINUTES}m
                                             </button>
                                             <button
                                                 type="button"
