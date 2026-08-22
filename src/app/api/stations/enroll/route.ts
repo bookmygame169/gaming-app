@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAFE_PC_GAMES, mapGameRowToAgentJson } from "@/lib/cafePcGames";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { cafeStationToken } from "@/lib/stationAgentAuth";
 
 export const dynamic = "force-dynamic";
 
