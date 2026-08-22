@@ -50,11 +50,18 @@ export async function GET(request: NextRequest) {
   // thinks - the owner has answered this one by adding it.
   const { data: existing } = await supabase
     .from("cafe_pc_games")
-    .select("name, exe_path")
+    .select("name, exe_path, arguments")
     .eq("cafe_id", cafeId);
 
+  // Path and arguments together, never the path alone. Every Store and Game
+  // Pass title launches through the same explorer.exe; only the
+  // shell:AppsFolder id they carry says which game it is, so adding Forza
+  // would have marked every other Game Pass suggestion as already on the menu.
+  const launchKey = (exePath: unknown, args: unknown) =>
+    `${String(exePath || "").trim().toLowerCase()}|${String(args || "").trim().toLowerCase()}`;
+
   const alreadyAdded = new Set(
-    (existing || []).map((row) => String(row.exe_path || "").trim().toLowerCase())
+    (existing || []).map((row) => launchKey(row.exe_path, row.arguments))
   );
 
   // The same game can sit on the menu under a different path - Counter-Strike
@@ -67,6 +74,7 @@ export async function GET(request: NextRequest) {
   );
 
   type Grouped = {
+    key: string;
     ids: string[];
     name: string;
     exePath: string;
@@ -76,13 +84,16 @@ export async function GET(request: NextRequest) {
     stations: string[];
     lastSeenAt: string;
     sameNameOnMenu: boolean;
+    otherPaths: string[];
   };
 
   const byPath = new Map<string, Grouped>();
 
   for (const row of data || []) {
-    const key = String(row.exe_path || "").trim().toLowerCase();
-    if (!key || alreadyAdded.has(key)) continue;
+    if (!String(row.exe_path || "").trim()) continue;
+
+    const key = launchKey(row.exe_path, row.arguments);
+    if (alreadyAdded.has(key)) continue;
 
     const found = byPath.get(key);
 
@@ -95,6 +106,7 @@ export async function GET(request: NextRequest) {
     }
 
     byPath.set(key, {
+      key,
       ids: [row.id as string],
       name: row.name as string,
       exePath: row.exe_path as string,
@@ -104,10 +116,72 @@ export async function GET(request: NextRequest) {
       stations: [row.station_name as string],
       lastSeenAt: row.last_seen_at as string,
       sameNameOnMenu: namesOnMenu.has(String(row.name || "").trim().toLowerCase()),
+      otherPaths: [],
     });
   }
 
-  return NextResponse.json({ games: [...byPath.values()] });
+  return NextResponse.json({ games: mergeSameGameInDifferentFolders([...byPath.values()]) });
+}
+
+/**
+ * Folds one game found in different folders into a single decision.
+ *
+ * Steam puts a library on whichever drive had room, so the same game is
+ * C:\...\Rust on one PC and D:\SteamLibrary\...\Rust on the next. Both are
+ * true, and asking the owner to answer for each is asking them to answer a
+ * question about their disks that they should never have been shown.
+ *
+ * Only one path is stored, and that is fine: each PC re-checks the path it is
+ * given, and a Steam layout transfers verbatim between libraries, so a machine
+ * that does not find the game where the menu says looks through its own
+ * libraries and corrects itself. The path picked here is the one the most
+ * machines reported, so the fewest have to.
+ */
+function mergeSameGameInDifferentFolders<T extends {
+  name: string;
+  exePath: string;
+  stations: string[];
+  otherPaths: string[];
+  ids: string[];
+}>(games: T[]): T[] {
+  const normalise = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const byName = new Map<string, T>();
+  const merged: T[] = [];
+
+  for (const game of games) {
+    const name = normalise(game.name);
+
+    // A two-letter label must not swallow half the list.
+    const first = name.length >= 3 ? byName.get(name) : undefined;
+
+    if (!first) {
+      if (name.length >= 3) byName.set(name, game);
+      merged.push(game);
+      continue;
+    }
+
+    // Counted before the two are merged, or the comparison below is against
+    // a total that already includes what it is being compared with.
+    const keptSoFar = first.stations.length;
+    const challenger = game.stations.length;
+
+    first.ids.push(...game.ids);
+    for (const station of game.stations) {
+      if (!first.stations.includes(station)) first.stations.push(station);
+    }
+
+    // Whichever folder more machines use becomes the one on the menu.
+    if (challenger > keptSoFar) {
+      first.otherPaths.push(first.exePath);
+      first.exePath = game.exePath;
+    } else {
+      first.otherPaths.push(game.exePath);
+    }
+  }
+
+  return merged;
 }
 
 /**

@@ -671,6 +671,7 @@ internal static class GameDiscovery
     public static List<DiscoveredGame> ScanForReport()
     {
         var found = new Dictionary<string, DiscoveredGame>(StringComparer.OrdinalIgnoreCase);
+        var namesTaken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         void Take(string source, Func<IEnumerable<GameEntry>> scan)
         {
@@ -683,15 +684,38 @@ internal static class GameDiscovery
                         continue;
                     }
 
-                    // First scanner to claim a path wins. The order below runs
+                    // Keyed on the whole launch, not the path alone.
+                    //
+                    // Every Store and Game Pass title launches the same way -
+                    // explorer.exe with the game's own shell:AppsFolder id as
+                    // its argument - so a path-only key made them all look like
+                    // one entry, and a café with eight Game Pass games reported
+                    // exactly one of them. The argument is what tells them
+                    // apart, so the argument belongs in the key.
+                    var key = $"{entry.ExePath}|{entry.Arguments}";
+
+                    // First scanner to claim a launch wins. The order below runs
                     // the specific ones before the general, so a Steam game is
                     // reported as Steam rather than as a registry entry.
-                    if (found.ContainsKey(entry.ExePath))
+                    if (found.ContainsKey(key))
                     {
                         continue;
                     }
 
-                    found[entry.ExePath] = new DiscoveredGame(
+                    // One game, one row, whichever scanner saw it first. A Game
+                    // Pass title is visible both as a folder under XboxGames and
+                    // as a Store app, and the two are not equally useful: the
+                    // folder holds a licence-checked build that refuses to run
+                    // when started directly, and its path is particular to this
+                    // machine. Offering the owner both would be offering them a
+                    // coin flip.
+                    var byName = Normalise(entry.Name);
+                    if (byName.Length >= 3 && !namesTaken.Add(byName))
+                    {
+                        continue;
+                    }
+
+                    found[key] = new DiscoveredGame(
                         entry.Name,
                         entry.ExePath,
                         entry.Arguments,
@@ -708,8 +732,14 @@ internal static class GameDiscovery
         Take("steam", FromSteam);
         Take("steam", FromSteamCommonFolders);
         Take("epic", FromEpic);
-        Take("xbox", FromXboxGames);
+
+        // Before the XboxGames folder walk, deliberately. Both find the same
+        // Game Pass titles; only this one finds them in a form that runs, and
+        // that runs on every PC in the café rather than only the one it was
+        // read from.
         Take("store", FromStoreApps);
+        Take("xbox", FromXboxGames);
+
         Take("registry", FromRegistry);
         Take("desktop", FromOwnDesktop);
 

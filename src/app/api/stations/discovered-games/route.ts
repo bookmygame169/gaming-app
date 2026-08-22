@@ -75,7 +75,10 @@ export async function POST(request: NextRequest) {
           station_name: identity.stationName,
           name,
           exe_path: exePath,
-          arguments: clean(game.arguments, 300),
+          // Empty rather than null: it is half the key that tells two Game
+          // Pass titles apart, and a null would make every one of them look
+          // like a different row on every scan.
+          arguments: clean(game.arguments, 300) ?? "",
           process_name: clean(game.processName, 120),
           source: SOURCES.has(source) ? source : "other",
           last_seen_at: new Date().toISOString(),
@@ -87,13 +90,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ accepted: 0 });
     }
 
-    // Upsert on the station's own path, so a scan that runs every few hours
+    // Upsert on the station's own launch, so a scan that runs every few hours
     // refreshes last_seen_at rather than piling up copies - and so a row the
     // owner already ignored keeps its decision instead of returning to the
     // queue every time.
+    //
+    // The arguments are part of that key because Store and Game Pass titles all
+    // launch through explorer.exe and are told apart only by the shell:AppsFolder
+    // id they carry. Without it, one PC reporting two of them put two identical
+    // keys in a single upsert, which Postgres refuses outright - so the whole
+    // report failed, not just the duplicate.
     const { error } = await supabase
       .from("station_discovered_games")
-      .upsert(rows, { onConflict: "cafe_id,station_name,exe_path", ignoreDuplicates: false });
+      .upsert(rows, {
+        onConflict: "cafe_id,station_name,exe_path,arguments",
+        ignoreDuplicates: false,
+      });
 
     if (error) {
       if (error.message.includes("station_discovered_games")) {

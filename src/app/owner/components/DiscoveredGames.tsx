@@ -4,13 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Gamepad2, Check, X, AlertTriangle, Monitor } from 'lucide-react';
 
 type DiscoveredGame = {
+    key: string;
     ids: string[];
     name: string;
     exePath: string;
+    arguments: string | null;
     processName: string | null;
     source: string;
     stations: string[];
     sameNameOnMenu?: boolean;
+    otherPaths?: string[];
 };
 
 type Props = {
@@ -26,6 +29,22 @@ const SOURCE_LABEL: Record<string, string> = {
     desktop: 'Desktop shortcut',
     other: 'Found on the PC',
 };
+
+/**
+ * What the owner is shown instead of the raw command.
+ *
+ * A Game Pass title's real path is C:\\Windows\\explorer.exe with the game's
+ * shell:AppsFolder id as an argument — correct, and identical on every PC,
+ * which is exactly why it is used. It is also unreadable, and three of them in
+ * a row look like the same entry repeated. The folder path is shown for
+ * ordinary games because a café with two copies of a game on different drives
+ * needs to see which one this is.
+ */
+function describeLaunch(game: DiscoveredGame): string {
+    const store = (game.arguments || '').match(/shell:AppsFolder\\(.+)/i);
+    if (store) return `Starts through Windows · ${store[1].split('!')[0]}`;
+    return game.exePath;
+}
 
 /**
  * Games the café's PCs found installed, waiting to be judged.
@@ -65,7 +84,7 @@ export function DiscoveredGames({ cafeId }: Props) {
     }, [load]);
 
     const answer = async (game: DiscoveredGame, action: 'add' | 'ignore') => {
-        setBusy(game.exePath);
+        setBusy(game.key);
         setError(null);
 
         try {
@@ -83,7 +102,7 @@ export function DiscoveredGames({ cafeId }: Props) {
                 return;
             }
 
-            setGames((current) => current.filter((row) => row.exePath !== game.exePath));
+            setGames((current) => current.filter((row) => row.key !== game.key));
         } catch {
             setError('Could not reach the server.');
         } finally {
@@ -132,7 +151,7 @@ export function DiscoveredGames({ cafeId }: Props) {
 
             <div className="mt-4 space-y-2.5">
                 {games.map((game) => (
-                    <div key={game.exePath} className="rounded-xl border border-white/[0.08] bg-[#0d0d14] p-4">
+                    <div key={game.key} className="rounded-xl border border-white/[0.08] bg-[#0d0d14] p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -142,9 +161,18 @@ export function DiscoveredGames({ cafeId }: Props) {
                                     </span>
                                 </div>
 
-                                <p className="mt-1.5 truncate font-mono text-[10.5px] text-slate-500" title={game.exePath}>
-                                    {game.exePath}
+                                <p
+                                    className="mt-1.5 truncate font-mono text-[10.5px] text-slate-500"
+                                    title={`${game.exePath}${game.arguments ? ` ${game.arguments}` : ''}`}
+                                >
+                                    {describeLaunch(game)}
                                 </p>
+
+                                {(game.otherPaths?.length ?? 0) > 0 && (
+                                    <p className="mt-1.5 text-[11px] text-slate-400">
+                                        In a different folder on some PCs — add it once, each PC finds its own copy.
+                                    </p>
+                                )}
 
                                 {game.sameNameOnMenu && (
                                     <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-amber-400/90">
@@ -168,7 +196,7 @@ export function DiscoveredGames({ cafeId }: Props) {
                                 <button
                                     type="button"
                                     onClick={() => answer(game, 'ignore')}
-                                    disabled={busy === game.exePath}
+                                    disabled={busy === game.key}
                                     className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.06] px-3 py-2 text-xs font-bold text-slate-400 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
                                 >
                                     <X size={13} />
@@ -177,11 +205,11 @@ export function DiscoveredGames({ cafeId }: Props) {
                                 <button
                                     type="button"
                                     onClick={() => answer(game, 'add')}
-                                    disabled={busy === game.exePath}
+                                    disabled={busy === game.key}
                                     className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/15 px-4 py-2 text-xs font-bold text-cyan-300 transition-colors hover:bg-cyan-500/25 disabled:opacity-40"
                                 >
                                     <Check size={13} />
-                                    {busy === game.exePath ? 'Adding…' : 'Add to menu'}
+                                    {busy === game.key ? 'Adding…' : 'Add to menu'}
                                 </button>
                             </div>
                         </div>
