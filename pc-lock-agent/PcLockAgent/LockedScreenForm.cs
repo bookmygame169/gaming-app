@@ -22,6 +22,12 @@ internal sealed class LockedScreenForm : Form
     /// <summary>Raised when the customer wants to buy time from this screen.</summary>
     public event EventHandler? PayNowRequested;
 
+    /// <summary>Raised when somebody asks to restart this PC.</summary>
+    public event EventHandler? RestartRequested;
+
+    /// <summary>Raised when somebody asks to shut this PC down.</summary>
+    public event EventHandler? ShutDownRequested;
+
     private readonly AgentConfig _config;
     private readonly PlayRequestClient _prices;
 
@@ -31,6 +37,8 @@ internal sealed class LockedScreenForm : Form
     private List<(string Label, string Price)> _priceRows = new();
 
     private Button _payButton = null!;
+    private Button _restartButton = null!;
+    private Button _shutDownButton = null!;
     private System.Windows.Forms.Timer? _clockTimer;
 
     // ---- geometry -----------------------------------------------------------
@@ -287,6 +295,57 @@ internal sealed class LockedScreenForm : Form
         Arena.CutCorners(_payButton, S(18));
 
         Controls.Add(_payButton);
+
+        // Bottom-left, small, and a long way from Pay and play. These are for
+        // the end of a visit or a machine that needs turning round, not for
+        // anybody who came here to start playing.
+        _restartButton = PowerButton("RESTART");
+        _restartButton.Click += (_, _) => RestartRequested?.Invoke(this, EventArgs.Empty);
+
+        _shutDownButton = PowerButton("SHUT DOWN");
+        _shutDownButton.Click += (_, _) => ShutDownRequested?.Invoke(this, EventArgs.Empty);
+
+        Controls.Add(_restartButton);
+        Controls.Add(_shutDownButton);
+
+        PlacePowerButtons();
+    }
+
+    private Button PowerButton(string text) => new()
+    {
+        Text = text,
+        Font = Arena.Sans(SF(9f), FontStyle.Bold),
+        ForeColor = Palette.TextDim,
+        BackColor = Palette.Background,
+        FlatStyle = FlatStyle.Flat,
+        Width = S(132),
+        Height = S(38),
+        Cursor = Cursors.Hand,
+        FlatAppearance = { BorderSize = 1, BorderColor = Color.FromArgb(38, 255, 255, 255) },
+    };
+
+    /// <summary>
+    /// Puts the power buttons on the footer line.
+    /// </summary>
+    /// <remarks>
+    /// Measured from this form's own width, which for a fullscreen form is the
+    /// screen - unlike a control inside a docked panel, where that assumption
+    /// once put End session seventeen hundred pixels off the side.
+    /// </remarks>
+    private void PlacePowerButtons()
+    {
+        if (_restartButton is null || _shutDownButton is null)
+        {
+            return;
+        }
+
+        var top = Height - S(52) - S(38) / 2;
+
+        _restartButton.Left = S(46);
+        _restartButton.Top = top;
+
+        _shutDownButton.Left = _restartButton.Right + S(10);
+        _shutDownButton.Top = top;
     }
 
     // -----------------------------------------------------------------------
@@ -544,12 +603,13 @@ internal sealed class LockedScreenForm : Form
         using var dim = new SolidBrush(Palette.TextDim);
 
         var lead = "Need help? Tell the counter you are on ";
-        g.DrawString(lead, bodyFont, dim, S(46), y + S(16));
+        var leadLeft = S(46) + S(132) * 2 + S(10) + S(28);
+        g.DrawString(lead, bodyFont, dim, leadLeft, y + S(16));
 
         var leadWidth = g.MeasureString(lead, bodyFont).Width;
         using (var muted = new SolidBrush(Palette.TextMuted))
         {
-            g.DrawString(_config.StationId.ToUpperInvariant(), monoFont, muted, S(46) + leadWidth, y + S(16));
+            g.DrawString(_config.StationId.ToUpperInvariant(), monoFont, muted, leadLeft + leadWidth, y + S(16));
         }
 
         // The platform, where a platform belongs: small, grey, and last.

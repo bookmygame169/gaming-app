@@ -81,6 +81,8 @@ internal sealed class AgentShell : ApplicationContext
 
         _playRequests = new PlayRequestClient(config);
         _lockedScreen.PayNowRequested += (_, _) => OpenPayNow();
+        _lockedScreen.RestartRequested += (_, _) => AskToRestart();
+        _lockedScreen.ShutDownRequested += (_, _) => AskToShutDown();
         _gameMenu.EndSessionRequested += (_, _) => AskToEndSession();
 
         _mqttService.UnlockRequested += OnUnlockRequested;
@@ -166,6 +168,19 @@ internal sealed class AgentShell : ApplicationContext
                 $"Refusing to unlock for session '{e.SessionId ?? "(none)"}': the command carried no " +
                 "duration_seconds, so nothing would re-lock this station. Staying locked. " +
                 "The backend must always send duration_seconds.");
+            return;
+        }
+
+        // Minute cron re-issues unlock for the same booking. Restarting the
+        // countdown would reset remaining time and yank the game to the kiosk.
+        if (
+            !string.IsNullOrWhiteSpace(e.SessionId)
+            && string.Equals(_session.SessionId, e.SessionId, StringComparison.Ordinal)
+            && _session.IsActive)
+        {
+            AgentLog.Info(
+                $"Ignoring unlock for session '{e.SessionId}': already running " +
+                $"with {_session.TimeRemaining.TotalSeconds:0}s left.");
             return;
         }
 
@@ -553,6 +568,128 @@ internal sealed class AgentShell : ApplicationContext
     /// hour they paid for — the saved state is left alone, so restarting the
     /// agent resumes it.
     /// </remarks>
+    /// <summary>
+    /// Restart, on a confirmation only.
+    /// </summary>
+    /// <remarks>
+    /// Open to anyone at the machine because a restart repairs itself: the PC
+    /// comes back and the agent comes back with it through its startup task.
+    /// The worst a bored customer achieves is making a locked PC unavailable
+    /// for a minute.
+    /// </remarks>
+    private void AskToRestart()
+    {
+        if (_exiting)
+        {
+            return;
+        }
+
+        var answer = AskOverLockScreen(
+            "Restart this PC?\r\n\r\nIt will come back in a minute or two and stay locked.",
+            "Restart");
+
+        if (answer == DialogResult.Yes)
+        {
+            PowerControl.Restart();
+        }
+    }
+
+    /// <summary>
+    /// Shutting down, behind the staff password.
+    /// </summary>
+    /// <remarks>
+    /// Not symmetrical with restart, and that is the point. A PC that has been
+    /// shut down needs somebody to walk over and press the power button, so it
+    /// is worth more than one tap from whoever happens to be sitting there.
+    /// <para>
+    /// A café with no exit password set gets a plain confirmation instead of
+    /// being locked out of its own machines.
+    /// </para>
+    /// </remarks>
+    private void AskToShutDown()
+    {
+        if (_exiting)
+        {
+            return;
+        }
+
+        if (!_config.HasExitPassword)
+        {
+            var answer = AskOverLockScreen(
+                "Shut down this PC?\r\n\r\nSomebody will need to press the power button to turn it back on.",
+                "Shut down");
+
+            if (answer == DialogResult.Yes)
+            {
+                PowerControl.ShutDown();
+            }
+
+            return;
+        }
+
+        WithLockScreenLowered(() =>
+        {
+            using var prompt = new ExitPasswordForm(_config.ExitPasswordHash);
+            prompt.ShowDialog();
+
+            if (prompt.Accepted)
+            {
+                PowerControl.ShutDown();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Asks a yes/no question that the lock screen cannot hide.
+    /// </summary>
+    private DialogResult AskOverLockScreen(string message, string title)
+    {
+        var answer = DialogResult.No;
+
+        WithLockScreenLowered(() =>
+        {
+            answer = MessageBox.Show(
+                message,
+                title,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2);
+        });
+
+        return answer;
+    }
+
+    /// <summary>
+    /// Drops this agent's own always-on-top windows for the length of a dialog.
+    /// </summary>
+    /// <remarks>
+    /// Everything this agent shows is TopMost, so a dialog opened underneath
+    /// them is invisible and the machine looks frozen. Restored in a finally,
+    /// because leaving them down is a hole straight to the desktop.
+    /// </remarks>
+    private void WithLockScreenLowered(Action show)
+    {
+        var wasTopMost = _lockedScreen.TopMost;
+
+        _lockedScreen.TopMost = false;
+        _gameMenu.TopMost = false;
+        _screenBlanker.SetTopMost(false);
+
+        try
+        {
+            show();
+        }
+        finally
+        {
+            if (!_exiting)
+            {
+                _lockedScreen.TopMost = wasTopMost;
+                _gameMenu.TopMost = wasTopMost;
+                _screenBlanker.SetTopMost(!_lockService.Passthrough);
+            }
+        }
+    }
+
     private void AskForExitPassword()
     {
         if (_exiting || !_config.HasExitPassword)
