@@ -24,6 +24,16 @@ internal static class Palette
     /// <summary>The dimmest text on screen - captions nobody has to read.</summary>
     public static readonly Color TextDim = Color.FromArgb(0x47, 0x55, 0x69);
 
+    /// <summary>
+    /// The one colour on these screens that is not the brand's.
+    /// </summary>
+    /// <remarks>
+    /// Reserved for telling a member they are about to pay for something they
+    /// already own. Everything else is rose, so a note in cyan is read as a
+    /// different kind of message rather than more of the same one.
+    /// </remarks>
+    public static readonly Color Cyan = Color.FromArgb(0x22, 0xD3, 0xEE);
+
     /// <summary>Top of the page gradient — a shade lighter than the bottom.</summary>
     public static readonly Color BackgroundTop = Color.FromArgb(0x0E, 0x14, 0x23);
 

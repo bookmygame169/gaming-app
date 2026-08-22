@@ -29,8 +29,8 @@ internal sealed class PayNowForm : Form
     /// <summary>Raised when the customer closes this and goes back to the lock screen.</summary>
     public event EventHandler? Dismissed;
 
-    private const int CardWidth = 780;
-    private const int CardHeight = 660;
+    private const int CardWidth = 940;
+    private const int CardHeight = 690;
 
     /// <summary>
     /// How often the waiting screen asks whether it was turned down.
@@ -97,7 +97,7 @@ internal sealed class PayNowForm : Form
 
         _title = new Label
         {
-            Font = new Font("Segoe UI", 20f, FontStyle.Bold),
+            Font = Arena.Sans(20f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             AutoSize = false,
             Left = 44,
@@ -108,7 +108,7 @@ internal sealed class PayNowForm : Form
 
         _subtitle = new Label
         {
-            Font = new Font("Segoe UI", 10f, FontStyle.Regular),
+            Font = Arena.Sans(10f),
             ForeColor = Palette.TextMuted,
             AutoSize = false,
             Left = 44,
@@ -129,7 +129,7 @@ internal sealed class PayNowForm : Form
 
         _problem = new Label
         {
-            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+            Font = Arena.Sans(9.5f, FontStyle.Bold),
             ForeColor = Palette.Accent,
             AutoSize = false,
             Left = 44,
@@ -153,13 +153,17 @@ internal sealed class PayNowForm : Form
         _card.Controls.Add(_nextButton);
         Controls.Add(_card);
 
-        Theme.RoundCorners(_card, 16);
-        _card.Paint += (_, e) => Theme.DrawBorder(
-            e.Graphics,
-            new Rectangle(0, 0, _card.Width - 1, _card.Height - 1),
-            Palette.CardBorder,
-            1f,
-            16);
+        Arena.CutCorners(_card, 28);
+        _card.Paint += (_, e) =>
+        {
+            Arena.DrawTopEdge(e.Graphics, new Rectangle(0, 0, _card.Width, 3), Palette.Accent);
+            Arena.DrawCutBorder(
+                e.Graphics,
+                new Rectangle(0, 0, _card.Width - 1, _card.Height - 1),
+                Color.FromArgb(30, 255, 255, 255),
+                1f,
+                28);
+        };
 
         KeyDown += (_, e) =>
         {
@@ -172,7 +176,12 @@ internal sealed class PayNowForm : Form
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        Theme.PaintBackdrop(e.Graphics, ClientRectangle);
+        Arena.PaintArena(e.Graphics, ClientRectangle);
+
+        // Dimmed, because the lock screen is still behind this and the card
+        // needs to read as something laid on top rather than a new screen.
+        using var shade = new SolidBrush(Color.FromArgb(120, 0, 0, 0));
+        e.Graphics.FillRectangle(shade, ClientRectangle);
     }
 
     /// <summary>Opens the flow, reading the price list first.</summary>
@@ -453,7 +462,7 @@ internal sealed class PayNowForm : Form
         _content.Controls.Add(new Label
         {
             Text = "We use your number to keep track of any membership hours you have left.",
-            Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+            Font = Arena.Sans(9f),
             ForeColor = Palette.TextFaint,
             AutoSize = false,
             Left = 2,
@@ -480,7 +489,7 @@ internal sealed class PayNowForm : Form
             _content.Controls.Add(new Label
             {
                 Text = "Could not load the price list. Please ask at the counter.",
-                Font = new Font("Segoe UI", 11f, FontStyle.Regular),
+                Font = Arena.Sans(11f),
                 ForeColor = Palette.TextMuted,
                 AutoSize = false,
                 Left = 2,
@@ -557,8 +566,8 @@ internal sealed class PayNowForm : Form
         hint.Controls.Add(new Label
         {
             Text = "Already have a membership?",
-            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
-            ForeColor = Palette.TextPrimary,
+            Font = Arena.Sans(10.5f, FontStyle.Bold),
+            ForeColor = Palette.Cyan,
             AutoSize = false,
             Left = 16,
             Top = 12,
@@ -570,7 +579,7 @@ internal sealed class PayNowForm : Form
         hint.Controls.Add(new Label
         {
             Text = "Go back and scan the code on the lock screen to use your hours.",
-            Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+            Font = Arena.Sans(9f),
             ForeColor = Palette.TextMuted,
             AutoSize = false,
             Left = 16,
@@ -580,13 +589,11 @@ internal sealed class PayNowForm : Form
             BackColor = Color.Transparent,
         });
 
-        Theme.RoundCorners(hint, 10);
-        hint.Paint += (_, e) => Theme.DrawBorder(
-            e.Graphics,
-            new Rectangle(0, 0, hint.Width - 1, hint.Height - 1),
-            Palette.CardBorder,
-            1f,
-            10);
+        hint.Paint += (_, e) =>
+        {
+            using var edge = new SolidBrush(Palette.Cyan);
+            e.Graphics.FillRectangle(edge, 0, 0, 3, hint.Height);
+        };
 
         return hint;
     }
@@ -738,7 +745,7 @@ internal sealed class PayNowForm : Form
             _content.Controls.Add(new Label
             {
                 Text = $"₹{_choicePrice:0} to {_options?.Upi?.Name ?? "the café"}",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font = Arena.Sans(12f, FontStyle.Bold),
                 ForeColor = Palette.TextPrimary,
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize = false,
@@ -756,7 +763,7 @@ internal sealed class PayNowForm : Form
             Text = _paymentMethod == "online"
                 ? $"Tell the counter you have paid if nothing happens after a minute — station {_config.StationId.ToUpperInvariant()}."
                 : $"Tell them this is station {_config.StationId.ToUpperInvariant()}, {_name}, ₹{_choicePrice:0}.",
-            Font = new Font("Segoe UI", 10f, FontStyle.Regular),
+            Font = Arena.Sans(10f),
             ForeColor = Palette.TextMuted,
             TextAlign = ContentAlignment.MiddleCenter,
             AutoSize = false,
@@ -778,7 +785,7 @@ internal sealed class PayNowForm : Form
         _content.Controls.Add(new Label
         {
             Text = "Please speak to the counter — they can start your session from there.",
-            Font = new Font("Segoe UI", 11f, FontStyle.Regular),
+            Font = Arena.Sans(11f),
             ForeColor = Palette.TextMuted,
             AutoSize = false,
             Left = 2,
@@ -793,7 +800,7 @@ internal sealed class PayNowForm : Form
     private Label SectionHeading(string text, int top) => new()
     {
         Text = text,
-        Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+        Font = Arena.Sans(8.5f, FontStyle.Bold),
         ForeColor = Palette.AccentSoft,
         AutoSize = false,
         Left = 2,
@@ -805,7 +812,7 @@ internal sealed class PayNowForm : Form
     private Label FieldLabel(string text, int top) => new()
     {
         Text = text,
-        Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+        Font = Arena.Sans(8.5f, FontStyle.Bold),
         ForeColor = Palette.TextMuted,
         AutoSize = false,
         Left = 2,
@@ -818,7 +825,7 @@ internal sealed class PayNowForm : Form
     {
         Name = name,
         Text = value,
-        Font = new Font("Segoe UI", 15f, FontStyle.Regular),
+        Font = Arena.Sans(15f),
         ForeColor = Palette.TextPrimary,
         BackColor = Palette.Background,
         BorderStyle = BorderStyle.FixedSingle,
@@ -842,7 +849,7 @@ internal sealed class PayNowForm : Form
         row.Controls.Add(new Label
         {
             Text = label,
-            Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
+            Font = Arena.Sans(9.5f),
             ForeColor = Palette.TextMuted,
             AutoSize = false,
             Left = 0,
@@ -854,7 +861,7 @@ internal sealed class PayNowForm : Form
         row.Controls.Add(new Label
         {
             Text = value,
-            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            Font = Arena.Sans(12f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             AutoSize = false,
             Left = 200,
@@ -894,7 +901,7 @@ internal sealed class PayNowForm : Form
         var titleLabel = new Label
         {
             Text = title,
-            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            Font = Arena.Sans(12f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             AutoSize = false,
             Left = 16,
@@ -907,7 +914,7 @@ internal sealed class PayNowForm : Form
         var hintLabel = new Label
         {
             Text = hint,
-            Font = new Font("Segoe UI", 8.5f, FontStyle.Regular),
+            Font = Arena.Sans(8.5f),
             ForeColor = Palette.TextFaint,
             AutoSize = false,
             Left = 16,
@@ -925,7 +932,7 @@ internal sealed class PayNowForm : Form
             tile.Controls.Add(new Label
             {
                 Text = $"₹{price.Value:0}",
-                Font = new Font("Segoe UI", 15f, FontStyle.Bold),
+                Font = Arena.Mono(15f),
                 ForeColor = isSelected ? Palette.TextPrimary : Palette.AccentSoft,
                 TextAlign = ContentAlignment.MiddleRight,
                 AutoSize = false,
@@ -937,13 +944,24 @@ internal sealed class PayNowForm : Form
             });
         }
 
-        Theme.RoundCorners(tile, 10);
-        tile.Paint += (_, e) => Theme.DrawBorder(
-            e.Graphics,
-            new Rectangle(0, 0, tile.Width - 1, tile.Height - 1),
-            isSelected ? Palette.Accent : Palette.CardBorder,
-            isSelected ? 2f : 1f,
-            10);
+        Arena.CutCorners(tile, 14);
+        tile.Paint += (_, e) =>
+        {
+            Arena.DrawTopEdge(
+                e.Graphics,
+                new Rectangle(0, 0, tile.Width, 3),
+                isSelected ? Palette.Accent : Color.FromArgb(30, 255, 255, 255));
+
+            if (isSelected)
+            {
+                Arena.DrawCutBorder(
+                    e.Graphics,
+                    new Rectangle(0, 0, tile.Width - 1, tile.Height - 1),
+                    Palette.Accent,
+                    1.6f,
+                    14);
+            }
+        };
 
         // Every child as well as the tile: a click landing on the label is the
         // same click as far as the customer is concerned.
@@ -962,7 +980,7 @@ internal sealed class PayNowForm : Form
     private static Button PrimaryButton(string text, int left, int top, int width) => new()
     {
         Text = text,
-        Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+        Font = Arena.Sans(11f, FontStyle.Bold),
         ForeColor = Color.White,
         BackColor = Palette.Accent,
         FlatStyle = FlatStyle.Flat,
@@ -977,7 +995,7 @@ internal sealed class PayNowForm : Form
     private static Button SecondaryButton(string text, int left, int top) => new()
     {
         Text = text,
-        Font = new Font("Segoe UI", 10f, FontStyle.Regular),
+        Font = Arena.Sans(10f),
         ForeColor = Palette.TextMuted,
         BackColor = Palette.Border,
         FlatStyle = FlatStyle.Flat,

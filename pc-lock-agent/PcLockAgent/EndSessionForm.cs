@@ -59,17 +59,21 @@ internal sealed class EndSessionForm : Form
             Top = (screen.Height - CardHeight) / 2,
         };
 
-        Theme.RoundCorners(_card, 16);
-        _card.Paint += (_, e) => Theme.DrawBorder(
-            e.Graphics,
-            new Rectangle(0, 0, _card.Width - 1, _card.Height - 1),
-            Palette.CardBorder,
-            1f,
-            16);
+        Arena.CutCorners(_card, 26);
+        _card.Paint += (_, e) =>
+        {
+            Arena.DrawTopEdge(e.Graphics, new Rectangle(0, 0, _card.Width, 3), Palette.Accent);
+            Arena.DrawCutBorder(
+                e.Graphics,
+                new Rectangle(0, 0, _card.Width - 1, _card.Height - 1),
+                Color.FromArgb(30, 255, 255, 255),
+                1f,
+                26);
+        };
 
         _title = new Label
         {
-            Font = new Font("Segoe UI", 19f, FontStyle.Bold),
+            Font = Arena.Sans(19f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             AutoSize = false,
             Left = 40,
@@ -80,7 +84,7 @@ internal sealed class EndSessionForm : Form
 
         _body = new Label
         {
-            Font = new Font("Segoe UI", 11f, FontStyle.Regular),
+            Font = Arena.Sans(11f),
             ForeColor = Palette.TextMuted,
             AutoSize = false,
             Left = 40,
@@ -92,7 +96,7 @@ internal sealed class EndSessionForm : Form
         _cancelButton = new Button
         {
             Text = "Keep playing",
-            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+            Font = Arena.Sans(10.5f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             BackColor = Palette.Border,
             FlatStyle = FlatStyle.Flat,
@@ -107,7 +111,7 @@ internal sealed class EndSessionForm : Form
         _confirmButton = new Button
         {
             Text = "Yes, end my session",
-            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+            Font = Arena.Sans(10.5f, FontStyle.Bold),
             ForeColor = Color.White,
             BackColor = Palette.Accent,
             FlatStyle = FlatStyle.Flat,
@@ -119,8 +123,8 @@ internal sealed class EndSessionForm : Form
             FlatAppearance = { BorderSize = 0 },
         };
 
-        Theme.RoundCorners(_cancelButton, 12);
-        Theme.RoundCorners(_confirmButton, 12);
+        Arena.CutCorners(_cancelButton, 12);
+        Arena.CutCorners(_confirmButton, 12);
 
         _cancelButton.Click += (_, _) => Dismiss(ended: false);
         _confirmButton.Click += (_, _) => OnConfirm();

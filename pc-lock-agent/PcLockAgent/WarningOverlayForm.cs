@@ -34,7 +34,7 @@ internal sealed class WarningOverlayForm : Form
         {
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleCenter,
-            Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+            Font = Arena.Sans(16f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             BackColor = Color.Transparent,
         };

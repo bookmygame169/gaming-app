@@ -61,7 +61,7 @@ internal sealed class ReturnToGamePromptForm : Form
         {
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleCenter,
-            Font = new Font("Segoe UI", 15f, FontStyle.Bold),
+            Font = Arena.Sans(15f, FontStyle.Bold),
             ForeColor = Palette.TextPrimary,
             BackColor = Color.Transparent,
             Cursor = Cursors.Hand,
