@@ -24,6 +24,9 @@ internal sealed class GameMenuForm : Form
     /// <summary>Raised when the customer says they have finished playing.</summary>
     public event EventHandler? EndSessionRequested;
 
+    /// <summary>Raised when the customer wants to buy more time.</summary>
+    public event EventHandler? AddTimeRequested;
+
     /// <summary>
     /// Whether this window is allowed to close.
     /// </summary>
@@ -840,8 +843,29 @@ internal sealed class GameMenuForm : Form
 
         endSession.Click += (_, _) => EndSessionRequested?.Invoke(this, EventArgs.Empty);
 
+        // The one that earns money, so it is the one that looks pressable. A
+        // customer with ten minutes left and a match running is deciding
+        // between another hour and going home, and until now the only way to
+        // say "another hour" was to leave the seat and walk to the counter -
+        // which plenty of them do not come back from.
+        var addTime = new Button
+        {
+            Text = "ADD TIME",
+            Font = Arena.Sans(9.5f, FontStyle.Bold),
+            ForeColor = Palette.Background,
+            BackColor = Palette.Cyan,
+            FlatStyle = FlatStyle.Flat,
+            Width = 148,
+            Height = 42,
+            Cursor = Cursors.Hand,
+            FlatAppearance = { BorderSize = 0 },
+        };
+
+        addTime.Click += (_, _) => AddTimeRequested?.Invoke(this, EventArgs.Empty);
+
         footer.Controls.Add(hint);
         footer.Controls.Add(endSession);
+        footer.Controls.Add(addTime);
 
         void PlaceRightHandSide()
         {
@@ -850,13 +874,16 @@ internal sealed class GameMenuForm : Form
                 return;
             }
 
-            endSession.Left = footer.Width - 46 - endSession.Width;
+            addTime.Left = footer.Width - 46 - addTime.Width;
+            addTime.Top = (footer.Height - addTime.Height) / 2;
+
+            endSession.Left = addTime.Left - 12 - endSession.Width;
             endSession.Top = (footer.Height - endSession.Height) / 2;
 
             hint.Left = endSession.Left - 20 - hint.Width;
             hint.Top = (footer.Height - hint.Height) / 2;
 
-            // Hidden rather than overlapped on a narrow screen: the button is
+            // Hidden rather than overlapped on a narrow screen: the buttons are
             // the part that has to be reachable.
             hint.Visible = hint.Left > _statusLabel.Right + 24;
         }

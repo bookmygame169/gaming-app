@@ -33,6 +33,7 @@ internal sealed class AgentShell : ApplicationContext
     private readonly DiscoveryReport _discoveryReport;
     private PayNowForm? _payNow;
     private EndSessionForm? _endSession;
+    private AddTimeForm? _addTime;
     private readonly System.Windows.Forms.Timer _foregroundWatchTimer;
 
     private bool _exiting;
@@ -89,6 +90,7 @@ internal sealed class AgentShell : ApplicationContext
         _lockedScreen.RestartRequested += (_, _) => AskToRestart();
         _lockedScreen.ShutDownRequested += (_, _) => AskToShutDown();
         _gameMenu.EndSessionRequested += (_, _) => AskToEndSession();
+        _gameMenu.AddTimeRequested += (_, _) => OpenAddTime();
 
         _mqttService.UnlockRequested += OnUnlockRequested;
         _mqttService.LockRequested += (_, _) => ApplyLocked();
@@ -197,6 +199,7 @@ internal sealed class AgentShell : ApplicationContext
             if (gained is { } added)
             {
                 _gameMenu.UpdateRemaining(_session.TimeRemaining);
+                _addTime?.CloseQuietly();
                 ShowTimeAddedCard(added);
             }
             else
@@ -266,6 +269,32 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         _ = _payNow.StartAsync();
+    }
+
+    /// <summary>
+    /// Opens the buy-more-time flow over the game menu.
+    /// </summary>
+    /// <remarks>
+    /// Built on first use and kept, like the lock screen's own version. Nothing
+    /// it does touches the countdown - it asks, and the extra time arrives the
+    /// same way every other change to a session does.
+    /// </remarks>
+    private void OpenAddTime()
+    {
+        if (_addTime is null || _addTime.IsDisposed)
+        {
+            _addTime = new AddTimeForm(_playRequests);
+            _addTime.Dismissed += (_, _) =>
+            {
+                // Back to the menu and back on top of it. Closing a window over
+                // a TopMost kiosk must not leave the desktop reachable
+                // underneath it.
+                _gameMenu.Show();
+                _gameMenu.BringToFront();
+            };
+        }
+
+        _ = _addTime.StartAsync();
     }
 
     /// <summary>
@@ -340,6 +369,7 @@ internal sealed class AgentShell : ApplicationContext
         // Lock screen up before the menu goes down, for the same reason.
         _lockedScreen.ShowLocked(reassertTopMost: !_lockService.Passthrough);
         _gameMenu.Hide();
+        _addTime?.CloseQuietly();
 
         // The screen is the only place the code is ever shown, so it starts and
         // stops with the screen rather than on a schedule of its own.
