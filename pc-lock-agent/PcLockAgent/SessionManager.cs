@@ -24,8 +24,16 @@ internal sealed class SessionManager : IDisposable
     /// <summary>Raised every second while a session is running.</summary>
     public event EventHandler<TimeSpan>? Remaining;
 
-    /// <summary>Seconds remaining at which to warn the customer.</summary>
-    private static readonly int[] WarningThresholds = [300, 60];
+    /// <summary>
+    /// Seconds remaining at which to warn the customer.
+    /// </summary>
+    /// <remarks>
+    /// Ten minutes is the one that matters: it is the last point at which
+    /// somebody can still finish the round they are in, or decide to buy more
+    /// time, rather than being told their session is over mid-fight. Five and
+    /// two are the reminders after that.
+    /// </remarks>
+    private static readonly int[] WarningThresholds = [600, 300, 120];
 
     private const string StateFileName = "session.json";
 

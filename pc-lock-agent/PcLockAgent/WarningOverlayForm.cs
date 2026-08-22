@@ -3,19 +3,49 @@ namespace PcLockAgent;
 using System.Runtime.InteropServices;
 
 /// <summary>
-/// Small banner across the top of the screen warning that time is running out.
+/// A small card in the top-right corner saying how long is left.
 /// </summary>
 /// <remarks>
-/// Unlike the PS5 side, which has to briefly cut the video feed to show a
-/// warning, the PC agent can draw over whatever is running — so this never
-/// interrupts play. It appears, sits for a few seconds, and disappears.
+/// Everything about this window exists so it can appear over a running game
+/// without disturbing it.
+/// <para>
+/// A previous version showed nothing at all when a Direct3D game was in
+/// fullscreen, on the reasoning that any window over one would knock it out.
+/// That was an over-correction. What actually minimised the game was the agent
+/// calling SetForegroundWindow on it afterwards - a focus change arriving out
+/// of nowhere - and that is fixed separately. A window that never takes focus,
+/// never takes a click, and is composited rather than drawn into the game's
+/// swap chain does not cause a mode switch on Windows 10 or 11, where
+/// fullscreen optimisations present most "exclusive" fullscreen games as
+/// borderless already.
+/// </para>
+/// <para>
+/// So four styles, and each is load-bearing. NOACTIVATE means it can never
+/// become the foreground window even if something clicks it. TRANSPARENT means
+/// clicks pass straight through to the game underneath, so it cannot swallow a
+/// shot. LAYERED means the desktop compositor draws it rather than the window
+/// manager rearranging things to fit it in. TOOLWINDOW keeps it out of Alt+Tab.
+/// </para>
+/// <para>
+/// The one case this cannot reach is a game that has genuinely taken exclusive
+/// control of the display with fullscreen optimisations disabled. Drawing
+/// inside that needs a library injected into the game, which against an
+/// anti-cheat means risking the customer's account - so the sound carries the
+/// warning there, and the card simply is not seen.
+/// </para>
 /// </remarks>
 internal sealed class WarningOverlayForm : Form
 {
-    private const int VisibleSeconds = 7;
+    private const int VisibleSeconds = 8;
+
+    /// <summary>How far in from the corner the card sits.</summary>
+    private const int Inset = 28;
 
     private readonly System.Windows.Forms.Timer _hideTimer;
-    private readonly Label _messageLabel;
+
+    private string _headline = string.Empty;
+    private string _detail = string.Empty;
+    private Color _accent = Palette.Accent;
 
     public WarningOverlayForm()
     {
@@ -23,29 +53,12 @@ internal sealed class WarningOverlayForm : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        BackColor = Palette.Surface;
+        BackColor = Palette.Background;
+        DoubleBuffered = true;
 
-        var screen = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
-        Width = 560;
-        Height = 74;
-        Location = new Point(screen.X + (screen.Width - Width) / 2, screen.Y + 40);
-
-        _messageLabel = new Label
-        {
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Font = Arena.Sans(16f, FontStyle.Bold),
-            ForeColor = Palette.TextPrimary,
-            BackColor = Color.Transparent,
-        };
-
-        Controls.Add(_messageLabel);
-
-        Paint += (_, e) =>
-        {
-            using var pen = new Pen(Palette.Accent, 3f);
-            e.Graphics.DrawRectangle(pen, 1, 1, Width - 3, Height - 3);
-        };
+        Width = 300;
+        Height = 96;
+        PlaceInCorner();
 
         _hideTimer = new System.Windows.Forms.Timer { Interval = VisibleSeconds * 1000 };
         _hideTimer.Tick += (_, _) =>
@@ -58,15 +71,7 @@ internal sealed class WarningOverlayForm : Form
 
     public event EventHandler? Hidden;
 
-    /// <summary>
-    /// Stops the banner taking focus when it appears.
-    /// </summary>
-    /// <remarks>
-    /// Without this, showing the banner would activate it and pull focus off the
-    /// game — which for a fullscreen title usually means it minimises. A warning
-    /// that throws the customer out of their match would be worse than no
-    /// warning at all.
-    /// </remarks>
+    /// <summary>Stops the card taking focus when it appears.</summary>
     protected override bool ShowWithoutActivation => true;
 
     protected override CreateParams CreateParams
@@ -75,66 +80,46 @@ internal sealed class WarningOverlayForm : Form
         {
             var parameters = base.CreateParams;
 
-            // WS_EX_NOACTIVATE — never becomes the foreground window, even if
-            // clicked. WS_EX_TOOLWINDOW — keeps it out of the Alt+Tab list.
             parameters.ExStyle |= NativeConstants.WS_EX_NOACTIVATE;
             parameters.ExStyle |= NativeConstants.WS_EX_TOOLWINDOW;
+            parameters.ExStyle |= NativeConstants.WS_EX_LAYERED;
+
+            // Click-through. A card floating over a shooter that could eat a
+            // click would be worse than no card.
+            parameters.ExStyle |= NativeConstants.WS_EX_TRANSPARENT;
+
             return parameters;
         }
     }
 
-    /// <summary>
-    /// Shows the banner for a few seconds, above whatever is playing.
-    /// </summary>
-    /// <remarks>
-    /// This used to take the game's window and pass it as hWndInsertAfter,
-    /// meaning to stack the banner "directly above" it. That argument does the
-    /// opposite: hWndInsertAfter is the window that PRECEDES the positioned one
-    /// in Z order, so the banner was placed one step BELOW the game — behind a
-    /// fullscreen window, which is to say nowhere.
-    /// <para>
-    /// Topmost instead, which is what an on-screen overlay is. It costs the
-    /// game nothing because this window is WS_EX_NOACTIVATE: it is painted over
-    /// the top and can never become the foreground window, so nothing about the
-    /// game's focus changes.
-    /// </para>
-    /// <para>
-    /// None of which helps against a title that owns the display outright, and
-    /// Valorant does. That case is not handled by drawing more carefully — it
-    /// is handled by not drawing at all; see ExclusiveFullscreen.
-    /// </para>
-    /// </remarks>
+    private void PlaceInCorner()
+    {
+        var screen = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+        Location = new Point(screen.Right - Width - Inset, screen.Top + Inset);
+    }
+
+    /// <summary>Shows the card for a few seconds, above whatever is playing.</summary>
     /// <param name="secondsRemaining">Seconds left in the session.</param>
     public void ShowWarning(int secondsRemaining)
     {
-        // Always, whether or not anything is drawn. It is the only half of this
-        // that reaches a customer in a fullscreen game, and it is worth having
-        // on the desktop too — the banner is small, and somebody two minutes
-        // into a match is not reading the top of their screen.
+        // Always audible, and always before anything is drawn. Sound is the
+        // half that reaches a customer whose game this cannot be drawn over.
         AudioAlert.PlayTimeWarning(secondsRemaining);
 
-        // The line this whole thing turns on. A window shown over a game that
-        // owns the display forces Windows out of exclusive mode and the game
-        // minimises — topmost, non-activating, click-through, it makes no
-        // difference, because the problem is that a window appeared at all.
-        //
-        // So when a game owns the screen, none does. The customer hears the
-        // warning and keeps playing, which is what was asked for.
-        if (ExclusiveFullscreen.IsGameOwningTheScreen())
-        {
-            AgentLog.Info(
-                $"Time warning ({secondsRemaining}s) played as sound only: a fullscreen game owns the screen.");
-            return;
-        }
+        (_headline, _detail, _accent) = Describe(secondsRemaining);
 
-        _messageLabel.Text = FormatMessage(secondsRemaining);
         _hideTimer.Stop();
+        PlaceInCorner();
 
         if (!Visible)
         {
             Show();
         }
 
+        Invalidate();
+
+        // Raised without ever being activated. Setting TopMost alone is not
+        // enough once something else has been topmost since.
         NativeMethods.SetWindowPos(
             Handle,
             NativeMethods.HWND_TOPMOST,
@@ -147,22 +132,72 @@ internal sealed class WarningOverlayForm : Form
         _hideTimer.Start();
     }
 
-    private static string FormatMessage(int secondsRemaining)
+    /// <summary>
+    /// What the card says, and how loudly.
+    /// </summary>
+    /// <remarks>
+    /// Ten minutes is information; two minutes is a prompt to do something.
+    /// The colour escalates with it so the difference is visible before the
+    /// words are read.
+    /// </remarks>
+    private static (string Headline, string Detail, Color Accent) Describe(int secondsRemaining)
     {
         if (secondsRemaining <= 0)
         {
-            return "Your time is up";
-        }
-
-        if (secondsRemaining < 60)
-        {
-            return $"{secondsRemaining} seconds remaining";
+            return ("TIME UP", "Your PC is locking now", Palette.Accent);
         }
 
         var minutes = (int)Math.Round(secondsRemaining / 60.0);
-        return minutes == 1
-            ? "1 minute remaining — please save your game"
-            : $"{minutes} minutes remaining";
+
+        if (minutes <= 2)
+        {
+            return ($"{minutes} MIN LEFT", "Save your game now", Palette.Accent);
+        }
+
+        if (minutes <= 5)
+        {
+            return ($"{minutes} MIN LEFT", "Finish up, or add time at the counter", Palette.Warning);
+        }
+
+        return ($"{minutes} MIN LEFT", "Add more time at the counter if you need it", Palette.Cyan);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        var body = new Rectangle(0, 0, Width, Height);
+
+        using (var fill = new SolidBrush(Color.FromArgb(242, 10, 14, 24)))
+        using (var path = Arena.CutRect(body, 18))
+        {
+            g.FillPath(fill, path);
+        }
+
+        // The accent runs down the left edge rather than around the card: at
+        // this size a full border is a box, and a bar is a signal.
+        using (var edge = new SolidBrush(_accent))
+        {
+            g.FillRectangle(edge, 0, 0, 4, Height);
+        }
+
+        Arena.DrawCutBorder(g, new Rectangle(0, 0, Width - 1, Height - 1),
+            Color.FromArgb(40, 255, 255, 255), 1f, 18);
+
+        using var headlineFont = Arena.Mono(19f);
+        using var detailFont = Arena.Sans(9.5f);
+
+        using (var headline = new SolidBrush(Palette.TextPrimary))
+        {
+            g.DrawString(_headline, headlineFont, headline, 22, 20);
+        }
+
+        using (var detail = new SolidBrush(Palette.TextMuted))
+        {
+            g.DrawString(_detail, detailFont, detail, new RectangleF(23, 52, Width - 40, 34));
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -179,6 +214,8 @@ internal sealed class WarningOverlayForm : Form
     {
         public const int WS_EX_NOACTIVATE = 0x08000000;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
+        public const int WS_EX_LAYERED = 0x00080000;
+        public const int WS_EX_TRANSPARENT = 0x00000020;
     }
 
     private static class NativeMethods
@@ -187,7 +224,7 @@ internal sealed class WarningOverlayForm : Form
         public const uint SWP_SHOWWINDOW = 0x0040;
         public static readonly IntPtr HWND_TOPMOST = new(-1);
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetWindowPos(
             IntPtr hWnd,
