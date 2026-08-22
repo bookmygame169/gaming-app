@@ -188,7 +188,9 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                         {requests.length} waiting at a PC
                     </h3>
                     <p className="text-[11px] text-slate-500">
-                        Approving unlocks the machine and starts their time from now.
+                        {requests.every((row) => row.requestType === 'extend')
+                            ? 'Approving adds the time to the session they are already in.'
+                            : 'Approving unlocks the machine and starts their time from now.'}
                     </p>
                 </div>
             </div>
@@ -266,7 +268,13 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                                     className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-40"
                                 >
                                     <Check size={13} />
-                                    {busyId === request.id ? 'Unlocking…' : 'Approve & unlock'}
+                                    {request.requestType === 'extend'
+                                        ? busyId === request.id
+                                            ? 'Adding…'
+                                            : 'Approve & add time'
+                                        : busyId === request.id
+                                            ? 'Unlocking…'
+                                            : 'Approve & unlock'}
                                 </button>
                             </div>
                         </div>
