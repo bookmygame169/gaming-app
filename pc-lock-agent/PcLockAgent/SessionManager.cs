@@ -123,6 +123,48 @@ internal sealed class SessionManager : IDisposable
         AgentLog.Info($"Session '{sessionId ?? "(none)"}' started: {durationSeconds}s, ends {_endsAtUtc:O}.");
     }
 
+    /// <summary>
+    /// Moves the deadline out to a longer remaining time, and says how much was
+    /// gained.
+    /// </summary>
+    /// <remarks>
+    /// The backend sends what is left, not what was bought, so this is the same
+    /// number the countdown already believes - give or take the clock drift
+    /// between a café PC and a server. Only a move outwards is honoured. A
+    /// smaller number is what arrives every time the routine sweep re-states an
+    /// unchanged session, and acting on it would let a few seconds of drift
+    /// nibble at time somebody paid for.
+    /// <para>
+    /// The warnings are cleared with it. A customer warned at two minutes who
+    /// then bought another hour must be warned again on the new deadline, not
+    /// left to have their session end in silence.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? ExtendTo(int remainingSeconds)
+    {
+        if (_endsAtUtc is not { } endsAt || remainingSeconds <= 0)
+        {
+            return null;
+        }
+
+        var proposed = DateTimeOffset.UtcNow.AddSeconds(remainingSeconds);
+        if (proposed <= endsAt)
+        {
+            return null;
+        }
+
+        var gained = proposed - endsAt;
+        _endsAtUtc = proposed;
+        _firedWarnings.Clear();
+        PersistState();
+
+        AgentLog.Info(
+            $"Session '{SessionId ?? "(none)"}' extended by {gained.TotalMinutes:0} min; " +
+            $"now ends {_endsAtUtc:O}.");
+
+        return gained;
+    }
+
     /// <summary>Ends the countdown without raising <see cref="SessionExpired"/>.</summary>
     public void Stop()
     {

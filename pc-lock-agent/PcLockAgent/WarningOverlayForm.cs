@@ -151,7 +151,26 @@ internal sealed class WarningOverlayForm : Form
         // half that reaches a customer whose game this cannot be drawn over.
         AudioAlert.PlayTimeWarning(secondsRemaining);
 
-        (_headline, _detail, _accent) = Describe(secondsRemaining);
+        var (headline, detail, accent) = Describe(secondsRemaining);
+        ShowCard(headline, detail, accent);
+    }
+
+    /// <summary>
+    /// Shows the same card with something other than a countdown on it.
+    /// </summary>
+    /// <remarks>
+    /// Silent, because the only thing this currently says is good news. The
+    /// beep exists to reach somebody who is deep in a game and cannot be drawn
+    /// over; being told you have more time can wait until you look up.
+    /// </remarks>
+    public void ShowMessage(string headline, string detail, Color accent)
+    {
+        ShowCard(headline, detail, accent);
+    }
+
+    private void ShowCard(string headline, string detail, Color accent)
+    {
+        (_headline, _detail, _accent) = (headline, detail, accent);
 
         _hideTimer.Stop();
         PlaceInCorner();
@@ -178,7 +197,7 @@ internal sealed class WarningOverlayForm : Form
 
         _hideTimer.Start();
 
-        AgentLog.Info($"Time warning shown: {_headline} (visible={Visible}, topmost={TopMost}).");
+        AgentLog.Info($"Card shown: {_headline} (visible={Visible}, topmost={TopMost}).");
     }
 
     /// <summary>

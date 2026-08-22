@@ -176,16 +176,36 @@ internal sealed class AgentShell : ApplicationContext
             return;
         }
 
-        // Minute cron re-issues unlock for the same booking. Restarting the
-        // countdown would reset remaining time and yank the game to the kiosk.
+        // An unlock for the session already running is not a new session. The
+        // routine sweep re-states one every time it runs, and starting the
+        // countdown again would reset the customer's remaining time and yank
+        // their game to the kiosk.
+        //
+        // It is also how more time arrives. When the owner adds an hour on the
+        // dashboard, or approves a request from this PC, the booking grows and
+        // the next command carries a larger remaining - and this branch used to
+        // throw it away, so the machine locked at the original hour while the
+        // books said two. The session is never restarted here; only the
+        // deadline moves, and only ever outwards.
         if (
             !string.IsNullOrWhiteSpace(e.SessionId)
             && string.Equals(_session.SessionId, e.SessionId, StringComparison.Ordinal)
             && _session.IsActive)
         {
-            AgentLog.Info(
-                $"Ignoring unlock for session '{e.SessionId}': already running " +
-                $"with {_session.TimeRemaining.TotalSeconds:0}s left.");
+            var gained = _session.ExtendTo(e.DurationSeconds);
+
+            if (gained is { } added)
+            {
+                _gameMenu.UpdateRemaining(_session.TimeRemaining);
+                ShowTimeAddedCard(added);
+            }
+            else
+            {
+                AgentLog.Info(
+                    $"Ignoring unlock for session '{e.SessionId}': already running " +
+                    $"with {_session.TimeRemaining.TotalSeconds:0}s left.");
+            }
+
             return;
         }
 
@@ -422,6 +442,48 @@ internal sealed class AgentShell : ApplicationContext
     /// — and is now skipped in the case where it was doing the damage.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Tells the customer their extra time has landed.
+    /// </summary>
+    /// <remarks>
+    /// Worth saying out loud. Somebody who has paid for another hour and sees
+    /// nothing change assumes it did not work, and the next thing they do is
+    /// get up and ask - which is the walk to the counter this whole feature
+    /// exists to save them.
+    /// </remarks>
+    private void ShowTimeAddedCard(TimeSpan added)
+    {
+        var minutes = (int)Math.Round(added.TotalMinutes);
+        if (minutes <= 0)
+        {
+            return;
+        }
+
+        var headline = minutes % 60 == 0
+            ? $"+{minutes / 60} HOUR{(minutes / 60 == 1 ? "" : "S")}"
+            : $"+{minutes} MIN";
+
+        _warningOverlay.ShowMessage(
+            headline,
+            $"Added to your time — {FormatRemaining(_session.TimeRemaining)} left",
+            Palette.Cyan);
+
+        RestoreGameOnlyIfItLostFocus();
+    }
+
+    private static string FormatRemaining(TimeSpan remaining)
+    {
+        var total = (int)Math.Round(remaining.TotalMinutes);
+        if (total < 60)
+        {
+            return $"{total} min";
+        }
+
+        var hours = total / 60;
+        var minutes = total % 60;
+        return minutes == 0 ? $"{hours} hr" : $"{hours} hr {minutes} min";
+    }
+
     private void ShowSessionWarning(int secondsRemaining)
     {
         _warningOverlay.ShowWarning(secondsRemaining);
