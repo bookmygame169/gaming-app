@@ -92,6 +92,51 @@ internal sealed class WarningOverlayForm : Form
         }
     }
 
+    /// <summary>
+    /// Makes the layered window visible, and cuts its corner.
+    /// </summary>
+    /// <remarks>
+    /// WS_EX_LAYERED alone is why nothing appeared. A layered window draws
+    /// NOTHING until something tells Windows how to composite it - either
+    /// SetLayeredWindowAttributes or UpdateLayeredWindow - and the style was
+    /// set without either. The card was created, shown and raised to topmost,
+    /// perfectly invisible, which is a failure that logs nothing and looks
+    /// exactly like the sound-only version it replaced.
+    /// <para>
+    /// Alpha 255: fully opaque, but composited. That is what lets it sit over a
+    /// game without the window manager rearranging anything to fit it in.
+    /// </para>
+    /// <para>
+    /// Left square deliberately. A clipping region would give it the cut corner
+    /// the rest of the app uses, and setting one on a layered window is a
+    /// second thing that can go quietly wrong on a machine nobody here can
+    /// look at. This card has already been invisible once; the corner is not
+    /// worth a second time. The accent bar down the left carries the identity.
+    /// </para>
+    /// </remarks>
+    private void ApplyLayeredAppearance()
+    {
+        if (!IsHandleCreated)
+        {
+            return;
+        }
+
+        try
+        {
+            NativeMethods.SetLayeredWindowAttributes(Handle, 0, 255, NativeMethods.LWA_ALPHA);
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not set up the time warning window: {ex.Message}");
+        }
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        ApplyLayeredAppearance();
+    }
+
     private void PlaceInCorner()
     {
         var screen = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
@@ -116,7 +161,9 @@ internal sealed class WarningOverlayForm : Form
             Show();
         }
 
+        ApplyLayeredAppearance();
         Invalidate();
+        Update();
 
         // Raised without ever being activated. Setting TopMost alone is not
         // enough once something else has been topmost since.
@@ -130,6 +177,8 @@ internal sealed class WarningOverlayForm : Form
             NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
 
         _hideTimer.Start();
+
+        AgentLog.Info($"Time warning shown: {_headline} (visible={Visible}, topmost={TopMost}).");
     }
 
     /// <summary>
@@ -170,10 +219,9 @@ internal sealed class WarningOverlayForm : Form
 
         var body = new Rectangle(0, 0, Width, Height);
 
-        using (var fill = new SolidBrush(Color.FromArgb(242, 10, 14, 24)))
-        using (var path = Arena.CutRect(body, 18))
+        using (var fill = new SolidBrush(Color.FromArgb(10, 14, 24)))
         {
-            g.FillPath(fill, path);
+            g.FillRectangle(fill, body);
         }
 
         // The accent runs down the left edge rather than around the card: at
@@ -183,8 +231,10 @@ internal sealed class WarningOverlayForm : Form
             g.FillRectangle(edge, 0, 0, 4, Height);
         }
 
-        Arena.DrawCutBorder(g, new Rectangle(0, 0, Width - 1, Height - 1),
-            Color.FromArgb(40, 255, 255, 255), 1f, 18);
+        using (var border = new Pen(Color.FromArgb(46, 255, 255, 255)))
+        {
+            g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+        }
 
         using var headlineFont = Arena.Mono(19f);
         using var detailFont = Arena.Sans(9.5f);
@@ -220,9 +270,18 @@ internal sealed class WarningOverlayForm : Form
 
     private static class NativeMethods
     {
+        public const uint LWA_ALPHA = 0x00000002;
         public const uint SWP_NOACTIVATE = 0x0010;
         public const uint SWP_SHOWWINDOW = 0x0040;
         public static readonly IntPtr HWND_TOPMOST = new(-1);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetLayeredWindowAttributes(
+            IntPtr hwnd,
+            uint crKey,
+            byte bAlpha,
+            uint dwFlags);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
