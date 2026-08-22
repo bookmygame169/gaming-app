@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireStationToken } from "@/lib/stationAgentAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,39 +22,11 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   try {
-    // Trimmed because copying a value into a hosting dashboard very easily picks
-    // up a trailing space or newline, which then fails to match with no clue as
-    // to why.
-    const expectedToken = process.env.STATION_HEARTBEAT_TOKEN?.trim();
-    if (!expectedToken) {
-      console.error("STATION_HEARTBEAT_TOKEN is not set; rejecting heartbeat.");
-      return NextResponse.json({ error: "Server not configured" }, { status: 503 });
-    }
-
-    const authHeader = request.headers.get("authorization") || "";
-    const token = authHeader.toLowerCase().startsWith("bearer ")
-      ? authHeader.slice(7).trim()
-      : "";
-
-    if (token !== expectedToken) {
-      // Lengths only, never the values. Enough to tell a truncated paste from a
-      // genuinely different token, which is otherwise slow to diagnose across
-      // two machines, and useless to anyone probing the endpoint.
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          hint:
-            `Received a token of ${token.length} characters; the server expects ` +
-            `${expectedToken.length}. If those differ, the value was truncated or ` +
-            `has stray whitespace. If they match, the two values are simply different — ` +
-            `and remember the site must be redeployed after changing an environment variable.`,
-        },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const cafeId = String(body?.cafeId || "");
+    const unauthorized = requireStationToken(request, cafeId || null);
+    if (unauthorized) return unauthorized;
+
     const stationName = String(body?.stationName || "").trim().toLowerCase();
     const status = String(body?.status || "").trim().toLowerCase();
     const sessionId = body?.sessionId ? String(body.sessionId) : null;

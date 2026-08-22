@@ -6,9 +6,9 @@ import {
   getSupabaseAdmin,
 } from "@/lib/adminAuth";
 import {
+  configuredAdminEmail,
   ensureAdminProfileForEmail,
-  HARDCODED_ADMIN_EMAIL,
-  isHardcodedAdminLogin,
+  isConfiguredAdminLogin,
 } from "@/lib/adminLoginAccount";
 import { authRateLimiter, enforceRateLimit } from "@/lib/ratelimit";
 
@@ -37,21 +37,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!isHardcodedAdminLogin(email, password)) {
+    if (!isConfiguredAdminLogin(email, password)) {
+      if (!configuredAdminEmail()) {
+        console.error("ADMIN_LOGIN_EMAIL / ADMIN_LOGIN_PASSWORD are not set.");
+        return NextResponse.json({ error: "Admin login is not configured" }, { status: 503 });
+      }
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
+    const adminEmail = configuredAdminEmail()!;
     const supabase = getSupabaseAdmin();
-    const userId = await ensureAdminProfileForEmail(supabase, HARDCODED_ADMIN_EMAIL);
+    const userId = await ensureAdminProfileForEmail(supabase, adminEmail);
 
     if (!userId) {
       return NextResponse.json({ error: "Could not set up admin session" }, { status: 500 });
     }
 
-    const response = NextResponse.json({ userId, email: HARDCODED_ADMIN_EMAIL });
+    const response = NextResponse.json({ userId, email: adminEmail });
     applyAdminSessionCookie(
       response,
-      createAdminSession(userId, HARDCODED_ADMIN_EMAIL)
+      createAdminSession(userId, adminEmail)
     );
     return response;
   } catch (err) {

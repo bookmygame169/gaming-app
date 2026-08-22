@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext } from "@/lib/ownerAuth";
 import { completeEndedBookings } from "@/lib/autoComplete";
 import { normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
+import { getIndiaDateDaysAgo, getIndiaDateString } from "@/lib/indiaTime";
 import { buildStationPricingMap, dedupeStationPricingRows } from "@/lib/stationNames";
 
 export const dynamic = 'force-dynamic';
@@ -33,32 +34,6 @@ const BOOKING_SELECT_WITH_UPDATED_AT = `
   booking_items (id, console, quantity, price, title),
   booking_orders (id, item_name, quantity, total_price)
 `;
-
-function getIndiaDateString(date: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  if (!year || !month || !day) {
-    throw new Error("Failed to format India date string");
-  }
-
-  return `${year}-${month}-${day}`;
-}
-
-function getIndiaDateDaysAgo(daysAgo: number): string {
-  const date = new Date();
-  date.setUTCHours(12, 0, 0, 0);
-  date.setUTCDate(date.getUTCDate() - daysAgo);
-  return getIndiaDateString(date);
-}
 
 function isMissingBookingsUpdatedAtError(error: { message?: string | null } | null | undefined): boolean {
   const message = error?.message?.toLowerCase() || "";

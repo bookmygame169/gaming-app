@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto+Mono:wght@500;700&display=swap">
+  <style>
+    body { margin: 0; background: #05070c; }
+    a { color: #fb7185; } a:hover { color: #fda4af; }
+    .sans { font-family: "Segoe UI", "Open Sans", system-ui, sans-serif; }
+    .mono { font-family: Consolas, "Roboto Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div class="sans" style="width: 1600px; height: 900px; background: #05070c; color: #f1f5f9; position: relative; overflow: hidden;">
+
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 900px 700px at 24% 40%, #14192b 0%, #05070c 68%);"></div>
+  <div style="position: absolute; left: -160px; top: -60px; width: 700px; height: 1100px; transform: rotate(18deg); background: linear-gradient(180deg, rgba(225,29,72,0.10), transparent 60%); clip-path: polygon(38% 0, 62% 0, 24% 100%, 0 100%);"></div>
+
+  <div style="position: absolute; left: 46px; top: 62px; width: 400px;">
+    <div class="mono" style="font-size: 12px; font-weight: 700; letter-spacing: 2.4px; color: {{accent}};">STEP 02 / 04</div>
+    <div style="margin-top: 14px; font-size: 52px; font-weight: 700; line-height: 1.02; letter-spacing: -1.4px; color: #ffffff;">How long<br>do you want?</div>
+    <div style="margin-top: 18px; font-size: 14px; line-height: 1.65; color: #64748b;">
+      Nothing is charged until the counter approves it. Your PC unlocks the moment they do.
+    </div>
+
+    <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 1px; background: rgba(255,255,255,0.06);">
+      <sc-for list="{{steps}}" as="step" hint-placeholder-count="4">
+        <div style="display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 16px; background: {{step.bg}};">
+          <span class="mono" style="font-size: 12px; font-weight: 700; color: {{step.numFg}};">{{step.num}}</span>
+          <span style="font-size: 13.5px; font-weight: 600; color: {{step.fg}};">{{step.label}}</span>
+          <span style="flex: 1 1 auto;"></span>
+          <span style="font-size: 12px; color: #475569;">{{step.value}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="margin-top: 34px; border-left: 3px solid #22d3ee; background: rgba(34,211,238,0.06); padding: 16px 18px;">
+      <div style="font-size: 13px; font-weight: 700; color: #a5f3fc;">Already a member?</div>
+      <div style="margin-top: 5px; font-size: 12.5px; line-height: 1.55; color: #94a3b8;">
+        Go back and scan the code — your hours are already paid for.
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; right: 46px; top: 62px; width: 1020px;">
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;">
+      <sc-for list="{{hours}}" as="o" hint-placeholder-count="6">
+        <div style="position: relative; height: 168px; background: {{o.bg}}; border-top: 3px solid {{o.edge}}; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%); padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="font-size: 17px; font-weight: 700; color: {{o.fg}};">{{o.label}}</div>
+            <div style="margin-top: 5px; font-size: 11.5px; color: #64748b;">{{o.per}}</div>
+          </div>
+          <div class="mono" style="font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -2px; color: {{o.priceFg}};">{{o.price}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="margin-top: 26px; display: flex; align-items: stretch; gap: 14px;">
+      <div style="flex: 1 1 auto; background: rgba(255,255,255,0.035); border-top: 1px solid rgba(255,255,255,0.09); padding: 20px 24px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.6px; color: #64748b;">YOU SELECTED</div>
+          <div style="margin-top: 6px; font-size: 20px; font-weight: 700; color: #ffffff;">1 hour on PC-01</div>
+        </div>
+        <div class="mono" style="font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: -2px; color: #ffffff;">₹100</div>
+      </div>
+
+      <div style="width: 300px; background: linear-gradient(135deg, {{accent}}, #ff5f70); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 20px 50px -18px rgba(225,29,72,0.95);">
+        <span style="font-size: 21px; font-weight: 700; letter-spacing: 1.6px; color: #ffffff;">NEXT</span>
+        <span style="font-size: 11.5px; font-weight: 600; letter-spacing: 1px; color: rgba(255,255,255,0.75);">Choose how to pay</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 46px; bottom: 34px; display: flex; align-items: center; gap: 10px;">
+    <span style="width: 34px; height: 34px; border: 1px solid rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round"><polyline points="14 6 8 12 14 18"></polyline></svg>
+    </span>
+    <span style="font-size: 13px; font-weight: 600; color: #64748b;">Back</span>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#e11d48","options":["#e11d48","#00e5ff","#a855f7","#22c55e"]}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#e11d48';
+
+    const step = (num, label, value, state) => ({
+      num, label, value,
+      bg: state === 'now' ? 'rgba(225,29,72,0.13)' : '#0a0e18',
+      fg: state === 'later' ? '#475569' : '#e2e8f0',
+      numFg: state === 'later' ? '#334155' : accent,
+    });
+
+    const opt = (label, price, per, on) => ({
+      label, price, per,
+      bg: on ? 'rgba(225,29,72,0.16)' : 'rgba(255,255,255,0.035)',
+      edge: on ? accent : 'rgba(255,255,255,0.10)',
+      fg: on ? '#ffffff' : '#cbd5e1',
+      priceFg: on ? '#ffffff' : '#8fa0b8',
+    });
+
+    return {
+      accent,
+      steps: [
+        step('01', 'Who you are', 'Rahul · 98765…', 'done'),
+        step('02', 'How long',    'choosing',       'now'),
+        step('03', 'How to pay',  '—',              'later'),
+        step('04', 'Confirm',     '—',              'later'),
+      ],
+      hours: [
+        opt('30 minutes', '₹70',  '',            false),
+        opt('1 hour',     '₹100', '',            true),
+        opt('2 hours',    '₹200', '₹100 / hour', false),
+        opt('3 hours',    '₹300', '₹100 / hour', false),
+        opt('5 hours',    '₹500', '₹100 / hour', false),
+        opt('Day pass',   '₹500', 'until 10 pm', false),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

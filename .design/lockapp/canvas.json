@@ -1,0 +1,45 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",     "x": 0,    "y": 0, "w": 1600, "h": 900, "title": "Lock screen" },
+    { "file": "GameMenu.dc.html", "x": 1700, "y": 0, "w": 1600, "h": 900, "title": "Game menu" },
+    { "file": "PayNow.dc.html",   "x": 3400, "y": 0, "w": 1600, "h": 900, "title": "Pay and play" }
+  ],
+  "annotations": [
+    {
+      "id": "note-direction",
+      "x": 0, "y": -300, "w": 640,
+      "text": "WHAT I CHANGED MY MIND ABOUT\n\nYou were right that the last one was the old design tidied up. Same centred card, same rounded boxes, same everything - just neater.\n\nI went and looked at what the competition does. Smartlaunch's lock screen is a password box in the middle of a grey screen. ggLeap's client is a stats portal. They are utility screens, and none of them are worth copying.\n\nSo the reference is not cafe software at all - it is what your customers already use every day. PS5, Xbox, Steam Big Picture. Those share a language: full-bleed art, hard edges, huge type, one hot colour, technical numerals.\n\nThat is the direction here. Not a tidier dialog box - a screen that looks like it belongs on a gaming PC."
+    },
+    {
+      "id": "note-lock",
+      "x": 0, "y": 960, "w": 640,
+      "text": "LOCK SCREEN\n\nThe card is gone. The station number is now a jersey numeral three hundred pixels tall, set in Consolas so the digits line up, with a diagonal accent slash cutting behind it. Readable from the door.\n\nThe two ways in are angular panels down the right, numbered 01 and 02, with the corners cut rather than rounded. Prices sit on the pay panel so nobody has to tap to find out what it costs.\n\nBookMyGame is one line of small grey text at the bottom, where a platform belongs."
+    },
+    {
+      "id": "note-menu",
+      "x": 1700, "y": 960, "w": 640,
+      "text": "GAME MENU\n\nBuilt like a console dashboard. The running game takes the top half at full bleed with its name at 76px and a Resume button - because coming back to a game you are already in is the most common thing that happens on this screen, and it used to be a small tile like everything else.\n\nBelow it, a shelf of tall covers rather than a grid of squares. Each carries a coloured top edge by launcher, so Steam, Epic and Xbox are told apart at a glance.\n\nThe clock is Consolas at 34px, top right, with a vertical bar draining beside it."
+    },
+    {
+      "id": "note-pay",
+      "x": 3400, "y": 960, "w": 640,
+      "text": "PAY AND PLAY\n\nSplit rather than stacked. The left column carries the question and a running list of the four steps with what you have already answered, so nothing is hidden behind a Back button.\n\nPrices are a grid of angular blocks with the amount at 44px in Consolas - the number is the thing being compared, so it is the thing set largest.\n\nThe member note sits on the left in cyan, deliberately a different colour from everything else on the screen."
+    },
+    {
+      "id": "note-type",
+      "x": 5100, "y": 0, "w": 400,
+      "text": "TYPE — BOTH ALREADY ON WINDOWS\n\nSegoe UI for words. Consolas for every number: the station, the clock, the prices.\n\nThat second one is doing real work. A monospaced face with lining figures is what makes a countdown look like equipment rather than a document, and it stops the timer jittering as the digits change. Nothing to install - Consolas ships with Windows.\n\nWeights stay at Bold, which is all WinForms can render.\n\nOn a Mac this previews in Open Sans and Roboto Mono; the cafe PCs get the real pair."
+    },
+    {
+      "id": "note-build",
+      "x": 5100, "y": 470, "w": 400,
+      "text": "CAN THIS BE BUILT?\n\nYes. The cut corners are polygons rather than rounded rectangles, which WinForms draws with the same GraphicsPath it already uses. The gradients and the diagonal slash are ordinary brushes.\n\nThe one genuine dependency is game artwork for the hero and the covers. The app already extracts icons; wide cover art it has only for some titles. Where there is none, the block falls back to the coloured gradient you see behind each name - which is why the covers are designed to work with no picture at all."
+    },
+    {
+      "id": "note-ask",
+      "x": 5100, "y": 940, "w": 400,
+      "text": "TELL ME\n\nIs this the right direction, or still not it? If it is close, say which screen is furthest off and I will push that one harder before any C# gets written.\n\nThe accent is a tweak on every artboard - try the cyan or the purple, the whole design shifts with it."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

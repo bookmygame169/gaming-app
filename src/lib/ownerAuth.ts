@@ -1,7 +1,14 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  applyHttpOnlyCookie,
+  encodeJsonBase64Url,
+  decodeJsonBase64Url,
+  resolveSessionSecret,
+  signHmacPayload,
+  verifyHmacPayload,
+} from "@/lib/signedCookie";
 
 export { getSupabaseAdmin };
 
@@ -28,61 +35,8 @@ type OwnerAuthResult =
   | { context: OwnerContext; response: null }
   | { context: null; response: NextResponse };
 
-function getOwnerCookieDomain(): string | undefined {
-  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
-
-  if (!configuredUrl) {
-    return undefined;
-  }
-
-  try {
-    const hostname = new URL(configuredUrl).hostname.toLowerCase();
-
-    if (hostname === "www.bookmygame.co.in" || hostname === "bookmygame.co.in") {
-      return "bookmygame.co.in";
-    }
-
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function getSupabaseServerKey(): string {
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!key) {
-    throw new Error(
-      "Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
-  }
-
-  return key;
-}
-
 function getOwnerSessionSecret(): string {
-  const secret =
-    process.env.OWNER_SESSION_SECRET || getSupabaseServerKey();
-
-  if (!secret) {
-    throw new Error(
-      "Missing OWNER_SESSION_SECRET or Supabase key for owner sessions."
-    );
-  }
-
-  return secret;
-}
-
-function signOwnerSessionPayload(payload: string): string {
-  return createHmac("sha256", getOwnerSessionSecret())
-    .update(payload)
-    .digest("base64url");
-}
-
-function toBase64UrlJson(value: OwnerSession): string {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+  return resolveSessionSecret("OWNER_SESSION_SECRET", "owner");
 }
 
 export function createOwnerSession(userId: string, username: string): OwnerSession {
@@ -96,8 +50,8 @@ export function createOwnerSession(userId: string, username: string): OwnerSessi
 }
 
 export function serializeOwnerSession(session: OwnerSession): string {
-  const payload = toBase64UrlJson(session);
-  const signature = signOwnerSessionPayload(payload);
+  const payload = encodeJsonBase64Url(session);
+  const signature = signHmacPayload(payload, getOwnerSessionSecret());
   return `${payload}.${signature}`;
 }
 
@@ -111,25 +65,12 @@ export function parseOwnerSession(token?: string | null): OwnerSession | null {
     return null;
   }
 
-  const expectedSignature = signOwnerSessionPayload(payload);
-
-  try {
-    if (
-      !timingSafeEqual(
-        Buffer.from(providedSignature),
-        Buffer.from(expectedSignature)
-      )
-    ) {
-      return null;
-    }
-  } catch {
+  if (!verifyHmacPayload(payload, providedSignature, getOwnerSessionSecret())) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8")
-    ) as Partial<OwnerSession>;
+    const parsed = decodeJsonBase64Url<Partial<OwnerSession>>(payload);
 
     if (
       typeof parsed.userId !== "string" ||
@@ -172,28 +113,18 @@ export function applyOwnerSessionCookie(
   response: NextResponse,
   session: OwnerSession
 ): void {
-  response.cookies.set({
+  applyHttpOnlyCookie(response, {
     name: OWNER_SESSION_COOKIE,
     value: serializeOwnerSession(session),
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
     expires: new Date(session.expiresAt),
-    domain: getOwnerCookieDomain(),
   });
 }
 
 export function clearOwnerSessionCookie(response: NextResponse): void {
-  response.cookies.set({
+  applyHttpOnlyCookie(response, {
     name: OWNER_SESSION_COOKIE,
     value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
     expires: new Date(0),
-    domain: getOwnerCookieDomain(),
   });
 }
 

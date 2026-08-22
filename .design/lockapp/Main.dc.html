@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto+Mono:wght@500;700&display=swap">
+  <style>
+    body { margin: 0; background: #05070c; }
+    a { color: #fb7185; } a:hover { color: #fda4af; }
+    .sans { font-family: "Segoe UI", "Open Sans", system-ui, sans-serif; }
+    .mono { font-family: Consolas, "Roboto Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div class="sans" style="width: 1600px; height: 900px; background: #05070c; color: #f1f5f9; position: relative; overflow: hidden;">
+
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 900px 700px at 18% 42%, #14192b 0%, #05070c 68%);"></div>
+  <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.020) 0 1px, transparent 1px 46px);"></div>
+
+  <div style="position: absolute; left: -160px; top: -60px; width: 760px; height: 1100px; transform: rotate(18deg); background: linear-gradient(180deg, rgba(225,29,72,0.13), rgba(225,29,72,0.00) 62%); clip-path: polygon(38% 0, 62% 0, 24% 100%, 0 100%);"></div>
+  <div style="position: absolute; left: 452px; top: -40px; width: 6px; height: 1000px; transform: rotate(18deg); background: linear-gradient(180deg, {{accent}}, rgba(225,29,72,0)); box-shadow: 0 0 40px rgba(225,29,72,0.8);"></div>
+
+  <div style="position: absolute; left: 0; right: 0; top: 0; height: 74px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: space-between; padding: 0 46px;">
+    <div style="display: flex; align-items: center; gap: 18px;">
+      <div style="font-size: 21px; font-weight: 700; letter-spacing: 7px; color: #ffffff;">{{cafeName}}</div>
+      <div style="width: 1px; height: 22px; background: rgba(255,255,255,0.14);"></div>
+      <div style="font-size: 10.5px; font-weight: 600; letter-spacing: 3.6px; color: #fb7185;">{{cafeKicker}}</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 26px;">
+      <div class="mono" style="font-size: 13px; font-weight: 500; color: #64748b; letter-spacing: 1px;">{{clock}}</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 7px; height: 7px; background: #22c55e; box-shadow: 0 0 10px #22c55e;"></span>
+        <span style="font-size: 10px; font-weight: 700; letter-spacing: 2.4px; color: #4ade80;">ONLINE</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 46px; top: 168px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="width: 30px; height: 2px; background: {{accent}};"></span>
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 5px; color: #94a3b8;">STATION</span>
+    </div>
+    <div class="mono" style="margin-top: 2px; font-size: 300px; font-weight: 700; line-height: 0.84; letter-spacing: -14px; color: #ffffff; text-shadow: 0 0 90px rgba(225,29,72,0.35);">01</div>
+    <div style="margin-top: 18px; display: inline-flex; align-items: center; height: 40px; padding: 0 20px; background: rgba(255,255,255,0.05); border-left: 3px solid {{accent}};">
+      <span style="font-size: 13px; font-weight: 600; letter-spacing: 1.4px; color: #cbd5e1;">GAMING PC · READY</span>
+    </div>
+    <div style="margin-top: 30px; max-width: 400px; font-size: 14px; line-height: 1.6; color: #64748b;">
+      This machine is locked. Start a session with your phone, or pay right here at the screen.
+    </div>
+  </div>
+
+  <div style="position: absolute; right: 46px; top: 128px; width: 660px; display: flex; flex-direction: column; gap: 18px;">
+
+    <div style="position: relative; background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)); border-top: 1px solid rgba(255,255,255,0.10); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%); padding: 30px 34px;">
+      <div style="display: flex; gap: 28px; align-items: center;">
+        <div style="width: 176px; height: 176px; background: #ffffff; padding: 11px; flex: 0 0 auto;">
+          <div style="width: 100%; height: 100%; background-image: repeating-linear-gradient(0deg, #05070c 0 7px, transparent 7px 14px), repeating-linear-gradient(90deg, #05070c 0 7px, transparent 7px 14px); background-size: 14px 14px;"></div>
+        </div>
+        <div>
+          <div class="mono" style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: {{accent}};">01 / SCAN</div>
+          <div style="margin-top: 9px; font-size: 25px; font-weight: 700; line-height: 1.15; color: #ffffff;">Use your phone</div>
+          <div style="margin-top: 10px; font-size: 13px; line-height: 1.6; color: #94a3b8;">
+            Members play on hours already paid for. Nothing comes off until you finish.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="position: relative; background: linear-gradient(135deg, rgba(225,29,72,0.16), rgba(225,29,72,0.03)); border-top: 1px solid rgba(225,29,72,0.42); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%); padding: 30px 34px 34px 34px;">
+      <div class="mono" style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: {{accent}};">02 / PAY HERE</div>
+      <div style="margin-top: 9px; font-size: 25px; font-weight: 700; color: #ffffff;">No account needed</div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <sc-for list="{{quickPrices}}" as="row" hint-placeholder-count="3">
+          <div style="flex: 1 1 0; background: rgba(0,0,0,0.32); border-top: 2px solid rgba(255,255,255,0.10); padding: 14px 16px;">
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.2px; color: #94a3b8;">{{row.label}}</div>
+            <div class="mono" style="margin-top: 6px; font-size: 26px; font-weight: 700; color: #ffffff;">{{row.price}}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="margin-top: 22px; height: 66px; background: linear-gradient(90deg, {{accent}}, #ff5f70); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 19px; font-weight: 700; letter-spacing: 1px; color: #ffffff; box-shadow: 0 18px 46px -16px rgba(225,29,72,0.95);">
+        PAY AND PLAY
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="4" y1="12" x2="17" y2="12"></line><polyline points="11 6 17 12 11 18"></polyline></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 46px; right: 46px; bottom: 26px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px;">
+    <span style="font-size: 12px; color: #475569;">Need help? Tell the counter you are on <span class="mono" style="color: #94a3b8; font-weight: 700;">PC-01</span></span>
+    <span style="font-size: 11px; letter-spacing: 2px; color: #334155;">POWERED BY BOOKMYGAME</span>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#e11d48","options":["#e11d48","#00e5ff","#a855f7","#22c55e"]},"cafeName":{"editor":"text","default":"PLAYTIME"},"cafeKicker":{"editor":"text","default":"GAMING CAFE"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#e11d48',
+      cafeName: (this.props.cafeName ?? 'PLAYTIME').toUpperCase(),
+      cafeKicker: (this.props.cafeKicker ?? 'GAMING CAFE').toUpperCase(),
+      clock: '19:42',
+      quickPrices: [
+        { label: '30 MIN', price: '₹70' },
+        { label: '1 HOUR', price: '₹100' },
+        { label: 'DAY PASS', price: '₹500' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

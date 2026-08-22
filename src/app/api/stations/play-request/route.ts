@@ -116,11 +116,11 @@ async function resolvePrice(
  */
 export async function POST(request: NextRequest) {
   try {
-    const unauthorized = requireStationToken(request);
-    if (unauthorized) return unauthorized;
-
     const body = await request.json().catch(() => ({}));
     const identity = readStationIdentity(body);
+    const unauthorized = requireStationToken(request, identity?.cafeId);
+    if (unauthorized) return unauthorized;
+
     if (!identity) {
       return NextResponse.json({ error: "cafeId and stationName are required" }, { status: 400 });
     }
@@ -291,14 +291,13 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const unauthorized = requireStationToken(request);
-    if (unauthorized) return unauthorized;
-
     const params = request.nextUrl.searchParams;
     const identity = readStationIdentity({
       cafeId: params.get("cafeId"),
       stationName: params.get("stationName"),
     });
+    const unauthorized = requireStationToken(request, identity?.cafeId);
+    if (unauthorized) return unauthorized;
     const requestId = params.get("requestId")?.trim() || "";
 
     if (!identity || !requestId) {

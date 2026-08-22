@@ -1,7 +1,14 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  applyHttpOnlyCookie,
+  encodeJsonBase64Url,
+  decodeJsonBase64Url,
+  resolveSessionSecret,
+  signHmacPayload,
+  verifyHmacPayload,
+} from "@/lib/signedCookie";
 
 export { getSupabaseAdmin };
 
@@ -25,46 +32,8 @@ type AdminAuthResult =
   | { context: AdminContext; response: null }
   | { context: null; response: NextResponse };
 
-function getAdminCookieDomain(): string | undefined {
-  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!configuredUrl) return undefined;
-  try {
-    const hostname = new URL(configuredUrl).hostname.toLowerCase();
-    if (hostname === "www.bookmygame.co.in" || hostname === "bookmygame.co.in") {
-      return "bookmygame.co.in";
-    }
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function getSupabaseServerKey(): string {
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!key) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
-  }
-  return key;
-}
-
 function getAdminSessionSecret(): string {
-  return (
-    process.env.ADMIN_SESSION_SECRET ||
-    process.env.OWNER_SESSION_SECRET ||
-    getSupabaseServerKey()
-  );
-}
-
-function signAdminSessionPayload(payload: string): string {
-  return createHmac("sha256", getAdminSessionSecret())
-    .update(payload)
-    .digest("base64url");
-}
-
-function toBase64UrlJson(value: AdminSession): string {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+  return resolveSessionSecret("ADMIN_SESSION_SECRET", "admin");
 }
 
 export function createAdminSession(userId: string, username: string): AdminSession {
@@ -76,8 +45,8 @@ export function createAdminSession(userId: string, username: string): AdminSessi
 }
 
 export function serializeAdminSession(session: AdminSession): string {
-  const payload = toBase64UrlJson(session);
-  const signature = signAdminSessionPayload(payload);
+  const payload = encodeJsonBase64Url(session);
+  const signature = signHmacPayload(payload, getAdminSessionSecret());
   return `${payload}.${signature}`;
 }
 
@@ -87,25 +56,12 @@ export function parseAdminSession(token?: string | null): AdminSession | null {
   const [payload, providedSignature] = token.split(".");
   if (!payload || !providedSignature) return null;
 
-  const expectedSignature = signAdminSessionPayload(payload);
-
-  try {
-    if (
-      !timingSafeEqual(
-        Buffer.from(providedSignature),
-        Buffer.from(expectedSignature)
-      )
-    ) {
-      return null;
-    }
-  } catch {
+  if (!verifyHmacPayload(payload, providedSignature, getAdminSessionSecret())) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8")
-    ) as Partial<AdminSession>;
+    const parsed = decodeJsonBase64Url<Partial<AdminSession>>(payload);
 
     if (
       typeof parsed.userId !== "string" ||
@@ -132,28 +88,18 @@ export function getAdminSessionFromRequest(request: NextRequest): AdminSession |
 }
 
 export function applyAdminSessionCookie(response: NextResponse, session: AdminSession): void {
-  response.cookies.set({
+  applyHttpOnlyCookie(response, {
     name: ADMIN_SESSION_COOKIE,
     value: serializeAdminSession(session),
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
     expires: new Date(session.expiresAt),
-    domain: getAdminCookieDomain(),
   });
 }
 
 export function clearAdminSessionCookie(response: NextResponse): void {
-  response.cookies.set({
+  applyHttpOnlyCookie(response, {
     name: ADMIN_SESSION_COOKIE,
     value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
     expires: new Date(0),
-    domain: getAdminCookieDomain(),
   });
 }
 

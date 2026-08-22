@@ -5,6 +5,7 @@ import {
   requireOwnerCafeAccess,
   requireOwnerContext,
 } from "@/lib/ownerAuth";
+import { getIndiaDateString } from "@/lib/indiaTime";
 
 export const dynamic = 'force-dynamic';
 
@@ -32,17 +33,6 @@ type BookingOrderRow = {
 };
 
 type BookingOrderSummary = Omit<BookingOrderRow, "booking_id">;
-
-const getIndiaDateString = (date: Date = new Date()): string => {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
-  return formatter.format(date);
-};
 
 // POST /api/owner/reports — fetch booking data for reports
 export async function POST(request: NextRequest) {

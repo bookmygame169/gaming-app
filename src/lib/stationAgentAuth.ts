@@ -1,5 +1,7 @@
+import { createHmac } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { timingSafeEqualString } from "@/lib/signedCookie";
 
 /**
  * Authentication for requests coming from a lock agent on a café PC.
@@ -20,24 +22,56 @@ export type StationIdentity = {
   stationName: string;
 };
 
+function masterStationToken(): string | null {
+  return process.env.STATION_HEARTBEAT_TOKEN?.trim() || null;
+}
+
 /**
- * Checks the bearer token. Returns a response to send back, or null to carry on.
+ * Token bound to one café. New enrollments get this; existing PCs still send
+ * the shared master token and remain accepted.
  */
-export function requireStationToken(request: NextRequest): NextResponse | null {
-  const expected = process.env.STATION_HEARTBEAT_TOKEN?.trim();
+export function cafeStationToken(cafeId: string): string | null {
+  const master = masterStationToken();
+  if (!master || !cafeId) return null;
+  return createHmac("sha256", master).update(`station:${cafeId}`).digest("hex");
+}
+
+function readBearerToken(request: NextRequest): string {
+  const header = request.headers.get("authorization") || "";
+  return header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+}
+
+/**
+ * Checks the bearer token. Pass cafeId so a café-scoped token is accepted
+ * without also accepting a token minted for a different café.
+ */
+export function requireStationToken(
+  request: NextRequest,
+  cafeId?: string | null
+): NextResponse | null {
+  const expected = masterStationToken();
   if (!expected) {
     console.error("STATION_HEARTBEAT_TOKEN is not set; rejecting station request.");
     return NextResponse.json({ error: "Server not configured" }, { status: 503 });
   }
 
-  const header = request.headers.get("authorization") || "";
-  const provided = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
-
-  if (provided !== expected) {
+  const provided = readBearerToken(request);
+  if (!provided) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return null;
+  if (timingSafeEqualString(provided, expected)) {
+    return null;
+  }
+
+  if (cafeId) {
+    const scoped = cafeStationToken(cafeId);
+    if (scoped && timingSafeEqualString(provided, scoped)) {
+      return null;
+    }
+  }
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 /**

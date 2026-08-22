@@ -1,4 +1,5 @@
 import { parseTimeToMinutes } from "@/lib/timeUtils";
+import { getIndiaDateString } from "@/lib/indiaTime";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type CafeConsoleCounts = {
@@ -72,25 +73,6 @@ function normaliseConsoleType(raw: string | null | undefined): string {
 
 function normaliseStationName(raw: string | null | undefined): string {
   return raw?.trim().toLowerCase() || "";
-}
-
-function getIndiaDateString(date: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  if (!year || !month || !day) {
-    throw new Error("Failed to format India date");
-  }
-
-  return `${year}-${month}-${day}`;
 }
 
 function parseStartMinutes(startTime?: string | null): number | null {

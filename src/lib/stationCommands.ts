@@ -18,6 +18,10 @@ export type StationCommand =
   | { action: "lock" }
   | { action: "warn"; remaining_seconds: number };
 
+export type SendStationCommandOptions = {
+  cafeId?: string | null;
+};
+
 const CONNECT_TIMEOUT_MS = 8000;
 
 function getBrokerUrl(): string {
@@ -30,6 +34,12 @@ function getBrokerUrl(): string {
   return url;
 }
 
+export function stationCommandTopics(stationName: string, cafeId?: string | null): string[] {
+  const legacy = `cafe/station/${stationName}/command`;
+  if (!cafeId) return [legacy];
+  return [legacy, `cafe/${cafeId}/station/${stationName}/command`];
+}
+
 /**
  * Publishes one command to each station, then closes the connection.
  *
@@ -39,7 +49,8 @@ function getBrokerUrl(): string {
  */
 export async function sendStationCommands(
   stationNames: string[],
-  buildCommand: (stationName: string) => StationCommand
+  buildCommand: (stationName: string) => StationCommand,
+  options: SendStationCommandOptions = {}
 ): Promise<void> {
   if (stationNames.length === 0) {
     return;
@@ -49,35 +60,26 @@ export async function sendStationCommands(
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
     connectTimeout: CONNECT_TIMEOUT_MS,
-    // A fresh id per request; reusing one would make the broker drop the
-    // previous connection when two requests overlap.
-    clientId: `bookmygame-web-${Math.random().toString(16).slice(2, 10)}`,
+    clientId: `bookmygame-web-${randomUUID()}`,
     clean: true,
   });
 
   try {
     await Promise.all(
-      stationNames.map((stationName) => {
-        const topic = `cafe/station/${stationName}/command`;
-
-        // Stamped so the agent can refuse a command it has already acted on,
-        // or one old enough to have been captured off the broker and replayed.
-        // An agent that predates these fields ignores them, so this can ship
-        // before the PCs have updated.
+      stationNames.flatMap((stationName) => {
         const payload = JSON.stringify({
           ...buildCommand(stationName),
           command_id: randomUUID(),
           issued_at: Math.floor(Date.now() / 1000),
+          cafe_id: options.cafeId || undefined,
         });
 
-        // qos 1 so the broker acknowledges receipt. Never `retain` — a retained
-        // unlock would be replayed to the station every time it reconnects,
-        // silently opening a PC nobody paid for.
-        return client.publishAsync(topic, payload, { qos: 1, retain: false });
+        return stationCommandTopics(stationName, options.cafeId).map((topic) =>
+          client.publishAsync(topic, payload, { qos: 1, retain: false })
+        );
       })
     );
   } finally {
-    // Ends cleanly rather than leaving the socket to time out.
     await client.endAsync();
   }
 }

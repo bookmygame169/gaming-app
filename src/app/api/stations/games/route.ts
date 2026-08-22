@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAFE_PC_GAMES, mapGameRowToAgentJson } from "@/lib/cafePcGames";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireStationToken } from "@/lib/stationAgentAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,21 +23,10 @@ type GameRow = {
  */
 export async function GET(request: NextRequest) {
   try {
-    const expectedToken = process.env.STATION_HEARTBEAT_TOKEN?.trim();
-    if (!expectedToken) {
-      return NextResponse.json({ error: "Server not configured" }, { status: 503 });
-    }
-
-    const authHeader = request.headers.get("authorization") || "";
-    const token = authHeader.toLowerCase().startsWith("bearer ")
-      ? authHeader.slice(7).trim()
-      : "";
-
-    if (token !== expectedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const cafeId = request.nextUrl.searchParams.get("cafeId") || "";
+    const unauthorized = requireStationToken(request, cafeId || null);
+    if (unauthorized) return unauthorized;
+
     if (!cafeId) {
       return NextResponse.json({ error: "cafeId is required" }, { status: 400 });
     }

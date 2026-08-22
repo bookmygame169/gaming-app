@@ -1,14 +1,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Platform admin sign-in (email + password). Compared case-insensitively for email. */
-export const HARDCODED_ADMIN_EMAIL = "mshakya169@gmail.com";
-export const HARDCODED_ADMIN_PASSWORD = "Mls1215225";
+function adminLoginEmail(): string {
+  return (process.env.ADMIN_LOGIN_EMAIL || "").trim().toLowerCase();
+}
 
-export function isHardcodedAdminLogin(email: string, password: string): boolean {
-  return (
-    email.trim().toLowerCase() === HARDCODED_ADMIN_EMAIL &&
-    password === HARDCODED_ADMIN_PASSWORD
-  );
+function adminLoginPassword(): string {
+  return process.env.ADMIN_LOGIN_PASSWORD || "";
+}
+
+export function isConfiguredAdminLogin(email: string, password: string): boolean {
+  const expectedEmail = adminLoginEmail();
+  const expectedPassword = adminLoginPassword();
+
+  if (!expectedEmail || !expectedPassword) {
+    return false;
+  }
+
+  return email.trim().toLowerCase() === expectedEmail && password === expectedPassword;
+}
+
+export function configuredAdminEmail(): string | null {
+  const email = adminLoginEmail();
+  return email || null;
 }
 
 async function findAuthUserIdByEmail(
@@ -25,10 +38,6 @@ async function findAuthUserIdByEmail(
   return match?.id ?? null;
 }
 
-/**
- * Ensures a profiles row exists for the hardcoded admin email so session
- * checks (role / is_admin) succeed after password login.
- */
 export async function ensureAdminProfileForEmail(
   supabase: SupabaseClient,
   email: string

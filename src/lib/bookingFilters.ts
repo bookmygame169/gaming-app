@@ -1,4 +1,7 @@
 import { parseTimeToMinutes } from "@/lib/timeUtils";
+import { getIndiaCurrentMinutes, getIndiaDateString } from "@/lib/indiaTime";
+
+export { getIndiaCurrentMinutes, getIndiaDateString };
 type BookingLike = {
   booking_items?: unknown[] | null;
   booking_orders?: unknown[] | null;
@@ -33,28 +36,6 @@ export function isSessionBooking(booking: BookingLike | null | undefined): boole
   if (isOwnerUseBooking(booking)) return false;
   if (isSnackOnlyOrderBooking(booking)) return false;
   return true;
-}
-
-export function getIndiaDateString(date: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-export function getIndiaCurrentMinutes(date: Date = new Date()): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-
-  const hours = Number(parts.find((part) => part.type === "hour")?.value || "0");
-  const minutes = Number(parts.find((part) => part.type === "minute")?.value || "0");
-  return hours * 60 + minutes;
 }
 
 export function parseBookingStartMinutes(startTime?: string | null): number | null {

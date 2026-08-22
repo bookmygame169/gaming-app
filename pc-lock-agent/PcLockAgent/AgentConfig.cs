@@ -25,6 +25,21 @@ internal sealed class AgentConfig
     [JsonPropertyName("stationId")]
     public string StationId { get; init; } = "pc-01";
 
+    /// <summary>
+    /// The café's own name, for the screens the customer looks at.
+    /// </summary>
+    /// <remarks>
+    /// Arrives with the enrolment response, because a station is told a café
+    /// id and nothing else - which is how "PLAYTIME" came to be typed into two
+    /// forms, and how every other café's PCs would have said PlayTime too.
+    /// <para>
+    /// Null on a machine enrolled before this shipped. The screens fall back to
+    /// the station number alone rather than to somebody else's name.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("cafeName")]
+    public string? CafeName { get; init; }
+
     [JsonPropertyName("mqtt")]
     public MqttConfig Mqtt { get; init; } = new();
 
@@ -163,6 +178,7 @@ internal sealed class AgentConfig
     {
         ExitPasswordHash = hash,
         StationId = StationId,
+        CafeName = CafeName,
         Games = Games,
         ShowOnlyInstalledGames = ShowOnlyInstalledGames,
         AllowBrowsing = AllowBrowsing,
@@ -178,6 +194,7 @@ internal sealed class AgentConfig
     {
         ExitPasswordHash = ExitPasswordHash,
         StationId = StationId,
+        CafeName = CafeName,
         Games = games,
         ShowOnlyInstalledGames = ShowOnlyInstalledGames,
         AllowBrowsing = AllowBrowsing,
@@ -233,6 +250,9 @@ internal sealed class AgentConfig
     {
         [JsonPropertyName("stationId")]
         public string? StationId { get; init; }
+
+        [JsonPropertyName("cafeName")]
+        public string? CafeName { get; init; }
 
         [JsonPropertyName("mqtt")]
         public MqttOverride? Mqtt { get; init; }
@@ -403,6 +423,7 @@ internal sealed class AgentConfig
             return new AgentConfig
             {
                 StationId = overrides.StationId ?? config.StationId,
+                CafeName = overrides.CafeName ?? config.CafeName,
                 Games = overrides.Games ?? config.Games,
                 // Carried explicitly. This initializer names every field, so a
                 // setting left out here is not inherited — it silently reverts

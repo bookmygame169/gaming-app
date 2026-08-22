@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerCafeAccess, requireOwnerContext } from "@/lib/ownerAuth";
 import { awardPointsForBooking } from "@/lib/loyalty";
+import { getIndiaDateString, getIndiaDateTimeParts } from "@/lib/indiaTime";
 import {
   encodeAssignedStationsTitle,
   loadStationReservationState,
@@ -27,56 +28,6 @@ type MembershipPlanRecord = {
   console_type: string | null;
   is_active: boolean | null;
 };
-
-function getIndiaDateString(date: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  if (!year || !month || !day) {
-    throw new Error("Failed to format India date");
-  }
-
-  return `${year}-${month}-${day}`;
-}
-
-function getIndiaDateTimeParts(date: Date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hourCycle: "h23",
-    minute: "2-digit",
-  }).formatToParts(date);
-
-  const value = (type: string) => parts.find((part) => part.type === type)?.value;
-  const year = value("year");
-  const month = value("month");
-  const day = value("day");
-  const hour = value("hour");
-  const minute = value("minute");
-
-  if (!year || !month || !day || !hour || !minute) {
-    throw new Error("Failed to format India date/time");
-  }
-
-  return {
-    year,
-    month,
-    day,
-    hour: Number(hour),
-    minute: Number(minute),
-  };
-}
 
 function getDayPassWindow(now: Date = new Date()) {
   const parts = getIndiaDateTimeParts(now);

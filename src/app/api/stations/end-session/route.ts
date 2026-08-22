@@ -58,11 +58,11 @@ function settlementFor(subscription: ActiveSubscription, endedAt: Date) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const unauthorized = requireStationToken(request);
-    if (unauthorized) return unauthorized;
-
     const body = await request.json().catch(() => ({}));
     const identity = readStationIdentity(body);
+    const unauthorized = requireStationToken(request, identity?.cafeId);
+    if (unauthorized) return unauthorized;
+
     if (!identity) {
       return NextResponse.json({ error: "cafeId and stationName are required" }, { status: 400 });
     }

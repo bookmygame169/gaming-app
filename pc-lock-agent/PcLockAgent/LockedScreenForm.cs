@@ -1,16 +1,17 @@
 namespace PcLockAgent;
 
 /// <summary>
-/// The fullscreen "Locked — Scan to Pay" screen shown whenever this PC has no
-/// paid session running. It is the only thing a customer should be able to see
-/// or interact with until the backend confirms payment.
+/// The screen a customer meets: which machine this is, and the two ways onto it.
 /// </summary>
 /// <remarks>
-/// A view only: it decides nothing about sessions. <see cref="AgentShell"/> owns
-/// the services and tells this form when to appear.
+/// Built as one composition across the whole panel rather than a card in the
+/// middle of it. A dialog box centred on a 1920px monitor reads as an error
+/// message; this has to read as a machine waiting to be used.
 /// <para>
-/// The QR code is still a placeholder — the real one arrives with the backend
-/// token endpoint.
+/// The station number is the largest thing on it deliberately. It is what staff
+/// shout across the room, what a customer says at the counter, and what every
+/// support conversation starts with — so it is set at a size that can be read
+/// from the door.
 /// </para>
 /// </remarks>
 internal sealed class LockedScreenForm : Form
@@ -22,54 +23,36 @@ internal sealed class LockedScreenForm : Form
     public event EventHandler? PayNowRequested;
 
     private readonly AgentConfig _config;
+    private readonly PlayRequestClient _prices;
 
-    private Label _connectionLabel = null!;
-    private Label? _devBadge;
-    private Panel? _stationBadge;
-    private Panel? _card;
-    private Button? _payNowButton;
     private Image? _scanCode;
+    private bool _connected;
+    private bool _passthrough;
+    private List<(string Label, string Price)> _priceRows = new();
 
-    // Every measurement here was laid out as a browser page first and looked
-    // at, rather than reasoned about - which is how the last version was caught
-    // drawing the code straight through the rule above it.
-    private const int CardWidth = 520;
+    private Button _payButton = null!;
+    private System.Windows.Forms.Timer? _clockTimer;
 
-    private const int EmblemTop = 44;
-    private const int EmblemSize = 44;
-    private const int BrandTop = 114;
-    private const int KickerTop = 160;
-    private const int FirstRuleTop = 190;
+    // ---- geometry -----------------------------------------------------------
+    //
+    // Laid out against a 1600x900 drawing and scaled to whatever the panel is,
+    // so a 1366x768 café PC and a 2560x1440 one get the same composition rather
+    // than the same pixel offsets.
+    private const int DesignWidth = 1600;
+    private const int DesignHeight = 900;
 
-    private const int ContentTop = 216;
-    private const int CodeSize = 210;
-    private const int PlateWidth = 300;
-    private const int PlateHeight = 150;
-
-    /// <summary>Gap between the code or plate and the line under it.</summary>
-    private const int CallGap = 28;
-
-    private const int RuleGap = 58;
-    private const int StationGap = 78;
-    private const int HintGap = 118;
-
-    /// <summary>Where the Pay Now button sits, below the hint line.</summary>
-    private const int PayButtonGap = HintGap + 34;
-
-    private const int PayButtonWidth = 300;
-    private const int PayButtonHeight = 52;
-
-    /// <summary>What sits below the content block, plus the margin under it.</summary>
-    private const int TailHeight = PayButtonGap + PayButtonHeight + 34;
-
-    private static int CardHeightFor(bool withCode) =>
-        ContentTop + (withCode ? CodeSize : PlateHeight) + TailHeight;
+    private float _scale = 1f;
+    private int S(int designPx) => (int)Math.Round(designPx * _scale);
+    private float SF(float designPx) => designPx * _scale;
 
     public LockedScreenForm(AgentConfig config)
     {
         _config = config;
+        _prices = new PlayRequestClient(config);
+
         InitializeWindowBehaviour();
-        BuildLayout();
+        BuildControls();
+        _ = LoadPricesAsync();
     }
 
     /// <summary>
@@ -77,8 +60,8 @@ internal sealed class LockedScreenForm : Form
     /// </summary>
     /// <remarks>
     /// Null is a normal state, not a failure: a PC that cannot reach the website
-    /// shows the station number and the line about asking at the counter, which
-    /// is how the café worked before any of this existed.
+    /// shows the panel with its own explanation, which is how the café worked
+    /// before any of this existed.
     /// </remarks>
     public void SetScanCode(Image? code)
     {
@@ -96,23 +79,9 @@ internal sealed class LockedScreenForm : Form
 
         _scanCode?.Dispose();
         _scanCode = code;
-
-        if (_card is not null)
-        {
-            // Resized as well as repainted. The card is centred by its layout
-            // cell, so changing the height moves it back to the middle on its
-            // own rather than growing downwards off the bottom.
-            _card.Height = CardHeightFor(withCode: code is not null);
-            PositionPayNowButton();
-            _card.Invalidate();
-        }
+        Invalidate();
     }
 
-    /// <summary>Shows the lock screen and brings it back to the front.</summary>
-    /// <param name="reassertTopMost">
-    /// False while dev passthrough is on, so a <c>lock</c> command does not
-    /// snatch the screen back over the terminal being used to send it.
-    /// </param>
     /// <summary>
     /// Whether this window is allowed to close. Only the agent's own shutdown
     /// sets it.
@@ -138,6 +107,11 @@ internal sealed class LockedScreenForm : Form
         base.OnFormClosing(e);
     }
 
+    /// <summary>Shows the lock screen and brings it back to the front.</summary>
+    /// <param name="reassertTopMost">
+    /// False while dev passthrough is on, so a <c>lock</c> command does not
+    /// snatch the screen back over the terminal being used to send it.
+    /// </param>
     public void ShowLocked(bool reassertTopMost)
     {
         Show();
@@ -157,27 +131,23 @@ internal sealed class LockedScreenForm : Form
 
     public void SetConnectionState(bool connected)
     {
-        _connectionLabel.Text = connected
-            ? "●  Broker connected"
-            : "●  Broker offline — station stays locked";
-        _connectionLabel.ForeColor = connected ? Palette.Online : Palette.Warning;
-    }
-
-    public void SetPassthroughIndicator(bool suspended)
-    {
-        if (_devBadge is null)
+        if (_connected == connected)
         {
             return;
         }
 
-        _devBadge.Text = suspended
-            ? "DEV BUILD — lock SUSPENDED  (Ctrl+Shift+Alt + L restore)"
-            : DevBadgeText;
-        _devBadge.ForeColor = suspended ? Palette.Accent : Palette.Warning;
+        _connected = connected;
+        Invalidate();
+    }
+
+    public void SetPassthroughIndicator(bool suspended)
+    {
+        _passthrough = suspended;
+        Invalidate();
     }
 
     // -----------------------------------------------------------------------
-    // UI
+    // Window
     // -----------------------------------------------------------------------
 
     private void InitializeWindowBehaviour()
@@ -188,36 +158,43 @@ internal sealed class LockedScreenForm : Form
         // Sizing to the screen's full pixel bounds is what actually covers the
         // Windows taskbar. WindowState.Maximized would NOT — a maximised window
         // politely stops at the taskbar's reserved edge, leaving it clickable.
-        Bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+        Bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, DesignWidth, DesignHeight);
 
-        // Sit above other windows, including the taskbar.
         TopMost = true;
-
-        // Keep the window out of the taskbar and the Alt+Tab list — belt and
-        // braces alongside SystemLockService swallowing Alt+Tab outright.
         ShowInTaskbar = false;
-
         StartPosition = FormStartPosition.Manual;
         BackColor = Palette.Background;
         Text = "BookMyGame — Locked";
         Cursor = Cursors.Default;
+        DoubleBuffered = true;
 
         // Route key presses to the form's KeyDown before any child control sees
         // them, so the dev chords work regardless of what has focus.
         KeyPreview = true;
         KeyDown += OnKeyDown;
+
+        _scale = Math.Min(
+            Bounds.Width / (float)DesignWidth,
+            Bounds.Height / (float)DesignHeight);
+
+        // The clock is the one thing on here that has to keep moving. A minute
+        // is enough: it shows hours and minutes.
+        _clockTimer = new System.Windows.Forms.Timer { Interval = 20_000 };
+        _clockTimer.Tick += (_, _) => Invalidate(ClockArea());
+        _clockTimer.Start();
     }
 
-    /// <summary>Paints the page background instead of the flat fill.</summary>
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        Theme.PaintBackdrop(e.Graphics, ClientRectangle);
+        Arena.PaintArena(e.Graphics, ClientRectangle);
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            _clockTimer?.Stop();
+            _clockTimer?.Dispose();
             _scanCode?.Dispose();
             _scanCode = null;
         }
@@ -225,325 +202,372 @@ internal sealed class LockedScreenForm : Form
         base.Dispose(disposing);
     }
 
-    private void BuildLayout()
-    {
-        // Three rows at 50% / auto / 50% vertically centres the middle row's
-        // content no matter the screen resolution.
-        var root = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 3,
-            BackColor = Color.Transparent,
-        };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
-
-        // Anchor.None on a fixed-size panel is the WinForms idiom for "centre me
-        // in my cell" - it stops the panel stretching to the cell's edges.
-        root.Controls.Add(BuildCard(), 0, 1);
-        Controls.Add(root);
-
-        _stationBadge = BuildStationBadge();
-        Controls.Add(_stationBadge);
-        _stationBadge.BringToFront();
-
-        _connectionLabel = BuildConnectionLabel();
-        Controls.Add(_connectionLabel);
-        _connectionLabel.BringToFront();
-
-        if (AgentSettings.AllowDevExit)
-        {
-            _devBadge = BuildDevModeBadge();
-            Controls.Add(_devBadge);
-            _devBadge.BringToFront();
-        }
-    }
+    // -----------------------------------------------------------------------
+    // Prices
+    // -----------------------------------------------------------------------
 
     /// <summary>
-    /// The one card the whole screen is about.
+    /// The café's shortest options, shown before anybody has to tap anything.
     /// </summary>
     /// <remarks>
-    /// Drawn in a single Paint handler rather than assembled from a dozen
-    /// labels. Labels cannot letter-space their text, which is most of what
-    /// makes a heading look designed, and a stack of auto-sized controls gives
-    /// no straightforward way to place a divider or leave a measured gap.
-    /// Painting it also means the layout cannot be pulled apart by a long
-    /// station name.
+    /// A customer deciding whether to sit down wants the price, and the old
+    /// screen made them start a form to find it. Read from the server rather
+    /// than held here so a café changing its rates does not need four machines
+    /// reinstalled.
+    /// <para>
+    /// Fails to nothing. No prices means the panel simply does not list any,
+    /// which is exactly how it looked before.
+    /// </para>
     /// </remarks>
-    private Panel BuildCard()
+    private async Task LoadPricesAsync()
     {
-        var card = new Panel
+        var options = await _prices.GetOptionsAsync().ConfigureAwait(true);
+        if (options is null || IsDisposed)
         {
-            Width = CardWidth,
-            Height = CardHeightFor(withCode: false),
-            Anchor = AnchorStyles.None,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0),
-        };
+            return;
+        }
 
-        _card = card;
+        var rows = new List<(string, string)>();
 
-        // A real control rather than another thing drawn in the Paint handler:
-        // this one has to be clickable, and the rest of the card is a picture.
-        _payNowButton = new Button
+        foreach (var hour in (options.Hourly ?? new List<HourlyOption>()).Take(2))
         {
-            Text = "Pay and play",
-            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            var label = hour.DurationMinutes < 60
+                ? $"{hour.DurationMinutes} MIN"
+                : $"{hour.DurationMinutes / 60} HOUR";
+
+            rows.Add((label, $"₹{hour.Price:0}"));
+        }
+
+        var pass = (options.DayPasses ?? new List<PlanOption>()).FirstOrDefault();
+        if (pass is not null)
+        {
+            rows.Add(("DAY PASS", $"₹{pass.Price:0}"));
+        }
+
+        _priceRows = rows;
+        Invalidate();
+    }
+
+    // -----------------------------------------------------------------------
+    // Layout
+    // -----------------------------------------------------------------------
+
+    private Rectangle ClockArea() => new(Width - S(360), S(18), S(320), S(40));
+
+    private Rectangle PayPanel() => new(
+        Width - S(46) - S(660),
+        S(470),
+        S(660),
+        S(384));
+
+    private void BuildControls()
+    {
+        var panel = PayPanel();
+
+        _payButton = new Button
+        {
+            Text = "PAY AND PLAY",
+            Font = Arena.Sans(SF(15f), FontStyle.Bold),
             ForeColor = Color.White,
             BackColor = Palette.Accent,
             FlatStyle = FlatStyle.Flat,
-            Width = PayButtonWidth,
-            Height = PayButtonHeight,
             Cursor = Cursors.Hand,
+            Left = panel.Left + S(34),
+            Top = panel.Bottom - S(34) - S(66),
+            Width = panel.Width - S(68),
+            Height = S(66),
             FlatAppearance = { BorderSize = 0 },
         };
 
-        _payNowButton.Click += (_, _) => PayNowRequested?.Invoke(this, EventArgs.Empty);
-        Theme.RoundCorners(_payNowButton, 12);
+        _payButton.Click += (_, _) => PayNowRequested?.Invoke(this, EventArgs.Empty);
+        Arena.CutCorners(_payButton, S(18));
 
-        card.Controls.Add(_payNowButton);
-        PositionPayNowButton();
+        Controls.Add(_payButton);
+    }
 
-        card.Paint += (_, e) =>
+    // -----------------------------------------------------------------------
+    // Paint
+    // -----------------------------------------------------------------------
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        PaintTopBar(g);
+        PaintStation(g);
+        PaintScanPanel(g);
+        PaintPayPanel(g);
+        PaintFooter(g);
+    }
+
+    private void PaintTopBar(Graphics g)
+    {
+        var barHeight = S(74);
+
+        using (var rule = new Pen(Color.FromArgb(18, 255, 255, 255)))
         {
-            var g = e.Graphics;
+            g.DrawLine(rule, 0, barHeight, Width, barHeight);
+        }
 
-            // Glow on: it is what makes the card sit above the starfield rather
-            // than look like a hole cut into it.
-            Theme.PaintCard(g, new Rectangle(0, 0, card.Width - 1, card.Height - 1), glow: true);
+        using var nameFont = Arena.Sans(SF(17f), FontStyle.Bold);
+        using var kickerFont = Arena.Sans(SF(8.5f), FontStyle.Bold);
+        using var monoFont = Arena.Mono(SF(10.5f));
 
-            Theme.DrawEmblem(
-                g,
-                new Rectangle((card.Width - EmblemSize) / 2, EmblemTop, EmblemSize, EmblemSize),
-                "BM");
+        // The café's name, not the platform's. A customer sitting in PlayTime
+        // should see PlayTime; BookMyGame is a line of grey text at the bottom.
+        var cafe = (_config.CafeName ?? string.Empty).Trim().ToUpperInvariant();
+        var left = (float)S(46);
 
-            using var brandFont = new Font("Segoe UI", 25f, FontStyle.Bold);
-            using var kickerFont = new Font("Segoe UI", 8f, FontStyle.Regular);
-            using var callFont = new Font("Segoe UI", 10f, FontStyle.Regular);
-            using var stationFont = new Font("Segoe UI", 18f, FontStyle.Bold);
-            using var noteFont = new Font("Segoe UI", 8f, FontStyle.Regular);
+        if (cafe.Length > 0)
+        {
+            Theme.DrawTracked(g, cafe, nameFont, Palette.TextPrimary, left, S(26), SF(5f));
+            left += Theme.MeasureTracked(g, cafe, nameFont, SF(5f)) + S(20);
 
-            Theme.DrawTrackedCentred(g, "PLAYTIME", brandFont, Palette.TextPrimary, card.Width, BrandTop, 11f);
-            Theme.DrawTrackedCentred(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, card.Width, KickerTop, 7f);
+            using var divider = new Pen(Color.FromArgb(36, 255, 255, 255));
+            g.DrawLine(divider, left, S(26), left, S(48));
+            left += S(20);
 
-            Theme.DrawDivider(g, card.Width, FirstRuleTop, 300, Palette.Divider);
+            Theme.DrawTracked(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, left, S(32), SF(3.2f));
+        }
 
-            if (_scanCode is not null)
-            {
-                DrawScanCode(g, card.Width);
-            }
-            else
-            {
-                DrawStationPlate(g, card.Width);
-            }
+        var clock = DateTime.Now.ToString("HH:mm");
+        var clockWidth = g.MeasureString(clock, monoFont).Width;
+        using (var dim = new SolidBrush(Palette.TextDim))
+        {
+            g.DrawString(clock, monoFont, dim, Width - S(180) - clockWidth, S(30));
+        }
 
-            var below = (float)(ContentTop + (_scanCode is not null ? CodeSize : PlateHeight));
+        var stateText = _passthrough ? "PASSTHROUGH" : _connected ? "ONLINE" : "OFFLINE";
+        var stateColour = _passthrough ? Palette.Accent : _connected ? Palette.Online : Palette.Warning;
 
-            // Both routes named, because both now exist on this screen. The
-            // second half used to read "ASK AT THE COUNTER TO START", which was
-            // the whole truth until the button below was added and would now
-            // send a customer across the room past the thing they can tap.
-            Theme.DrawTrackedCentred(
-                g,
+        using (var dot = new SolidBrush(stateColour))
+        {
+            g.FillRectangle(dot, Width - S(140), S(34), S(7), S(7));
+        }
+
+        using var stateFont = Arena.Sans(SF(8f), FontStyle.Bold);
+        Theme.DrawTracked(g, stateText, stateFont, stateColour, Width - S(124), S(31), SF(2.2f));
+    }
+
+    private void PaintStation(Graphics g)
+    {
+        var left = (float)S(46);
+
+        using (var tick = new SolidBrush(Palette.Accent))
+        {
+            g.FillRectangle(tick, left, S(174), S(30), S(2));
+        }
+
+        using var labelFont = Arena.Sans(SF(9f), FontStyle.Bold);
+        Theme.DrawTracked(g, "STATION", labelFont, Palette.TextMuted, left + S(42), S(168), SF(4.4f));
+
+        // The number alone, in Consolas. "PC-01" spelled out is a label; the
+        // bare numeral at this size is an identity, and it is what somebody
+        // reads from across the room.
+        var number = NumberOf(_config.StationId);
+
+        using var numberFont = Arena.Mono(SF(232f));
+        using (var glow = new SolidBrush(Color.FromArgb(60, Palette.Accent)))
+        {
+            g.DrawString(number, numberFont, glow, left - S(10), S(186));
+        }
+
+        using (var white = new SolidBrush(Palette.TextPrimary))
+        {
+            g.DrawString(number, numberFont, white, left - S(14), S(182));
+        }
+
+        var chipTop = S(486);
+        var chipHeight = S(40);
+
+        using (var chip = new SolidBrush(Color.FromArgb(13, 255, 255, 255)))
+        {
+            g.FillRectangle(chip, left, chipTop, S(268), chipHeight);
+        }
+
+        using (var edge = new SolidBrush(Palette.Accent))
+        {
+            g.FillRectangle(edge, left, chipTop, S(3), chipHeight);
+        }
+
+        using var chipFont = Arena.Sans(SF(10.5f), FontStyle.Bold);
+        Theme.DrawTracked(
+            g,
+            _config.StationId.ToUpperInvariant() + "  ·  READY",
+            chipFont,
+            Palette.TextMuted,
+            left + S(20),
+            chipTop + S(12),
+            SF(1.4f));
+
+        using var bodyFont = Arena.Sans(SF(11.5f));
+        using var body = new SolidBrush(Palette.TextFaint);
+
+        g.DrawString(
+            "This machine is locked. Start a session with your\nphone, or pay right here at the screen.",
+            bodyFont,
+            body,
+            new RectangleF(left, S(556), S(420), S(90)));
+    }
+
+    private void PaintScanPanel(Graphics g)
+    {
+        var panel = new Rectangle(Width - S(46) - S(660), S(128), S(660), S(312));
+
+        using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
+                   panel,
+                   Color.FromArgb(16, 255, 255, 255),
+                   Color.FromArgb(4, 255, 255, 255),
+                   System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal))
+        using (var path = Arena.CutRect(panel, S(26)))
+        {
+            g.FillPath(fill, path);
+        }
+
+        Arena.DrawTopEdge(g, panel, Color.FromArgb(28, 255, 255, 255), S(1));
+
+        var codeSize = S(176);
+        var codeLeft = panel.Left + S(34);
+        var codeTop = panel.Top + S(66);
+
+        using (var white = new SolidBrush(Color.White))
+        {
+            g.FillRectangle(white, codeLeft, codeTop, codeSize, codeSize);
+        }
+
+        if (_scanCode is not null)
+        {
+            var inner = S(11);
+            g.DrawImage(_scanCode, codeLeft + inner, codeTop + inner, codeSize - inner * 2, codeSize - inner * 2);
+        }
+
+        var textLeft = codeLeft + codeSize + S(28);
+
+        using var stepFont = Arena.Mono(SF(9.5f));
+        Theme.DrawTracked(g, "01 / SCAN", stepFont, Palette.Accent, textLeft, panel.Top + S(66), SF(1.8f));
+
+        using var titleFont = Arena.Sans(SF(19f), FontStyle.Bold);
+        using (var white = new SolidBrush(Palette.TextPrimary))
+        {
+            g.DrawString("Use your phone", titleFont, white, textLeft, panel.Top + S(88));
+        }
+
+        using var bodyFont = Arena.Sans(SF(10.5f));
+        using (var muted = new SolidBrush(Palette.TextMuted))
+        {
+            g.DrawString(
                 _scanCode is not null
-                    ? "SCAN WITH YOUR PHONE, OR PAY BELOW"
-                    : "PAY BELOW, OR ASK AT THE COUNTER",
-                callFont, Palette.TextMuted, card.Width, below + CallGap, 3f);
-
-            Theme.DrawDivider(g, card.Width, below + RuleGap, 300, Palette.Divider);
-
-            // The number staff need, and the one a customer says out loud. Shown
-            // whether or not a code is up, because the counter is always the
-            // other way in.
-            Theme.DrawTrackedCentred(g, _config.StationId.ToUpperInvariant(), stationFont,
-                Palette.Accent, card.Width, below + StationGap, 6f);
-
-            Theme.DrawTrackedCentred(g, "At the counter, tell them this number.",
-                noteFont, Palette.TextFaint, card.Width, below + HintGap, 0.4f);
-        };
-
-        return card;
+                    ? "Members play on hours already paid for.\nNothing comes off until you finish."
+                    : "This PC cannot reach the website right now.\nPlease pay below, or ask at the counter.",
+                bodyFont,
+                muted,
+                new RectangleF(textLeft, panel.Top + S(132), S(330), S(90)));
+        }
     }
 
-    /// <summary>
-    /// Puts the button under the hint line, wherever that has ended up.
-    /// </summary>
-    /// <remarks>
-    /// The card grows and shrinks as the scan code comes and goes, so this is
-    /// recomputed rather than set once. Everything else on the card is painted
-    /// from the same `below` measurement; the button is the only child control,
-    /// and it has to agree with the picture around it.
-    /// </remarks>
-    private void PositionPayNowButton()
+    private void PaintPayPanel(Graphics g)
     {
-        if (_payNowButton is null || _card is null)
+        var panel = PayPanel();
+
+        using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
+                   panel,
+                   Color.FromArgb(42, 225, 29, 72),
+                   Color.FromArgb(8, 225, 29, 72),
+                   System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal))
+        using (var path = Arena.CutRect(panel, S(26)))
+        {
+            g.FillPath(fill, path);
+        }
+
+        Arena.DrawTopEdge(g, panel, Color.FromArgb(108, 225, 29, 72), S(1));
+
+        using var stepFont = Arena.Mono(SF(9.5f));
+        Theme.DrawTracked(g, "02 / PAY HERE", stepFont, Palette.Accent, panel.Left + S(34), panel.Top + S(30), SF(1.8f));
+
+        using var titleFont = Arena.Sans(SF(19f), FontStyle.Bold);
+        using (var white = new SolidBrush(Palette.TextPrimary))
+        {
+            g.DrawString("No account needed", titleFont, white, panel.Left + S(34), panel.Top + S(52));
+        }
+
+        if (_priceRows.Count == 0)
         {
             return;
         }
 
-        var below = ContentTop + (_scanCode is not null ? CodeSize : PlateHeight);
+        var gap = S(10);
+        var boxTop = panel.Top + S(112);
+        var boxHeight = S(78);
+        var available = panel.Width - S(68) - gap * (_priceRows.Count - 1);
+        var boxWidth = available / _priceRows.Count;
 
-        _payNowButton.Left = (_card.Width - PayButtonWidth) / 2;
-        _payNowButton.Top = below + PayButtonGap;
-    }
+        using var labelFont = Arena.Sans(SF(8.5f), FontStyle.Bold);
+        using var priceFont = Arena.Mono(SF(19f));
 
-    /// <summary>
-    /// Draws the scannable code, on white.
-    /// </summary>
-    /// <remarks>
-    /// White, and with a margin, on a screen that is otherwise deliberately
-    /// dark. A QR is read by contrast and the pale border around it is part of
-    /// the specification rather than decoration — a tastefully dark one that
-    /// nobody's phone can read would be a support call per customer.
-    /// </remarks>
-    private void DrawScanCode(Graphics graphics, int containerWidth)
-    {
-        if (_scanCode is null)
+        for (var i = 0; i < _priceRows.Count; i++)
         {
-            return;
-        }
+            var box = new Rectangle(panel.Left + S(34) + i * (boxWidth + gap), boxTop, boxWidth, boxHeight);
 
-        var left = (containerWidth - CodeSize) / 2;
-        var area = new Rectangle(left, ContentTop, CodeSize, CodeSize);
-
-        using (var backing = new SolidBrush(Color.White))
-        using (var path = Theme.RoundedRect(area, 10))
-        {
-            graphics.FillPath(backing, path);
-        }
-
-        var inner = Rectangle.Inflate(area, -10, -10);
-        graphics.DrawImage(_scanCode, inner);
-    }
-
-    /// <summary>
-    /// The station's number, large, with the fact that it is locked.
-    /// </summary>
-    /// <remarks>
-    /// This space used to hold a QR code placeholder under the words "SCAN TO
-    /// PAY AND START PLAYING". There is no payment code anywhere in the agent,
-    /// so the screen was asking a customer to scan a grey box - and reserving
-    /// room for a feature with no timetable is how it came to say that in the
-    /// first place.
-    /// <para>
-    /// Until paying from the screen exists, the useful thing to show is which
-    /// PC this is: a customer walks to the counter and says the number, and
-    /// staff unlock it from the dashboard. That is how a session actually
-    /// starts today, so that is what the screen now describes.
-    /// </para>
-    /// </remarks>
-    private void DrawStationPlate(Graphics graphics, int containerWidth)
-    {
-        var left = (containerWidth - PlateWidth) / 2;
-        var area = new Rectangle(left, ContentTop, PlateWidth, PlateHeight);
-
-        using (var fill = new SolidBrush(Palette.Surface))
-        using (var path = Theme.RoundedRect(area, 12))
-        {
-            graphics.FillPath(fill, path);
-        }
-
-        Theme.DrawBorder(graphics, area, Palette.CardBorder, 1f, 12);
-
-        using var labelFont = new Font("Segoe UI", 9f, FontStyle.Regular);
-        using var idFont = new Font("Segoe UI", 30f, FontStyle.Bold);
-
-        var labelWidth = Theme.MeasureTracked(graphics, "LOCKED", labelFont, 5f);
-        Theme.DrawTracked(graphics, "LOCKED", labelFont, Palette.TextMuted,
-            left + (PlateWidth - labelWidth) / 2f, ContentTop + 34f, 5f);
-
-        // Upper-cased for display only - the id itself stays lower case to match
-        // the MQTT topic the website publishes to.
-        var id = _config.StationId.ToUpperInvariant();
-        var idWidth = Theme.MeasureTracked(graphics, id, idFont, 4f);
-        Theme.DrawTracked(graphics, id, idFont, Palette.Accent,
-            left + (PlateWidth - idWidth) / 2f, ContentTop + 62f, 4f);
-    }
-
-    /// <summary>
-    /// Which machine this is, in the corner, readable from across the room.
-    /// </summary>
-    /// <remarks>
-    /// Staff read this one far more than customers do - it is how someone at the
-    /// counter matches a booking to a seat without walking over and reading the
-    /// middle of the screen.
-    /// </remarks>
-    private Panel BuildStationBadge()
-    {
-        var badge = new Panel
-        {
-            Width = 132,
-            Height = 44,
-            BackColor = Color.Transparent,
-            Location = new Point(Bounds.Width - 156, 24),
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
-        };
-
-        badge.Paint += (_, e) =>
-        {
-            var area = new Rectangle(0, 0, badge.Width - 1, badge.Height - 1);
-
-            using (var fill = new SolidBrush(Palette.CardFill))
-            using (var path = Theme.RoundedRect(area, 10))
+            using (var fill = new SolidBrush(Color.FromArgb(82, 0, 0, 0)))
             {
-                e.Graphics.FillPath(fill, path);
+                g.FillRectangle(fill, box);
             }
 
-            Theme.DrawBorder(e.Graphics, area, Palette.CardBorder, 1f, 10);
+            Arena.DrawTopEdge(g, box, Color.FromArgb(26, 255, 255, 255), S(2));
 
-            using var font = new Font("Segoe UI", 11f, FontStyle.Bold);
-            Theme.DrawTrackedCentred(e.Graphics, _config.StationId.ToUpperInvariant(), font,
-                Palette.TextPrimary, badge.Width, 12f, 3f);
-        };
+            Theme.DrawTracked(g, _priceRows[i].Label, labelFont, Palette.TextMuted, box.Left + S(16), box.Top + S(14), SF(1.2f));
 
-        return badge;
+            using var white = new SolidBrush(Palette.TextPrimary);
+            g.DrawString(_priceRows[i].Price, priceFont, white, box.Left + S(13), box.Top + S(34));
+        }
+    }
+
+    private void PaintFooter(Graphics g)
+    {
+        var y = Height - S(56);
+
+        using (var rule = new Pen(Color.FromArgb(14, 255, 255, 255)))
+        {
+            g.DrawLine(rule, S(46), y, Width - S(46), y);
+        }
+
+        using var bodyFont = Arena.Sans(SF(10f));
+        using var monoFont = Arena.Mono(SF(10f));
+        using var dim = new SolidBrush(Palette.TextDim);
+
+        var lead = "Need help? Tell the counter you are on ";
+        g.DrawString(lead, bodyFont, dim, S(46), y + S(16));
+
+        var leadWidth = g.MeasureString(lead, bodyFont).Width;
+        using (var muted = new SolidBrush(Palette.TextMuted))
+        {
+            g.DrawString(_config.StationId.ToUpperInvariant(), monoFont, muted, S(46) + leadWidth, y + S(16));
+        }
+
+        // The platform, where a platform belongs: small, grey, and last.
+        using var markFont = Arena.Sans(SF(8.5f), FontStyle.Bold);
+        var mark = "POWERED BY BOOKMYGAME";
+        var markWidth = Theme.MeasureTracked(g, mark, markFont, SF(2f));
+        Theme.DrawTracked(g, mark, markFont, Color.FromArgb(0x33, 0x41, 0x55), Width - S(46) - markWidth, y + S(18), SF(2f));
     }
 
     /// <summary>
-    /// Broker connection state, bottom-left. Useful while testing, and lets
-    /// staff see at a glance whether a station can be unlocked at all.
-    /// </summary>
-    private Label BuildConnectionLabel() => new()
-    {
-        Text = "●  Connecting to broker…",
-        Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-        ForeColor = Palette.TextMuted,
-        BackColor = Color.Transparent,
-        AutoSize = true,
-        Location = new Point(16, Bounds.Height - 34),
-    };
-
-    /// <summary>
-    /// Corner badge making it obvious at a glance that this build still has the
-    /// escape hatch compiled in, so it is hard to deploy one to a café PC by
-    /// mistake.
-    /// </summary>
-    private const string DevBadgeText =
-        "DEV BUILD — Ctrl+Shift+Alt +  U unlock · T 90s test · K lock · L suspend · Q quit";
-
-    private static Label BuildDevModeBadge() => new()
-    {
-        Text = DevBadgeText,
-        Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-        ForeColor = Palette.Warning,
-        BackColor = Palette.Border,
-        AutoSize = true,
-        Padding = new Padding(8, 5, 8, 5),
-        Location = new Point(16, 16),
-    };
-
-    /// <summary>
-    /// Fallback path for the dev chords.
+    /// The digits out of a station id: pc-01 becomes 01.
     /// </summary>
     /// <remarks>
-    /// <see cref="SystemLockService"/> already catches these globally. This stays
-    /// as a second route for the case where the hook failed to install — without
-    /// it, a hook failure plus a shipped build with no Alt+F4 would leave no way
-    /// out at all.
+    /// Falls back to the whole id when there are no digits in it, so a station
+    /// named something unexpected still shows something rather than a blank.
     /// </remarks>
+    private static string NumberOf(string stationId)
+    {
+        var digits = new string(stationId.Where(char.IsDigit).ToArray());
+        return digits.Length > 0 ? digits : stationId.ToUpperInvariant();
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (DevChords.Match(e) is not { } chord)

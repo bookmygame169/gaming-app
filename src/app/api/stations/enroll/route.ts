@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAFE_PC_GAMES, mapGameRowToAgentJson } from "@/lib/cafePcGames";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { cafeStationToken } from "@/lib/stationAgentAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -151,8 +152,19 @@ export async function POST(request: NextRequest) {
           )
         : DEFAULT_CAFE_PC_GAMES.map(mapGameRowToAgentJson);
 
+    // The cafe's own name, so the lock screen can carry the cafe's branding
+    // rather than the platform's. Without this a station only ever learns a
+    // cafe id, which is why "PLAYTIME" was hardcoded into the agent - and why
+    // every other cafe's PCs would have said PlayTime too.
+    const { data: cafe } = await supabase
+      .from("cafes")
+      .select("name")
+      .eq("id", enrollment.cafe_id)
+      .maybeSingle();
+
     return NextResponse.json({
       stationId: enrollment.station_name,
+      cafeName: cafe?.name ?? null,
       mqtt: {
         host: broker.host,
         port: broker.port,

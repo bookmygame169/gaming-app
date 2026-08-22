@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireKnownStation, requireStationToken } from "@/lib/stationAgentAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,24 +27,13 @@ const TOKEN_LIFETIME_SECONDS = 120;
  */
 export async function POST(request: NextRequest) {
   try {
-    const expectedToken = process.env.STATION_HEARTBEAT_TOKEN?.trim();
-    if (!expectedToken) {
-      return NextResponse.json({ error: "Server not configured" }, { status: 503 });
-    }
-
-    const authHeader = request.headers.get("authorization") || "";
-    const provided = authHeader.toLowerCase().startsWith("bearer ")
-      ? authHeader.slice(7).trim()
-      : "";
-
-    if (provided !== expectedToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json().catch(() => ({}));
     const cafeId = typeof body.cafeId === "string" ? body.cafeId.trim() : "";
     const stationName =
       typeof body.stationName === "string" ? body.stationName.trim().toLowerCase() : "";
+
+    const unauthorized = requireStationToken(request, cafeId || null);
+    if (unauthorized) return unauthorized;
 
     if (!cafeId || !stationName) {
       return NextResponse.json(
@@ -54,29 +44,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Confirm the station belongs to this café before minting anything for it.
-    // Without this, one café's heartbeat token could mint codes that unlock
-    // another café's machines.
-    const { data: known, error: knownError } = await supabase
-      .from("station_status")
-      .select("station_name")
-      .eq("cafe_id", cafeId)
-      .eq("station_name", stationName)
-      .maybeSingle();
-
-    if (knownError) {
-      console.error("Station lookup failed:", knownError.message);
-      return NextResponse.json({ error: "Could not issue a code" }, { status: 500 });
-    }
-
-    if (!known) {
-      // A station that has never sent a heartbeat is not one we can hand out
-      // codes for — it has not proved it belongs to this café.
-      return NextResponse.json(
-        { error: "That station has not reported in yet" },
-        { status: 404 }
-      );
-    }
+    const unknown = await requireKnownStation(supabase, { cafeId, stationName });
+    if (unknown) return unknown;
 
     // 32 bytes of randomness, base64url so it survives a URL and a QR without
     // escaping. Guessing is not a viable attack on this, which is what lets the
