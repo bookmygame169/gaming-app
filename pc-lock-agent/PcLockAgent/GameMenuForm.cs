@@ -50,6 +50,14 @@ internal sealed class GameMenuForm : Form
     private static readonly TimeSpan LaunchGracePeriod = TimeSpan.FromMinutes(2);
 
     /// <summary>
+    /// Two-second checks a game may go without answering before the customer is
+    /// offered a way out of it. Forty-five seconds: long enough that a slow
+    /// level load passes unremarked, short enough that nobody sits staring at a
+    /// frozen picture wondering whether to fetch staff.
+    /// </summary>
+    private const int StuckGameTicks = 22;
+
+    /// <summary>
     /// The longest a game gets to appear while its launcher is still running.
     /// </summary>
     /// <remarks>
@@ -85,6 +93,13 @@ internal sealed class GameMenuForm : Form
     private string? _watchedProcessName;
     private DateTime _watchStartedUtc;
     private bool _watchedProcessSeen;
+
+    /// <summary>
+    /// Consecutive two-second checks in which the game has not answered
+    /// Windows, and whether the customer has been shown a way out because of it.
+    /// </summary>
+    private int _notRespondingTicks;
+    private bool _showingStuckGameRescue;
 
     // What was last started, for the "is it really running?" check and so the
     // customer is told which game is in the way rather than just "a game".
@@ -171,6 +186,12 @@ internal sealed class GameMenuForm : Form
     /// <summary>
     /// Whether the game process owns the foreground window right now.
     /// </summary>
+    /// <summary>
+    /// Whether the customer is currently being offered a way out of a frozen
+    /// game, so nothing else offers to send them back into it.
+    /// </summary>
+    public bool IsOfferingStuckGameExit => _showingStuckGameRescue;
+
     public bool IsGameForeground()
     {
         return GameWindowFocus.IsAnyProcessForeground(GetActiveProcessNames());
@@ -1194,6 +1215,7 @@ internal sealed class GameMenuForm : Form
                     ApplyPlayingHiddenOverlay();
                 }
 
+                CheckForStuckGame(gameName);
                 return;
             }
 
@@ -1269,6 +1291,62 @@ internal sealed class GameMenuForm : Form
         base.Dispose(disposing);
     }
 
+    /// <summary>
+    /// Gives the customer a way out of a game that has frozen.
+    /// </summary>
+    /// <remarks>
+    /// A frozen game is the one situation with no exit. The menu hides itself
+    /// while a game is in front, and rightly so; Alt+Tab and the Windows key
+    /// are blocked, and Alt+F4 - which is deliberately allowed during a game -
+    /// asks a window to close politely, which is precisely what a window that
+    /// has stopped listening will not do. So the customer sits in front of a
+    /// still picture until their paid time runs out.
+    /// <para>
+    /// The menu comes back instead, with the game's own close button on the
+    /// strip, which asks politely and then ends the process if it is ignored.
+    /// Nothing is closed automatically: a game can stop answering for a while
+    /// during a heavy load and come back perfectly well, and killing somebody's
+    /// game because their PC was slow would be a far worse bug than the one
+    /// this fixes. It waits <see cref="StuckGameTicks"/> checks - three
+    /// quarters of a minute - and then only offers.
+    /// </para>
+    /// <para>
+    /// Focus is deliberately left alone. Taking it would minimise a full-screen
+    /// game, and this runs on the strength of a guess that is sometimes wrong.
+    /// </para>
+    /// </remarks>
+    private void CheckForStuckGame(string gameName)
+    {
+        if (!GameWindowFocus.IsNotResponding(GetActiveProcessNames()))
+        {
+            if (_showingStuckGameRescue)
+            {
+                AgentLog.Info($"'{gameName}' is answering again.");
+                _statusLabel.Text = $"{gameName} is running — close it to come back here.";
+                _statusLabel.ForeColor = Palette.TextMuted;
+                ApplyPlayingHiddenOverlay();
+            }
+
+            _notRespondingTicks = 0;
+            return;
+        }
+
+        if (_showingStuckGameRescue || ++_notRespondingTicks < StuckGameTicks)
+        {
+            return;
+        }
+
+        _showingStuckGameRescue = true;
+        AgentLog.Warn($"'{gameName}' has not answered for {StuckGameTicks * 2} seconds. Offering a way out.");
+
+        RestoreVisibleOverlay();
+        Show();
+        TopMost = true;
+
+        _statusLabel.Text = $"{gameName} has stopped responding — close it below, or wait for it.";
+        _statusLabel.ForeColor = Palette.Accent;
+    }
+
     private void StopWatching()
     {
         RestoreVisibleOverlay();
@@ -1279,6 +1357,8 @@ internal sealed class GameMenuForm : Form
         _watchedProcessName = null;
         _watchedProcessSeen = false;
         _waitingOnLauncher = false;
+        _notRespondingTicks = 0;
+        _showingStuckGameRescue = false;
         _currentGameName = null;
         _launchedExeName = null;
     }
@@ -1559,6 +1639,14 @@ internal sealed class GameMenuForm : Form
     /// </remarks>
     private void ApplyPlayingHiddenOverlay()
     {
+        // Whatever put the menu away - the customer choosing to go back to the
+        // game, a fresh launch, the game answering again - the offer to close a
+        // frozen game is no longer on screen, so the wait starts over. Without
+        // this, a customer who returned to a game that was still frozen would
+        // never be offered the way out a second time.
+        _showingStuckGameRescue = false;
+        _notRespondingTicks = 0;
+
         if (_playingHiddenOverlay)
         {
             return;
@@ -1600,6 +1688,14 @@ internal sealed class GameMenuForm : Form
     public void StepAsideForGame()
     {
         if (IsDisposed || !IsGameRunning)
+        {
+            return;
+        }
+
+        // A frozen game is still the window in front, so this would put the
+        // menu away again a second and a half after it was offered as the way
+        // out of that exact game.
+        if (_showingStuckGameRescue)
         {
             return;
         }

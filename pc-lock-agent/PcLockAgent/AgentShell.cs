@@ -454,6 +454,14 @@ internal sealed class AgentShell : ApplicationContext
             return;
         }
 
+        // The menu is deliberately over the game because the game has frozen.
+        // "Return to game" is the one thing not worth offering there.
+        if (_gameMenu.IsOfferingStuckGameExit)
+        {
+            _returnToGamePrompt.HidePrompt();
+            return;
+        }
+
         if (_gameMenu.IsGameForeground())
         {
             // Step back out of the way. Without this the menu could be made

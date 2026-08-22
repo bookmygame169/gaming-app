@@ -111,6 +111,35 @@ internal static class GameWindowFocus
   /// <summary>
   /// Finds the best visible top-level window owned by one of the named processes.
   /// </summary>
+    /// <summary>
+    /// Whether the game has stopped answering Windows at all.
+    /// </summary>
+    /// <remarks>
+    /// Windows already tracks this - it is what puts "(Not Responding)" in a
+    /// title bar and what makes the screen go pale. A window earns it by not
+    /// collecting a message for five seconds.
+    /// <para>
+    /// Five seconds is far too eager to act on: a game loading a level can stop
+    /// collecting messages for a while and still be perfectly healthy. The
+    /// caller waits a good deal longer than that before showing the customer
+    /// anything, and even then only offers - nothing is closed on the strength
+    /// of this answer alone.
+    /// </para>
+    /// </remarks>
+    public static bool IsNotResponding(IEnumerable<string?> processNames)
+    {
+        try
+        {
+            var window = FindBestWindow(processNames);
+            return window != IntPtr.Zero && NativeMethods.IsHungAppWindow(window);
+        }
+        catch
+        {
+            // A game that cannot be asked is not a game that is stuck.
+            return false;
+        }
+    }
+
     public static IntPtr FindBestWindow(IEnumerable<string?> processNames)
     {
         foreach (var name in processNames)
@@ -281,6 +310,10 @@ internal static class GameWindowFocus
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsHungAppWindow(IntPtr hWnd);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
