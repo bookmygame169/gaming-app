@@ -16,7 +16,14 @@ import mqtt from "mqtt";
 export type StationCommand =
   | { action: "unlock"; duration_seconds: number; session_id: string }
   | { action: "lock" }
-  | { action: "warn"; remaining_seconds: number };
+  | { action: "warn"; remaining_seconds: number }
+
+  // Asked for so a PC picks up a new version of the lock: the updater runs at
+  // startup and refuses to replace a running agent, so a machine signed in all
+  // day never gives it the chance. The agent decides for itself whether obeying
+  // is safe - it is the only thing that knows for certain whether somebody is
+  // playing.
+  | { action: "restart" };
 
 export type SendStationCommandOptions = {
   cafeId?: string | null;

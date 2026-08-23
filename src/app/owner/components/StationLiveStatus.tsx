@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, AlertCircle, FlaskConical, Lock, RefreshCw, Unlock, WifiOff } from 'lucide-react';
+import { Activity, AlertCircle, ArrowUpCircle, FlaskConical, Lock, RefreshCw, Unlock, WifiOff } from 'lucide-react';
 
 type StationStatus = {
     station_name: string;
@@ -11,6 +11,7 @@ type StationStatus = {
     seconds_since_seen: number;
     online: boolean;
     agent_version?: string | null;
+    update_available?: boolean;
 };
 
 interface StationLiveStatusProps {
@@ -38,6 +39,8 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [commanding, setCommanding] = useState<string | null>(null);
+    const [latestVersion, setLatestVersion] = useState<string | null>(null);
+    const [updating, setUpdating] = useState<string | null>(null);
     const [commandError, setCommandError] = useState<string | null>(null);
 
     const load = useCallback(async () => {
@@ -53,6 +56,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
             if (!res.ok) throw new Error(data.error || 'Failed to load station status');
 
             setStations(Array.isArray(data.stations) ? data.stations : []);
+            setLatestVersion(typeof data.latestAgentVersion === 'string' ? data.latestAgentVersion : null);
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load station status');
@@ -66,6 +70,55 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
         const timer = setInterval(load, REFRESH_MS);
         return () => clearInterval(timer);
     }, [load]);
+
+    /**
+     * Restarts one PC so it picks up the new version.
+     *
+     * A restart rather than an install, because the updater on every machine
+     * refuses to replace an agent that is running - rightly, since that would
+     * take the lock off a PC somebody may be sitting at. Restarting is what
+     * gives it a moment when nothing is running: the update goes in before
+     * anyone logs in, and the lock comes back up on top of it.
+     */
+    const updateStation = async (stationName: string) => {
+        if (!cafeId) return;
+
+        const sure = window.confirm(
+            `Restart ${stationName.toUpperCase()} to install the update?\n\n` +
+                'It will be off for about a minute and come back locked.\n' +
+                'Nobody should be playing on it.'
+        );
+        if (!sure) return;
+
+        setUpdating(stationName);
+        setCommandError(null);
+
+        try {
+            const res = await fetch('/api/owner/stations/update', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cafeId, stationName }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.error || `Could not update ${stationName}`);
+            }
+
+            // Offline immediately, because it is about to be. A row still
+            // showing "online" while the machine reboots invites a second press.
+            setStations((prev) =>
+                prev.map((row) =>
+                    row.station_name === stationName ? { ...row, online: false } : row
+                )
+            );
+        } catch (err) {
+            setCommandError(err instanceof Error ? err.message : 'Could not send the update');
+        } finally {
+            setUpdating(null);
+        }
+    };
 
     const sendCommand = async (
         stationName: string,
@@ -171,6 +224,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
     const online = stations.filter((s) => s.online);
     const unlocked = online.filter((s) => s.status === 'unlocked');
     const offline = stations.filter((s) => !s.online);
+    const behind = stations.filter((s) => s.update_available);
 
     return (
         <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
@@ -196,6 +250,28 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                     Refresh
                 </button>
             </div>
+
+            {behind.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-500/25 bg-cyan-500/[0.06] px-3.5 py-3">
+                    <div className="flex items-start gap-2.5">
+                        <ArrowUpCircle size={15} className="mt-0.5 shrink-0 text-cyan-400" />
+                        <div>
+                            <p className="text-[12px] font-bold text-cyan-100">
+                                Update available{latestVersion ? ` — v${latestVersion}` : ''}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-400">
+                                {behind.length === 1
+                                    ? `${behind[0].station_name.toUpperCase()} is on an older version.`
+                                    : `${behind.length} PCs are on an older version.`}{' '}
+                                {/* Said here rather than only in the confirm box: an
+                                    owner deciding whether to press anything wants to
+                                    know the cost before they press it. */}
+                                Each one restarts to install it, and comes back locked.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
@@ -267,6 +343,32 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                                 Seen {describeLastSeen(station.seconds_since_seen)}
                                                 {station.agent_version ? ` · v${station.agent_version}` : ''}
                                             </p>
+
+                                            {/* Offered only where it can be
+                                                taken up: a machine somebody is
+                                                playing on must not be restarted,
+                                                and one that is off will update
+                                                by itself when it next starts. */}
+                                            {station.update_available && station.online && !isUnlocked && (
+                                                <button
+                                                    type="button"
+                                                    disabled={updating === station.station_name}
+                                                    onClick={() => updateStation(station.station_name)}
+                                                    className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2 py-1 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500/25 disabled:opacity-40"
+                                                    title={`Restart to install v${latestVersion ?? 'the update'}`}
+                                                >
+                                                    <ArrowUpCircle size={10} />
+                                                    {updating === station.station_name
+                                                        ? 'Restarting…'
+                                                        : `Update to v${latestVersion ?? ''}`}
+                                                </button>
+                                            )}
+
+                                            {station.update_available && station.online && isUnlocked && (
+                                                <p className="mt-1.5 text-[10px] text-slate-500">
+                                                    Update waiting — in use right now
+                                                </p>
+                                            )}
                                         </div>
 
                                         <span

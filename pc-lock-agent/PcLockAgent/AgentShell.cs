@@ -95,6 +95,7 @@ internal sealed class AgentShell : ApplicationContext
         _mqttService.UnlockRequested += OnUnlockRequested;
         _mqttService.LockRequested += (_, _) => ApplyLocked();
         _mqttService.WarnRequested += OnWarnRequested;
+        _mqttService.RestartRequested += (_, _) => RestartForUpdate();
         _mqttService.ConnectionChanged += (_, connected) => _lockedScreen.SetConnectionState(connected);
 
         _gameMenu.GameStarted += (_, _) =>
@@ -269,6 +270,44 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         _ = _payNow.StartAsync();
+    }
+
+    /// <summary>
+    /// Restarts this PC because the dashboard asked, if that is safe.
+    /// </summary>
+    /// <remarks>
+    /// How a new version actually lands. The updater runs as SYSTEM at startup
+    /// and refuses to replace a running agent - correctly, since that would
+    /// pull the lock out from under whoever is sitting there - so on a machine
+    /// that is signed in all day it never gets its chance, and a fix can sit
+    /// published for weeks. A restart gives it one: the PC comes back up, the
+    /// agent is not running yet, and the update goes in before anyone logs in.
+    /// <para>
+    /// Refused outright while a session is running. The owner's dashboard
+    /// already hides the button for a machine in use, but that is a screen
+    /// reading a heartbeat up to thirty seconds old, and the customer who sat
+    /// down in those thirty seconds has paid for the hour this would end. The
+    /// machine itself is the only thing that knows for certain.
+    /// </para>
+    /// </remarks>
+    private void RestartForUpdate()
+    {
+        if (_session.IsActive)
+        {
+            AgentLog.Warn(
+                $"Refusing the restart: a session is running with " +
+                $"{_session.TimeRemaining.TotalMinutes:0} min left.");
+            return;
+        }
+
+        if (!_lockedScreen.Visible)
+        {
+            AgentLog.Warn("Refusing the restart: this PC is not locked, so somebody may be at it.");
+            return;
+        }
+
+        AgentLog.Info("Restarting for an update, as the dashboard asked.");
+        PowerControl.Restart();
     }
 
     /// <summary>

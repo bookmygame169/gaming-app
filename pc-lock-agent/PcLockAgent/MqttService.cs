@@ -32,6 +32,9 @@ internal sealed class MqttService : IAsyncDisposable
     /// <summary>Raised on a <c>warn</c> command, carrying seconds remaining.</summary>
     public event EventHandler<int>? WarnRequested;
 
+    /// <summary>Raised when the dashboard asks this PC to restart.</summary>
+    public event EventHandler? RestartRequested;
+
     /// <summary>Raised when the broker connection comes up or goes down.</summary>
     public event EventHandler<bool>? ConnectionChanged;
 
@@ -387,6 +390,13 @@ internal sealed class MqttService : IAsyncDisposable
                     var remaining = command.RemainingSeconds ?? 0;
                     AgentLog.Info($"WARN remaining={remaining}s");
                     RaiseOnUi(() => WarnRequested?.Invoke(this, remaining));
+                    break;
+
+                // Whether it is safe to obey is decided by the shell, which is
+                // the only part that knows if somebody is playing.
+                case "restart":
+                    AgentLog.Info("RESTART requested by the dashboard.");
+                    RaiseOnUi(() => RestartRequested?.Invoke(this, EventArgs.Empty));
                     break;
 
                 default:

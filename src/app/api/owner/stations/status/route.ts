@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerCafeAccess, requireOwnerContext } from "@/lib/ownerAuth";
+import { fetchLatestAgentVersion, isOlderVersion } from "@/lib/agentVersion";
 
 export const dynamic = "force-dynamic";
 
@@ -85,8 +86,14 @@ export async function GET(request: NextRequest) {
     const rows = (data ?? []) as unknown as StationStatusRow[];
     const now = Date.now();
 
+    // What the PCs themselves check against. Null when GitHub cannot be
+    // reached, which reads as "no update to report" rather than as a café full
+    // of out-of-date machines.
+    const latestAgentVersion = await fetchLatestAgentVersion();
+
     return NextResponse.json({
       offlineAfterSeconds: OFFLINE_AFTER_SECONDS,
+      latestAgentVersion,
       stations: rows.map((row) => {
         const secondsSinceSeen = Math.max(
           0,
@@ -101,6 +108,7 @@ export async function GET(request: NextRequest) {
           agent_version: row.agent_version ?? null,
           seconds_since_seen: secondsSinceSeen,
           online: secondsSinceSeen <= OFFLINE_AFTER_SECONDS,
+          update_available: isOlderVersion(row.agent_version ?? null, latestAgentVersion),
         };
       }),
     });

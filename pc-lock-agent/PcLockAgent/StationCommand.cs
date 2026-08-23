@@ -11,6 +11,7 @@ namespace PcLockAgent;
 /// {"action": "unlock", "duration_seconds": 3600, "session_id": "..."}
 /// {"action": "lock"}
 /// {"action": "warn", "remaining_seconds": 300}
+/// {"action": "restart"}
 /// </code>
 /// Every field is nullable because this arrives off the network from another
 /// codebase — a missing or misspelled field must be a rejected command, not a
