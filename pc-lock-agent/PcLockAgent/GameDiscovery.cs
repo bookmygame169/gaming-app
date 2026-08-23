@@ -429,6 +429,49 @@ internal static class GameDiscovery
     }
 
     /// <summary>
+    /// Borrows what the café's catalogue knows about a shortcut it recognises.
+    /// </summary>
+    /// <remarks>
+    /// Only the process name, and only where the shortcut has none of its own.
+    /// It is the piece the desktop genuinely cannot supply: a shortcut says how
+    /// to start Counter-Strike through Steam, and nothing on it says that the
+    /// thing to watch for afterwards is called cs2. Without that the agent
+    /// cannot tell a game that started from a launcher that is still thinking
+    /// about it.
+    /// </remarks>
+    private static GameEntry WithCatalogueDetails(GameEntry item, List<GameEntry> catalogue)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ProcessName))
+        {
+            return item;
+        }
+
+        var key = Normalise(item.Name);
+
+        var match = catalogue.FirstOrDefault(
+            entry => string.Equals(Normalise(entry.Name), key, StringComparison.Ordinal));
+
+        if (match is null || string.IsNullOrWhiteSpace(match.ProcessName))
+        {
+            return item;
+        }
+
+        AgentLog.Info($"'{item.Name}': watching for '{match.ProcessName}', from the café's list.");
+
+        return new GameEntry
+        {
+            Name = item.Name,
+            ExePath = item.ExePath,
+            Arguments = item.Arguments,
+            WorkingDirectory = item.WorkingDirectory,
+            IconPath = item.IconPath,
+            IconSourcePath = item.IconSourcePath,
+            Category = item.Category,
+            ProcessName = match.ProcessName,
+        };
+    }
+
+    /// <summary>
     /// Last pass: the menu is games and the handful of applications worth
     /// offering, and nothing else.
     /// </summary>
