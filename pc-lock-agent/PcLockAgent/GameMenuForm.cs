@@ -721,119 +721,92 @@ internal sealed class GameMenuForm : Form
     private Control BuildTile(GameEntry game)
     {
         const int width = 202;
-        const int box = 148;
-        const int caption = 24;
+        const int height = 196;
+        const int artTop = 38;
+        const int artBottom = 142;
 
         var edge = EdgeFor(game);
 
         var tile = new Panel
         {
             Width = width,
-            Height = box + caption,
-            Margin = new Padding(9, 8, 9, 14),
+            Height = height,
+            Margin = new Padding(9, 8, 9, 10),
             BackColor = Color.Transparent,
             Cursor = Cursors.Hand,
         };
 
         var image = LoadTileImage(game);
         var hovered = false;
-        var slot = SlotOf(game);
         var tag = TagFor(game);
 
         tile.Paint += (_, e) =>
         {
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
 
-            var art = new Rectangle(0, 0, width, box);
+            var card = new Rectangle(0, 0, width - 1, height - 1);
+
+            using (var shape = Theme.RoundedRect(card, 12))
+            {
+                // Tinted from the launcher's own colour, so a wall of tiles has
+                // some variety in it even where every picture is a grey icon.
+                using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
+                           new Rectangle(0, 0, width, height),
+                           Color.FromArgb(hovered ? 64 : 40, edge),
+                           Color.FromArgb(hovered ? 20 : 12, 242, 240, 234),
+                           System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal))
+                {
+                    g.FillPath(fill, shape);
+                }
+
+                using var border = new Pen(hovered ? Palette.Accent : Color.FromArgb(28, 242, 240, 234));
+                g.DrawPath(border, shape);
+            }
 
             if (image is not null)
             {
-                // Cover, not contain: the block is filled and the overflow
-                // cropped, because a letterboxed icon in a block is the
-                // empty-square problem with extra steps.
-                var scale = Math.Max(width / (float)image.Width, box / (float)image.Height);
-                var w = image.Width * scale;
-                var h = image.Height * scale;
-
-                var saved = g.Save();
-
-                try
-                {
-                    g.SetClip(art);
-                    g.DrawImage(image, (width - w) / 2f, (box - h) / 2f, w, h);
-                }
-                finally
-                {
-                    g.Restore(saved);
-                }
-            }
-            else
-            {
-                // No art. The design's own answer: a diagonal hatch, which
-                // reads as a placeholder rather than as a tile that failed.
-                using var fill = new SolidBrush(Color.FromArgb(10, 242, 240, 234));
-                g.FillRectangle(fill, art);
-
-                using var hatch = new Pen(Color.FromArgb(18, 242, 240, 234));
-
-                for (var x = -box; x < width; x += 12)
-                {
-                    g.DrawLine(hatch, x, box, x + box, 0);
-                }
+                var art = FitArt(image, new Rectangle(16, artTop, width - 32, artBottom - artTop));
+                g.DrawImage(image, art);
             }
 
-            // The scrim, so a name stays readable over any artwork at all.
-            using (var scrim = new System.Drawing.Drawing2D.LinearGradientBrush(
-                       new Rectangle(0, box - 90, width, 90),
-                       Color.FromArgb(0, 11, 11, 12),
-                       Color.FromArgb(240, 11, 11, 12),
-                       System.Drawing.Drawing2D.LinearGradientMode.Vertical))
-            {
-                g.FillRectangle(scrim, 0, box - 90, width, 90);
-            }
-
-            using (var border = new Pen(hovered ? Palette.Accent : Color.FromArgb(31, 242, 240, 234)))
-            {
-                g.DrawRectangle(border, 0, 0, width - 1, box - 1);
-            }
-
-            // The slot number, which is how somebody points at a tile from
-            // across the room: "put number six on".
-            var slotFont = Arena.Mono(8f, FontStyle.Regular);
-            Theme.DrawTracked(g, slot, slotFont, Color.FromArgb(120, 242, 240, 234), 11f, 10f, 1.9f);
-
-            var nameFont = Arena.Heavy(11f);
+            // The name, under the picture rather than over it. Overlaid on the
+            // art it needed a scrim, and a scrim over a small icon on a tinted
+            // card is three greys stacked on each other.
+            var nameFont = Arena.Sans(10.5f, FontStyle.Bold);
             using var name = new SolidBrush(Palette.TextPrimary);
 
-            var nameBox = new RectangleF(11, box - 50, width - 22, 40);
-            using var format = new StringFormat
+            using var centred = new StringFormat
             {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Near,
                 Trimming = StringTrimming.EllipsisCharacter,
                 FormatFlags = StringFormatFlags.LineLimit,
-                LineAlignment = StringAlignment.Far,
             };
 
-            g.DrawString(game.Name.ToUpperInvariant(), nameFont, name, nameBox, format);
+            g.DrawString(game.Name, nameFont, name, new RectangleF(10, artBottom + 8, width - 20, 40), centred);
 
-            if (tag.Length > 0)
+            if (tag.Length == 0)
             {
-                var tagFont = Arena.Mono(8f, FontStyle.Regular);
-                Theme.DrawTracked(
-                    g,
-                    tag,
-                    tagFont,
-                    Color.FromArgb(hovered ? 150 : 90, 242, 240, 234),
-                    0f,
-                    box + 7f,
-                    2.2f);
+                return;
             }
 
-            if (hovered)
+            // The chip: where this one starts from. The design this came from
+            // used genres, which nothing here knows - the launcher is the true
+            // version of the same idea, and it tells somebody which password
+            // they are about to be asked for.
+            var chipFont = Arena.Mono(7.5f, FontStyle.Bold);
+            var chipWidth = Theme.MeasureTracked(g, tag, chipFont, 1.6f);
+            var chip = new Rectangle(12, 12, (int)chipWidth + 18, 20);
+
+            using (var shape = Theme.RoundedRect(chip, 5))
+            using (var fill = new SolidBrush(Color.FromArgb(hovered ? 235 : 190, edge)))
             {
-                using var lift = new SolidBrush(Palette.Accent);
-                g.FillRectangle(lift, 0, 0, width, 3);
+                g.FillPath(fill, shape);
             }
+
+            Theme.DrawTracked(g, tag, chipFont, Palette.Ink, chip.Left + 9, chip.Top + 4, 1.6f);
         };
 
         tile.Click += (_, _) => LaunchGame(game);
@@ -854,11 +827,50 @@ internal sealed class GameMenuForm : Form
         return tile;
     }
 
-    /// <summary>Where this game sits on the menu, as a two-digit number.</summary>
-    private string SlotOf(GameEntry game)
+    /// <summary>
+    /// Where a picture goes inside a tile, at a size that flatters it.
+    /// </summary>
+    /// <remarks>
+    /// The whole of the last version's trouble. It cropped every picture to
+    /// fill the block, which is right for a piece of key art and ruinous for an
+    /// icon: a 48-pixel Chrome circle blown up to fill a card is a wall of
+    /// blurred colour with a bit of logo in the middle, and most of what this
+    /// menu can find is icons.
+    /// <para>
+    /// So a picture that is small or square is treated as an icon and drawn at
+    /// its own scale, centred; anything large and clearly shaped - Steam's
+    /// library art, which is 600 by 900 - is fitted whole into the space. Never
+    /// enlarged past life size either way, because there is no such thing as a
+    /// sharper icon than the one Windows handed over.
+    /// </remarks>
+    private static Rectangle FitArt(Image image, Rectangle box)
     {
-        var index = _config.Games.IndexOf(game);
-        return (index < 0 ? 1 : index + 1).ToString("00");
+        var isIcon =
+            Math.Max(image.Width, image.Height) <= 320
+            || Math.Abs(image.Width - image.Height) < image.Width * 0.15f;
+
+        var limit = isIcon
+            ? Math.Min(96, Math.Min(box.Width, box.Height))
+            : Math.Min(box.Width, box.Height);
+
+        var scale = Math.Min(limit / (float)image.Width, limit / (float)image.Height);
+
+        if (!isIcon)
+        {
+            scale = Math.Min(box.Width / (float)image.Width, box.Height / (float)image.Height);
+        }
+
+        // Never past life size: an upscaled icon is a blurred icon.
+        scale = Math.Min(scale, 1f);
+
+        var w = Math.Max(1, (int)(image.Width * scale));
+        var h = Math.Max(1, (int)(image.Height * scale));
+
+        return new Rectangle(
+            box.Left + (box.Width - w) / 2,
+            box.Top + (box.Height - h) / 2,
+            w,
+            h);
     }
 
     /// <summary>
