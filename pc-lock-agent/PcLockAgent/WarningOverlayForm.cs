@@ -36,7 +36,16 @@ using System.Runtime.InteropServices;
 /// </remarks>
 internal sealed class WarningOverlayForm : Form
 {
-    private const int VisibleSeconds = 8;
+    /// <summary>
+    /// How long the card stays up.
+    /// </summary>
+    /// <remarks>
+    /// Fourteen seconds rather than eight, now that there is something on it
+    /// worth pressing. A customer deep in a match has to notice it, read it,
+    /// decide, and reach for the mouse - and a card that has gone by the time
+    /// they get there is the same as no card at all.
+    /// </remarks>
+    private const int VisibleSeconds = 14;
 
     /// <summary>How far in from the corner the card sits.</summary>
     private const int Inset = 28;
@@ -57,7 +66,7 @@ internal sealed class WarningOverlayForm : Form
         DoubleBuffered = true;
 
         Width = 300;
-        Height = 96;
+        Height = 150;
         PlaceInCorner();
 
         _hideTimer = new System.Windows.Forms.Timer { Interval = VisibleSeconds * 1000 };
@@ -70,6 +79,63 @@ internal sealed class WarningOverlayForm : Form
     }
 
     public event EventHandler? Hidden;
+
+    /// <summary>Raised when the customer presses Add time on the card.</summary>
+    public event EventHandler? AddTimeRequested;
+
+    /// <summary>Where the button is, in this card's own coordinates.</summary>
+    private Rectangle AddTimeButton => new(22, Height - 52, Width - 44, 34);
+
+    /// <summary>
+    /// Passes every click through except the one on the button.
+    /// </summary>
+    /// <remarks>
+    /// The card used to be click-through in its entirety - WS_EX_TRANSPARENT -
+    /// for a good reason: a card floating over a shooter that could eat a click
+    /// is worse than no card. That reason still holds everywhere it did before,
+    /// so this answers "not me" for the whole card and "me" only for the
+    /// rectangle the button occupies. A shot fired through the rest of it lands
+    /// on the game, as it always did.
+    /// </remarks>
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == NativeConstants.WM_NCHITTEST)
+        {
+            var screen = new Point(
+                unchecked((short)(long)m.LParam),
+                unchecked((short)((long)m.LParam >> 16)));
+
+            var local = PointToClient(screen);
+
+            m.Result = AddTimeButton.Contains(local)
+                ? NativeConstants.HTCLIENT
+                : NativeConstants.HTTRANSPARENT;
+
+            return;
+        }
+
+        base.WndProc(ref m);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+
+        if (!AddTimeButton.Contains(e.Location))
+        {
+            return;
+        }
+
+        AgentLog.Info("Customer pressed Add time on the time warning.");
+
+        // Taken off screen first: what opens next is a full window, and a card
+        // still sitting over the corner of it reads as something that failed to
+        // close.
+        _hideTimer.Stop();
+        Hide();
+
+        AddTimeRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Stops the card taking focus when it appears.</summary>
     protected override bool ShowWithoutActivation => true;
@@ -84,9 +150,6 @@ internal sealed class WarningOverlayForm : Form
             parameters.ExStyle |= NativeConstants.WS_EX_TOOLWINDOW;
             parameters.ExStyle |= NativeConstants.WS_EX_LAYERED;
 
-            // Click-through. A card floating over a shooter that could eat a
-            // click would be worse than no card.
-            parameters.ExStyle |= NativeConstants.WS_EX_TRANSPARENT;
 
             return parameters;
         }
@@ -267,6 +330,31 @@ internal sealed class WarningOverlayForm : Form
         {
             g.DrawString(_detail, detailFont, detail, new RectangleF(23, 52, Width - 40, 34));
         }
+
+        // The way out of the thing the card is warning about. Without it the
+        // card is only bad news: it tells somebody their time is nearly up and
+        // leaves them to get out of their chair to do anything about it, which
+        // in the middle of a match means they do not, and the session ends
+        // rather than being extended.
+        var button = AddTimeButton;
+
+        using (var fill = new SolidBrush(Palette.Accent))
+        {
+            g.FillRectangle(fill, button);
+        }
+
+        var buttonFont = Arena.Heavy(10f);
+        var label = "+ ADD TIME";
+        var width = Theme.MeasureTracked(g, label, buttonFont, 3.4f);
+
+        Theme.DrawTracked(
+            g,
+            label,
+            buttonFont,
+            Palette.Ink,
+            button.Left + (button.Width - width) / 2f,
+            button.Top + (button.Height - buttonFont.Height) / 2f,
+            3.4f);
     }
 
     protected override void Dispose(bool disposing)
@@ -285,6 +373,9 @@ internal sealed class WarningOverlayForm : Form
         public const int WS_EX_TOOLWINDOW = 0x00000080;
         public const int WS_EX_LAYERED = 0x00080000;
         public const int WS_EX_TRANSPARENT = 0x00000020;
+        public const int WM_NCHITTEST = 0x0084;
+        public static readonly IntPtr HTTRANSPARENT = new(-1);
+        public static readonly IntPtr HTCLIENT = new(1);
     }
 
     private static class NativeMethods

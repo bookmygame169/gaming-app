@@ -63,6 +63,11 @@ internal sealed class AgentShell : ApplicationContext
         // grabbing the foreground "just in case" is what minimised it.
         _warningOverlay.Hidden += (_, _) => RestoreGameOnlyIfItLostFocus();
 
+        // The point of putting a button on the warning: a customer who is told
+        // their time is nearly up, mid-match, will not leave the chair to do
+        // anything about it. From here they do not have to.
+        _warningOverlay.AddTimeRequested += (_, _) => OpenAddTime();
+
         _returnToGamePrompt.ReturnClicked += (_, _) => OnReturnToGameClicked();
 
         _lockService.DevExitRequested += (_, _) => Shutdown();
@@ -332,9 +337,18 @@ internal sealed class AgentShell : ApplicationContext
             _addTime = new AddTimeForm(_playRequests);
             _addTime.Dismissed += (_, _) =>
             {
-                // Back to the menu and back on top of it. Closing a window over
-                // a TopMost kiosk must not leave the desktop reachable
-                // underneath it.
+                // Back to whatever they were doing. Now that this can be opened
+                // from the time warning, that is usually a game in progress -
+                // and dragging the kiosk over somebody's match because they
+                // closed a dialog would be worse than the walk to the counter
+                // this was built to save them.
+                if (_gameMenu.IsGameRunning && _gameMenu.TryRestoreGameForeground())
+                {
+                    return;
+                }
+
+                // Otherwise the menu, and on top of it: closing a window over a
+                // TopMost kiosk must not leave the desktop reachable underneath.
                 _gameMenu.Show();
                 _gameMenu.BringToFront();
             };

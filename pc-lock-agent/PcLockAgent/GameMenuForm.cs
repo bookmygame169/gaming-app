@@ -623,36 +623,54 @@ internal sealed class GameMenuForm : Form
     {
         var heading = new Panel
         {
-            Height = 54,
+            Height = 46,
             // The first heading sits just under the screen title, so it needs
             // far less air above it than one following a row of tiles.
-            Margin = new Padding(12, isFirst ? 4 : 30, 12, 10),
+            Margin = new Padding(12, isFirst ? 4 : 26, 12, 8),
             BackColor = Color.Transparent,
         };
 
         heading.Paint += (_, e) =>
         {
-            var titleFont = Arena.Sans(12f, FontStyle.Bold);
-            var subtitleFont = Arena.Sans(9f);
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            Theme.DrawTracked(e.Graphics, title, titleFont, Palette.TextPrimary, 0f, 4f, 4f);
+            // Heavy, uppercase, and set on the same baseline as a hairline that
+            // runs out to the caption on the right. The three read as one band,
+            // so the tiles below group under it rather than floating.
+            var titleFont = Arena.Heavy(20f);
+            var text = title.ToUpperInvariant();
+            var baseline = 10f;
 
-            var width = Theme.MeasureTracked(e.Graphics, title, titleFont, 4f);
-
-            // A short accent rule under the word, then a hairline carrying on to
-            // the far edge — the eye reads that as one band, so the tiles below
-            // group under it instead of floating.
-            using var accent = new SolidBrush(Palette.Accent);
-            e.Graphics.FillRectangle(accent, 0f, 27f, Math.Max(width, 28f), 2f);
-
-            using var divider = new Pen(Palette.Border, 1f);
-            var lineStart = Math.Max(width, 28f) + 14f;
-            if (heading.Width > lineStart)
+            using (var cream = new SolidBrush(Palette.TextPrimary))
             {
-                e.Graphics.DrawLine(divider, lineStart, 28f, heading.Width, 28f);
+                g.DrawString(text, titleFont, cream, 0f, baseline);
             }
 
-            Theme.DrawTracked(e.Graphics, subtitle, subtitleFont, Palette.TextFaint, 0f, 36f, 1.5f);
+            var titleWidth = g.MeasureString(text, titleFont).Width;
+
+            var captionFont = Arena.Mono(9f, FontStyle.Regular);
+            var caption = subtitle.ToUpperInvariant();
+            var captionWidth = Theme.MeasureTracked(g, caption, captionFont, 2.6f);
+
+            var ruleLeft = titleWidth + 22f;
+            var ruleRight = heading.Width - captionWidth - 22f;
+            var middle = baseline + titleFont.Height / 2f;
+
+            if (ruleRight > ruleLeft)
+            {
+                using var rule = new Pen(Color.FromArgb(31, 242, 240, 234));
+                g.DrawLine(rule, ruleLeft, middle, ruleRight, middle);
+            }
+
+            Theme.DrawTracked(
+                g,
+                caption,
+                captionFont,
+                Color.FromArgb(89, 242, 240, 234),
+                heading.Width - captionWidth,
+                middle - captionFont.Height / 2f,
+                2.6f);
         };
 
         // Repaint on resize or the rule keeps the width it was first drawn at.
@@ -703,82 +721,118 @@ internal sealed class GameMenuForm : Form
     private Control BuildTile(GameEntry game)
     {
         const int width = 202;
-        const int height = 252;
+        const int box = 148;
+        const int caption = 24;
 
         var edge = EdgeFor(game);
 
         var tile = new Panel
         {
             Width = width,
-            Height = height,
-            Margin = new Padding(8),
-            BackColor = Palette.PanelFill,
+            Height = box + caption,
+            Margin = new Padding(9, 8, 9, 14),
+            BackColor = Color.Transparent,
             Cursor = Cursors.Hand,
         };
 
         var image = LoadTileImage(game);
         var hovered = false;
+        var slot = SlotOf(game);
+        var tag = TagFor(game);
 
         tile.Paint += (_, e) =>
         {
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            var art = new Rectangle(0, 0, width, height);
+            var art = new Rectangle(0, 0, width, box);
 
             if (image is not null)
             {
                 // Cover, not contain: the block is filled and the overflow
-                // cropped, because a letterboxed icon in a tall block is the
+                // cropped, because a letterboxed icon in a block is the
                 // empty-square problem with extra steps.
-                var scale = Math.Max(width / (float)image.Width, height / (float)image.Height);
+                var scale = Math.Max(width / (float)image.Width, box / (float)image.Height);
                 var w = image.Width * scale;
                 var h = image.Height * scale;
 
-                g.DrawImage(image, (width - w) / 2f, (height - h) / 2f, w, h);
+                var saved = g.Save();
+
+                try
+                {
+                    g.SetClip(art);
+                    g.DrawImage(image, (width - w) / 2f, (box - h) / 2f, w, h);
+                }
+                finally
+                {
+                    g.Restore(saved);
+                }
             }
             else
             {
-                using var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
-                    art,
-                    Color.FromArgb(70, edge),
-                    Palette.PanelFill,
-                    System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal);
-
+                // No art. The design's own answer: a diagonal hatch, which
+                // reads as a placeholder rather than as a tile that failed.
+                using var fill = new SolidBrush(Color.FromArgb(10, 242, 240, 234));
                 g.FillRectangle(fill, art);
+
+                using var hatch = new Pen(Color.FromArgb(18, 242, 240, 234));
+
+                for (var x = -box; x < width; x += 12)
+                {
+                    g.DrawLine(hatch, x, box, x + box, 0);
+                }
             }
 
             // The scrim, so a name stays readable over any artwork at all.
             using (var scrim = new System.Drawing.Drawing2D.LinearGradientBrush(
-                       new Rectangle(0, height - 130, width, 130),
-                       Color.FromArgb(0, 5, 7, 12),
-                       Color.FromArgb(245, 5, 7, 12),
+                       new Rectangle(0, box - 90, width, 90),
+                       Color.FromArgb(0, 11, 11, 12),
+                       Color.FromArgb(240, 11, 11, 12),
                        System.Drawing.Drawing2D.LinearGradientMode.Vertical))
             {
-                g.FillRectangle(scrim, 0, height - 130, width, 130);
+                g.FillRectangle(scrim, 0, box - 90, width, 90);
             }
 
-            using (var top = new SolidBrush(hovered ? Color.White : edge))
+            using (var border = new Pen(hovered ? Palette.Accent : Color.FromArgb(31, 242, 240, 234)))
             {
-                g.FillRectangle(top, 0, 0, width, 3);
+                g.DrawRectangle(border, 0, 0, width - 1, box - 1);
             }
 
-            var nameFont = Arena.Sans(11f, FontStyle.Bold);
+            // The slot number, which is how somebody points at a tile from
+            // across the room: "put number six on".
+            var slotFont = Arena.Mono(8f, FontStyle.Regular);
+            Theme.DrawTracked(g, slot, slotFont, Color.FromArgb(120, 242, 240, 234), 11f, 10f, 1.9f);
+
+            var nameFont = Arena.Heavy(11f);
             using var name = new SolidBrush(Palette.TextPrimary);
 
-            var box = new RectangleF(14, height - 62, width - 28, 48);
+            var nameBox = new RectangleF(11, box - 50, width - 22, 40);
             using var format = new StringFormat
             {
                 Trimming = StringTrimming.EllipsisCharacter,
                 FormatFlags = StringFormatFlags.LineLimit,
+                LineAlignment = StringAlignment.Far,
             };
 
-            g.DrawString(game.Name, nameFont, name, box, format);
+            g.DrawString(game.Name.ToUpperInvariant(), nameFont, name, nameBox, format);
+
+            if (tag.Length > 0)
+            {
+                var tagFont = Arena.Mono(8f, FontStyle.Regular);
+                Theme.DrawTracked(
+                    g,
+                    tag,
+                    tagFont,
+                    Color.FromArgb(hovered ? 150 : 90, 242, 240, 234),
+                    0f,
+                    box + 7f,
+                    2.2f);
+            }
 
             if (hovered)
             {
-                using var glow = new Pen(Color.FromArgb(150, 255, 255, 255), 2f);
-                g.DrawRectangle(glow, 1, 1, width - 2, height - 2);
+                using var lift = new SolidBrush(Palette.Accent);
+                g.FillRectangle(lift, 0, 0, width, 3);
             }
         };
 
@@ -798,6 +852,53 @@ internal sealed class GameMenuForm : Form
         tile.Disposed += (_, _) => image?.Dispose();
 
         return tile;
+    }
+
+    /// <summary>Where this game sits on the menu, as a two-digit number.</summary>
+    private string SlotOf(GameEntry game)
+    {
+        var index = _config.Games.IndexOf(game);
+        return (index < 0 ? 1 : index + 1).ToString("00");
+    }
+
+    /// <summary>
+    /// The line under a tile: where the game came from, and what kind it is.
+    /// </summary>
+    /// <remarks>
+    /// Both read off what is already known - the launcher out of the path the
+    /// game starts from, the kind out of the category the catalogue carries -
+    /// so nothing here has to be typed per game in the dashboard.
+    /// </remarks>
+    private static string TagFor(GameEntry game)
+    {
+        var path = (game.ExePath ?? string.Empty).ToLowerInvariant();
+
+        var launcher =
+            path.Contains("steam") ? "STEAM"
+            : path.Contains("epic") || path.Contains("fortnite") ? "EPIC"
+            : path.Contains("riot") || path.Contains("valorant") ? "RIOT"
+            : path.Contains("xbox") || path.Contains("gamingservices") || path.Contains("windowsapps") ? "XBOX"
+            : path.Contains("rockstar") ? "ROCKSTAR"
+            : path.Contains("battle.net") || path.Contains("blizzard") ? "BATTLE.NET"
+            : path.Contains("ubisoft") || path.Contains("upc") ? "UBISOFT"
+            : path.Contains("minecraft") ? "MINECRAFT"
+            : string.Empty;
+
+        var kind = (game.Category ?? string.Empty).Trim().ToUpperInvariant();
+
+        // "GAME" is the catalogue's default rather than anything anybody chose,
+        // so it says nothing worth taking a line for.
+        if (kind == "GAME")
+        {
+            kind = string.Empty;
+        }
+
+        if (launcher.Length > 0 && kind.Length > 0)
+        {
+            return launcher + " · " + kind;
+        }
+
+        return launcher.Length > 0 ? launcher : kind;
     }
 
     /// <summary>
@@ -822,23 +923,39 @@ internal sealed class GameMenuForm : Form
         var footer = new Panel
         {
             Dock = DockStyle.Bottom,
-            Height = 60,
+            Height = 78,
             BackColor = Color.Transparent,
         };
 
         footer.Paint += (_, e) =>
         {
-            using var rule = new Pen(Color.FromArgb(16, 255, 255, 255));
-            e.Graphics.DrawLine(rule, 0, 0, footer.Width, 0);
+            var g = e.Graphics;
+
+            using (var ground = new SolidBrush(Color.FromArgb(8, 242, 240, 234)))
+            {
+                g.FillRectangle(ground, 0, 0, footer.Width, footer.Height);
+            }
+
+            using (var rule = new Pen(Color.FromArgb(31, 242, 240, 234)))
+            {
+                g.DrawLine(rule, 0, 0, footer.Width, 0);
+            }
+
+            // The lime tick against the status line, which is what stops the
+            // two grey lines beside it reading as a disabled control.
+            using (var tick = new SolidBrush(Palette.Accent))
+            {
+                g.FillRectangle(tick, 46, 22, 4, 34);
+            }
         };
 
         _statusLabel = new Label
         {
-            Text = "Pick a game to start playing.",
-            Font = Arena.Sans(10f),
-            ForeColor = Palette.TextMuted,
+            Text = "Pick a game to start playing",
+            Font = Arena.Heavy(11f),
+            ForeColor = Palette.TextPrimary,
             AutoSize = true,
-            Location = new Point(46, 20),
+            Location = new Point(64, 22),
         };
 
         footer.Controls.Add(_statusLabel);
@@ -849,10 +966,11 @@ internal sealed class GameMenuForm : Form
         // sell to the next person.
         var hint = new Label
         {
-            Text = "Finished early? Unused time goes back to your account.",
-            Font = Arena.Sans(9f),
-            ForeColor = Palette.TextDim,
+            Text = "FINISHED EARLY? UNUSED TIME GOES BACK TO YOUR ACCOUNT",
+            Font = Arena.Mono(8f, FontStyle.Regular),
+            ForeColor = Palette.TextFaint,
             AutoSize = true,
+            Location = new Point(64, 46),
         };
 
         var endSession = new Button
@@ -907,12 +1025,12 @@ internal sealed class GameMenuForm : Form
             endSession.Left = addTime.Left - 12 - endSession.Width;
             endSession.Top = (footer.Height - endSession.Height) / 2;
 
-            hint.Left = endSession.Left - 20 - hint.Width;
-            hint.Top = (footer.Height - hint.Height) / 2;
+            hint.Left = 64;
+            hint.Top = 46;
 
-            // Hidden rather than overlapped on a narrow screen: the buttons are
+            // Hidden only when the buttons would sit on top of it: they are
             // the part that has to be reachable.
-            hint.Visible = hint.Left > _statusLabel.Right + 24;
+            hint.Visible = endSession.Left > hint.Right + 24;
         }
 
         footer.Resize += (_, _) => PlaceRightHandSide();
