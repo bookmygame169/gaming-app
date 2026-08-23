@@ -915,6 +915,11 @@ internal sealed class AgentShell : ApplicationContext
         _exiting = true;
         AgentLog.Info("Dev exit chord pressed. Shutting down.");
 
+        // Left before anything is torn down: whoever did this wants the machine,
+        // and the watchdog would otherwise hand it back to the lock inside a
+        // minute.
+        StaffExit.Leave();
+
         // Both forms refuse to close on their own; this is the only thing that
         // lifts that. Set before Close() or the shutdown below is cancelled.
         _gameMenu.AllowClose = true;

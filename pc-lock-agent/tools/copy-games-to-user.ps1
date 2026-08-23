@@ -346,6 +346,11 @@ if (Test-Path -LiteralPath $agentExe) {
         $shell = New-Object -ComObject WScript.Shell
         $link = $shell.CreateShortcut($lockShortcut)
         $link.TargetPath = $agentExe
+
+        # Asks the agent to forget a staff exit. Quitting the lock now lasts
+        # until the account signs out, so without this the shortcut would start
+        # the agent, see the note, and quietly do nothing.
+        $link.Arguments = "--lock"
         $link.WorkingDirectory = $InstallDir
         $link.Description = "Start the BookMyGame lock screen again"
         $link.Save()

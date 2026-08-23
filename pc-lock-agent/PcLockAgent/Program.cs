@@ -3,11 +3,41 @@ namespace PcLockAgent;
 internal static class Program
 {
     [STAThread]
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
 
         AgentLog.Info("=== PcLockAgent starting ===");
+
+        // Staff who quit the lock get to keep the machine.
+        //
+        // The watchdog task runs every sixty seconds and starts the agent again
+        // if it is not there. That is right for a crash and wrong for somebody
+        // who typed the exit password because they need the PC: they got the
+        // desktop for a minute and then the lock came back over the top of
+        // whatever they had started doing.
+        //
+        // The note is stamped with which sign-in left it, so it lasts exactly
+        // as long as that sign-in. Signing out and back in brings the lock
+        // back, and no café PC can be left open overnight by forgetting.
+        //
+        // The one way back in without signing out: the Lock this PC shortcut on
+        // the desktop, which asks for this explicitly. Without it that shortcut
+        // would start the agent, read the note, and quietly do nothing - which
+        // is worse than not having a shortcut at all.
+        if (args.Any(argument => string.Equals(argument, "--lock", StringComparison.OrdinalIgnoreCase)))
+        {
+            StaffExit.Clear();
+        }
+
+        if (StaffExit.WasLeft())
+        {
+            AgentLog.Info(
+                "Staff quit this lock and have not signed out yet. Leaving the PC alone - " +
+                "sign out and back in, or double-click Lock this PC, to lock it again.");
+
+            return;
+        }
 
         // Before anything else, and before the broker connection above all. Two
         // agents on one PC share a client id and knock each other offline every
