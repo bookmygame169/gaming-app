@@ -376,9 +376,9 @@ internal sealed class GameMenuForm : Form
             g.DrawLine(rule, 0, header.Height - 1, header.Width, header.Height - 1);
 
             using var clockFont = Arena.Mono(34f);
-            using var labelFont = Arena.Display(11f, FontStyle.Bold);
-            using var nameFont = Arena.Display(15f, FontStyle.Bold);
-            using var stationFont = Arena.Display(11f, FontStyle.Bold);
+            var labelFont = Arena.Display(11f, FontStyle.Bold);
+            var nameFont = Arena.Display(15f, FontStyle.Bold);
+            var stationFont = Arena.Display(11f, FontStyle.Bold);
 
             var middle = header.Height / 2f;
             var left = 46f;

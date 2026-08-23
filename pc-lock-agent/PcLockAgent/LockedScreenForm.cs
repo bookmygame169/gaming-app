@@ -357,7 +357,7 @@ internal sealed class LockedScreenForm : Form
         {
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            using var font = Arena.Display(SF(30f), FontStyle.Bold);
+            var font = Arena.Display(SF(30f), FontStyle.Bold);
             var width = Theme.MeasureTracked(e.Graphics, "PAY NOW", font, SF(8f));
 
             Theme.DrawTracked(
@@ -473,17 +473,48 @@ internal sealed class LockedScreenForm : Form
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-        // Behind everything, and the only part redrawn on every frame of the
-        // animation - which is why it is lines across the bottom of the screen
-        // rather than anything that has to be blended over the whole of it.
-        Arena.PaintFloor(g, FloorArea(), _floorPhase);
+        // Only what the invalid rectangle actually touches.
+        //
+        // Fifteen frames a second asks for three small rectangles, but a paint
+        // is a paint: without this, every one of them would re-measure and
+        // re-draw the café name a character at a time, the station number, the
+        // whole price list and the QR panel, all to change some lines at the
+        // bottom of the screen. GDI+ would throw the work away at the clip;
+        // this never does it.
+        bool Hits(Rectangle area) => e.ClipRectangle.IntersectsWith(area);
 
-        PaintTelemetry(g);
-        PaintStation(g);
-        PaintRates(g);
-        PaintScan(g);
+        // Behind everything, and the only part redrawn on every frame.
+        if (Hits(FloorArea()))
+        {
+            Arena.PaintFloor(g, FloorArea(), _floorPhase);
+        }
+
+        if (Hits(new Rectangle(0, 0, Width, S(BarHeight))))
+        {
+            PaintTelemetry(g);
+        }
+
+        if (Hits(new Rectangle(0, S(130), S(780), S(620))))
+        {
+            PaintStation(g);
+        }
+
+        if (Hits(RatesColumn()))
+        {
+            PaintRates(g);
+        }
+
+        if (Hits(ScanArea()))
+        {
+            PaintScan(g);
+        }
+
         PaintReadyRing(g);
-        PaintFootline(g);
+
+        if (Hits(new Rectangle(0, Height - S(FootHeight), Width, S(FootHeight))))
+        {
+            PaintFootline(g);
+        }
     }
 
     private void PaintTelemetry(Graphics g)
@@ -495,8 +526,8 @@ internal sealed class LockedScreenForm : Form
             g.DrawLine(rule, 0, barHeight, Width, barHeight);
         }
 
-        using var nameFont = Arena.Display(SF(34f), FontStyle.Bold);
-        using var kickerFont = Arena.Display(SF(16f), FontStyle.Bold);
+        var nameFont = Arena.Display(SF(34f), FontStyle.Bold);
+        var kickerFont = Arena.Display(SF(16f), FontStyle.Bold);
         using var monoFont = Arena.Mono(SF(22f), FontStyle.Regular);
 
         // The café's name, not the platform's. A customer sitting in PlayTime
@@ -522,7 +553,7 @@ internal sealed class LockedScreenForm : Form
         var stateText = _passthrough ? "PASSTHROUGH" : _connected ? "ONLINE" : "OFFLINE";
         var stateColour = _passthrough ? Palette.Accent : _connected ? Palette.Online : Palette.Warning;
 
-        using var stateFont = Arena.Display(SF(16f), FontStyle.Bold);
+        var stateFont = Arena.Display(SF(16f), FontStyle.Bold);
         var stateWidth = Theme.MeasureTracked(g, stateText, stateFont, SF(4.8f));
         var stateLeft = Width - S(Margin) - stateWidth;
 
@@ -551,7 +582,7 @@ internal sealed class LockedScreenForm : Form
             g.FillRectangle(tick, left, S(154), S(34), S(3));
         }
 
-        using var labelFont = Arena.Display(SF(18f), FontStyle.Bold);
+        var labelFont = Arena.Display(SF(18f), FontStyle.Bold);
         Theme.DrawTracked(g, "STATION", labelFont, Palette.TextMuted, left + S(52), S(146), SF(7.9f));
 
         // The number alone. "PC-01" spelled out is a label; the bare numeral at
@@ -588,7 +619,7 @@ internal sealed class LockedScreenForm : Form
             g.FillRectangle(edge, left, chipTop, S(4), chipHeight);
         }
 
-        using var chipFont = Arena.Display(SF(17f), FontStyle.Bold);
+        var chipFont = Arena.Display(SF(17f), FontStyle.Bold);
         Theme.DrawTracked(
             g,
             _config.StationId.ToUpperInvariant() + "  ·  READY",
@@ -600,7 +631,7 @@ internal sealed class LockedScreenForm : Form
 
         // The line that tells somebody standing there what to do, kept at the
         // foot of the column where the eye lands after the number.
-        using var headFont = Arena.Display(SF(46f), FontStyle.Bold);
+        var headFont = Arena.Display(SF(46f), FontStyle.Bold);
         using (var white = new SolidBrush(Palette.TextPrimary))
         {
             g.DrawString("Sit down and", headFont, white, left - S(4), S(560));
@@ -628,10 +659,10 @@ internal sealed class LockedScreenForm : Form
     {
         var column = RatesColumn();
 
-        using var headFont = Arena.Display(SF(18f), FontStyle.Bold);
+        var headFont = Arena.Display(SF(18f), FontStyle.Bold);
         Theme.DrawTracked(g, "RATES", headFont, Palette.TextMuted, column.Left, column.Top, SF(7.9f));
 
-        using var noteFont = Arena.Display(SF(15f), FontStyle.Bold);
+        var noteFont = Arena.Display(SF(15f), FontStyle.Bold);
         var note = "COUNTER OR UPI";
         var noteWidth = Theme.MeasureTracked(g, note, noteFont, SF(3f));
         Theme.DrawTracked(g, note, noteFont, Palette.TextFaint, column.Right - noteWidth, column.Top + S(3), SF(3f));
@@ -645,7 +676,7 @@ internal sealed class LockedScreenForm : Form
         var gap = S(14);
         var top = column.Top + S(40);
 
-        using var durFont = Arena.Display(SF(32f), FontStyle.Bold);
+        var durFont = Arena.Display(SF(32f), FontStyle.Bold);
         using var amtFont = Arena.Mono(SF(34f));
 
         for (var i = 0; i < _priceRows.Count; i++)
@@ -710,7 +741,7 @@ internal sealed class LockedScreenForm : Form
 
         var textLeft = codeLeft + codeSize + S(20);
 
-        using var titleFont = Arena.Display(SF(20f), FontStyle.Bold);
+        var titleFont = Arena.Display(SF(20f), FontStyle.Bold);
         Theme.DrawTracked(g, "SCAN TO UNLOCK", titleFont, Palette.TextPrimary, textLeft, panel.Top + S(30), SF(2.8f));
 
         using var bodyFont = Arena.Sans(SF(15f));
@@ -767,7 +798,7 @@ internal sealed class LockedScreenForm : Form
         }
 
         // The platform, where a platform belongs: small, grey, and last.
-        using var markFont = Arena.Display(SF(14f), FontStyle.Bold);
+        var markFont = Arena.Display(SF(14f), FontStyle.Bold);
         Theme.DrawTracked(
             g,
             "BOOKMYGAME.CO.IN",

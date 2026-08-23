@@ -674,6 +674,34 @@ internal static class Arena
     /// </remarks>
     public static Font Display(float size, FontStyle style = FontStyle.Bold)
     {
+        // Cached, and deliberately never disposed. These are asked for on every
+        // frame of the animation, and the check below - build one, ask what
+        // came back, throw it away if it is a substitute - is not work to do
+        // fifteen times a second. Callers must not wrap this in a using.
+        var key = (size, style);
+
+        lock (DisplayFonts)
+        {
+            if (DisplayFonts.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        var font = BuildDisplay(size, style);
+
+        lock (DisplayFonts)
+        {
+            DisplayFonts[key] = font;
+        }
+
+        return font;
+    }
+
+    private static readonly Dictionary<(float Size, FontStyle Style), Font> DisplayFonts = new();
+
+    private static Font BuildDisplay(float size, FontStyle style)
+    {
         try
         {
             var font = new Font("Bahnschrift", size, style);
