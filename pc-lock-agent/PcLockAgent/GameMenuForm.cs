@@ -1777,6 +1777,50 @@ internal sealed class GameMenuForm : Form
         RestoreVisibleOverlay();
     }
 
+    /// <summary>
+    /// Covers the desktop without taking the screen off whatever is in front.
+    /// </summary>
+    /// <remarks>
+    /// For the state nothing handled: a game has started, so this form went
+    /// invisible to get out of its way - and then the launcher came forward
+    /// instead of the game. The launcher is a window, not a screen, and the
+    /// desktop was on show all around it: icons, wallpaper, Chrome, Steam, one
+    /// click from a customer who has paid for a PC that is supposed to be
+    /// locked to games.
+    /// <para>
+    /// So the menu goes opaque again and slots in immediately below the window
+    /// being used. It cannot cover the launcher, because it is behind it; it
+    /// cannot leak the desktop, because it is in front of that. The same holds
+    /// for a browser, a crash box, or a game whose process this never
+    /// recognised.
+    /// </para>
+    /// </remarks>
+    public void CoverDesktopBehind(IntPtr foreground)
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        if (WindowState == FormWindowState.Minimized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
+
+        if (!Visible)
+        {
+            Show();
+        }
+
+        RestoreVisibleOverlay();
+
+        // Dropped before restacking, or Windows keeps this above the launcher
+        // however politely it is asked to move.
+        TopMost = false;
+
+        GameWindowFocus.PlaceBehind(Handle, foreground);
+    }
+
     private void RestoreVisibleOverlay()
     {
         // Before the early return, not after: the menu is also made visible by

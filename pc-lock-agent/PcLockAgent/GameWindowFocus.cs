@@ -60,6 +60,52 @@ internal static class GameWindowFocus
     /// </para>
     /// </para>
     /// </remarks>
+    /// <summary>The window the customer is actually using, or zero.</summary>
+    public static IntPtr ForegroundWindow()
+    {
+        try
+        {
+            return NativeMethods.GetForegroundWindow();
+        }
+        catch
+        {
+            return IntPtr.Zero;
+        }
+    }
+
+    /// <summary>
+    /// Puts one window immediately below another, touching nothing else.
+    /// </summary>
+    /// <remarks>
+    /// The safe way to cover a desktop. Raising the menu to the front risks
+    /// covering the very launcher somebody is signing in to - which is exactly
+    /// what an earlier version did, and why it stopped covering anything at all
+    /// unless the desktop itself had focus. Slotting in behind cannot take the
+    /// screen from whatever is in front, whether that is a launcher, a browser
+    /// or a game whose process this does not recognise.
+    /// </remarks>
+    public static void PlaceBehind(IntPtr window, IntPtr other)
+    {
+        if (window == IntPtr.Zero || other == IntPtr.Zero || window == other)
+        {
+            return;
+        }
+
+        try
+        {
+            NativeMethods.SetWindowPos(
+                window,
+                other,
+                0, 0, 0, 0,
+                NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+        }
+        catch
+        {
+            // A window that will not restack is not worth failing over; the
+            // next check comes round in a second and a half.
+        }
+    }
+
     public static bool IsDesktopForeground()
     {
         try
@@ -305,6 +351,7 @@ internal static class GameWindowFocus
         public const uint SWP_NOMOVE = 0x0002;
         public const uint SWP_NOSIZE = 0x0001;
         public const uint SWP_SHOWWINDOW = 0x0040;
+        public const uint SWP_NOACTIVATE = 0x0010;
 
         public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 

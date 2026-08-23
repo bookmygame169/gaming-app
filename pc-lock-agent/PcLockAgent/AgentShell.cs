@@ -609,18 +609,25 @@ internal sealed class AgentShell : ApplicationContext
             return;
         }
 
-        // Something other than the game is in front. Cover the screen only if
-        // that something is the desktop.
-        //
-        // This used to cover whenever the watched game was not foreground,
-        // which is a different question and the wrong one: starting Valorant
-        // runs the Riot Client, the Riot Client is not the watched process, and
-        // the menu drew itself over the launcher the customer had to sign in
-        // to. Every launcher, updater, installer and crash dialog would have
-        // done the same.
+        // Something other than the game is in front. The desktop gets covered
+        // either way; what differs is how far the menu is raised.
         if (GameWindowFocus.IsDesktopForeground())
         {
             _gameMenu.EnsureDesktopCovered();
+        }
+        else
+        {
+            // Something else is in front - a launcher, a browser, a crash box.
+            // It used to be left at that, and the desktop stayed on show all
+            // around whatever it was: a customer watching Valorant start could
+            // see their wallpaper, their icons, Chrome and Steam, on a machine
+            // that is meant to be locked to games.
+            //
+            // Slotting in behind the window in use covers the desktop without
+            // taking the screen from it, which is the part the earlier attempt
+            // got wrong - it raised the menu over the launcher people had to
+            // sign in to.
+            _gameMenu.CoverDesktopBehind(GameWindowFocus.ForegroundWindow());
         }
 
         var gameName = _gameMenu.CurrentGameName ?? "your game";
