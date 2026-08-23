@@ -96,7 +96,7 @@ internal sealed class EnrollmentForm : Form
             Text = "Connect this PC",
             Font = new Font("Segoe UI", 11f, FontStyle.Bold),
             BackColor = Palette.Accent,
-            ForeColor = Color.White,
+            ForeColor = Palette.Ink,
             FlatStyle = FlatStyle.Flat,
             Location = new Point(34, 208),
             Size = new Size(452, 44),

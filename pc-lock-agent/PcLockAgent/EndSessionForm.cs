@@ -112,7 +112,7 @@ internal sealed class EndSessionForm : Form
         {
             Text = "Yes, end my session",
             Font = Arena.Sans(10.5f, FontStyle.Bold),
-            ForeColor = Color.White,
+            ForeColor = Palette.Ink,
             BackColor = Palette.Accent,
             FlatStyle = FlatStyle.Flat,
             Left = CardWidth - 40 - 250,

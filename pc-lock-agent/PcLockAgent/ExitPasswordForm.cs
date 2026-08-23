@@ -93,7 +93,7 @@ internal sealed class ExitPasswordForm : Form
             Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
             FlatStyle = FlatStyle.Flat,
             BackColor = Palette.Accent,
-            ForeColor = Color.White,
+            ForeColor = Palette.Ink,
             Size = new Size(200, 38),
             Location = new Point(30, 166),
             Cursor = Cursors.Hand,

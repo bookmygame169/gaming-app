@@ -375,7 +375,7 @@ internal sealed class GameMenuForm : Form
             using var rule = new Pen(Color.FromArgb(18, 255, 255, 255));
             g.DrawLine(rule, 0, header.Height - 1, header.Width, header.Height - 1);
 
-            using var clockFont = Arena.Mono(34f);
+            var clockFont = Arena.Mono(34f);
             var labelFont = Arena.Display(11f, FontStyle.Bold);
             var nameFont = Arena.Display(15f, FontStyle.Bold);
             var stationFont = Arena.Display(11f, FontStyle.Bold);
@@ -632,8 +632,8 @@ internal sealed class GameMenuForm : Form
 
         heading.Paint += (_, e) =>
         {
-            using var titleFont = Arena.Sans(12f, FontStyle.Bold);
-            using var subtitleFont = Arena.Sans(9f);
+            var titleFont = Arena.Sans(12f, FontStyle.Bold);
+            var subtitleFont = Arena.Sans(9f);
 
             Theme.DrawTracked(e.Graphics, title, titleFont, Palette.TextPrimary, 0f, 4f, 4f);
 
@@ -763,7 +763,7 @@ internal sealed class GameMenuForm : Form
                 g.FillRectangle(top, 0, 0, width, 3);
             }
 
-            using var nameFont = Arena.Sans(11f, FontStyle.Bold);
+            var nameFont = Arena.Sans(11f, FontStyle.Bold);
             using var name = new SolidBrush(Palette.TextPrimary);
 
             var box = new RectangleF(14, height - 62, width - 28, 48);

@@ -255,8 +255,8 @@ internal sealed class WarningOverlayForm : Form
             g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
         }
 
-        using var headlineFont = Arena.Mono(19f);
-        using var detailFont = Arena.Sans(9.5f);
+        var headlineFont = Arena.Mono(19f);
+        var detailFont = Arena.Sans(9.5f);
 
         using (var headline = new SolidBrush(Palette.TextPrimary))
         {

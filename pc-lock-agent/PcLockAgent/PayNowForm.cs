@@ -981,7 +981,7 @@ internal sealed class PayNowForm : Form
     {
         Text = text,
         Font = Arena.Sans(11f, FontStyle.Bold),
-        ForeColor = Color.White,
+        ForeColor = Palette.Ink,
         BackColor = Palette.Accent,
         FlatStyle = FlatStyle.Flat,
         Left = left,

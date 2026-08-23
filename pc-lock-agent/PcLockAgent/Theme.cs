@@ -399,7 +399,7 @@ internal static class Arena
     /// a design this cannot build.
     /// </remarks>
     public static Font Sans(float size, FontStyle style = FontStyle.Regular)
-        => new("Segoe UI", size, style);
+        => Cached("Segoe UI", "Arial", size, style);
 
     /// <summary>
     /// Numbers.
@@ -415,7 +415,7 @@ internal static class Arena
     /// </para>
     /// </remarks>
     public static Font Mono(float size, FontStyle style = FontStyle.Bold)
-        => new("Consolas", size, style);
+        => Cached("Consolas", "Courier New", size, style);
 
     /// <summary>
     /// A rectangle with its bottom-right corner cut away.
@@ -672,55 +672,91 @@ internal static class Arena
     /// Windows 10 and 11, and on anything older GDI+ falls back silently to
     /// Segoe UI, which is a softer look but never a broken one.
     /// </remarks>
+    /// <summary>
+    /// Headings, labels and buttons.
+    /// </summary>
+    /// <remarks>
+    /// Bahnschrift is Windows' own DIN - condensed and technical. It ships with
+    /// Windows 10 and 11, and on anything older this falls back to Segoe UI,
+    /// which is a softer look but never a broken one.
+    /// </remarks>
     public static Font Display(float size, FontStyle style = FontStyle.Bold)
-    {
-        // Cached, and deliberately never disposed. These are asked for on every
-        // frame of the animation, and the check below - build one, ask what
-        // came back, throw it away if it is a substitute - is not work to do
-        // fifteen times a second. Callers must not wrap this in a using.
-        var key = (size, style);
+        => Cached("Bahnschrift", "Segoe UI", size, style);
 
-        lock (DisplayFonts)
+    /// <summary>
+    /// The heaviest weight on the screen: the station number and the headline.
+    /// </summary>
+    /// <remarks>
+    /// The design is drawn in Archivo at 900, which no Windows machine has.
+    /// Segoe UI Black is the nearest thing that is on all of them - a real
+    /// black weight rather than Bold pretending, which matters at the size the
+    /// station number is set.
+    /// </remarks>
+    public static Font Heavy(float size)
+        => Cached("Segoe UI Black", "Segoe UI", size, FontStyle.Bold);
+
+    private static readonly Dictionary<(string Family, float Size, FontStyle Style), Font> Faces = new();
+
+    /// <summary>
+    /// One font per family, size and weight, built once and kept.
+    /// </summary>
+    /// <remarks>
+    /// Every face in this app comes from here, and none of them is ever
+    /// disposed. That is the whole rule, and it is one rule on purpose: fonts
+    /// were being asked for fifteen times a second by the animated screens, and
+    /// with some cached and some not, the question "does this one need a using?"
+    /// had a different answer in every method. It got answered wrongly twice,
+    /// each time as a font handle leaked on every frame - which ends as an
+    /// agent that has run out of GDI handles in the middle of somebody's paid
+    /// session.
+    /// <para>
+    /// So: never wrap an Arena font in a using. There is nothing to give back.
+    /// </para>
+    /// </remarks>
+    private static Font Cached(string family, string fallback, float size, FontStyle style)
+    {
+        var key = (family, size, style);
+
+        lock (Faces)
         {
-            if (DisplayFonts.TryGetValue(key, out var cached))
+            if (Faces.TryGetValue(key, out var found))
             {
-                return cached;
+                return found;
             }
         }
 
-        var font = BuildDisplay(size, style);
+        var font = Build(family, fallback, size, style);
 
-        lock (DisplayFonts)
+        lock (Faces)
         {
-            DisplayFonts[key] = font;
+            Faces[key] = font;
         }
 
         return font;
     }
 
-    private static readonly Dictionary<(float Size, FontStyle Style), Font> DisplayFonts = new();
-
-    private static Font BuildDisplay(float size, FontStyle style)
+    private static Font Build(string family, string fallback, float size, FontStyle style)
     {
         try
         {
-            var font = new Font("Bahnschrift", size, style);
+            var font = new Font(family, size, style);
 
             // GDI+ substitutes silently when a family is missing, so the only
             // way to know whether this machine really has it is to ask what
             // came back.
-            if (font.Name.StartsWith("Bahnschrift", StringComparison.OrdinalIgnoreCase))
+            if (font.Name.StartsWith(family, StringComparison.OrdinalIgnoreCase))
             {
                 return font;
             }
 
+            AgentLog.Info($"{family} is not on this PC; using {fallback}.");
             font.Dispose();
         }
         catch (Exception ex)
         {
-            AgentLog.Warn($"Could not load Bahnschrift: {ex.Message}");
+            AgentLog.Warn($"Could not load {family}: {ex.Message}");
         }
 
-        return new Font("Segoe UI", size, style);
+        return new Font(fallback, size, style);
     }
 }
