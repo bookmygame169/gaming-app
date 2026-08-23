@@ -104,13 +104,11 @@ internal sealed class AgentConfig
     /// Hide games this PC does not have installed. On by default.
     /// </summary>
     /// <remarks>
-    /// The dashboard's list is café-wide, so a PC without a given game still
-    /// received a tile for it, and clicking that tile produced an error rather
-    /// than a game. See <see cref="InstalledGames"/>.
-    /// <para>
-    /// Set to false on a machine where detection gets it wrong; the full list
-    /// comes back and a bad tile fails at launch, as it did before.
-    /// </para>
+    /// Reads nothing any more, and is kept only so an appsettings.json that
+    /// still carries it does not look like a mistake. The menu is built from
+    /// the account's own desktop, so there is no detection left for this to
+    /// switch off: a game is on the menu when its shortcut is on the desktop,
+    /// and that is the whole rule.
     /// </remarks>
     [JsonPropertyName("showOnlyInstalledGames")]
     public bool ShowOnlyInstalledGames { get; init; } = true;
