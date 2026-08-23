@@ -328,6 +328,149 @@ internal static class GameDiscovery
     }
 
     /// <summary>Adds everything installed to whatever the café already listed.</summary>
+    /// <summary>
+    /// The menu: whatever is on this account's desktop.
+    /// </summary>
+    /// <remarks>
+    /// The café's own list used to decide this, and a photograph of pc-02
+    /// showed why that stopped working. Three of its games - Counter-Strike,
+    /// PUBG, Rocket League - are all recorded as starting from steam.exe,
+    /// because that is how a Steam game starts. So the check "does this file
+    /// exist?" proved Steam was installed and said nothing at all about the
+    /// game, and two titles nobody could play sat on the menu of every PC in
+    /// the room.
+    /// <para>
+    /// The desktop cannot be wrong in that way. What is on it is what somebody
+    /// put there, so it is the one list that is correct by definition: if a
+    /// game is missing from the menu, its shortcut is missing from the desktop,
+    /// and that is visible at a glance instead of needing a log read off the
+    /// machine. It is also the only place this account can always read - every
+    /// version that guessed from Steam libraries, Epic manifests, Xbox packages
+    /// or the registry failed on permissions rather than on logic.
+    /// </para>
+    /// <para>
+    /// The café's list still earns its place, for the one thing the desktop
+    /// cannot say: which process appears when a launcher finally starts the
+    /// game. A shortcut says how to start Counter-Strike; only the catalogue
+    /// knows to then watch for cs2.
+    /// </para>
+    /// </remarks>
+    public static AgentConfig MenuFromDesktop(AgentConfig config)
+    {
+        if (!config.ShowInstalledGames)
+        {
+            return KeepMenuItemsOnly(config);
+        }
+
+        var found = new List<GameEntry>();
+
+        try
+        {
+            // Counted per source and written to the log. Rounds of this were
+            // spent comparing a photograph of the menu against a photograph of
+            // the desktop and guessing which source had missed what; a line in
+            // the log answers that in one reading.
+            void Take(string source, IEnumerable<GameEntry> from)
+            {
+                var before = found.Count;
+                found.AddRange(from);
+                AgentLog.Info($"  {source}: {found.Count - before}");
+            }
+
+            AgentLog.Info("Building the menu from this account's desktop.");
+
+            Take("this account's desktop", FromOwnDesktop());
+            Take("apps", FromKnownApps());
+        }
+        catch (Exception ex)
+        {
+            // Never a reason to show nothing. The café's own list still works.
+            AgentLog.Warn($"Could not read the desktop ({ex.Message}). Showing the café list instead.");
+            return KeepMenuItemsOnly(config);
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var menu = new List<GameEntry>();
+
+        foreach (var item in found)
+        {
+            var key = Normalise(item.Name);
+
+            if (key.Length < 2 || !seen.Add(key))
+            {
+                continue;
+            }
+
+            if (IsJunk(item.Name) || LooksLikeWindowsTool(item.Name, item.ExePath))
+            {
+                continue;
+            }
+
+            menu.Add(WithCatalogueDetails(item, config.Games));
+        }
+
+        // An empty desktop would otherwise be an empty menu, which on a fresh
+        // account - one where the shortcuts have not been copied across yet -
+        // is a customer paying for a PC with nothing to click.
+        if (menu.Count == 0)
+        {
+            AgentLog.Warn(
+                "Nothing on this account's desktop. Showing the café's list instead - " +
+                "copy the game shortcuts onto the customer desktop to fix this properly.");
+
+            return KeepMenuItemsOnly(config);
+        }
+
+        AgentLog.Info($"Games: {string.Join(", ", menu.Where(item => !IsApp(item)).Select(item => item.Name))}");
+        AgentLog.Info($"Apps: {string.Join(", ", menu.Where(IsApp).Select(item => item.Name))}");
+
+        return KeepMenuItemsOnly(
+            config.WithGames(menu.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList()));
+    }
+
+    /// <summary>
+    /// Borrows what the café's catalogue knows about a shortcut it recognises.
+    /// </summary>
+    /// <remarks>
+    /// Only the process name, and only where the shortcut has none of its own.
+    /// It is the piece the desktop genuinely cannot supply: a shortcut says how
+    /// to start Counter-Strike through Steam, and nothing on it says that the
+    /// thing to watch for afterwards is called cs2. Without that the agent
+    /// cannot tell a game that started from a launcher that is still thinking
+    /// about it.
+    /// </remarks>
+    private static GameEntry WithCatalogueDetails(GameEntry item, List<GameEntry> catalogue)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ProcessName))
+        {
+            return item;
+        }
+
+        var key = Normalise(item.Name);
+
+        var match = catalogue.FirstOrDefault(
+            entry => string.Equals(Normalise(entry.Name), key, StringComparison.Ordinal));
+
+        if (match is null || string.IsNullOrWhiteSpace(match.ProcessName))
+        {
+            return item;
+        }
+
+        AgentLog.Info($"'{item.Name}': watching for '{match.ProcessName}', from the café's list.");
+
+        return new GameEntry
+        {
+            Name = item.Name,
+            ExePath = item.ExePath,
+            Arguments = item.Arguments,
+            WorkingDirectory = item.WorkingDirectory,
+            IconPath = item.IconPath,
+            IconSourcePath = item.IconSourcePath,
+            Category = item.Category,
+            ProcessName = match.ProcessName,
+        };
+    }
+
     public static AgentConfig AddInstalledGames(AgentConfig config)
     {
         if (!config.ShowInstalledGames)

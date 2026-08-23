@@ -72,8 +72,12 @@ internal static class Program
             // menu while the agent already knew the answer.
             AgentLog.StartCapture();
 
-            config = InstalledGames.FilterToInstalled(config);
-            config = GameDiscovery.AddInstalledGames(config);
+            // The desktop decides what is on the menu. The café's catalogue no
+            // longer does: its entries record how a game starts, and for every
+            // Steam title that is steam.exe, so "does this file exist?" proved
+            // Steam was installed and let two games nobody could play onto the
+            // menu of every PC in the room.
+            config = GameDiscovery.MenuFromDesktop(config);
 
             // The other half of this feature — clearing the profile between
             // customers — has been running all along, but nothing ever added
