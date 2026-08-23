@@ -51,6 +51,38 @@ function Write-Log {
     }
 }
 
+<#
+.SYNOPSIS
+    Downloads a small text file and returns it as text.
+
+.DESCRIPTION
+    Written because PowerShell 5.1 does not always give you a string.
+    Invoke-WebRequest hands back .Content as a byte array whenever the server
+    declines to label the response as text - and GitHub serves every release
+    asset as application/octet-stream. Calling .Trim() on that throws
+
+        [System.Byte] does not contain a method named 'Trim'
+
+    which is the line every café PC had been logging on every check, several
+    times a day, since the day auto-update was switched on. Nothing was ever
+    downloaded and nothing was ever installed; four machines drifted twenty
+    versions behind while the log said, accurately, that it could not check.
+#>
+function Get-TextFromUrl {
+    param(
+        [Parameter(Mandatory = $true)][string]$Url,
+        [int]$TimeoutSec = 30
+    )
+
+    $body = (Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSec).Content
+
+    if ($body -is [byte[]]) {
+        $body = [System.Text.Encoding]::UTF8.GetString($body)
+    }
+
+    return "$body".Trim()
+}
+
 try {
     $exe = Join-Path $InstallPath "PcLockAgent.exe"
     if (-not (Test-Path $exe)) {
@@ -72,7 +104,7 @@ try {
 
     $versionUrl = "$ReleaseBase/version.txt"
     try {
-        $latestText = (Invoke-WebRequest -Uri $versionUrl -UseBasicParsing -TimeoutSec 30).Content.Trim()
+        $latestText = Get-TextFromUrl -Url $versionUrl -TimeoutSec 30
     } catch {
         Write-Log "Could not check for updates: $($_.Exception.Message)" "WARN"
         exit 0
@@ -107,8 +139,6 @@ try {
             exit 1
         }
     }
-    Set-Content -Path $attemptFile -Value $latestText -ErrorAction SilentlyContinue
-
     # An update somebody actually asked for.
     #
     # The rule below - never replace a running agent - is right, and on a cafe
@@ -146,6 +176,14 @@ try {
         exit 0
     }
 
+    # Recorded here rather than the moment an update was spotted. Written
+    # earlier, it counted the runs that noticed a new version and then stood
+    # down because the agent was up - which is most of them - so the guard above
+    # would refuse the very next attempt, including the one somebody asked for
+    # from the dashboard. It marks an install being attempted, not a version
+    # being seen.
+    Set-Content -Path $attemptFile -Value $latestText -ErrorAction SilentlyContinue
+
     $temp = Join-Path $env:TEMP "BookMyGame-PC-Lock-Setup-$latestText.exe"
     Write-Log "Downloading $ReleaseBase/BookMyGame-PC-Lock-Setup.exe"
     Invoke-WebRequest -Uri "$ReleaseBase/BookMyGame-PC-Lock-Setup.exe" `
@@ -166,8 +204,7 @@ try {
     # A missing hash file is not treated as a pass.
     $expectedHash = $null
     try {
-        $expectedHash = (Invoke-WebRequest -Uri "$ReleaseBase/setup.sha256" `
-            -UseBasicParsing -TimeoutSec 60).Content.Trim().ToLowerInvariant()
+        $expectedHash = (Get-TextFromUrl -Url "$ReleaseBase/setup.sha256" -TimeoutSec 60).ToLowerInvariant()
     } catch {
         Write-Log "Could not fetch setup.sha256: $_" "ERROR"
     }
