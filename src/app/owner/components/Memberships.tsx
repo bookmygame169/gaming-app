@@ -89,6 +89,45 @@ export function Memberships({
     const [savingPlan, setSavingPlan] = useState(false);
 
     // Adjust Hours State
+    const [editWho, setEditWho] = useState<{ id: string; name: string; phone: string } | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
+
+    /**
+     * Corrects the name and number a membership is held against.
+     *
+     * The number matters more than it looks. A member scanning the lock screen
+     * is found by their phone number and nothing else, so one wrong digit means
+     * the plan they paid for cannot be found at the machine - and until now the
+     * only way to fix that was to delete the membership and sell it again.
+     */
+    const handleSaveWho = async () => {
+        if (!editWho) return;
+
+        const name = editName.trim();
+        const phone = editPhone.replace(/\D/g, '');
+
+        if (name.length < 2) { alert('Enter the customer\'s name.'); return; }
+        if (phone.length !== 10) { alert('Enter the 10-digit mobile number their hours are held against.'); return; }
+
+        setEditSaving(true);
+        try {
+            const res = await fetch('/api/owner/subscriptions', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editWho.id, updates: { customer_name: name, customer_phone: phone } }),
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+            onRefresh();
+            setEditWho(null);
+        } catch (error: unknown) {
+            alert('Could not save those details: ' + getErrorMessage(error));
+        } finally {
+            setEditSaving(false);
+        }
+    };
+
     const [adjustHoursSub, setAdjustHoursSub] = useState<{ id: string; name: string; current: number } | null>(null);
     const [adjustHoursDelta, setAdjustHoursDelta] = useState('');
     const [adjustHoursSaving, setAdjustHoursSaving] = useState(false);
@@ -568,6 +607,19 @@ export function Memberships({
                                                             </Button>
                                                         )
                                                     )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setEditWho({ id: sub.id, name: sub.customer_name || '', phone: sub.customer_phone || '' });
+                                                            setEditName(sub.customer_name || '');
+                                                            setEditPhone(sub.customer_phone || '');
+                                                        }}
+                                                        className="flex-none text-slate-400 hover:text-indigo-400"
+                                                        title="Correct the name or number"
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </Button>
                                                     {sub.status === 'active' && sub.membership_plans?.plan_type !== 'day_pass' && (
                                                         <Button
                                                             variant="ghost"
@@ -820,6 +872,55 @@ export function Memberships({
             )}
 
             {/* Adjust Hours Modal */}
+            {editWho && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-sm bg-white/[0.03] border-white/[0.09]" padding="md">
+                        <h3 className="text-base font-semibold text-white mb-1">Correct the details</h3>
+                        <p className="text-xs text-slate-400 mb-4">
+                            The number is how a member is found when they scan a PC — a wrong digit and
+                            their plan cannot be used at the machine.
+                        </p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-400 mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={e => setEditName(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.09] text-white text-sm focus:outline-none focus:border-indigo-500"
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-400 mb-1">Mobile number</label>
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    maxLength={10}
+                                    value={editPhone}
+                                    onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))}
+                                    className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.09] text-white text-sm font-mono focus:outline-none focus:border-indigo-500"
+                                />
+                                {editPhone.length > 0 && editPhone.length !== 10 && (
+                                    <p className="text-[11px] text-amber-400 mt-1">{editPhone.length} of 10 digits</p>
+                                )}
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="secondary" onClick={() => setEditWho(null)} className="flex-1">Cancel</Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={handleSaveWho}
+                                    disabled={editSaving || editName.trim().length < 2 || editPhone.length !== 10}
+                                    className="flex-1"
+                                >
+                                    {editSaving ? 'Saving…' : 'Save'}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
             {adjustHoursSub && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <Card className="w-full max-w-sm bg-white/[0.03] border-white/[0.09]" padding="md">

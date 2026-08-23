@@ -94,9 +94,49 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
   }
 
+  // Named rather than passed straight through.
+  //
+  // Ownership is checked above, so this is the owner's own record either way -
+  // but "whatever the browser sent" as an UPDATE lets a mistyped or tampered
+  // field move a membership to another café or rewrite the plan it was sold
+  // against. Every caller only ever sets the fields below; anything else is a
+  // bug on its way to the database.
+  const allowed = new Set([
+    'customer_name',
+    'customer_phone',
+    'hours_remaining',
+    'timer_active',
+    'timer_start_time',
+    'assigned_console_station',
+    'status',
+    'amount_paid',
+    'payment_mode',
+    'expiry_date',
+    'updated_at',
+  ]);
+
+  const safe: Record<string, unknown> = {};
+  const refused: string[] = [];
+
+  for (const [column, value] of Object.entries(updates as Record<string, unknown>)) {
+    if (allowed.has(column)) {
+      safe[column] = value;
+    } else {
+      refused.push(column);
+    }
+  }
+
+  if (refused.length > 0) {
+    console.warn(`Refused to update subscription columns: ${refused.join(', ')}`);
+  }
+
+  if (Object.keys(safe).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
   const { error: updateError } = await supabase
     .from('subscriptions')
-    .update(updates)
+    .update(safe)
     .eq('id', id);
 
   if (updateError) {
