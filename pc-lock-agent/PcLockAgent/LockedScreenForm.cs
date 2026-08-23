@@ -338,14 +338,23 @@ internal sealed class LockedScreenForm : Form
         Math.Max(S(200), Width - S(Margin) * 2 - S(22) - S(ScanWidth)),
         S(ActionsHeight));
 
-    private Rectangle ScanArea() => new(
+    /// <summary>
+    /// The panel beside Pay now, which carries this machine's number.
+    /// </summary>
+    /// <remarks>
+    /// It held the QR code until a café owner looked at the screen and said the
+    /// two were the wrong way round. He was right: the number is how staff
+    /// refer to a machine across a room, but the code is the thing a customer
+    /// has to physically point a phone at, and that one wants the space.
+    /// </remarks>
+    private Rectangle StationPanel() => new(
         Width - S(Margin) - S(ScanWidth),
         ActionsTop(),
         S(ScanWidth),
         S(ActionsHeight));
 
-    /// <summary>The glow behind the station number, which breathes.</summary>
-    private Rectangle NumeralArea() => new(0, S(150), S(560), S(280));
+    /// <summary>How big the code is, now that it has the column to itself.</summary>
+    private Rectangle ScanArea() => new(S(Margin), S(178), S(300), S(300));
 
     /// <summary>The floor, which is the one thing always moving.</summary>
     private Rectangle FloorArea() => new(0, Height - (int)(Height * 0.32f), Width, (int)(Height * 0.32f));
@@ -461,7 +470,7 @@ internal sealed class LockedScreenForm : Form
         _pulsePhase = seconds / 3.4f % 1f;
 
         Invalidate(FloorArea());
-        Invalidate(NumeralArea());
+        Invalidate(StationPanel());
 
         var button = PayButtonArea();
         var reach = S(20);
@@ -508,7 +517,7 @@ internal sealed class LockedScreenForm : Form
 
         if (Hits(new Rectangle(0, S(130), S(780), S(620))))
         {
-            PaintStation(g);
+            PaintScanColumn(g);
         }
 
         if (Hits(RatesColumn()))
@@ -516,9 +525,9 @@ internal sealed class LockedScreenForm : Form
             PaintRates(g);
         }
 
-        if (Hits(ScanArea()))
+        if (Hits(StationPanel()))
         {
-            PaintScan(g);
+            PaintStationPanel(g);
         }
 
         PaintReadyRing(g);
@@ -585,7 +594,10 @@ internal sealed class LockedScreenForm : Form
         }
     }
 
-    private void PaintStation(Graphics g)
+    /// <summary>
+    /// The left column: the code, and the line telling somebody what to do.
+    /// </summary>
+    private void PaintScanColumn(Graphics g)
     {
         var left = (float)S(Margin);
 
@@ -595,74 +607,43 @@ internal sealed class LockedScreenForm : Form
         }
 
         var labelFont = Arena.Display(FS(18f), FontStyle.Bold);
-        Theme.DrawTracked(g, "STATION", labelFont, Palette.TextMuted, left + S(52), S(146), SF(7.9f));
+        Theme.DrawTracked(g, "SCAN TO UNLOCK", labelFont, Palette.TextMuted, left + S(52), S(146), SF(7.9f));
 
-        // The number alone. "PC-01" spelled out is a label; the bare numeral at
-        // this size is an identity, and it is what somebody reads from the
-        // counter across the room.
-        var number = NumberOf(_config.StationId);
+        var code = ScanArea();
 
-        using var numberFont = Arena.Mono(FS(190f));
-        var numeralTop = (float)S(178);
-        var numeral = g.MeasureString(number, numberFont);
-
-        // The breath: a glow behind the digits rather than a second copy of
-        // them offset by a few pixels, which on a real screen read as a
-        // printing error rather than as light.
-        var strength = (int)(38 + 26 * Math.Sin(_breathPhase * Math.PI * 2));
-
-        using (var halo = new System.Drawing.Drawing2D.GraphicsPath())
+        // White, and generous with the quiet zone around it. A code printed
+        // tight to its own edge is one a phone camera argues with.
+        using (var white = new SolidBrush(Color.White))
         {
-            var reach = new RectangleF(
-                left - numeral.Width * 0.28f,
-                numeralTop - numeral.Height * 0.10f,
-                numeral.Width * 1.56f,
-                numeral.Height * 1.20f);
+            g.FillRectangle(white, code);
+        }
 
-            halo.AddEllipse(reach);
+        if (_scanCode is not null)
+        {
+            var inner = S(16);
+            g.DrawImage(_scanCode, code.Left + inner, code.Top + inner, code.Width - inner * 2, code.Height - inner * 2);
+        }
+        else
+        {
+            // No code to show, which happens when this PC cannot reach the
+            // site. Said on the code's own square rather than left blank, so
+            // nobody stands there pointing a phone at nothing.
+            using var apologyFont = Arena.Sans(FS(15f));
+            using var dark = new SolidBrush(Color.FromArgb(0x33, 0x33, 0x33));
 
-            using var glow = new System.Drawing.Drawing2D.PathGradientBrush(halo)
+            var middle = new StringFormat
             {
-                CenterColor = Color.FromArgb(strength, Palette.Accent),
-                SurroundColors = new[] { Color.FromArgb(0, Palette.Accent) },
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center,
             };
 
-            g.FillPath(glow, halo);
+            g.DrawString(
+                "This PC cannot reach\nthe website right now.\nPlease pay below.",
+                apologyFont,
+                dark,
+                new RectangleF(code.Left + S(20), code.Top, code.Width - S(40), code.Height),
+                middle);
         }
-
-        using (var white = new SolidBrush(Palette.TextPrimary))
-        {
-            g.DrawString(number, numberFont, white, left - S(14), numeralTop);
-        }
-
-        // Placed under whatever the digits actually measured, not under where
-        // they were assumed to end. The last version put this at a fixed height
-        // and the number sat straight through it.
-        var chipText = _config.StationId.ToUpperInvariant() + "  ·  READY";
-        var chipFont = Arena.Display(FS(17f), FontStyle.Bold);
-        var chipTextWidth = Theme.MeasureTracked(g, chipText, chipFont, SF(3.4f));
-
-        var chipHeight = S(46);
-        var chipTop = numeralTop + numeral.Height * 0.82f + S(14);
-
-        using (var chip = new SolidBrush(Color.FromArgb(13, 255, 255, 255)))
-        {
-            g.FillRectangle(chip, left, chipTop, chipTextWidth + S(48), chipHeight);
-        }
-
-        using (var edge = new SolidBrush(Palette.Accent))
-        {
-            g.FillRectangle(edge, left, chipTop, S(4), chipHeight);
-        }
-
-        Theme.DrawTracked(
-            g,
-            chipText,
-            chipFont,
-            Palette.TextMuted,
-            left + S(24),
-            chipTop + (chipHeight - chipFont.Height) / 2f,
-            SF(3.4f));
 
         // The line that tells somebody what to do, and the paragraph under it,
         // both measured and then stacked upwards from the action bar. Fixed
@@ -679,8 +660,8 @@ internal sealed class LockedScreenForm : Form
         var blurbTop = ActionsTop() - S(38) - blurbSize.Height;
         var headTop = blurbTop - S(10) - headFont.Height;
 
-        // Never over the number, however little room the screen has left.
-        var floor = chipTop + chipHeight + S(24);
+        // Never over the code, however little room the screen has left.
+        var floor = code.Bottom + S(28);
 
         if (headTop < floor)
         {
@@ -761,9 +742,18 @@ internal sealed class LockedScreenForm : Form
         }
     }
 
-    private void PaintScan(Graphics g)
+    /// <summary>
+    /// The panel beside Pay now: which machine this is.
+    /// </summary>
+    /// <remarks>
+    /// Smaller than it was on the left, and that is the right trade. The number
+    /// is read once - by staff, from across the room, or by a customer telling
+    /// the counter where they are sitting - while the code has to be aimed at
+    /// with a phone, and only one of those needs half a screen.
+    /// </remarks>
+    private void PaintStationPanel(Graphics g)
     {
-        var panel = ScanArea();
+        var panel = StationPanel();
 
         using (var fill = new SolidBrush(Color.FromArgb(8, 255, 255, 255)))
         {
@@ -775,40 +765,60 @@ internal sealed class LockedScreenForm : Form
             g.DrawRectangle(edge, panel.Left, panel.Top, panel.Width - 1, panel.Height - 1);
         }
 
-        // As large as the panel will hold. A code that has to be scanned from a
-        // phone held at arm's length is the one thing on this screen where
-        // bigger is simply better.
-        var codeSize = panel.Height - S(28);
-        var codeLeft = panel.Left + S(14);
-        var codeTop = panel.Top + S(14);
-
-        using (var white = new SolidBrush(Color.White))
+        using (var bar = new SolidBrush(Palette.Accent))
         {
-            g.FillRectangle(white, codeLeft, codeTop, codeSize, codeSize);
+            g.FillRectangle(bar, panel.Left, panel.Top, S(4), panel.Height);
         }
 
-        if (_scanCode is not null)
+        var number = NumberOf(_config.StationId);
+
+        using var numberFont = Arena.Mono(FS(130f));
+        var numeral = g.MeasureString(number, numberFont);
+
+        var numeralLeft = panel.Left + S(28);
+        var numeralTop = panel.Top + (panel.Height - numeral.Height) / 2f;
+
+        // The breath, kept with the number wherever it goes.
+        var strength = (int)(34 + 24 * Math.Sin(_breathPhase * Math.PI * 2));
+
+        using (var halo = new System.Drawing.Drawing2D.GraphicsPath())
         {
-            var inner = S(6);
-            g.DrawImage(_scanCode, codeLeft + inner, codeTop + inner, codeSize - inner * 2, codeSize - inner * 2);
+            var reach = new RectangleF(
+                numeralLeft - numeral.Width * 0.30f,
+                numeralTop - numeral.Height * 0.10f,
+                numeral.Width * 1.60f,
+                numeral.Height * 1.20f);
+
+            halo.AddEllipse(reach);
+
+            using var glow = new System.Drawing.Drawing2D.PathGradientBrush(halo)
+            {
+                CenterColor = Color.FromArgb(strength, Palette.Accent),
+                SurroundColors = new[] { Color.FromArgb(0, Palette.Accent) },
+            };
+
+            g.FillPath(glow, halo);
         }
 
-        var textLeft = codeLeft + codeSize + S(20);
-
-        var titleFont = Arena.Display(FS(20f), FontStyle.Bold);
-        Theme.DrawTracked(g, "SCAN TO UNLOCK", titleFont, Palette.TextPrimary, textLeft, panel.Top + S(30), SF(2.8f));
-
-        using var bodyFont = Arena.Sans(FS(15f));
-        using (var faint = new SolidBrush(Palette.TextFaint))
+        using (var white = new SolidBrush(Palette.TextPrimary))
         {
-            g.DrawString(
-                _scanCode is not null
-                    ? "Already have the app?\nPoint your camera here."
-                    : "This PC cannot reach\nthe website right now.",
-                bodyFont,
-                faint,
-                new RectangleF(textLeft, panel.Top + S(76), panel.Width - (textLeft - panel.Left) - S(18), S(70)));
+            g.DrawString(number, numberFont, white, numeralLeft, numeralTop);
         }
+
+        var textLeft = numeralLeft + numeral.Width + S(18);
+
+        var labelFont = Arena.Display(FS(16f), FontStyle.Bold);
+        Theme.DrawTracked(g, "STATION", labelFont, Palette.TextFaint, textLeft, panel.Top + S(56), SF(5.4f));
+
+        var readyFont = Arena.Display(FS(18f), FontStyle.Bold);
+        Theme.DrawTracked(
+            g,
+            _config.StationId.ToUpperInvariant() + "  ·  READY",
+            readyFont,
+            Palette.TextMuted,
+            textLeft,
+            panel.Top + S(86),
+            SF(3.4f));
     }
 
     /// <summary>
