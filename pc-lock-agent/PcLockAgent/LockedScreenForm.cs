@@ -67,6 +67,18 @@ internal sealed class LockedScreenForm : Form
     private int S(int designPx) => (int)Math.Round(designPx * _scale);
     private float SF(float designPx) => designPx * _scale;
 
+    /// <summary>
+    /// A font size, from a size in design pixels.
+    /// </summary>
+    /// <remarks>
+    /// WinForms measures fonts in points unless told otherwise, and a point is
+    /// four thirds of a pixel. Every size on this screen was drawn on a sheet
+    /// in pixels, so handing those numbers straight to a Font made all of it a
+    /// third too large - which is how the station number came to sit on top of
+    /// its own chip and the paragraph ran underneath Pay now.
+    /// </remarks>
+    private float FS(float designPx) => designPx * _scale * 0.75f;
+
     public LockedScreenForm(AgentConfig config)
     {
         _config = config;
@@ -310,9 +322,9 @@ internal sealed class LockedScreenForm : Form
 
     private const int Margin = 64;
     private const int BarHeight = 104;
-    private const int ActionsHeight = 128;
+    private const int ActionsHeight = 176;
     private const int FootHeight = 56;
-    private const int ScanWidth = 420;
+    private const int ScanWidth = 520;
 
     private Rectangle ClockArea() => new(Width - S(430), S(20), S(410), S(64));
 
@@ -357,8 +369,8 @@ internal sealed class LockedScreenForm : Form
         {
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            var font = Arena.Display(SF(30f), FontStyle.Bold);
-            var width = Theme.MeasureTracked(e.Graphics, "PAY NOW", font, SF(8f));
+            var font = Arena.Display(FS(38f), FontStyle.Bold);
+            var width = Theme.MeasureTracked(e.Graphics, "PAY NOW", font, SF(11f));
 
             Theme.DrawTracked(
                 e.Graphics,
@@ -367,7 +379,7 @@ internal sealed class LockedScreenForm : Form
                 Color.FromArgb(0x16, 0x04, 0x0B),
                 (_payButton.Width - width) / 2f,
                 (_payButton.Height - font.Height) / 2f,
-                SF(8f));
+                SF(11f));
         };
 
         _payButton.Click += (_, _) => PayNowRequested?.Invoke(this, EventArgs.Empty);
@@ -526,9 +538,9 @@ internal sealed class LockedScreenForm : Form
             g.DrawLine(rule, 0, barHeight, Width, barHeight);
         }
 
-        var nameFont = Arena.Display(SF(34f), FontStyle.Bold);
-        var kickerFont = Arena.Display(SF(16f), FontStyle.Bold);
-        using var monoFont = Arena.Mono(SF(22f), FontStyle.Regular);
+        var nameFont = Arena.Display(FS(34f), FontStyle.Bold);
+        var kickerFont = Arena.Display(FS(16f), FontStyle.Bold);
+        using var monoFont = Arena.Mono(FS(22f), FontStyle.Regular);
 
         // The café's name, not the platform's. A customer sitting in PlayTime
         // should see PlayTime; bookmygame is grey text in the corner.
@@ -553,7 +565,7 @@ internal sealed class LockedScreenForm : Form
         var stateText = _passthrough ? "PASSTHROUGH" : _connected ? "ONLINE" : "OFFLINE";
         var stateColour = _passthrough ? Palette.Accent : _connected ? Palette.Online : Palette.Warning;
 
-        var stateFont = Arena.Display(SF(16f), FontStyle.Bold);
+        var stateFont = Arena.Display(FS(16f), FontStyle.Bold);
         var stateWidth = Theme.MeasureTracked(g, stateText, stateFont, SF(4.8f));
         var stateLeft = Width - S(Margin) - stateWidth;
 
@@ -582,7 +594,7 @@ internal sealed class LockedScreenForm : Form
             g.FillRectangle(tick, left, S(154), S(34), S(3));
         }
 
-        var labelFont = Arena.Display(SF(18f), FontStyle.Bold);
+        var labelFont = Arena.Display(FS(18f), FontStyle.Bold);
         Theme.DrawTracked(g, "STATION", labelFont, Palette.TextMuted, left + S(52), S(146), SF(7.9f));
 
         // The number alone. "PC-01" spelled out is a label; the bare numeral at
@@ -590,28 +602,52 @@ internal sealed class LockedScreenForm : Form
         // counter across the room.
         var number = NumberOf(_config.StationId);
 
-        using var numberFont = Arena.Mono(SF(190f));
+        using var numberFont = Arena.Mono(FS(190f));
+        var numeralTop = (float)S(178);
+        var numeral = g.MeasureString(number, numberFont);
 
-        // The breath. Drawn as a second, softer copy underneath rather than as
-        // a real blur, which GDI+ has no cheap way to do.
-        var glow = (int)(48 + 34 * Math.Sin(_breathPhase * Math.PI * 2));
+        // The breath: a glow behind the digits rather than a second copy of
+        // them offset by a few pixels, which on a real screen read as a
+        // printing error rather than as light.
+        var strength = (int)(38 + 26 * Math.Sin(_breathPhase * Math.PI * 2));
 
-        using (var halo = new SolidBrush(Color.FromArgb(glow, Palette.Accent)))
+        using (var halo = new System.Drawing.Drawing2D.GraphicsPath())
         {
-            g.DrawString(number, numberFont, halo, left - S(14), S(182));
+            var reach = new RectangleF(
+                left - numeral.Width * 0.28f,
+                numeralTop - numeral.Height * 0.10f,
+                numeral.Width * 1.56f,
+                numeral.Height * 1.20f);
+
+            halo.AddEllipse(reach);
+
+            using var glow = new System.Drawing.Drawing2D.PathGradientBrush(halo)
+            {
+                CenterColor = Color.FromArgb(strength, Palette.Accent),
+                SurroundColors = new[] { Color.FromArgb(0, Palette.Accent) },
+            };
+
+            g.FillPath(glow, halo);
         }
 
         using (var white = new SolidBrush(Palette.TextPrimary))
         {
-            g.DrawString(number, numberFont, white, left - S(18), S(178));
+            g.DrawString(number, numberFont, white, left - S(14), numeralTop);
         }
 
-        var chipTop = S(374);
+        // Placed under whatever the digits actually measured, not under where
+        // they were assumed to end. The last version put this at a fixed height
+        // and the number sat straight through it.
+        var chipText = _config.StationId.ToUpperInvariant() + "  ·  READY";
+        var chipFont = Arena.Display(FS(17f), FontStyle.Bold);
+        var chipTextWidth = Theme.MeasureTracked(g, chipText, chipFont, SF(3.4f));
+
         var chipHeight = S(46);
+        var chipTop = numeralTop + numeral.Height * 0.82f + S(14);
 
         using (var chip = new SolidBrush(Color.FromArgb(13, 255, 255, 255)))
         {
-            g.FillRectangle(chip, left, chipTop, S(300), chipHeight);
+            g.FillRectangle(chip, left, chipTop, chipTextWidth + S(48), chipHeight);
         }
 
         using (var edge = new SolidBrush(Palette.Accent))
@@ -619,39 +655,54 @@ internal sealed class LockedScreenForm : Form
             g.FillRectangle(edge, left, chipTop, S(4), chipHeight);
         }
 
-        var chipFont = Arena.Display(SF(17f), FontStyle.Bold);
         Theme.DrawTracked(
             g,
-            _config.StationId.ToUpperInvariant() + "  ·  READY",
+            chipText,
             chipFont,
             Palette.TextMuted,
-            left + S(22),
+            left + S(24),
             chipTop + (chipHeight - chipFont.Height) / 2f,
             SF(3.4f));
 
-        // The line that tells somebody standing there what to do, kept at the
-        // foot of the column where the eye lands after the number.
-        var headFont = Arena.Display(SF(46f), FontStyle.Bold);
+        // The line that tells somebody what to do, and the paragraph under it,
+        // both measured and then stacked upwards from the action bar. Fixed
+        // positions are what ran the paragraph underneath Pay now.
+        var headFont = Arena.Display(FS(46f), FontStyle.Bold);
+        using var bodyFont = Arena.Sans(FS(19f));
+
+        const string blurb =
+            "Tap Pay now, or scan the code with your phone. Your time starts when the counter approves it — not a second before.";
+
+        var blurbWidth = S(470);
+        var blurbSize = g.MeasureString(blurb, bodyFont, blurbWidth);
+
+        var blurbTop = ActionsTop() - S(38) - blurbSize.Height;
+        var headTop = blurbTop - S(10) - headFont.Height;
+
+        // Never over the number, however little room the screen has left.
+        var floor = chipTop + chipHeight + S(24);
+
+        if (headTop < floor)
+        {
+            headTop = floor;
+            blurbTop = headTop + headFont.Height + S(10);
+        }
+
         using (var white = new SolidBrush(Palette.TextPrimary))
         {
-            g.DrawString("Sit down and", headFont, white, left - S(4), S(560));
+            g.DrawString("Sit down and", headFont, white, left - S(4), headTop);
         }
 
         var headWidth = g.MeasureString("Sit down and ", headFont).Width;
 
         using (var coral = new SolidBrush(Palette.Accent))
         {
-            g.DrawString("play.", headFont, coral, left - S(4) + headWidth, S(560));
+            g.DrawString("play.", headFont, coral, left - S(4) + headWidth, headTop);
         }
 
-        using var bodyFont = Arena.Sans(SF(19f));
         using (var muted = new SolidBrush(Palette.TextMuted))
         {
-            g.DrawString(
-                "Tap Pay now, or scan the code with your phone. Your time starts when the counter approves it — not a second before.",
-                bodyFont,
-                muted,
-                new RectangleF(left, S(624), S(470), S(110)));
+            g.DrawString(blurb, bodyFont, muted, new RectangleF(left, blurbTop, blurbWidth, blurbSize.Height + S(4)));
         }
     }
 
@@ -659,10 +710,10 @@ internal sealed class LockedScreenForm : Form
     {
         var column = RatesColumn();
 
-        var headFont = Arena.Display(SF(18f), FontStyle.Bold);
+        var headFont = Arena.Display(FS(18f), FontStyle.Bold);
         Theme.DrawTracked(g, "RATES", headFont, Palette.TextMuted, column.Left, column.Top, SF(7.9f));
 
-        var noteFont = Arena.Display(SF(15f), FontStyle.Bold);
+        var noteFont = Arena.Display(FS(15f), FontStyle.Bold);
         var note = "COUNTER OR UPI";
         var noteWidth = Theme.MeasureTracked(g, note, noteFont, SF(3f));
         Theme.DrawTracked(g, note, noteFont, Palette.TextFaint, column.Right - noteWidth, column.Top + S(3), SF(3f));
@@ -676,8 +727,8 @@ internal sealed class LockedScreenForm : Form
         var gap = S(14);
         var top = column.Top + S(40);
 
-        var durFont = Arena.Display(SF(32f), FontStyle.Bold);
-        using var amtFont = Arena.Mono(SF(34f));
+        var durFont = Arena.Display(FS(32f), FontStyle.Bold);
+        using var amtFont = Arena.Mono(FS(34f));
 
         for (var i = 0; i < _priceRows.Count; i++)
         {
@@ -724,9 +775,12 @@ internal sealed class LockedScreenForm : Form
             g.DrawRectangle(edge, panel.Left, panel.Top, panel.Width - 1, panel.Height - 1);
         }
 
-        var codeSize = panel.Height - S(32);
-        var codeLeft = panel.Left + S(18);
-        var codeTop = panel.Top + S(16);
+        // As large as the panel will hold. A code that has to be scanned from a
+        // phone held at arm's length is the one thing on this screen where
+        // bigger is simply better.
+        var codeSize = panel.Height - S(28);
+        var codeLeft = panel.Left + S(14);
+        var codeTop = panel.Top + S(14);
 
         using (var white = new SolidBrush(Color.White))
         {
@@ -741,10 +795,10 @@ internal sealed class LockedScreenForm : Form
 
         var textLeft = codeLeft + codeSize + S(20);
 
-        var titleFont = Arena.Display(SF(20f), FontStyle.Bold);
+        var titleFont = Arena.Display(FS(20f), FontStyle.Bold);
         Theme.DrawTracked(g, "SCAN TO UNLOCK", titleFont, Palette.TextPrimary, textLeft, panel.Top + S(30), SF(2.8f));
 
-        using var bodyFont = Arena.Sans(SF(15f));
+        using var bodyFont = Arena.Sans(FS(15f));
         using (var faint = new SolidBrush(Palette.TextFaint))
         {
             g.DrawString(
@@ -753,7 +807,7 @@ internal sealed class LockedScreenForm : Form
                     : "This PC cannot reach\nthe website right now.",
                 bodyFont,
                 faint,
-                new RectangleF(textLeft, panel.Top + S(58), panel.Width - (textLeft - panel.Left) - S(16), S(60)));
+                new RectangleF(textLeft, panel.Top + S(76), panel.Width - (textLeft - panel.Left) - S(18), S(70)));
         }
     }
 
@@ -798,7 +852,7 @@ internal sealed class LockedScreenForm : Form
         }
 
         // The platform, where a platform belongs: small, grey, and last.
-        var markFont = Arena.Display(SF(14f), FontStyle.Bold);
+        var markFont = Arena.Display(FS(14f), FontStyle.Bold);
         Theme.DrawTracked(
             g,
             "BOOKMYGAME.CO.IN",
