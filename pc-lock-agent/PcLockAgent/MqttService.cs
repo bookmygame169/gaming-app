@@ -377,8 +377,14 @@ internal sealed class MqttService : IAsyncDisposable
             {
                 case "unlock":
                     var duration = command.DurationSeconds ?? 0;
-                    AgentLog.Info($"UNLOCK session={command.SessionId ?? "(none)"} duration={duration}s");
-                    RaiseOnUi(() => UnlockRequested?.Invoke(this, new UnlockEventArgs(duration, command.SessionId)));
+                    var openEnded = command.OpenEnded == true;
+
+                    AgentLog.Info(
+                        $"UNLOCK session={command.SessionId ?? "(none)"} duration={duration}s" +
+                        (openEnded ? " (unlimited plan; that is a backstop)" : string.Empty));
+
+                    RaiseOnUi(() => UnlockRequested?.Invoke(
+                        this, new UnlockEventArgs(duration, command.SessionId, openEnded)));
                     break;
 
                 case "lock":
@@ -483,9 +489,12 @@ internal sealed class MqttService : IAsyncDisposable
     }
 }
 
-internal sealed class UnlockEventArgs(int durationSeconds, string? sessionId) : EventArgs
+internal sealed class UnlockEventArgs(int durationSeconds, string? sessionId, bool openEnded) : EventArgs
 {
     public int DurationSeconds { get; } = durationSeconds;
 
     public string? SessionId { get; } = sessionId;
+
+    /// <summary>An unlimited plan: the duration is a backstop, not a budget.</summary>
+    public bool OpenEnded { get; } = openEnded;
 }

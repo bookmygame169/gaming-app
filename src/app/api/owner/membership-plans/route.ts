@@ -12,6 +12,7 @@ type MembershipPlanPayload = {
   console_type?: string;
   description?: string | null;
   hours?: number | null;
+  is_unlimited?: boolean;
   name?: string;
   plan_type?: string;
   player_count?: string;
@@ -35,6 +36,14 @@ function sanitizeMembershipPlanPayload(
       normalizePlanType(payload.plan_type) === "day_pass"
         ? null
         : payload.hours ?? null,
+
+    // Only an hours plan can be unlimited. A day pass is already bounded by the
+    // day it is sold for, and marking one unlimited would be two rules for when
+    // it ends.
+    is_unlimited:
+      normalizePlanType(payload.plan_type) === "day_pass"
+        ? false
+        : payload.is_unlimited === true,
     validity_days: payload.validity_days,
     plan_type: normalizePlanType(payload.plan_type),
     console_type: payload.console_type,

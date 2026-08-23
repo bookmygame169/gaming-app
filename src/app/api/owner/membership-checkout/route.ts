@@ -7,6 +7,7 @@ import {
   loadStationReservationState,
   reserveStations,
 } from "@/lib/ownerStationAssignments";
+import { insertBooking } from "@/lib/bookingInstants";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ type MembershipPlanRecord = {
   plan_type: string;
   console_type: string | null;
   is_active: boolean | null;
+  is_unlimited?: boolean | null;
 };
 
 function getDayPassWindow(now: Date = new Date()) {
@@ -141,7 +143,7 @@ export async function POST(request: NextRequest) {
   const planIds = Array.from(new Set(sanitizedItems.map((item) => item.planId)));
   const { data: plans, error: plansError } = await supabase
     .from("membership_plans")
-    .select("id, name, price, hours, validity_days, plan_type, console_type, is_active")
+    .select("id, name, price, hours, validity_days, plan_type, console_type, is_active, is_unlimited")
     .eq("cafe_id", cafeId)
     .in("id", planIds);
 
@@ -158,7 +160,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "One or more selected plans are invalid" }, { status: 400 });
     }
 
-    if (plan.plan_type !== "day_pass" && (!plan.hours || plan.hours <= 0)) {
+    // An unlimited plan has no hours on purpose, which is the one case this
+    // check must not read as a plan somebody forgot to finish setting up.
+    if (
+      plan.plan_type !== "day_pass" &&
+      plan.is_unlimited !== true &&
+      (!plan.hours || plan.hours <= 0)
+    ) {
       return NextResponse.json(
         { error: `${plan.name} is missing its configured hours` },
         { status: 400 }
@@ -211,8 +219,18 @@ export async function POST(request: NextRequest) {
 
     for (const [index, plan] of purchasedUnits.entries()) {
       const isDayPass = plan.plan_type === "day_pass";
+      const isUnlimited = plan.is_unlimited === true;
       const purchasedHours = isDayPass ? dayPassWindow.durationHours : Number(plan.hours || 0);
-      const membershipDuration = isDayPass ? dayPassWindow.durationMinutes : Math.round(purchasedHours * 60);
+
+      // An unlimited plan carries no hours, so there is no length to book
+      // against it. The booking this writes is the sale, not a sitting - the
+      // sitting is started later by scanning a PC, and ends when the member
+      // says so.
+      const membershipDuration = isDayPass
+        ? dayPassWindow.durationMinutes
+        : isUnlimited
+          ? 60
+          : Math.round(purchasedHours * 60);
       const amountPaid = toWholeRupees(perUnitAmounts[index] ?? 0);
       const expiryDate = isDayPass ? dayPassWindow.endAt : new Date(now);
       if (!isDayPass) {
@@ -233,6 +251,11 @@ export async function POST(request: NextRequest) {
           membership_plan_id: plan.id,
           hours_purchased: purchasedHours,
           hours_remaining: purchasedHours,
+
+          // Copied at the point of sale, so a plan later switched to unlimited
+          // does not silently change what somebody already bought - and the
+          // other way round.
+          is_unlimited: isUnlimited,
           amount_paid: amountPaid,
           payment_mode: paymentMode,
           purchase_date: now.toISOString(),
@@ -251,9 +274,7 @@ export async function POST(request: NextRequest) {
 
       createdSubscriptionIds.push(subscription.id);
 
-      const { data: booking, error: bookingError } = await supabase
-        .from("bookings")
-        .insert({
+      const { data: booking, error: bookingError } = await insertBooking(supabase, {
           cafe_id: cafeId,
           customer_name: customerName,
           customer_phone: customerPhone,
@@ -271,9 +292,7 @@ export async function POST(request: NextRequest) {
           status: "completed",
           source: "membership",
           payment_mode: paymentMode,
-        })
-        .select("id")
-        .single();
+        });
 
       if (bookingError || !booking?.id) {
         throw new Error(bookingError?.message || "Failed to create membership booking");

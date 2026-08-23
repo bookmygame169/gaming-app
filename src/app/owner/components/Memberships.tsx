@@ -14,6 +14,7 @@ interface MembershipPlan {
     description?: string | null;
     price: number;
     hours: number | null;
+    is_unlimited?: boolean | null;
     validity_days: number;
     plan_type: MembershipPlanType | 'hourly_bundle';
     console_type: string;
@@ -34,6 +35,7 @@ interface Subscription {
     payment_mode: string;
     customer_name: string;
     customer_phone: string;
+    is_unlimited?: boolean | null;
     membership_plans: MembershipPlan | null;
 }
 
@@ -212,6 +214,7 @@ export function Memberships({
     const [newPlanHours, setNewPlanHours] = useState('');
     const [newPlanValidity, setNewPlanValidity] = useState('30');
     const [newPlanType, setNewPlanType] = useState<MembershipPlanType>('hourly_package');
+    const [newPlanUnlimited, setNewPlanUnlimited] = useState(false);
     const [newPlanConsoleType, setNewPlanConsoleType] = useState('PC');
     const [newPlanPlayerCount, setNewPlanPlayerCount] = useState('single');
 
@@ -247,7 +250,7 @@ export function Memberships({
             return;
         }
 
-        if (isHourlyPlan(newPlanType) && !newPlanHours) {
+        if (isHourlyPlan(newPlanType) && !newPlanUnlimited && !newPlanHours) {
             alert('Please enter hours for an hourly plan');
             return;
         }
@@ -258,7 +261,8 @@ export function Memberships({
                 name: newPlanName,
                 description: newPlanDescription || null,
                 price: parseFloat(newPlanPrice),
-                hours: isHourlyPlan(newPlanType) && newPlanHours ? parseFloat(newPlanHours) : null,
+                hours: isHourlyPlan(newPlanType) && !newPlanUnlimited && newPlanHours ? parseFloat(newPlanHours) : null,
+                is_unlimited: isHourlyPlan(newPlanType) && newPlanUnlimited,
                 validity_days: newPlanType === 'day_pass' ? 1 : parseInt(newPlanValidity),
                 plan_type: normalizePlanType(newPlanType),
                 console_type: newPlanConsoleType,
@@ -310,6 +314,7 @@ export function Memberships({
         setNewPlanHours('');
         setNewPlanValidity('30');
         setNewPlanType('hourly_package');
+        setNewPlanUnlimited(false);
         setNewPlanConsoleType('PC');
         setNewPlanPlayerCount('single');
     };
@@ -396,6 +401,7 @@ export function Memberships({
         setNewPlanHours(plan.hours?.toString() || '');
         setNewPlanValidity(plan.validity_days.toString());
         setNewPlanType(normalizePlanType(plan.plan_type));
+        setNewPlanUnlimited(plan.is_unlimited === true);
         setNewPlanConsoleType(plan.console_type || 'PC');
         setNewPlanPlayerCount(plan.player_count || 'single');
         setShowPlanModal(true);
@@ -514,7 +520,7 @@ export function Memberships({
                                     const percent = (currentRem / (sub.hours_purchased || 1)) * 100;
                                     const isRunning = activeTimers.has(sub.id);
 
-                                    const isLowHours = sub.status === 'active' && currentRem < 1 && sub.membership_plans?.plan_type !== 'day_pass';
+                                    const isLowHours = sub.status === 'active' && !sub.is_unlimited && currentRem < 1 && sub.membership_plans?.plan_type !== 'day_pass';
                                     const isAlmostEmpty = sub.status === 'active' && currentRem < 0.25;
                                     const daysToExpiry = sub.expiry_date
                                         ? Math.ceil((new Date(sub.expiry_date).getTime() - Date.now()) / 86400000)
@@ -560,7 +566,14 @@ export function Memberships({
 
 	                                                {/* Progress */}
 	                                                <div className="flex-1 md:max-w-xs">
-                                                    {sub.membership_plans?.plan_type === 'day_pass' ? (
+                                                    {sub.is_unlimited ? (
+                                                        <div className="flex justify-between text-xs mb-1.5">
+                                                            <span className="text-slate-400">Balance</span>
+                                                            <span className={`font-medium ${isRunning ? 'text-emerald-400' : 'text-slate-200'}`}>
+                                                                Unlimited
+                                                            </span>
+                                                        </div>
+                                                    ) : sub.membership_plans?.plan_type === 'day_pass' ? (
                                                         <div className="flex justify-between text-xs mb-1.5">
                                                             <span className="text-slate-400">Ends at</span>
                                                             <span className={`font-mono font-medium ${isRunning ? 'text-emerald-400' : 'text-slate-200'}`}>
@@ -577,9 +590,9 @@ export function Memberships({
                                                     )}
                                                     <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h-full rounded-full transition-all duration-1000 ${percent < 10 ? 'bg-red-500' : percent < 30 ? 'bg-amber-500' : 'bg-emerald-500'
+                                                            className={`h-full rounded-full transition-all duration-1000 ${sub.is_unlimited ? 'bg-emerald-500' : percent < 10 ? 'bg-red-500' : percent < 30 ? 'bg-amber-500' : 'bg-emerald-500'
                                                                 }`}
-                                                            style={{ width: `${percent}%` }}
+                                                            style={{ width: `${sub.is_unlimited ? 100 : percent}%` }}
                                                         />
                                                     </div>
                                                 </div>
@@ -620,7 +633,7 @@ export function Memberships({
                                                     >
                                                         <Edit2 size={14} />
                                                     </Button>
-                                                    {sub.status === 'active' && sub.membership_plans?.plan_type !== 'day_pass' && (
+                                                    {sub.status === 'active' && !sub.is_unlimited && sub.membership_plans?.plan_type !== 'day_pass' && (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
@@ -802,13 +815,33 @@ export function Memberships({
                                         <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Hours</label>
                                         <input
                                             type="number"
-                                            className="w-full bg-white/[0.06] border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-                                            value={newPlanHours}
+                                            disabled={newPlanUnlimited}
+                                            placeholder={newPlanUnlimited ? 'No limit' : ''}
+                                            className="w-full bg-white/[0.06] border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                                            value={newPlanUnlimited ? '' : newPlanHours}
                                             onChange={e => setNewPlanHours(e.target.value)}
                                         />
                                     </div>
                                 )}
                             </div>
+
+                            {isHourlyPlan(newPlanType) && (
+                                <label className="flex items-start gap-2.5 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 py-2.5 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newPlanUnlimited}
+                                        onChange={e => setNewPlanUnlimited(e.target.checked)}
+                                        className="mt-0.5 accent-emerald-500"
+                                    />
+                                    <span>
+                                        <span className="block text-sm font-medium text-white">Unlimited play</span>
+                                        <span className="block text-[11px] text-slate-400 leading-relaxed">
+                                            No hours are deducted and the PC shows no countdown. Members on this
+                                            plan play until they end the session themselves.
+                                        </span>
+                                    </span>
+                                </label>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <Select

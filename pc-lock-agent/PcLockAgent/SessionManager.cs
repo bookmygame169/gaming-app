@@ -71,6 +71,19 @@ internal sealed class SessionManager : IDisposable
 
     public string? SessionId { get; private set; }
 
+    /// <summary>
+    /// An unlimited membership: the deadline is a backstop, not a budget.
+    /// </summary>
+    /// <remarks>
+    /// The countdown still runs, because a member who walks out without ending
+    /// their session must not leave a PC unlocked all night. What changes is
+    /// that nothing tells the customer about it - no clock on the menu, and no
+    /// warnings at ten, five and two minutes. A countdown on a plan sold as
+    /// unlimited is the machine calling the café a liar, and a warning that
+    /// their time is nearly up is simply untrue.
+    /// </remarks>
+    public bool OpenEnded { get; private set; }
+
     public TimeSpan TimeRemaining
     {
         get
@@ -93,9 +106,10 @@ internal sealed class SessionManager : IDisposable
     /// so a suspended or sleeping machine cannot be used to bank extra time — on
     /// wake the deadline has simply passed.
     /// </remarks>
-    public void Start(int durationSeconds, string? sessionId)
+    public void Start(int durationSeconds, string? sessionId, bool openEnded = false)
     {
         SessionId = sessionId;
+        OpenEnded = openEnded;
         _firedWarnings.Clear();
 
         if (durationSeconds <= 0)
@@ -176,6 +190,7 @@ internal sealed class SessionManager : IDisposable
         _timer.Stop();
         _endsAtUtc = null;
         SessionId = null;
+        OpenEnded = false;
         _firedWarnings.Clear();
         ClearPersistedState();
     }
@@ -226,6 +241,7 @@ internal sealed class SessionManager : IDisposable
 
             SessionId = persisted.SessionId;
             _endsAtUtc = persisted.EndsAtUtc;
+            OpenEnded = persisted.OpenEnded;
             _firedWarnings.Clear();
             _timer.Start();
 
@@ -270,6 +286,11 @@ internal sealed class SessionManager : IDisposable
         }
 
         var secondsLeft = (int)Math.Ceiling(remaining.TotalSeconds);
+        if (OpenEnded)
+        {
+            return;
+        }
+
         foreach (var threshold in WarningThresholds)
         {
             // Fires once per threshold, and still fires if a tick was missed
@@ -295,7 +316,7 @@ internal sealed class SessionManager : IDisposable
 
         try
         {
-            var json = JsonSerializer.Serialize(new PersistedSession(SessionId, endsAt));
+            var json = JsonSerializer.Serialize(new PersistedSession(SessionId, endsAt, OpenEnded));
             File.WriteAllText(_statePath, json);
         }
         catch (Exception ex)
@@ -330,5 +351,9 @@ internal sealed class SessionManager : IDisposable
 
     private sealed record PersistedSession(
         [property: JsonPropertyName("sessionId")] string? SessionId,
-        [property: JsonPropertyName("endsAtUtc")] DateTimeOffset EndsAtUtc);
+        [property: JsonPropertyName("endsAtUtc")] DateTimeOffset EndsAtUtc,
+
+        // Optional, so a file written by an older build still loads: absent
+        // reads as false, which is what every session before this one was.
+        [property: JsonPropertyName("openEnded")] bool OpenEnded = false);
 }

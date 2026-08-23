@@ -14,7 +14,17 @@ import mqtt from "mqtt";
  */
 
 export type StationCommand =
-  | { action: "unlock"; duration_seconds: number; session_id: string }
+  | {
+      action: "unlock";
+      duration_seconds: number;
+      session_id: string;
+
+      // An unlimited membership: the seconds above are a backstop against
+      // somebody walking out, not time the customer is spending. A station
+      // told this shows no countdown and gives no time warnings, because
+      // there is no time to run out of.
+      open_ended?: boolean;
+    }
   | { action: "lock" }
   | { action: "warn"; remaining_seconds: number }
 

@@ -8,6 +8,7 @@ import { consoleTypeOf } from "@/lib/stationPlayPricing";
 import { getIndiaCurrentMinutes, getIndiaDateString } from "@/lib/bookingFilters";
 import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
 import { toRupees } from "@/lib/wallet";
+import { insertBooking } from "@/lib/bookingInstants";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ type PlanRow = {
   hours: number | null;
   validity_days: number | null;
   plan_type: string;
+  is_unlimited?: boolean | null;
 };
 
 /** Minutes from now until the café closes, in IST. */
@@ -245,7 +247,7 @@ async function approve(
   if (playRequest.membership_plan_id) {
     const { data } = await supabase
       .from("membership_plans")
-      .select("id, name, hours, validity_days, plan_type")
+      .select("id, name, hours, validity_days, plan_type, is_unlimited")
       .eq("id", playRequest.membership_plan_id)
       .maybeSingle();
     plan = (data as PlanRow) || null;
@@ -289,9 +291,7 @@ async function approve(
   const consoleType = consoleTypeOf(stationName);
   const assignment = stationAssignmentFields(minutes, [stationName]);
 
-  const { data: booking, error: bookingError } = await supabase
-    .from("bookings")
-    .insert({
+  const { data: booking, error: bookingError } = await insertBooking(supabase, {
       cafe_id: playRequest.cafe_id,
       user_id: null,
       customer_name: playRequest.customer_name,
@@ -303,9 +303,7 @@ async function approve(
       status: "in-progress",
       payment_mode: playRequest.payment_method === "online" ? "upi" : "cash",
       source: "walk-in",
-    })
-    .select("id")
-    .single();
+    });
 
   if (bookingError || !booking?.id) {
     console.error("Could not record the play-request booking:", bookingError?.message);
@@ -351,6 +349,7 @@ async function approve(
         membership_plan_id: plan.id,
         hours_purchased: hours,
         hours_remaining: hours,
+        is_unlimited: plan.is_unlimited === true,
         amount_paid: amount,
         expiry_date: expiry.toISOString(),
         status: "active",
@@ -386,7 +385,7 @@ async function approve(
       action: "unlock",
       duration_seconds: minutes * 60,
       session_id: sessionId,
-    }));
+    }), { cafeId: playRequest.cafe_id });
   } catch (err) {
     console.error("Could not send the unlock:", err);
 

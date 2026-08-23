@@ -225,7 +225,8 @@ internal sealed class AgentShell : ApplicationContext
         // customers that a browser needs clearing.
         BrowserAccess.ClearProfile();
 
-        _session.Start(e.DurationSeconds, e.SessionId);
+        _session.Start(e.DurationSeconds, e.SessionId, e.OpenEnded);
+        _gameMenu.SetOpenEnded(e.OpenEnded);
         EnterUnlockedState(e.SessionId);
     }
 
@@ -246,6 +247,7 @@ internal sealed class AgentShell : ApplicationContext
         // Menu up before the lock screen goes down. The other order leaves a
         // frame or two with neither on screen, which shows the desktop.
         _gameMenu.ShowMenu();
+        _gameMenu.SetOpenEnded(_session.OpenEnded);
         _gameMenu.UpdateRemaining(_session.TimeRemaining);
         _lockedScreen.Hide();
 
@@ -695,7 +697,7 @@ internal sealed class AgentShell : ApplicationContext
     private void SimulateUnlock()
     {
         AgentLog.Info("Dev chord: simulating unlock.");
-        OnUnlockRequested(this, new UnlockEventArgs(3600, "dev-simulated"));
+        OnUnlockRequested(this, new UnlockEventArgs(3600, "dev-simulated", false));
     }
 
     /// <summary>
@@ -705,7 +707,7 @@ internal sealed class AgentShell : ApplicationContext
     private void SimulateShortSession()
     {
         AgentLog.Info("Dev chord: simulating a 90-second session.");
-        OnUnlockRequested(this, new UnlockEventArgs(90, "dev-short"));
+        OnUnlockRequested(this, new UnlockEventArgs(90, "dev-short", false));
     }
 
     private void SimulateLock()

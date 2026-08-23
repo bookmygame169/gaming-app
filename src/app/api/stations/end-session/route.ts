@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 type ActiveSubscription = {
   id: string;
   hours_remaining: number | string | null;
+  is_unlimited?: boolean | null;
   timer_start_time: string | null;
   membership_plan_id: string | null;
   membership_plans: { name: string | null; plan_type: string | null } | null;
@@ -37,7 +38,11 @@ function settlementFor(subscription: ActiveSubscription, endedAt: Date) {
   return {
     startedAt,
     elapsedHours,
-    hoursRemaining: Math.max(0, before - elapsedHours),
+
+    // Nothing comes off an unlimited plan. How long they played is still
+    // worked out and still recorded, because the café wants to know how its
+    // machines are used - it simply is not deducted from anything.
+    hoursRemaining: subscription.is_unlimited ? before : Math.max(0, before - elapsedHours),
   };
 }
 
@@ -92,6 +97,7 @@ export async function POST(request: NextRequest) {
       hoursUsed: Number(settled.hoursUsed.toFixed(2)),
       hoursRemaining: Number(settled.hoursRemaining.toFixed(2)),
       isDayPass: settled.isDayPass,
+      isUnlimited: settled.isUnlimited,
     });
   } catch (err) {
     console.error("Unexpected error ending a station session:", err);
@@ -111,12 +117,13 @@ async function settleSubscriptions(
     hoursUsed: 0,
     hoursRemaining: 0,
     isDayPass: false,
+    isUnlimited: false,
     minutesPlayed: 0,
   };
 
   const { data, error } = await supabase
     .from("subscriptions")
-    .select(`id, hours_remaining, timer_start_time, membership_plan_id,
+    .select(`id, hours_remaining, timer_start_time, membership_plan_id, is_unlimited,
              membership_plans(name, plan_type)`)
     .eq("cafe_id", cafeId)
     .eq("assigned_console_station", stationName)
@@ -184,13 +191,15 @@ async function settleSubscriptions(
     result.count += 1;
     result.planName ??= plan?.name || null;
     result.isDayPass ||= isDayPass;
+    result.isUnlimited ||= subscription.is_unlimited === true;
     result.hoursUsed += elapsedHours;
     result.hoursRemaining += hoursRemaining;
     result.minutesPlayed = Math.max(result.minutesPlayed, Math.round(elapsedHours * 60));
 
     console.log(
-      `${stationName} ended: ${elapsedHours.toFixed(2)}h used, ${hoursRemaining.toFixed(2)}h left ` +
-        `on subscription ${subscription.id}.`
+      `${stationName} ended: ${elapsedHours.toFixed(2)}h used, ` +
+        (subscription.is_unlimited ? "unlimited plan (nothing deducted)" : `${hoursRemaining.toFixed(2)}h left`) +
+        ` on subscription ${subscription.id}.`
     );
   }
 

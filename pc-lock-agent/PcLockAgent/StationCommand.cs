@@ -28,6 +28,19 @@ internal sealed record StationCommand
     [JsonPropertyName("session_id")]
     public string? SessionId { get; init; }
 
+    /// <summary>
+    /// An unlimited membership, where the duration is only a backstop.
+    /// </summary>
+    /// <remarks>
+    /// The seconds on the command still arrive and are still counted, because
+    /// a member who walks out without ending their session must not leave a PC
+    /// unlocked all night. But they are not time the customer is spending, so
+    /// the screen shows no clock and gives no warnings - a countdown on a plan
+    /// sold as unlimited is the machine calling the café a liar.
+    /// </remarks>
+    [JsonPropertyName("open_ended")]
+    public bool? OpenEnded { get; init; }
+
     [JsonPropertyName("remaining_seconds")]
     public int? RemainingSeconds { get; init; }
 

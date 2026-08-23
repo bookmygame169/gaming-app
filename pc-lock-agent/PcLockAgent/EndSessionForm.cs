@@ -220,7 +220,18 @@ internal sealed class EndSessionForm : Form
         _confirmButton.Text = "Done";
         _confirmButton.Tag = "done";
 
-        if (result is { Settled: true } && !result.IsDayPass)
+        if (result is { Settled: true, IsUnlimited: true })
+        {
+            // No balance to report, because nothing came off one. Telling an
+            // unlimited member how many hours they have left would be the one
+            // screen in the whole app that contradicts what they bought.
+            _title.Text = "Thanks for playing";
+            _body.Text =
+                $"You played for {FormatHours(result.HoursUsed)}.\r\n\r\n"
+                + $"Your {result.PlanName ?? "membership"} has no limit — scan the code on the "
+                + "lock screen whenever you want to play again.";
+        }
+        else if (result is { Settled: true } && !result.IsDayPass)
         {
             _title.Text = "Thanks for playing";
             _body.Text =

@@ -83,6 +83,29 @@ internal sealed class GameMenuForm : Form
     // what they show lives here instead of on a control.
     private TimeSpan _remaining;
     private double _remainingFraction = 1;
+
+    /// <summary>
+    /// An unlimited membership, where there is no time to show.
+    /// </summary>
+    /// <remarks>
+    /// The session still has a deadline - a member who walks out must not leave
+    /// a PC open all night - but it is a backstop, not time the customer is
+    /// spending. Showing it would be the machine calling the café a liar about
+    /// the plan it just sold.
+    /// </remarks>
+    private bool _openEnded;
+
+    /// <summary>Says this session has no clock worth showing.</summary>
+    public void SetOpenEnded(bool openEnded)
+    {
+        if (_openEnded == openEnded)
+        {
+            return;
+        }
+
+        _openEnded = openEnded;
+        Invalidate();
+    }
     private TimeSpan _sessionLength = TimeSpan.Zero;
     private Panel _hero = null!;
 
@@ -385,10 +408,27 @@ internal sealed class GameMenuForm : Form
 
             // The countdown leads, because it is the thing a customer looks up
             // to check. Everything else on this bar is a label for it.
-            var text = FormatRemaining();
-            var urgent = _remaining > TimeSpan.Zero && _remaining.TotalMinutes <= 5;
+            var text = _openEnded ? "UNLIMITED" : FormatRemaining();
+            var urgent = !_openEnded && _remaining > TimeSpan.Zero && _remaining.TotalMinutes <= 5;
 
-            if (text.Length > 0)
+            if (_openEnded)
+            {
+                // Set in the display face rather than the clock face: it is a
+                // word, and Consolas at clock size makes a word look like a
+                // reading from an instrument.
+                var wordFont = Arena.Heavy(26f);
+
+                using (var lime = new SolidBrush(Palette.Accent))
+                {
+                    g.DrawString(text, wordFont, lime, left, middle - wordFont.Height / 2f);
+                }
+
+                left += g.MeasureString(text, wordFont).Width + 12f;
+
+                Theme.DrawTracked(g, "MEMBERSHIP", labelFont, Palette.TextMuted, left, middle - labelFont.Height / 2f + 4f, 4.4f);
+                left += Theme.MeasureTracked(g, "MEMBERSHIP", labelFont, 4.4f) + 30f;
+            }
+            else if (text.Length > 0)
             {
                 using (var brush = new SolidBrush(urgent ? Palette.Accent : Palette.TextPrimary))
                 {
@@ -437,7 +477,9 @@ internal sealed class GameMenuForm : Form
                 g.FillRectangle(track, left, railTop, railWidth, 5f);
             }
 
-            var filled = (float)Math.Max(0, Math.Min(1, _remainingFraction)) * railWidth;
+            var filled = _openEnded
+                ? railWidth
+                : (float)Math.Max(0, Math.Min(1, _remainingFraction)) * railWidth;
 
             if (filled <= 0)
             {

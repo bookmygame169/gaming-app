@@ -16,6 +16,7 @@ import { getIndiaCurrentMinutes } from "@/lib/bookingFilters";
 import { minutesToTimeString, convertTo12Hour } from "@/lib/timeUtils";
 import { encodeAssignedStationsTitle } from "@/lib/ownerStationAssignments";
 import { randomUUID } from "crypto";
+import { insertBooking } from "@/lib/bookingInstants";
 
 export const dynamic = "force-dynamic";
 
@@ -263,7 +264,7 @@ async function startOnPlan(
   // about to lapse should be the ones spent.
   const { data: allSubs } = await supabase
     .from("subscriptions")
-    .select("id, customer_phone, hours_remaining, status, expiry_date, timer_active")
+    .select("id, customer_phone, hours_remaining, status, expiry_date, timer_active, is_unlimited")
     .eq("cafe_id", station.cafe_id)
     .eq("status", "active");
 
@@ -272,8 +273,16 @@ async function startOnPlan(
   const usable = (allSubs || [])
     .filter((row) => phoneKey(row.customer_phone as string | null) === key)
     .filter((row) => !row.expiry_date || String(row.expiry_date) >= today)
-    .filter((row) => (Number(row.hours_remaining) || 0) > 0)
-    .sort((a, b) => String(a.expiry_date || "").localeCompare(String(b.expiry_date || "")));
+    // An unlimited plan has no balance to run down, so the hours on it say
+    // nothing about whether it can be used.
+    .filter((row) => row.is_unlimited === true || (Number(row.hours_remaining) || 0) > 0)
+
+    // Soonest to expire first, and an unlimited plan last of all: hours that
+    // lapse should be spent before a plan that cannot be used up.
+    .sort((a, b) => {
+      if (a.is_unlimited !== b.is_unlimited) return a.is_unlimited ? 1 : -1;
+      return String(a.expiry_date || "").localeCompare(String(b.expiry_date || ""));
+    });
 
   if (usable.length === 0) {
     return NextResponse.json(
@@ -294,8 +303,15 @@ async function startOnPlan(
   }
 
   const chosen = usable[0];
+  const unlimited = chosen.is_unlimited === true;
   const hoursLeft = Number(chosen.hours_remaining) || 0;
-  const minutes = Math.max(15, Math.min(MAX_PLAN_SESSION_MINUTES, Math.round(hoursLeft * 60)));
+
+  // The backstop is the whole session for an unlimited plan. It is not a limit
+  // anybody is meant to meet - it exists so a member who walks out without
+  // ending their session does not leave a PC unlocked all night.
+  const minutes = unlimited
+    ? MAX_PLAN_SESSION_MINUTES
+    : Math.max(15, Math.min(MAX_PLAN_SESSION_MINUTES, Math.round(hoursLeft * 60)));
 
   // Claimed before anything is written, and it is single-use: two people
   // scanning the same screen cannot both start a session on it.
@@ -317,9 +333,7 @@ async function startOnPlan(
   // Amount zero, and that is correct rather than a placeholder: the money was
   // taken when the membership was sold. Counting it again here would report the
   // same rupees twice.
-  const { data: booking, error: bookingError } = await supabase
-    .from("bookings")
-    .insert({
+  const { data: booking, error: bookingError } = await insertBooking(supabase, {
       cafe_id: station.cafe_id,
       user_id: userId,
       customer_name: customerName,
@@ -331,9 +345,7 @@ async function startOnPlan(
       status: "in-progress",
       payment_mode: "membership",
       source: "qr",
-    })
-    .select("id")
-    .single();
+    });
 
   if (bookingError || !booking?.id) {
     console.error("Could not record the plan session:", bookingError?.message);
@@ -380,7 +392,8 @@ async function startOnPlan(
       action: "unlock",
       duration_seconds: minutes * 60,
       session_id: sessionId,
-    }));
+      open_ended: unlimited,
+    }), { cafeId: station.cafe_id });
   } catch (err) {
     console.error("Could not unlock for a plan session:", err);
 
@@ -616,9 +629,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const startTime = convertTo12Hour(minutesToTimeString(getIndiaCurrentMinutes()));
     const stationTitle = encodeAssignedStationsTitle(durationMinutes, [station.station_name]);
 
-    const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .insert({
+    const { data: booking, error: bookingError } = await insertBooking(supabase, {
         cafe_id: station.cafe_id,
         user_id: userId,
         customer_name: customerName,
@@ -630,9 +641,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         status: method === "upi" ? "pending" : "confirmed",
         payment_mode: method,
         source: "qr",
-      })
-      .select("id")
-      .single();
+      });
 
     if (bookingError || !booking?.id) {
       console.error("Could not record the QR booking:", bookingError?.message);
@@ -777,7 +786,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         action: "unlock",
         duration_seconds: Math.round(durationMinutes * 60),
         session_id: sessionId,
-      }));
+      }), { cafeId: station.cafe_id });
     } catch (err) {
       console.error("QR unlock publish failed, refunding:", err);
 

@@ -52,7 +52,8 @@ internal sealed record EndSessionResult(
     [property: JsonPropertyName("planName")] string? PlanName,
     [property: JsonPropertyName("hoursUsed")] double HoursUsed,
     [property: JsonPropertyName("hoursRemaining")] double HoursRemaining,
-    [property: JsonPropertyName("isDayPass")] bool IsDayPass);
+    [property: JsonPropertyName("isDayPass")] bool IsDayPass,
+    [property: JsonPropertyName("isUnlimited")] bool IsUnlimited = false);
 
 /// <summary>Where a request has got to.</summary>
 internal sealed record PlayRequestStatus(
