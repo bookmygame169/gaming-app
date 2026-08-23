@@ -40,6 +40,20 @@ internal sealed class LockedScreenForm : Form
     private Button _restartButton = null!;
     private Button _shutDownButton = null!;
     private System.Windows.Forms.Timer? _clockTimer;
+    private System.Windows.Forms.Timer? _motionTimer;
+
+    /// <summary>
+    /// Where each of the three moving things has got to, 0 to 1.
+    /// </summary>
+    /// <remarks>
+    /// Kept as phases rather than as pixel positions so the speeds are stated
+    /// once, in seconds, and nothing has to be re-tuned for a different screen.
+    /// </remarks>
+    private float _floorPhase;
+    private float _breathPhase;
+    private float _pulsePhase;
+
+    private readonly System.Diagnostics.Stopwatch _motionClock = System.Diagnostics.Stopwatch.StartNew();
 
     // ---- geometry -----------------------------------------------------------
     //
@@ -189,11 +203,32 @@ internal sealed class LockedScreenForm : Form
             Bounds.Width / (float)DesignWidth,
             Bounds.Height / (float)DesignHeight);
 
-        // The clock is the one thing on here that has to keep moving. A minute
-        // is enough: it shows hours and minutes.
+        // The clock only shows hours and minutes, so twenty seconds is plenty.
         _clockTimer = new System.Windows.Forms.Timer { Interval = 20_000 };
         _clockTimer.Tick += (_, _) => Invalidate(ClockArea());
         _clockTimer.Start();
+
+        // Fifteen frames a second, and only over the parts that actually move.
+        //
+        // The whole screen at this rate would be tens of millions of pixels a
+        // second on a machine whose graphics card is meant for the game, not
+        // for this. Three small rectangles is a rounding error by comparison,
+        // and it stops the moment the screen is hidden - a session must never
+        // be paying for a lock screen nobody can see.
+        _motionTimer = new System.Windows.Forms.Timer { Interval = 66 };
+        _motionTimer.Tick += (_, _) => AdvanceMotion();
+
+        VisibleChanged += (_, _) =>
+        {
+            if (Visible)
+            {
+                _motionTimer?.Start();
+            }
+            else
+            {
+                _motionTimer?.Stop();
+            }
+        };
     }
 
     protected override void OnPaintBackground(PaintEventArgs e)
@@ -207,6 +242,8 @@ internal sealed class LockedScreenForm : Form
         {
             _clockTimer?.Stop();
             _clockTimer?.Dispose();
+            _motionTimer?.Stop();
+            _motionTimer?.Dispose();
             _scanCode?.Dispose();
             _scanCode = null;
         }
@@ -264,40 +301,81 @@ internal sealed class LockedScreenForm : Form
     // Layout
     // -----------------------------------------------------------------------
 
-    private Rectangle ClockArea() => new(Width - S(360), S(18), S(320), S(40));
+    // -----------------------------------------------------------------------
+    // Geometry
+    //
+    // Every number below is a position on a 1600 × 900 sheet, scaled by S() to
+    // whatever this screen actually is. One sheet, one set of numbers.
+    // -----------------------------------------------------------------------
 
-    private Rectangle PayPanel() => new(
-        Width - S(46) - S(660),
-        S(470),
-        S(660),
-        S(384));
+    private const int Margin = 64;
+    private const int BarHeight = 104;
+    private const int ActionsHeight = 128;
+    private const int FootHeight = 56;
+    private const int ScanWidth = 420;
+
+    private Rectangle ClockArea() => new(Width - S(430), S(20), S(410), S(64));
+
+    private Rectangle RatesColumn() => new(Width - S(Margin) - S(620), S(146), S(620), S(340));
+
+    private int ActionsTop() => Height - S(FootHeight) - S(ActionsHeight);
+
+    private Rectangle PayButtonArea() => new(
+        S(Margin),
+        ActionsTop(),
+        Math.Max(S(200), Width - S(Margin) * 2 - S(22) - S(ScanWidth)),
+        S(ActionsHeight));
+
+    private Rectangle ScanArea() => new(
+        Width - S(Margin) - S(ScanWidth),
+        ActionsTop(),
+        S(ScanWidth),
+        S(ActionsHeight));
+
+    /// <summary>The glow behind the station number, which breathes.</summary>
+    private Rectangle NumeralArea() => new(0, S(150), S(560), S(280));
+
+    /// <summary>The floor, which is the one thing always moving.</summary>
+    private Rectangle FloorArea() => new(0, Height - (int)(Height * 0.32f), Width, (int)(Height * 0.32f));
 
     private void BuildControls()
     {
-        var panel = PayPanel();
-
         _payButton = new Button
         {
-            Text = "PAY AND PLAY",
-            Font = Arena.Sans(SF(15f), FontStyle.Bold),
-            ForeColor = Color.White,
+            Text = string.Empty,
             BackColor = Palette.Accent,
             FlatStyle = FlatStyle.Flat,
             Cursor = Cursors.Hand,
-            Left = panel.Left + S(34),
-            Top = panel.Bottom - S(34) - S(66),
-            Width = panel.Width - S(68),
-            Height = S(66),
+            Bounds = PayButtonArea(),
             FlatAppearance = { BorderSize = 0 },
         };
 
+        // Painted rather than labelled, because a Button cannot letter-space
+        // its own text and the spacing is most of what makes this read as
+        // equipment rather than as a form.
+        _payButton.Paint += (_, e) =>
+        {
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            using var font = Arena.Display(SF(30f), FontStyle.Bold);
+            var width = Theme.MeasureTracked(e.Graphics, "PAY NOW", font, SF(8f));
+
+            Theme.DrawTracked(
+                e.Graphics,
+                "PAY NOW",
+                font,
+                Color.FromArgb(0x16, 0x04, 0x0B),
+                (_payButton.Width - width) / 2f,
+                (_payButton.Height - font.Height) / 2f,
+                SF(8f));
+        };
+
         _payButton.Click += (_, _) => PayNowRequested?.Invoke(this, EventArgs.Empty);
-        Arena.CutCorners(_payButton, S(18));
 
         Controls.Add(_payButton);
 
-        // Bottom-left, small, and a long way from Pay and play. These are for
-        // the end of a visit or a machine that needs turning round, not for
+        // Bottom right, small, and a long way from Pay now. These are for the
+        // end of a visit or a machine that needs turning round, not for
         // anybody who came here to start playing.
         _restartButton = PowerButton("RESTART");
         _restartButton.Click += (_, _) => RestartRequested?.Invoke(this, EventArgs.Empty);
@@ -318,10 +396,10 @@ internal sealed class LockedScreenForm : Form
         ForeColor = Palette.TextDim,
         BackColor = Palette.Background,
         FlatStyle = FlatStyle.Flat,
-        Width = S(132),
-        Height = S(38),
+        Width = S(126),
+        Height = S(34),
         Cursor = Cursors.Hand,
-        FlatAppearance = { BorderSize = 1, BorderColor = Color.FromArgb(38, 255, 255, 255) },
+        FlatAppearance = { BorderSize = 1, BorderColor = Color.FromArgb(30, 255, 255, 255) },
     };
 
     /// <summary>
@@ -339,13 +417,48 @@ internal sealed class LockedScreenForm : Form
             return;
         }
 
-        var top = Height - S(52) - S(38) / 2;
+        var top = Height - S(FootHeight) + (S(FootHeight) - S(34)) / 2;
 
-        _restartButton.Left = S(46);
-        _restartButton.Top = top;
-
-        _shutDownButton.Left = _restartButton.Right + S(10);
+        _shutDownButton.Left = Width - S(Margin) - _shutDownButton.Width;
         _shutDownButton.Top = top;
+
+        _restartButton.Left = _shutDownButton.Left - S(10) - _restartButton.Width;
+        _restartButton.Top = top;
+    }
+
+    /// <summary>
+    /// Moves the three animations on, and asks for only what changed.
+    /// </summary>
+    /// <remarks>
+    /// The floor runs on a seven-second loop, the number breathes over five and
+    /// a half, and the ring leaves Pay now every three and a half. None of them
+    /// are in step with each other, deliberately: three things pulsing together
+    /// reads as a fault light.
+    /// </remarks>
+    private void AdvanceMotion()
+    {
+        if (IsDisposed || !Visible)
+        {
+            return;
+        }
+
+        var seconds = (float)_motionClock.Elapsed.TotalSeconds;
+
+        _floorPhase = seconds / 7f % 1f;
+        _breathPhase = seconds / 5.5f % 1f;
+        _pulsePhase = seconds / 3.4f % 1f;
+
+        Invalidate(FloorArea());
+        Invalidate(NumeralArea());
+
+        var button = PayButtonArea();
+        var reach = S(20);
+
+        Invalidate(new Rectangle(
+            button.Left - reach,
+            button.Top - reach,
+            button.Width + reach * 2,
+            button.Height + reach * 2));
     }
 
     // -----------------------------------------------------------------------
@@ -360,142 +473,229 @@ internal sealed class LockedScreenForm : Form
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-        PaintTopBar(g);
+        // Behind everything, and the only part redrawn on every frame of the
+        // animation - which is why it is lines across the bottom of the screen
+        // rather than anything that has to be blended over the whole of it.
+        Arena.PaintFloor(g, FloorArea(), _floorPhase);
+
+        PaintTelemetry(g);
         PaintStation(g);
-        PaintScanPanel(g);
-        PaintPayPanel(g);
-        PaintFooter(g);
+        PaintRates(g);
+        PaintScan(g);
+        PaintReadyRing(g);
+        PaintFootline(g);
     }
 
-    private void PaintTopBar(Graphics g)
+    private void PaintTelemetry(Graphics g)
     {
-        var barHeight = S(74);
+        var barHeight = S(BarHeight);
 
         using (var rule = new Pen(Color.FromArgb(18, 255, 255, 255)))
         {
             g.DrawLine(rule, 0, barHeight, Width, barHeight);
         }
 
-        using var nameFont = Arena.Sans(SF(17f), FontStyle.Bold);
-        using var kickerFont = Arena.Sans(SF(8.5f), FontStyle.Bold);
-        using var monoFont = Arena.Mono(SF(10.5f));
+        using var nameFont = Arena.Display(SF(34f), FontStyle.Bold);
+        using var kickerFont = Arena.Display(SF(16f), FontStyle.Bold);
+        using var monoFont = Arena.Mono(SF(22f), FontStyle.Regular);
 
         // The café's name, not the platform's. A customer sitting in PlayTime
-        // should see PlayTime; BookMyGame is a line of grey text at the bottom.
+        // should see PlayTime; bookmygame is grey text in the corner.
         var cafe = (_config.CafeName ?? string.Empty).Trim().ToUpperInvariant();
-        var left = (float)S(46);
+        var left = (float)S(Margin);
+        var middle = barHeight / 2f;
 
         if (cafe.Length > 0)
         {
-            Theme.DrawTracked(g, cafe, nameFont, Palette.TextPrimary, left, S(26), SF(5f));
-            left += Theme.MeasureTracked(g, cafe, nameFont, SF(5f)) + S(20);
+            Theme.DrawTracked(g, cafe, nameFont, Palette.TextPrimary, left, middle - nameFont.Height / 2f, SF(5.8f));
+            left += Theme.MeasureTracked(g, cafe, nameFont, SF(5.8f)) + S(26);
 
-            using var divider = new Pen(Color.FromArgb(36, 255, 255, 255));
-            g.DrawLine(divider, left, S(26), left, S(48));
-            left += S(20);
+            using (var divider = new Pen(Color.FromArgb(40, 255, 255, 255)))
+            {
+                g.DrawLine(divider, left, middle - S(18), left, middle + S(18));
+            }
 
-            Theme.DrawTracked(g, "GAMING CAFE", kickerFont, Palette.AccentSoft, left, S(32), SF(3.2f));
-        }
-
-        var clock = DateTime.Now.ToString("HH:mm");
-        var clockWidth = g.MeasureString(clock, monoFont).Width;
-        using (var dim = new SolidBrush(Palette.TextDim))
-        {
-            g.DrawString(clock, monoFont, dim, Width - S(180) - clockWidth, S(30));
+            left += S(26);
+            Theme.DrawTracked(g, "STANDBY", kickerFont, Palette.Accent, left, middle - kickerFont.Height / 2f, SF(5.8f));
         }
 
         var stateText = _passthrough ? "PASSTHROUGH" : _connected ? "ONLINE" : "OFFLINE";
         var stateColour = _passthrough ? Palette.Accent : _connected ? Palette.Online : Palette.Warning;
 
+        using var stateFont = Arena.Display(SF(16f), FontStyle.Bold);
+        var stateWidth = Theme.MeasureTracked(g, stateText, stateFont, SF(4.8f));
+        var stateLeft = Width - S(Margin) - stateWidth;
+
+        Theme.DrawTracked(g, stateText, stateFont, stateColour, stateLeft, middle - stateFont.Height / 2f, SF(4.8f));
+
         using (var dot = new SolidBrush(stateColour))
         {
-            g.FillRectangle(dot, Width - S(140), S(34), S(7), S(7));
+            g.FillRectangle(dot, stateLeft - S(20), middle - S(4), S(9), S(9));
         }
 
-        using var stateFont = Arena.Sans(SF(8f), FontStyle.Bold);
-        Theme.DrawTracked(g, stateText, stateFont, stateColour, Width - S(124), S(31), SF(2.2f));
+        var clock = DateTime.Now.ToString("HH:mm");
+        var clockWidth = g.MeasureString(clock, monoFont).Width;
+
+        using (var dim = new SolidBrush(Palette.TextMuted))
+        {
+            g.DrawString(clock, monoFont, dim, stateLeft - S(20) - S(26) - clockWidth, middle - monoFont.Height / 2f);
+        }
     }
 
     private void PaintStation(Graphics g)
     {
-        var left = (float)S(46);
+        var left = (float)S(Margin);
 
         using (var tick = new SolidBrush(Palette.Accent))
         {
-            g.FillRectangle(tick, left, S(174), S(30), S(2));
+            g.FillRectangle(tick, left, S(154), S(34), S(3));
         }
 
-        using var labelFont = Arena.Sans(SF(9f), FontStyle.Bold);
-        Theme.DrawTracked(g, "STATION", labelFont, Palette.TextMuted, left + S(42), S(168), SF(4.4f));
+        using var labelFont = Arena.Display(SF(18f), FontStyle.Bold);
+        Theme.DrawTracked(g, "STATION", labelFont, Palette.TextMuted, left + S(52), S(146), SF(7.9f));
 
-        // The number alone, in Consolas. "PC-01" spelled out is a label; the
-        // bare numeral at this size is an identity, and it is what somebody
-        // reads from across the room.
+        // The number alone. "PC-01" spelled out is a label; the bare numeral at
+        // this size is an identity, and it is what somebody reads from the
+        // counter across the room.
         var number = NumberOf(_config.StationId);
 
-        using var numberFont = Arena.Mono(SF(232f));
-        using (var glow = new SolidBrush(Color.FromArgb(60, Palette.Accent)))
+        using var numberFont = Arena.Mono(SF(190f));
+
+        // The breath. Drawn as a second, softer copy underneath rather than as
+        // a real blur, which GDI+ has no cheap way to do.
+        var glow = (int)(48 + 34 * Math.Sin(_breathPhase * Math.PI * 2));
+
+        using (var halo = new SolidBrush(Color.FromArgb(glow, Palette.Accent)))
         {
-            g.DrawString(number, numberFont, glow, left - S(10), S(186));
+            g.DrawString(number, numberFont, halo, left - S(14), S(182));
         }
 
         using (var white = new SolidBrush(Palette.TextPrimary))
         {
-            g.DrawString(number, numberFont, white, left - S(14), S(182));
+            g.DrawString(number, numberFont, white, left - S(18), S(178));
         }
 
-        var chipTop = S(486);
-        var chipHeight = S(40);
+        var chipTop = S(374);
+        var chipHeight = S(46);
 
         using (var chip = new SolidBrush(Color.FromArgb(13, 255, 255, 255)))
         {
-            g.FillRectangle(chip, left, chipTop, S(268), chipHeight);
+            g.FillRectangle(chip, left, chipTop, S(300), chipHeight);
         }
 
         using (var edge = new SolidBrush(Palette.Accent))
         {
-            g.FillRectangle(edge, left, chipTop, S(3), chipHeight);
+            g.FillRectangle(edge, left, chipTop, S(4), chipHeight);
         }
 
-        using var chipFont = Arena.Sans(SF(10.5f), FontStyle.Bold);
+        using var chipFont = Arena.Display(SF(17f), FontStyle.Bold);
         Theme.DrawTracked(
             g,
             _config.StationId.ToUpperInvariant() + "  ·  READY",
             chipFont,
             Palette.TextMuted,
-            left + S(20),
-            chipTop + S(12),
-            SF(1.4f));
+            left + S(22),
+            chipTop + (chipHeight - chipFont.Height) / 2f,
+            SF(3.4f));
 
-        using var bodyFont = Arena.Sans(SF(11.5f));
-        using var body = new SolidBrush(Palette.TextFaint);
-
-        g.DrawString(
-            "This machine is locked. Start a session with your\nphone, or pay right here at the screen.",
-            bodyFont,
-            body,
-            new RectangleF(left, S(556), S(420), S(90)));
-    }
-
-    private void PaintScanPanel(Graphics g)
-    {
-        var panel = new Rectangle(Width - S(46) - S(660), S(128), S(660), S(312));
-
-        using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
-                   panel,
-                   Color.FromArgb(16, 255, 255, 255),
-                   Color.FromArgb(4, 255, 255, 255),
-                   System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal))
-        using (var path = Arena.CutRect(panel, S(26)))
+        // The line that tells somebody standing there what to do, kept at the
+        // foot of the column where the eye lands after the number.
+        using var headFont = Arena.Display(SF(46f), FontStyle.Bold);
+        using (var white = new SolidBrush(Palette.TextPrimary))
         {
-            g.FillPath(fill, path);
+            g.DrawString("Sit down and", headFont, white, left - S(4), S(560));
         }
 
-        Arena.DrawTopEdge(g, panel, Color.FromArgb(28, 255, 255, 255), S(1));
+        var headWidth = g.MeasureString("Sit down and ", headFont).Width;
 
-        var codeSize = S(176);
-        var codeLeft = panel.Left + S(34);
-        var codeTop = panel.Top + S(66);
+        using (var coral = new SolidBrush(Palette.Accent))
+        {
+            g.DrawString("play.", headFont, coral, left - S(4) + headWidth, S(560));
+        }
+
+        using var bodyFont = Arena.Sans(SF(19f));
+        using (var muted = new SolidBrush(Palette.TextMuted))
+        {
+            g.DrawString(
+                "Tap Pay now, or scan the code with your phone. Your time starts when the counter approves it — not a second before.",
+                bodyFont,
+                muted,
+                new RectangleF(left, S(624), S(470), S(110)));
+        }
+    }
+
+    private void PaintRates(Graphics g)
+    {
+        var column = RatesColumn();
+
+        using var headFont = Arena.Display(SF(18f), FontStyle.Bold);
+        Theme.DrawTracked(g, "RATES", headFont, Palette.TextMuted, column.Left, column.Top, SF(7.9f));
+
+        using var noteFont = Arena.Display(SF(15f), FontStyle.Bold);
+        var note = "COUNTER OR UPI";
+        var noteWidth = Theme.MeasureTracked(g, note, noteFont, SF(3f));
+        Theme.DrawTracked(g, note, noteFont, Palette.TextFaint, column.Right - noteWidth, column.Top + S(3), SF(3f));
+
+        if (_priceRows.Count == 0)
+        {
+            return;
+        }
+
+        var rowHeight = S(78);
+        var gap = S(14);
+        var top = column.Top + S(40);
+
+        using var durFont = Arena.Display(SF(32f), FontStyle.Bold);
+        using var amtFont = Arena.Mono(SF(34f));
+
+        for (var i = 0; i < _priceRows.Count; i++)
+        {
+            var row = new Rectangle(column.Left, top + i * (rowHeight + gap), column.Width, rowHeight);
+
+            using (var fill = new SolidBrush(Color.FromArgb(11, 255, 255, 255)))
+            {
+                g.FillRectangle(fill, row);
+            }
+
+            using (var edge = new Pen(Color.FromArgb(20, 255, 255, 255)))
+            {
+                g.DrawRectangle(edge, row.Left, row.Top, row.Width - 1, row.Height - 1);
+            }
+
+            Theme.DrawTracked(
+                g,
+                _priceRows[i].Label,
+                durFont,
+                Palette.TextPrimary,
+                row.Left + S(26),
+                row.Top + (row.Height - durFont.Height) / 2f,
+                SF(3.2f));
+
+            var amount = _priceRows[i].Price;
+            var amountWidth = g.MeasureString(amount, amtFont).Width;
+
+            using var white = new SolidBrush(Palette.TextPrimary);
+            g.DrawString(amount, amtFont, white, row.Right - S(26) - amountWidth, row.Top + (row.Height - amtFont.Height) / 2f);
+        }
+    }
+
+    private void PaintScan(Graphics g)
+    {
+        var panel = ScanArea();
+
+        using (var fill = new SolidBrush(Color.FromArgb(8, 255, 255, 255)))
+        {
+            g.FillRectangle(fill, panel);
+        }
+
+        using (var edge = new Pen(Color.FromArgb(26, 255, 255, 255)))
+        {
+            g.DrawRectangle(edge, panel.Left, panel.Top, panel.Width - 1, panel.Height - 1);
+        }
+
+        var codeSize = panel.Height - S(32);
+        var codeLeft = panel.Left + S(18);
+        var codeTop = panel.Top + S(16);
 
         using (var white = new SolidBrush(Color.White))
         {
@@ -504,119 +704,78 @@ internal sealed class LockedScreenForm : Form
 
         if (_scanCode is not null)
         {
-            var inner = S(11);
+            var inner = S(6);
             g.DrawImage(_scanCode, codeLeft + inner, codeTop + inner, codeSize - inner * 2, codeSize - inner * 2);
         }
 
-        var textLeft = codeLeft + codeSize + S(28);
+        var textLeft = codeLeft + codeSize + S(20);
 
-        using var stepFont = Arena.Mono(SF(9.5f));
-        Theme.DrawTracked(g, "01 / SCAN", stepFont, Palette.Accent, textLeft, panel.Top + S(66), SF(1.8f));
+        using var titleFont = Arena.Display(SF(20f), FontStyle.Bold);
+        Theme.DrawTracked(g, "SCAN TO UNLOCK", titleFont, Palette.TextPrimary, textLeft, panel.Top + S(30), SF(2.8f));
 
-        using var titleFont = Arena.Sans(SF(19f), FontStyle.Bold);
-        using (var white = new SolidBrush(Palette.TextPrimary))
-        {
-            g.DrawString("Use your phone", titleFont, white, textLeft, panel.Top + S(88));
-        }
-
-        using var bodyFont = Arena.Sans(SF(10.5f));
-        using (var muted = new SolidBrush(Palette.TextMuted))
+        using var bodyFont = Arena.Sans(SF(15f));
+        using (var faint = new SolidBrush(Palette.TextFaint))
         {
             g.DrawString(
                 _scanCode is not null
-                    ? "Members play on hours already paid for.\nNothing comes off until you finish."
-                    : "This PC cannot reach the website right now.\nPlease pay below, or ask at the counter.",
+                    ? "Already have the app?\nPoint your camera here."
+                    : "This PC cannot reach\nthe website right now.",
                 bodyFont,
-                muted,
-                new RectangleF(textLeft, panel.Top + S(132), S(330), S(90)));
+                faint,
+                new RectangleF(textLeft, panel.Top + S(58), panel.Width - (textLeft - panel.Left) - S(16), S(60)));
         }
     }
 
-    private void PaintPayPanel(Graphics g)
+    /// <summary>
+    /// The ring that leaves Pay now, once every few seconds.
+    /// </summary>
+    /// <remarks>
+    /// Drawn by the form, outside the button's own bounds, because a WinForms
+    /// button cannot paint beyond itself. It is the only thing on this screen
+    /// asking to be looked at, which is the point: everything else here is
+    /// information, and this is the one thing to do.
+    /// </remarks>
+    private void PaintReadyRing(Graphics g)
     {
-        var panel = PayPanel();
+        var reach = S(18);
+        var grow = (int)(reach * _pulsePhase);
+        var alpha = (int)(120 * (1f - _pulsePhase));
 
-        using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
-                   panel,
-                   Color.FromArgb(42, 225, 29, 72),
-                   Color.FromArgb(8, 225, 29, 72),
-                   System.Drawing.Drawing2D.LinearGradientMode.ForwardDiagonal))
-        using (var path = Arena.CutRect(panel, S(26)))
-        {
-            g.FillPath(fill, path);
-        }
-
-        Arena.DrawTopEdge(g, panel, Color.FromArgb(108, 225, 29, 72), S(1));
-
-        using var stepFont = Arena.Mono(SF(9.5f));
-        Theme.DrawTracked(g, "02 / PAY HERE", stepFont, Palette.Accent, panel.Left + S(34), panel.Top + S(30), SF(1.8f));
-
-        using var titleFont = Arena.Sans(SF(19f), FontStyle.Bold);
-        using (var white = new SolidBrush(Palette.TextPrimary))
-        {
-            g.DrawString("No account needed", titleFont, white, panel.Left + S(34), panel.Top + S(52));
-        }
-
-        if (_priceRows.Count == 0)
+        if (alpha <= 2)
         {
             return;
         }
 
-        var gap = S(10);
-        var boxTop = panel.Top + S(112);
-        var boxHeight = S(78);
-        var available = panel.Width - S(68) - gap * (_priceRows.Count - 1);
-        var boxWidth = available / _priceRows.Count;
+        var button = PayButtonArea();
+        var ring = new Rectangle(
+            button.Left - grow,
+            button.Top - grow,
+            button.Width + grow * 2,
+            button.Height + grow * 2);
 
-        using var labelFont = Arena.Sans(SF(8.5f), FontStyle.Bold);
-        using var priceFont = Arena.Mono(SF(19f));
-
-        for (var i = 0; i < _priceRows.Count; i++)
-        {
-            var box = new Rectangle(panel.Left + S(34) + i * (boxWidth + gap), boxTop, boxWidth, boxHeight);
-
-            using (var fill = new SolidBrush(Color.FromArgb(82, 0, 0, 0)))
-            {
-                g.FillRectangle(fill, box);
-            }
-
-            Arena.DrawTopEdge(g, box, Color.FromArgb(26, 255, 255, 255), S(2));
-
-            Theme.DrawTracked(g, _priceRows[i].Label, labelFont, Palette.TextMuted, box.Left + S(16), box.Top + S(14), SF(1.2f));
-
-            using var white = new SolidBrush(Palette.TextPrimary);
-            g.DrawString(_priceRows[i].Price, priceFont, white, box.Left + S(13), box.Top + S(34));
-        }
+        using var pen = new Pen(Color.FromArgb(alpha, Palette.Accent), Math.Max(1f, S(2)));
+        g.DrawRectangle(pen, ring);
     }
 
-    private void PaintFooter(Graphics g)
+    private void PaintFootline(Graphics g)
     {
-        var y = Height - S(56);
+        var y = Height - S(FootHeight);
 
         using (var rule = new Pen(Color.FromArgb(14, 255, 255, 255)))
         {
-            g.DrawLine(rule, S(46), y, Width - S(46), y);
-        }
-
-        using var bodyFont = Arena.Sans(SF(10f));
-        using var monoFont = Arena.Mono(SF(10f));
-        using var dim = new SolidBrush(Palette.TextDim);
-
-        var lead = "Need help? Tell the counter you are on ";
-        var leadLeft = S(46) + S(132) * 2 + S(10) + S(28);
-        g.DrawString(lead, bodyFont, dim, leadLeft, y + S(16));
-
-        var leadWidth = g.MeasureString(lead, bodyFont).Width;
-        using (var muted = new SolidBrush(Palette.TextMuted))
-        {
-            g.DrawString(_config.StationId.ToUpperInvariant(), monoFont, muted, leadLeft + leadWidth, y + S(16));
+            g.DrawLine(rule, S(Margin), y, Width - S(Margin), y);
         }
 
         // The platform, where a platform belongs: small, grey, and last.
-        using var markFont = Arena.Sans(SF(8.5f), FontStyle.Bold);
-        var mark = "POWERED BY BOOKMYGAME";
-        var markWidth = Theme.MeasureTracked(g, mark, markFont, SF(2f));
-        Theme.DrawTracked(g, mark, markFont, Color.FromArgb(0x33, 0x41, 0x55), Width - S(46) - markWidth, y + S(18), SF(2f));
+        using var markFont = Arena.Display(SF(14f), FontStyle.Bold);
+        Theme.DrawTracked(
+            g,
+            "BOOKMYGAME.CO.IN",
+            markFont,
+            Palette.TextDim,
+            S(Margin),
+            y + (S(FootHeight) - markFont.Height) / 2f,
+            SF(4.2f));
     }
 
     /// <summary>

@@ -363,7 +363,7 @@ internal sealed class GameMenuForm : Form
         var header = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 92,
+            Height = 112,
             BackColor = Color.Transparent,
         };
 
@@ -372,64 +372,91 @@ internal sealed class GameMenuForm : Form
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            using var nameFont = Arena.Sans(15f, FontStyle.Bold);
-            using var stationFont = Arena.Mono(11f);
-            using var labelFont = Arena.Sans(8f, FontStyle.Bold);
-            using var clockFont = Arena.Mono(30f);
+            using var rule = new Pen(Color.FromArgb(18, 255, 255, 255));
+            g.DrawLine(rule, 0, header.Height - 1, header.Width, header.Height - 1);
 
+            using var clockFont = Arena.Mono(34f);
+            using var labelFont = Arena.Display(11f, FontStyle.Bold);
+            using var nameFont = Arena.Display(15f, FontStyle.Bold);
+            using var stationFont = Arena.Display(11f, FontStyle.Bold);
+
+            var middle = header.Height / 2f;
             var left = 46f;
+
+            // The countdown leads, because it is the thing a customer looks up
+            // to check. Everything else on this bar is a label for it.
+            var text = FormatRemaining();
+            var urgent = _remaining > TimeSpan.Zero && _remaining.TotalMinutes <= 5;
+
+            if (text.Length > 0)
+            {
+                using (var brush = new SolidBrush(urgent ? Palette.Accent : Palette.TextPrimary))
+                {
+                    g.DrawString(text, clockFont, brush, left, middle - clockFont.Height / 2f);
+                }
+
+                left += g.MeasureString(text, clockFont).Width + 10f;
+
+                Theme.DrawTracked(g, "LEFT", labelFont, Palette.TextMuted, left, middle - labelFont.Height / 2f + 4f, 4.4f);
+                left += Theme.MeasureTracked(g, "LEFT", labelFont, 4.4f) + 30f;
+            }
+
+            // The café and this machine, on the right where they are available
+            // without being in the way.
+            var right = header.Width - 46f;
+
+            var station = _config.StationId.ToUpperInvariant();
+            var stationWidth = Theme.MeasureTracked(g, station, stationFont, 3f);
+            Theme.DrawTracked(g, station, stationFont, Palette.TextFaint, right - stationWidth, middle + 2f, 3f);
 
             var cafe = (_config.CafeName ?? string.Empty).Trim().ToUpperInvariant();
             if (cafe.Length > 0)
             {
-                Theme.DrawTracked(g, cafe, nameFont, Palette.TextPrimary, left, 30f, 4.4f);
-                left += Theme.MeasureTracked(g, cafe, nameFont, 4.4f) + 18f;
-
-                using var divider = new Pen(Color.FromArgb(40, 255, 255, 255));
-                g.DrawLine(divider, left, 30f, left, 50f);
-                left += 18f;
+                var cafeWidth = Theme.MeasureTracked(g, cafe, nameFont, 4.4f);
+                Theme.DrawTracked(g, cafe, nameFont, Palette.TextPrimary, right - cafeWidth, middle - nameFont.Height, 4.4f);
+                right -= Math.Max(cafeWidth, stationWidth) + 34f;
+            }
+            else
+            {
+                right -= stationWidth + 34f;
             }
 
-            Theme.DrawTracked(g, _config.StationId.ToUpperInvariant(), stationFont,
-                Palette.AccentSoft, left, 32f, 1.6f);
-
-            // Right side: the countdown, and a bar draining beside it.
-            var text = FormatRemaining();
-            if (text.Length == 0)
+            // The rail between them, draining left to right. A bar is easier to
+            // read at a glance than digits are: nobody has to work out what
+            // fraction of two hours is left.
+            if (text.Length == 0 || right <= left)
             {
                 return;
             }
 
-            var clockWidth = g.MeasureString(text, clockFont).Width;
-            var barRight = header.Width - 46f;
-            var clockRight = barRight - 18f;
+            var railWidth = right - left;
+            var railTop = middle - 2.5f;
 
-            Theme.DrawTracked(g, "TIME LEFT", labelFont, Palette.TextFaint,
-                clockRight - clockWidth, 22f, 2.4f);
-
-            var urgent = _remaining > TimeSpan.Zero && _remaining.TotalMinutes <= 5;
-
-            using (var brush = new SolidBrush(urgent ? Palette.Accent : Palette.TextPrimary))
+            using (var track = new SolidBrush(Color.FromArgb(22, 255, 255, 255)))
             {
-                g.DrawString(text, clockFont, brush, clockRight - clockWidth, 38f);
+                g.FillRectangle(track, left, railTop, railWidth, 5f);
             }
 
-            var barTop = 26f;
-            var barHeight = 46f;
+            var filled = (float)Math.Max(0, Math.Min(1, _remainingFraction)) * railWidth;
 
-            using (var track = new SolidBrush(Color.FromArgb(30, 255, 255, 255)))
+            if (filled <= 0)
             {
-                g.FillRectangle(track, barRight - 5f, barTop, 5f, barHeight);
+                return;
             }
 
-            var filled = (float)Math.Max(0, Math.Min(1, _remainingFraction)) * barHeight;
             using (var fill = new System.Drawing.Drawing2D.LinearGradientBrush(
-                       new RectangleF(barRight - 5f, barTop, 5f, barHeight),
-                       urgent ? Palette.Accent : Palette.Accent,
-                       Color.FromArgb(0xFF, 0x6B, 0x7A),
-                       System.Drawing.Drawing2D.LinearGradientMode.Vertical))
+                       new RectangleF(left, railTop, filled, 5f),
+                       Palette.AccentDeep,
+                       Palette.Accent,
+                       System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
             {
-                g.FillRectangle(fill, barRight - 5f, barTop + (barHeight - filled), 5f, filled);
+                g.FillRectangle(fill, left, railTop, filled, 5f);
+            }
+
+            // The head of the bar, so the eye finds where it has got to.
+            using (var head = new SolidBrush(Palette.TextPrimary))
+            {
+                g.FillRectangle(head, left + filled - 2f, railTop - 4f, 4f, 13f);
             }
         };
 
@@ -831,14 +858,14 @@ internal sealed class GameMenuForm : Form
         var endSession = new Button
         {
             Text = "END SESSION",
-            Font = Arena.Sans(9.5f, FontStyle.Bold),
-            ForeColor = Palette.TextPrimary,
-            BackColor = Palette.PanelFill,
+            Font = Arena.Display(11f, FontStyle.Bold),
+            ForeColor = Palette.TextMuted,
+            BackColor = Palette.Background,
             FlatStyle = FlatStyle.Flat,
             Width = 176,
-            Height = 42,
+            Height = 46,
             Cursor = Cursors.Hand,
-            FlatAppearance = { BorderSize = 1, BorderColor = Palette.Accent },
+            FlatAppearance = { BorderSize = 1, BorderColor = Color.FromArgb(36, 255, 255, 255) },
         };
 
         endSession.Click += (_, _) => EndSessionRequested?.Invoke(this, EventArgs.Empty);
@@ -851,12 +878,12 @@ internal sealed class GameMenuForm : Form
         var addTime = new Button
         {
             Text = "ADD TIME",
-            Font = Arena.Sans(9.5f, FontStyle.Bold),
-            ForeColor = Palette.Background,
+            Font = Arena.Display(11f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(0x04, 0x20, 0x1F),
             BackColor = Palette.Cyan,
             FlatStyle = FlatStyle.Flat,
-            Width = 148,
-            Height = 42,
+            Width = 156,
+            Height = 46,
             Cursor = Cursors.Hand,
             FlatAppearance = { BorderSize = 0 },
         };

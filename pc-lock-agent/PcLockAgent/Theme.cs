@@ -539,57 +539,160 @@ internal static class Arena
             graphics.FillRectangle(flat, 0, 0, size.Width, size.Height);
         }
 
-        // The pool of light, off to the left where the station number sits.
-        var pool = new Rectangle(
-            (int)(size.Width * 0.18) - size.Width / 2,
-            (int)(size.Height * 0.42) - size.Height / 2,
-            size.Width,
-            size.Height);
+        // Two lights of different temperatures at opposite corners. One glow on
+        // its own reads as a spotlight on a stage; a warm one and a cold one
+        // read as a room somebody is sitting in.
+        Glow(graphics, size, Palette.BackdropCore, -0.11f, -0.29f, 0.56f);
+        Glow(graphics, size, Palette.BackdropCold, 0.62f, 0.58f, 0.48f);
 
+        // The vignette. It does more work than it looks: it pulls the eye to
+        // the middle of a very wide screen, and it stops the two lights ending
+        // in a visible edge at the corners.
         using (var path = new GraphicsPath())
         {
-            path.AddEllipse(pool);
-            using var glow = new PathGradientBrush(path)
+            var reach = new Rectangle(
+                -(int)(size.Width * 0.18),
+                -(int)(size.Height * 0.28),
+                (int)(size.Width * 1.36),
+                (int)(size.Height * 1.56));
+
+            path.AddEllipse(reach);
+
+            using var shade = new PathGradientBrush(path)
             {
-                CenterColor = Palette.BackdropCore,
-                SurroundColors = new[] { Palette.Background },
+                CenterColor = Color.FromArgb(0, 0, 0, 0),
+                SurroundColors = new[] { Color.FromArgb(190, 0, 0, 0) },
+                CenterPoint = new PointF(size.Width * 0.5f, size.Height * 0.42f),
             };
-            graphics.FillPath(glow, path);
-        }
 
-        // Fine diagonal rules. Barely visible one at a time, and together they
-        // are what stops a very dark screen looking like a dead monitor.
-        using (var rule = new Pen(Color.FromArgb(6, 255, 255, 255)))
-        {
-            for (var x = -size.Height; x < size.Width; x += 46)
-            {
-                graphics.DrawLine(rule, x, size.Height, x + size.Height, 0);
-            }
-        }
-
-        // The accent slash: one hard diagonal, fading as it falls.
-        using (var slash = new LinearGradientBrush(
-                   new Rectangle(0, 0, size.Width, size.Height),
-                   Color.FromArgb(150, Palette.Accent),
-                   Color.FromArgb(0, Palette.Accent),
-                   LinearGradientMode.Vertical))
-        using (var shape = new GraphicsPath())
-        {
-            var top = (int)(size.Width * 0.30);
-            var lean = (int)(size.Height * 0.34);
-
-            shape.AddLines(new[]
-            {
-                new Point(top, -10),
-                new Point(top + 7, -10),
-                new Point(top + 7 - lean, size.Height + 10),
-                new Point(top - lean, size.Height + 10),
-            });
-
-            shape.CloseFigure();
-            graphics.FillPath(slash, shape);
+            graphics.FillPath(shade, path);
         }
 
         return bitmap;
+    }
+
+    /// <summary>One soft circle of light, sized as a fraction of the screen.</summary>
+    private static void Glow(Graphics graphics, Size size, Color colour, float x, float y, float spread)
+    {
+        var diameter = (int)(size.Width * spread);
+
+        var circle = new Rectangle(
+            (int)(size.Width * x),
+            (int)(size.Height * y),
+            diameter,
+            diameter);
+
+        using var path = new GraphicsPath();
+        path.AddEllipse(circle);
+
+        // Alpha rather than a colour that fades to the background: the second
+        // light is drawn over the first, and blending to an opaque colour would
+        // punch a dark hole through whatever it lands on.
+        using var brush = new PathGradientBrush(path)
+        {
+            CenterColor = Color.FromArgb(150, colour),
+            SurroundColors = new[] { Color.FromArgb(0, colour) },
+        };
+
+        graphics.FillPath(brush, path);
+    }
+
+    /// <summary>
+    /// The stage floor: a grid in perspective, creeping toward the screen.
+    /// </summary>
+    /// <remarks>
+    /// Drawn live rather than cached, because it is the one thing that moves
+    /// all the time. It is only lines, and only across the bottom of the
+    /// screen, so a repaint costs a fraction of what re-blitting the whole
+    /// backdrop would.
+    /// <para>
+    /// <paramref name="phase"/> runs 0 to 1 and drives one row's worth of
+    /// travel, so the grid loops without a seam.
+    /// </para>
+    /// </remarks>
+    public static void PaintFloor(Graphics graphics, Rectangle bounds, float phase)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        var horizon = bounds.Bottom - (int)(bounds.Height * 0.30f);
+        var depth = bounds.Bottom - horizon;
+
+        if (depth <= 0)
+        {
+            return;
+        }
+
+        var previous = graphics.SmoothingMode;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        // Rows. Spacing grows with distance from the horizon, which is what
+        // makes a flat set of lines read as a floor going away from you.
+        for (var row = 0; row < 9; row++)
+        {
+            var t = (row + phase) / 9f;
+            var y = horizon + (int)(depth * t * t);
+
+            if (y <= horizon || y > bounds.Bottom)
+            {
+                continue;
+            }
+
+            // Fading in at the horizon, so a new row does not appear from
+            // nothing every time one leaves the bottom of the screen.
+            var strength = (int)(46 * Math.Min(1f, t * 2.4f));
+
+            using var pen = new Pen(Color.FromArgb(strength, Palette.Accent));
+            graphics.DrawLine(pen, bounds.Left, y, bounds.Right, y);
+        }
+
+        // Columns, converging on the vanishing point.
+        var centre = bounds.Left + bounds.Width / 2f;
+
+        for (var column = -7; column <= 7; column++)
+        {
+            var atFloor = centre + column * (bounds.Width / 7f);
+            var atHorizon = centre + column * (bounds.Width / 46f);
+
+            using var pen = new Pen(Color.FromArgb(30, Palette.Accent));
+            graphics.DrawLine(pen, atHorizon, horizon, atFloor, bounds.Bottom);
+        }
+
+        graphics.SmoothingMode = previous;
+    }
+
+    /// <summary>
+    /// Headings, labels and buttons.
+    /// </summary>
+    /// <remarks>
+    /// Bahnschrift is Windows' own DIN — condensed, technical, and the reason
+    /// this screen reads as equipment rather than as a web page. It ships with
+    /// Windows 10 and 11, and on anything older GDI+ falls back silently to
+    /// Segoe UI, which is a softer look but never a broken one.
+    /// </remarks>
+    public static Font Display(float size, FontStyle style = FontStyle.Bold)
+    {
+        try
+        {
+            var font = new Font("Bahnschrift", size, style);
+
+            // GDI+ substitutes silently when a family is missing, so the only
+            // way to know whether this machine really has it is to ask what
+            // came back.
+            if (font.Name.StartsWith("Bahnschrift", StringComparison.OrdinalIgnoreCase))
+            {
+                return font;
+            }
+
+            font.Dispose();
+        }
+        catch (Exception ex)
+        {
+            AgentLog.Warn($"Could not load Bahnschrift: {ex.Message}");
+        }
+
+        return new Font("Segoe UI", size, style);
     }
 }
