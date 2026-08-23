@@ -130,14 +130,10 @@ try {
     # version has already been installed once and the exe still reads older,
     # stop and say so rather than loop.
     $attemptFile = Join-Path $logDir "last-update-attempt.txt"
+    $alreadyTried = $false
+
     if (Test-Path $attemptFile) {
-        $lastAttempt = (Get-Content $attemptFile -Raw).Trim()
-        if ($lastAttempt -eq $latestText) {
-            Write-Log ("Already installed $latestText once and the agent still reports " +
-                       "$installedVersion. Not trying again - that build's version was " +
-                       "probably not stamped. Fix the build, publish a new version.") "ERROR"
-            exit 1
-        }
+        $alreadyTried = ((Get-Content $attemptFile -Raw).Trim() -eq $latestText)
     }
     # An update somebody actually asked for.
     #
@@ -170,19 +166,28 @@ try {
         Write-Log "Could not check for an update request: $($_.Exception.Message)" "WARN"
     }
 
+    # Never in the way of an update somebody asked for. This stranded pc-02: an
+    # install failed, the attempt had already been recorded, and every restart
+    # after that stopped here without even downloading - three of them, while
+    # the machine sat two versions behind and the owner watched the same fault
+    # on screen. A guard against a loop must not become a PC that can never
+    # update again.
+    if ($alreadyTried -and -not $Force -and -not $requested) {
+        Write-Log ("Already installed $latestText once and the agent still reports " +
+                   "$installedVersion. Waiting for somebody to ask, or for a newer version - " +
+                   "that build's version was probably not stamped.") "WARN"
+        exit 0
+    }
+
+    if ($alreadyTried) {
+        Write-Log "$latestText was tried here before and did not take. Trying again, because this one was asked for."
+    }
+
     $running = Get-Process -Name "PcLockAgent" -ErrorAction SilentlyContinue
     if ($running -and -not $Force -and -not $requested) {
         Write-Log "Agent is running, so somebody may be at this PC. Leaving it for now." "WARN"
         exit 0
     }
-
-    # Recorded here rather than the moment an update was spotted. Written
-    # earlier, it counted the runs that noticed a new version and then stood
-    # down because the agent was up - which is most of them - so the guard above
-    # would refuse the very next attempt, including the one somebody asked for
-    # from the dashboard. It marks an install being attempted, not a version
-    # being seen.
-    Set-Content -Path $attemptFile -Value $latestText -ErrorAction SilentlyContinue
 
     $temp = Join-Path $env:TEMP "BookMyGame-PC-Lock-Setup-$latestText.exe"
     Write-Log "Downloading $ReleaseBase/BookMyGame-PC-Lock-Setup.exe"
@@ -245,6 +250,12 @@ try {
         Write-Log "Installer exited with code $($process.ExitCode)." "ERROR"
         exit 1
     }
+
+    # Recorded here, and nowhere earlier. The point of the guard is to catch a
+    # build that installs cleanly and still reports the old version, so it has
+    # to count installs that finished rather than attempts that started. Cleared
+    # again below if the version did move.
+    Set-Content -Path $attemptFile -Value $latestText -ErrorAction SilentlyContinue
 
     $nowInstalled = (Get-Item $exe).VersionInfo.FileVersion
     Write-Log "Updated to $nowInstalled."
