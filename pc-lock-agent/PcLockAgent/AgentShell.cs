@@ -307,6 +307,13 @@ internal sealed class AgentShell : ApplicationContext
         }
 
         AgentLog.Info("Restarting for an update, as the dashboard asked.");
+
+        // Before the restart, not after: on the way back up this machine signs
+        // in automatically and this agent is running again within seconds,
+        // which is precisely what makes the updater stand down. The note is how
+        // it knows this one was asked for.
+        UpdateRequest.Leave();
+
         PowerControl.Restart();
     }
 

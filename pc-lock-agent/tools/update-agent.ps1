@@ -109,8 +109,39 @@ try {
     }
     Set-Content -Path $attemptFile -Value $latestText -ErrorAction SilentlyContinue
 
+    # An update somebody actually asked for.
+    #
+    # The rule below - never replace a running agent - is right, and on a cafe
+    # PC it is also every time. These machines sign in automatically, so the
+    # agent is back up within seconds of boot, long before this task gets to
+    # look. Restarting the PC did not help, because the race is the same on the
+    # way back up, and four machines sat a month behind because of it.
+    #
+    # So the agent leaves a note before it restarts to be updated, and a note
+    # written in the last half hour is permission to stop it. It expires
+    # because permission to interrupt somebody should not outlive the moment it
+    # was given.
+    $requested = $false
+    $flags = @()
+
+    try {
+        $flags = @(Get-ChildItem "C:\Users\*\AppData\Local\BookMyGame\update-now.flag" -Force -ErrorAction SilentlyContinue)
+
+        foreach ($flag in $flags) {
+            $age = (Get-Date) - $flag.LastWriteTime
+            if ($age.TotalMinutes -lt 30) {
+                Write-Log ("Update was requested from the dashboard {0:0} minutes ago." -f $age.TotalMinutes)
+                $requested = $true
+            } else {
+                Write-Log ("Ignoring an update request {0:0} minutes old." -f $age.TotalMinutes) "WARN"
+            }
+        }
+    } catch {
+        Write-Log "Could not check for an update request: $($_.Exception.Message)" "WARN"
+    }
+
     $running = Get-Process -Name "PcLockAgent" -ErrorAction SilentlyContinue
-    if ($running -and -not $Force) {
+    if ($running -and -not $Force -and -not $requested) {
         Write-Log "Agent is running, so somebody may be at this PC. Leaving it for now." "WARN"
         exit 0
     }
@@ -158,8 +189,9 @@ try {
 
     Write-Log "Hash verified."
 
-    if ($running -and $Force) {
-        Write-Log "Stopping the running agent because -Force was given." "WARN"
+    if ($running -and ($Force -or $requested)) {
+        $why = if ($Force) { "-Force was given" } else { "the owner asked for this update" }
+        Write-Log "Stopping the running agent because $why." "WARN"
         $running | Stop-Process -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
     }
@@ -188,9 +220,16 @@ try {
 
     Remove-Item $temp -Force -ErrorAction SilentlyContinue
 
+    # Answered, so the note goes. Leaving it would have the next boot stop a
+    # perfectly current agent for no reason.
+    foreach ($flag in $flags) {
+        Remove-Item $flag.FullName -Force -ErrorAction SilentlyContinue
+    }
+
     # The watchdog task starts it again within a minute, so it is deliberately
-    # not started here: doing both is how two agents end up fighting over the
-    # same screen.
+    # not started here. Two reasons: doing both is how two agents end up
+    # fighting over the same screen, and this script runs as SYSTEM - a process
+    # it started would land in session 0, where the customer would never see it.
     Write-Log "Done. The startup task will bring the agent back up."
     exit 0
 } catch {
