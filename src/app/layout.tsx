@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import LoadingBar from "@/components/LoadingBar";
 import MobileTabBar from "@/components/MobileTabBar";
 import { SkeletonStyles } from "@/components/ui/Skeleton";
-import { Inter, JetBrains_Mono, Orbitron, Rajdhani } from "next/font/google";
+import { Archivo, IBM_Plex_Mono, Inter, JetBrains_Mono, Orbitron, Rajdhani } from "next/font/google";
 import "./globals.css";
 
 const localhostServiceWorkerCleanupScript = `
@@ -43,6 +43,29 @@ const localhostServiceWorkerCleanupScript = `
   });
 })();
 `;
+
+/**
+ * The two faces the customer site is drawn in.
+ *
+ * Archivo carries every name and heading, at 800 and 900 where the design sets
+ * them; IBM Plex Mono carries anything that reads as an instrument - prices,
+ * seat counts, labels, the ticker. Loaded here rather than left to a fallback,
+ * because the whole look rests on the weight of the display face and Inter Black
+ * is a noticeably softer thing.
+ */
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800", "900"],
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
 
 const geistSans = Inter({
   variable: "--font-geist-sans",
@@ -159,7 +182,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#ff0033" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${rajdhani.variable} bg-black text-white`}
+        className={`${archivo.variable} ${plexMono.variable} ${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${rajdhani.variable} bg-black text-white`}
         suppressHydrationWarning
       >
         <LoadingBar />
