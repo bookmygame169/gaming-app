@@ -30,6 +30,7 @@ type PlayInfo = {
     alreadyUnlocked: boolean;
     walletBalance: number;
     planHours: number;
+    planUnlimited: boolean;
     options: PlayOption[];
 };
 
@@ -51,7 +52,11 @@ export default function PlayPage() {
     const [error, setError] = useState<string | null>(null);
     const [starting, setStarting] = useState<number | null>(null);
     const [done, setDone] = useState<{ minutes: number; station: string } | null>(null);
-    const [onPlan, setOnPlan] = useState<{ station: string; hoursOnPlan: number } | null>(null);
+    const [onPlan, setOnPlan] = useState<{
+        station: string;
+        hoursOnPlan: number;
+        unlimited: boolean;
+    } | null>(null);
 
     // The UPI half. Once a session is pending the page stops being a price list
     // and becomes one thing: get this payment confirmed.
@@ -214,7 +219,11 @@ export default function PlayPage() {
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Could not start the session');
 
-            setOnPlan({ station: data.station, hoursOnPlan: data.hoursOnPlan });
+            setOnPlan({
+                station: data.station,
+                hoursOnPlan: data.hoursOnPlan,
+                unlimited: data.unlimited === true,
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Could not start the session');
         } finally {
@@ -402,11 +411,19 @@ export default function PlayPage() {
                     </p>
                     <div className="relative mt-5 rounded-2xl border border-white/[0.10] bg-black/30 px-4 py-3 text-left">
                         <p className="text-xs font-bold text-white">When you finish</p>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                            Press <span className="font-semibold text-slate-200">End session</span> on the PC.
-                            Only the time you actually played comes off your{' '}
-                            <span className="font-semibold text-emerald-300">{onPlan.hoursOnPlan}h</span> — the rest stays for next time.
-                        </p>
+                        {onPlan.unlimited ? (
+                            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                                Press <span className="font-semibold text-slate-200">End session</span> on the PC
+                                so the next person can use it. Your membership is{' '}
+                                <span className="font-semibold text-emerald-300">unlimited</span> — playing costs you nothing.
+                            </p>
+                        ) : (
+                            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                                Press <span className="font-semibold text-slate-200">End session</span> on the PC.
+                                Only the time you actually played comes off your{' '}
+                                <span className="font-semibold text-emerald-300">{onPlan.hoursOnPlan}h</span> — the rest stays for next time.
+                            </p>
+                        )}
                     </div>
                 </div>
             </Shell>
@@ -564,6 +581,12 @@ export default function PlayPage() {
 
     const canPlay = info.online && !info.alreadyUnlocked;
 
+    // A plan worth starting on, whether it is hours or a month of them. These
+    // used to be two comparisons against planHours, which is zero on an
+    // unlimited plan by design - so the member with the best plan we sell was
+    // the one person the scan refused to offer it to.
+    const hasPlan = info.planUnlimited || info.planHours > 0;
+
     return (
         <Shell>
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-transparent p-5">
@@ -575,10 +598,10 @@ export default function PlayPage() {
                     {info.station.toUpperCase()}
                 </h1>
                 <div className="relative mt-4 flex flex-wrap gap-2">
-                    {info.planHours > 0 && (
+                    {hasPlan && (
                         <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300">
                             <Clock size={13} />
-                            {info.planHours}h on plan
+                            {info.planUnlimited ? 'Unlimited membership' : `${info.planHours}h on plan`}
                         </span>
                     )}
                     <span className="flex items-center gap-1.5 rounded-full border border-white/[0.10] bg-black/30 px-3 py-1.5 text-xs font-bold text-slate-200">
@@ -607,9 +630,11 @@ export default function PlayPage() {
                 for somebody with hours in hand it is not a question worth
                 asking - they play, then press End session. Buying time stays
                 below, for topping up or for a longer stretch than they hold. */}
-            {canPlay && !chosen && info.planHours > 0 && (
+            {canPlay && !chosen && hasPlan && (
                 <>
-                    <p className="mt-7 text-sm font-bold text-white">You have hours on your plan</p>
+                    <p className="mt-7 text-sm font-bold text-white">
+                        {info.planUnlimited ? 'Your membership covers this' : 'You have hours on your plan'}
+                    </p>
                     <button
                         type="button"
                         onClick={startOnPlan}
@@ -622,10 +647,23 @@ export default function PlayPage() {
                                 {starting === -1 ? 'Starting…' : 'Start playing'}
                             </span>
                             <span className="mt-0.5 block text-xs font-semibold opacity-80">
-                                Play as long as you like — only what you use comes off
+                                {info.planUnlimited
+                                    ? 'Play as long as you like — nothing comes off'
+                                    : 'Play as long as you like — only what you use comes off'}
                             </span>
                         </span>
-                        <span className="text-xl font-black">{info.planHours}h</span>
+                        <span className="shrink-0 text-right">
+                            {info.planUnlimited ? (
+                                <>
+                                    <span className="block text-2xl font-black leading-none">∞</span>
+                                    <span className="mt-0.5 block text-[9px] font-black tracking-[0.12em]">
+                                        UNLIMITED
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-xl font-black">{info.planHours}h</span>
+                            )}
+                        </span>
                     </button>
 
                     <p className="mt-6 text-sm font-bold text-white">Or buy time</p>
@@ -650,7 +688,7 @@ export default function PlayPage() {
                 </>
             )}
 
-            {canPlay && !chosen && info.planHours <= 0 && (
+            {canPlay && !chosen && !hasPlan && (
                 <>
                     <p className="mt-7 text-sm font-bold text-white">How long?</p>
                     <div className="mt-3 grid grid-cols-2 gap-2.5">

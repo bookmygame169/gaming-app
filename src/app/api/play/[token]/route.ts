@@ -54,28 +54,48 @@ async function planHoursFor(
   cafeId: string,
   phone: string | null
 ) {
+  const empty = {
+    hours: 0,
+    unlimited: false,
+    rows: [] as { id: string; hours_remaining: number }[],
+  };
+
   const key = phoneKey(phone);
-  if (!key) return { hours: 0, rows: [] as { id: string; hours_remaining: number }[] };
+  if (!key) return empty;
 
   const { data } = await supabase
     .from("subscriptions")
-    .select("id, customer_phone, hours_remaining, status, expiry_date")
+    .select("id, customer_phone, hours_remaining, status, expiry_date, is_unlimited")
     .eq("cafe_id", cafeId);
 
   const today = getIndiaDateString();
 
   // Filtered in JS on the last ten digits, never with .eq(): customer_phone
   // holds whatever was typed over the years — with +91, with spaces, without.
-  const usable = (data || [])
+  const live = (data || [])
     .filter((row) => phoneKey(row.customer_phone as string | null) === key)
     .filter((row) => (row.status || "").toLowerCase() === "active")
-    .filter((row) => !row.expiry_date || String(row.expiry_date) >= today)
+    .filter((row) => !row.expiry_date || String(row.expiry_date) >= today);
+
+  // An unlimited plan is reported on its own and never inside the hours.
+  //
+  // It sits at zero hours by design — there is nothing to run down — so adding
+  // it to a total said "no plan at all", and a member scanning a locked PC was
+  // shown the price list with no way to start on the month they had paid for.
+  //
+  // Keeping it out of `hours` also keeps it out of the deduction the buy path
+  // does further down. An unlimited month is not a balance a purchase can eat.
+  const unlimited = live.some((row) => row.is_unlimited === true);
+
+  const rows = live
+    .filter((row) => row.is_unlimited !== true)
     .map((row) => ({ id: row.id as string, hours_remaining: Number(row.hours_remaining) || 0 }))
     .filter((row) => row.hours_remaining > 0);
 
   return {
-    hours: usable.reduce((sum, row) => sum + row.hours_remaining, 0),
-    rows: usable,
+    hours: rows.reduce((sum, row) => sum + row.hours_remaining, 0),
+    unlimited,
+    rows,
   };
 }
 
@@ -205,6 +225,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       alreadyUnlocked: (live?.status || "").toLowerCase() === "unlocked",
       walletBalance,
       planHours: Number(plan.hours.toFixed(2)),
+      planUnlimited: plan.unlimited,
       options: durationOptions((prices || []) as PricingRow[]),
     });
   } catch (err) {
@@ -429,6 +450,7 @@ async function startOnPlan(
     onPlan: true,
     station: station.station_name,
     hoursOnPlan: Number(hoursLeft.toFixed(2)),
+    unlimited,
     // What the screen should say: they are not buying a block, they are
     // playing until they stop.
     message: "You are playing on your plan. Press End session on the PC when you finish.",

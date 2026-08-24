@@ -233,6 +233,9 @@ async function inProgressBookingFor(
   return (data?.[0]?.booking_id as string | undefined) ?? null;
 }
 
+/** The longest a booking's duration column will accept: one day, in minutes. */
+const MAX_BOOKING_MINUTES = 24 * 60;
+
 /**
  * Closes off the booking this session was started from.
  *
@@ -277,7 +280,12 @@ async function completeBooking(
     // truthful number. An hourly booking keeps the block they paid for.
     const rewriteDuration = requestType !== "hourly" && minutesPlayed > 0;
     if (rewriteDuration) {
-      updates.duration = minutesPlayed;
+      // Capped at a day, because the column is. A session nobody ended - the
+      // customer left, the PC was off, the sweep closed it two days later -
+      // produces minutes no check constraint will take, and the update then
+      // fails silently and leaves the booking in-progress: a seat that reads
+      // as occupied with nobody in it. A day-long figure is wrong by less.
+      updates.duration = Math.min(minutesPlayed, MAX_BOOKING_MINUTES);
     }
 
     const { error } = await supabase
