@@ -218,9 +218,33 @@ export default function BookCafePage() {
 
         if (cancelled) return;
 
+        // console_pricing holds one row per (kind, how many, how long) — it has
+        // no qty1_60min column and never did. Casting a row to a tier therefore
+        // produced an object of undefined prices, every machine fell through to
+        // the cafe's flat hourly_price, and a PS5 hour that costs 150 at the
+        // counter was sold here for 100. This folds the rows into the tier the
+        // rest of the screen reads.
         const map: Partial<Record<ConsoleId, ConsolePricingTier>> = {};
         for (const entry of pricingRows || []) {
-          map[entry.console_type as ConsoleId] = entry as ConsolePricingTier;
+          const type = entry.console_type as ConsoleId;
+          const qty = Number(entry.quantity) || 1;
+          const minutes = Number(entry.duration_minutes);
+
+          // The tiers only go to four seats and two lengths; anything else on
+          // the price list belongs to a flow this screen does not offer.
+          if (qty < 1 || qty > 4) continue;
+          if (minutes !== 30 && minutes !== 60) continue;
+
+          const tier: ConsolePricingTier = map[type] ?? {
+            qty1_30min: null, qty1_60min: null,
+            qty2_30min: null, qty2_60min: null,
+            qty3_30min: null, qty3_60min: null,
+            qty4_30min: null, qty4_60min: null,
+          };
+
+          tier[`qty${qty}_${minutes}min` as keyof ConsolePricingTier] =
+            Number(entry.price) || null;
+          map[type] = tier;
         }
         setPricing(map);
       } catch {
