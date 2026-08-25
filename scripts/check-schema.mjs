@@ -164,6 +164,17 @@ function blankComments(source) {
  * counting `hour` as a column produces a false report that costs more trust
  * than the check is worth.
  */
+/**
+ * Words that look like keys in a ternary but never are.
+ *
+ * `membership_plan_id: isHourly ? null : planId` puts "null :" inside the
+ * payload, which reads as a key to anything scanning for `name:`. That one
+ * line reported a column named `null` and failed every build on main until
+ * somebody looked. The value half of a ternary is otherwise camelCase, which
+ * the pattern below already skips.
+ */
+const LITERALS = new Set(["null", "undefined", "true", "false"]);
+
 function topLevelKeys(source, open) {
   const keys = [];
   let depth = 0;
@@ -187,7 +198,7 @@ function topLevelKeys(source, open) {
     if (depth === 2) {
       const rest = source.slice(i);
       const key = rest.match(/^([a-z_][a-z_0-9]*)\s*:/);
-      if (key && /[\s{,]/.test(source[i - 1] ?? "")) {
+      if (key && /[\s{,]/.test(source[i - 1] ?? "") && !LITERALS.has(key[1])) {
         keys.push(key[1]);
         i += key[1].length;
       }
