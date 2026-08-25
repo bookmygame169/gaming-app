@@ -1,9 +1,13 @@
 // src/components/booking/BookingBottomBar.tsx
 /**
- * Fixed bottom bar with step-specific CTAs and booking summary
+ * The bar pinned to the bottom of the booking screen, in the BookMyGame Site
+ * design: what has been chosen on the left, the one thing to press on the
+ * right.
+ *
+ * It stays fixed rather than becoming a sticky side rail on desktop, because
+ * this is the only control that moves the booking forward and a customer
+ * halfway down a long list of machines should never have to hunt for it.
  */
-
-import { colors, fonts } from "@/lib/constants";
 
 interface BookingBottomBarProps {
   step: 1 | 2;
@@ -23,7 +27,6 @@ interface BookingBottomBarProps {
 
 export function BookingBottomBar({
   step,
-  selectedDate,
   selectedTime,
   dateLabel,
   onContinue,
@@ -32,139 +35,45 @@ export function BookingBottomBar({
   isSubmitting = false,
   onConfirm,
 }: BookingBottomBarProps) {
+  const ready = step === 1 ? Boolean(selectedTime) : totalTickets > 0;
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: "rgba(15, 15, 20, 0.95)",
-        backdropFilter: "blur(20px)",
-        borderTop: `1px solid ${colors.border}`,
-        padding: "16px",
-        zIndex: 100,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "600px",
-          margin: "0 auto",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "16px",
-        }}
-      >
-        {step === 1 ? (
-          <>
-            <div>
-              <div style={{ fontSize: "14px", fontWeight: 600, color: colors.textPrimary }}>
-                {selectedDate ? dateLabel : "Select a date"}
-              </div>
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: selectedTime ? colors.cyan : colors.textMuted,
-                }}
-              >
-                {selectedTime || "Select a time"}
-              </div>
+    <div className="fixed bottom-0 left-0 right-0 z-[100] border-t border-[#f2f0ea]/[0.12] bg-[#0b0b0c]/95 px-5 py-4 backdrop-blur-[14px] sm:px-8 lg:px-12">
+      <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-5">
+        <div className="min-w-0">
+          <div className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/40">
+            {step === 1 ? "WHEN" : "TOTAL"}
+          </div>
+          {step === 1 ? (
+            <div className="mt-1.5 truncate text-[15px] font-extrabold text-[#f2f0ea]">
+              {selectedTime
+                ? `${dateLabel ? `${dateLabel} · ` : ""}${selectedTime}`
+                : "Pick a day and a time"}
             </div>
-            <button
-              onClick={onContinue}
-              disabled={!selectedDate || !selectedTime}
-              style={{
-                padding: "14px 28px",
-                background:
-                  selectedDate && selectedTime
-                    ? `linear-gradient(135deg, ${colors.red} 0%, #ff3366 100%)`
-                    : "rgba(255, 255, 255, 0.1)",
-                border: "none",
-                borderRadius: "12px",
-                color: selectedDate && selectedTime ? "white" : colors.textMuted,
-                fontFamily: fonts.heading,
-                fontSize: "13px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                cursor: selectedDate && selectedTime ? "pointer" : "not-allowed",
-                transition: "all 0.2s ease",
-              }}
-            >
-              Continue →
-            </button>
-          </>
-        ) : (
-          <>
-            <div>
-              {totalTickets > 0 ? (
-                <>
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      color: colors.textPrimary,
-                    }}
-                  >
-                    {totalTickets} ticket{totalTickets > 1 ? "s" : ""} selected
-                  </div>
-                  <div style={{ fontSize: "13px", color: colors.textSecondary }}>
-                    {dateLabel} • {selectedTime}
-                  </div>
-                </>
-              ) : (
-                <div style={{ fontSize: "14px", color: colors.textMuted }}>
-                  Add tickets to continue
-                </div>
-              )}
+          ) : (
+            <div className="mt-1 flex items-baseline gap-2.5">
+              <span className="text-[28px] font-black leading-none tracking-[-0.03em] text-[#f2f0ea]">
+                ₹{totalAmount.toLocaleString("en-IN")}
+              </span>
+              <span className="font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/40">
+                {totalTickets} SEAT{totalTickets === 1 ? "" : "S"}
+              </span>
             </div>
-            <button
-              onClick={onConfirm}
-              disabled={totalTickets === 0 || isSubmitting}
-              style={{
-                padding: "14px 24px",
-                background:
-                  totalTickets > 0 && !isSubmitting
-                    ? `linear-gradient(135deg, ${colors.green} 0%, #16a34a 100%)`
-                    : "rgba(255, 255, 255, 0.1)",
-                border: "none",
-                borderRadius: "12px",
-                color: totalTickets > 0 ? "white" : colors.textMuted,
-                fontFamily: fonts.heading,
-                fontSize: "13px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                cursor: totalTickets > 0 && !isSubmitting ? "pointer" : "not-allowed",
-                transition: "all 0.2s ease",
-                minWidth: "140px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-              }}
-            >
-              {isSubmitting && (
-                <div
-                  style={{
-                    width: "14px",
-                    height: "14px",
-                    border: "2px solid rgba(255, 255, 255, 0.3)",
-                    borderTopColor: "white",
-                    borderRadius: "50%",
-                    animation: "spin 0.6s linear infinite",
-                  }}
-                />
-              )}
-              {isSubmitting
-                ? "Processing..."
-                : totalTickets > 0
-                ? `Pay ₹${totalAmount}`
-                : "Select Tickets"}
-            </button>
-          </>
-        )}
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={step === 1 ? onContinue : onConfirm}
+          disabled={!ready || isSubmitting}
+          className="shrink-0 whitespace-nowrap px-8 py-4 font-display text-[13px] font-black tracking-[0.14em] transition-[filter] enabled:hover:brightness-110 disabled:cursor-not-allowed"
+          style={{
+            background: ready ? "#d8ff3c" : "rgba(242,240,234,.08)",
+            color: ready ? "#0b0b0c" : "rgba(242,240,234,.35)",
+          }}
+        >
+          {step === 1 ? "NEXT →" : isSubmitting ? "HOLDING…" : "CONFIRM & PAY →"}
+        </button>
       </div>
     </div>
   );

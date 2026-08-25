@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { colors, fonts, CONSOLE_LABELS, CONSOLE_ICONS, CONSOLE_COLORS } from "@/lib/constants";
+import { colors, CONSOLE_LABELS, CONSOLE_ICONS, CONSOLE_COLORS } from "@/lib/constants";
 import type { ConsoleId } from "@/lib/constants";
 import type {
   ConsoleAvailability,
@@ -22,7 +22,6 @@ import {
   BookingBottomBar,
   type ConsoleCardData,
 } from "@/components/booking";
-import { Loader2, Minus, Plus, ArrowLeft } from "lucide-react";
 
 /**
  * The customer booking flow.
@@ -394,48 +393,48 @@ export default function BookCafePage() {
 
   if (loading) {
     return (
-      <div style={{ background: colors.dark, minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Loader2 className="animate-spin" style={{ color: colors.cyan }} />
+      <div className="grid min-h-screen place-items-center bg-[#0b0b0c] font-mono text-xs tracking-[0.2em] text-[#f2f0ea]/40">
+        LOADING…
       </div>
     );
   }
 
   if (error || !cafe) {
     return (
-      <div style={{ background: colors.dark, minHeight: "100vh", padding: 24, fontFamily: fonts.body }}>
-        <p style={{ color: colors.textSecondary }}>{error || "Café not found."}</p>
+      <div className="min-h-screen bg-[#0b0b0c] px-5 py-16 font-display text-[#f2f0ea] sm:px-8 lg:px-12">
+        <div className="font-mono text-xs tracking-[0.28em] text-[#ff5c2b]">CANNOT BOOK</div>
+        <h1 className="mt-5 text-[clamp(30px,5vw,52px)] font-black uppercase leading-[0.95] tracking-[-0.04em]">
+          {error || "Café not found."}
+        </h1>
       </div>
     );
   }
 
   return (
-    <div style={{ background: colors.dark, minHeight: "100vh", paddingBottom: 120, fontFamily: fonts.body }}>
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px" }}>
+    <div className="min-h-screen bg-[#0b0b0c] pb-[140px] font-display text-[#f2f0ea]">
+      <div className="flex items-center gap-3.5 border-b border-[#f2f0ea]/[0.12] px-5 py-[22px] font-mono text-xs tracking-[0.18em] text-[#f2f0ea]/40 sm:px-8 lg:px-12">
         <button
+          type="button"
           onClick={() => (step === 2 ? setStep(1) : router.back())}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            color: colors.textSecondary,
-            background: "none",
-            border: "none",
-            marginBottom: 20,
-            cursor: "pointer",
-            fontSize: 14,
-          }}
+          className="transition-colors hover:text-[#d8ff3c]"
         >
-          <ArrowLeft size={16} />
-          {step === 2 ? "Change time" : "Back"}
+          {step === 2 ? "← CHANGE TIME" : "← BACK"}
         </button>
+        <span>/</span>
+        <span className="truncate text-[#f2f0ea]">{cafe.name?.toUpperCase()}</span>
+      </div>
 
-        <h1 style={{ fontFamily: fonts.heading, color: colors.textPrimary, fontSize: 26, marginBottom: 4 }}>
-          {cafe.name}
+      <div className="flex items-baseline gap-[18px] px-5 pb-7 pt-10 sm:px-8 lg:px-12">
+        <h1 className="m-0 text-[clamp(28px,4.4vw,44px)] font-black uppercase leading-none tracking-[-0.03em]">
+          {step === 1 ? "When?" : "What are you playing?"}
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 28 }}>
-          {step === 1 ? "Pick a date and time" : "Choose what you want to play"}
-        </p>
+        <span className="h-px flex-1 bg-[#f2f0ea]/[0.14]" />
+        <span className="hidden whitespace-nowrap font-mono text-[13px] tracking-[0.2em] text-[#f2f0ea]/40 md:block">
+          STEP {step} OF 2
+        </span>
+      </div>
 
+      <div className="flex flex-col gap-9 border-t border-[#f2f0ea]/[0.12] px-5 py-9 sm:px-8 lg:px-12">
         {step === 1 && (
           <>
             <DatePicker
@@ -446,8 +445,6 @@ export default function BookCafePage() {
                 setSelectedTime("");
               }}
             />
-
-            <div style={{ height: 24 }} />
 
             <TimeSlotGrid slots={slots} selectedTime={selectedTime} onSelect={setSelectedTime} />
           </>
@@ -470,66 +467,66 @@ export default function BookCafePage() {
               onSelectConsole={setSelectedConsole}
             />
 
-            {/* Quantity stepper for the highlighted console. ConsoleGrid handles
-                choosing which console; this is how many of it. */}
-            <div
-              style={{
-                marginTop: 24,
-                padding: 16,
-                borderRadius: 16,
-                background: colors.darkCard,
-                border: `1px solid ${colors.border}`,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            {/* How many of the highlighted machine. ConsoleGrid chooses which
+                kind; this is the count, and it is deliberately next to the
+                grid rather than inside a tile, where a plus and a minus are
+                too easy to hit while trying to pick. */}
+            <div className="border border-[#f2f0ea]/[0.14]">
+              <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
                 <div>
-                  <p style={{ color: colors.textPrimary, fontWeight: 700, fontSize: 15 }}>
+                  <div className="text-[15px] font-extrabold">
                     {CONSOLE_LABELS[selectedConsole] || selectedConsole}
-                  </p>
-                  <p style={{ color: colors.textMuted, fontSize: 12 }}>
-                    {availability[selectedConsole]?.available ?? consoleLimits[selectedConsole] ?? 0} available
-                    {" · "}₹{priceFor(selectedConsole, Math.max(1, quantities[selectedConsole] || 1))}
-                  </p>
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/40">
+                    {availability[selectedConsole]?.available ?? consoleLimits[selectedConsole] ?? 0} FREE
+                    {" · ₹"}
+                    {priceFor(selectedConsole, Math.max(1, quantities[selectedConsole] || 1))}
+                  </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div className="flex items-center gap-4">
                   <button
+                    type="button"
                     onClick={() => adjustQuantity(selectedConsole, -1)}
-                    style={{
-                      width: 34, height: 34, borderRadius: 10, cursor: "pointer",
-                      background: "rgba(255,255,255,0.06)", border: `1px solid ${colors.border}`,
-                      color: colors.textPrimary, display: "grid", placeItems: "center",
-                    }}
+                    className="h-11 w-11 border border-[#f2f0ea]/20 font-mono text-lg text-[#f2f0ea] transition-colors hover:border-[#f2f0ea]"
+                    aria-label="One fewer"
                   >
-                    <Minus size={14} />
+                    −
                   </button>
-                  <span style={{ color: colors.textPrimary, fontWeight: 700, minWidth: 18, textAlign: "center" }}>
+                  <span className="min-w-[24px] text-center text-xl font-black">
                     {quantities[selectedConsole] || 0}
                   </span>
                   <button
+                    type="button"
                     onClick={() => adjustQuantity(selectedConsole, 1)}
-                    style={{
-                      width: 34, height: 34, borderRadius: 10, cursor: "pointer",
-                      background: colors.cyan, border: "none",
-                      color: "#000", display: "grid", placeItems: "center",
-                    }}
+                    className="h-11 w-11 bg-[#d8ff3c] font-mono text-lg text-[#0b0b0c] transition-[filter] hover:brightness-110"
+                    aria-label="One more"
                   >
-                    <Plus size={14} />
+                    +
                   </button>
                 </div>
               </div>
-            </div>
 
-            {totalTickets > 0 && (
-              <div style={{ marginTop: 16, padding: 16, borderRadius: 16, background: colors.darkCard, border: `1px solid ${colors.border}` }}>
-                {Object.entries(quantities).map(([consoleId, qty]) => (
-                  <div key={consoleId} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: colors.textSecondary, marginBottom: 6 }}>
-                    <span>{CONSOLE_LABELS[consoleId as ConsoleId] || consoleId} × {qty}</span>
-                    <span style={{ color: colors.textPrimary }}>₹{priceFor(consoleId as ConsoleId, qty!)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+              {totalTickets > 0 && (
+                <div className="border-t border-[#f2f0ea]/10 px-6 py-4">
+                  {Object.entries(quantities)
+                    .filter(([, qty]) => (qty ?? 0) > 0)
+                    .map(([consoleId, qty]) => (
+                      <div
+                        key={consoleId}
+                        className="flex items-baseline justify-between gap-4 py-1.5"
+                      >
+                        <span className="font-mono text-xs tracking-[0.14em] text-[#f2f0ea]/45">
+                          {(CONSOLE_LABELS[consoleId as ConsoleId] || consoleId).toUpperCase()} × {qty}
+                        </span>
+                        <span className="text-[15px] font-bold">
+                          ₹{priceFor(consoleId as ConsoleId, qty!)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

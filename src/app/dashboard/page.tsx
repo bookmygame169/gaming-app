@@ -3,30 +3,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { formatDate, parseTimeToMinutes } from "@/lib/timeUtils";
+import { parseTimeToMinutes } from "@/lib/timeUtils";
 import { getIndiaDateString } from "@/lib/bookingFilters";
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  DollarSign,
-  CheckCircle,
-  XCircle,
-  Clock4,
-  Gamepad2,
-  TrendingUp,
-  Zap,
-  ChevronRight,
-  ExternalLink,
-  Loader2,
-  AlertCircle,
-  History,
-  CalendarCheck,
-  CreditCard,
-} from "lucide-react";
 import ActiveSessionTimer from "@/components/ActiveSessionTimer";
 import LeaveReviewPrompt from "@/components/LeaveReviewPrompt";
+import AccountTabs from "@/components/AccountTabs";
+import ScreenTitle from "@/components/ScreenTitle";
 import PullToRefresh from "@/components/ui/PullToRefresh";
 
 type BookingRow = {
@@ -53,6 +37,29 @@ type CafeRow = {
 
 type BookingWithCafe = BookingRow & { cafe?: CafeRow | null };
 
+/** "SAT 30 AUG" — short enough to sit on one mono line beside the time. */
+const shortDate = (iso?: string | null) => {
+  if (!iso) return "DATE NOT SET";
+  const date = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "DATE NOT SET";
+  return date
+    .toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })
+    .toUpperCase()
+    .replace(",", "");
+};
+
+/**
+ * My bookings, in the BookMyGame Site design.
+ *
+ * The design's upcoming card has an unlock code on it, in the way a hotel app
+ * shows a door PIN. Nothing here unlocks a machine from a phone — the counter
+ * does that, or the QR on the PC itself — so the panel carries the booking
+ * reference instead, under the words that say what to do with it.
+ *
+ * RESCHEDULE went the same way: there is no reschedule anywhere in this app,
+ * and a button that only cancels while claiming to move a booking is worse
+ * than not offering it. Cancel and directions are real, so both stayed.
+ */
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -60,7 +67,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
 
   // Bumped by pull-to-refresh. Re-running the existing effect keeps one
@@ -69,12 +75,9 @@ export default function DashboardPage() {
 
   const refresh = useCallback(async () => {
     setRefreshKey((key) => key + 1);
-    // The effect below is what actually reloads; this gives the gesture
-    // something to wait on so the spinner is not gone before the data lands.
     await new Promise((resolve) => setTimeout(resolve, 550));
   }, []);
 
-  // Load user + bookings
   useEffect(() => {
     let cancelled = false;
 
@@ -98,10 +101,6 @@ export default function DashboardPage() {
           return;
         }
 
-        // Get user name from metadata
-        const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Gamer";
-        setUserName(name);
-
         const { data: bookingRows, error: bookingError } = await supabase
           .from("bookings")
           .select("*")
@@ -121,9 +120,7 @@ export default function DashboardPage() {
 
         const cafeIds = Array.from(
           new Set(
-            bookingRows
-              .map((b: BookingRow) => b.cafe_id)
-              .filter((id): id is string => !!id)
+            bookingRows.map((b: BookingRow) => b.cafe_id).filter((id): id is string => !!id)
           )
         );
 
@@ -140,24 +137,18 @@ export default function DashboardPage() {
             throw cafeError;
           }
 
-          (cafeRows || []).forEach((c: CafeRow) => {
-            cafeMap.set(c.id, c);
-          });
+          (cafeRows || []).forEach((c: CafeRow) => cafeMap.set(c.id, c));
         }
 
-        const merged: BookingWithCafe[] = (bookingRows as BookingRow[]).map(
-          (b) => ({
-            ...b,
-            cafe: b.cafe_id ? cafeMap.get(b.cafe_id) ?? null : null,
-          })
-        );
+        const merged: BookingWithCafe[] = (bookingRows as BookingRow[]).map((b) => ({
+          ...b,
+          cafe: b.cafe_id ? cafeMap.get(b.cafe_id) ?? null : null,
+        }));
 
         if (!cancelled) setBookings(merged);
       } catch (err) {
         console.error("Error loading dashboard bookings:", err);
-        if (!cancelled) {
-          setErrorMsg("Could not load your bookings. Please try again.");
-        }
+        if (!cancelled) setErrorMsg("Could not load your bookings. Please try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -169,69 +160,35 @@ export default function DashboardPage() {
     };
   }, [router, refreshKey]);
 
-  // Split upcoming vs past
   const { upcoming, past } = useMemo(() => {
     if (!bookings.length)
-      return {
-        upcoming: [] as BookingWithCafe[],
-        past: [] as BookingWithCafe[],
-      };
+      return { upcoming: [] as BookingWithCafe[], past: [] as BookingWithCafe[] };
 
     const todayStr = getIndiaDateString();
 
-    const upcomingBookings = bookings
-      .filter((b) => {
-        const date = b.booking_date ?? "";
-        return date >= todayStr;
-      })
-      .sort((a, b) => (a.booking_date ?? "").localeCompare(b.booking_date ?? ""));
-
-    const pastBookings = bookings
-      .filter((b) => {
-        const date = b.booking_date ?? "";
-        return date < todayStr;
-      })
-      .sort((a, b) => (b.booking_date ?? "").localeCompare(a.booking_date ?? ""));
-
-    return { upcoming: upcomingBookings, past: pastBookings };
+    return {
+      upcoming: bookings
+        .filter((b) => (b.booking_date ?? "") >= todayStr)
+        .sort((a, b) => (a.booking_date ?? "").localeCompare(b.booking_date ?? "")),
+      past: bookings
+        .filter((b) => (b.booking_date ?? "") < todayStr)
+        .sort((a, b) => (b.booking_date ?? "").localeCompare(a.booking_date ?? "")),
+    };
   }, [bookings]);
 
-  // Stats
-  const stats = useMemo(() => {
-    const total = bookings.length;
-    const confirmed = bookings.filter(b => (b.status || "").toLowerCase() === "confirmed").length;
-    const totalSpent = bookings.reduce((sum, b) => sum + (b.total_amount ?? 0), 0);
-    const totalHours = bookings.reduce((sum, b) => sum + (b.hours ?? 1), 0);
-    return { total, confirmed, totalSpent, totalHours };
-  }, [bookings]);
-
-
-
-  function formatTime(timeStr?: string | null) {
-    if (!timeStr) return "Time not set";
-    return timeStr;
-  }
-
-  // Shares the one parser; the shape is only different because the callers
-  // below want hours and minutes rather than minutes from midnight.
   function parseTimeString(timeStr: string): { hours: number; minutes: number } | null {
     const total = parseTimeToMinutes(timeStr);
     if (total === null) return null;
     return { hours: Math.floor(total / 60), minutes: total % 60 };
   }
 
-
-  // Check if booking is currently active (on-going)
   function isBookingOngoing(booking: BookingWithCafe): boolean {
-    const status = (booking.status || '').toLowerCase();
-    if (status === 'cancelled' || status === 'completed') return false;
+    const status = (booking.status || "").toLowerCase();
+    if (status === "cancelled" || status === "completed") return false;
     if (!booking.booking_date || !booking.start_time) return false;
 
     const now = new Date();
-    const todayStr = getIndiaDateString(now);
-
-    // Only check today's bookings
-    if (booking.booking_date !== todayStr) return false;
+    if (booking.booking_date !== getIndiaDateString(now)) return false;
 
     const parsedStart = parseTimeString(booking.start_time);
     if (!parsedStart) return false;
@@ -258,52 +215,24 @@ export default function DashboardPage() {
     return currentTime >= sessionStart.getTime() && currentTime < sessionEnd.getTime();
   }
 
-  function getStatusInfo(status?: string | null, isOngoing?: boolean) {
-    if (isOngoing) {
-      return {
-        label: "On-going",
-        bg: "bg-gradient-to-r from-cyan-500/10 to-cyan-500/5",
-        border: "border-cyan-500/20",
-        color: "text-cyan-400",
-        icon: <Zap className="w-4 h-4" />,
-      };
-    }
+  function stateOf(booking: BookingWithCafe) {
+    if (isBookingOngoing(booking)) return { label: "ON NOW", fg: "#0b0b0c", bg: "#d8ff3c" };
 
-    const value = (status || "confirmed").toLowerCase();
-
-    if (value === "cancelled") {
-      return {
-        label: "Cancelled",
-        bg: "bg-gradient-to-r from-red-500/10 to-red-500/5",
-        border: "border-red-500/20",
-        color: "text-red-400",
-        icon: <XCircle className="w-4 h-4" />,
-      };
-    }
-    if (value === "pending") {
-      return {
-        label: "Pending",
-        bg: "bg-gradient-to-r from-amber-500/10 to-amber-500/5",
-        border: "border-amber-500/20",
-        color: "text-amber-400",
-        icon: <Clock4 className="w-4 h-4" />,
-      };
-    }
-    return {
-      label: "Confirmed",
-      bg: "bg-gradient-to-r from-emerald-500/10 to-emerald-500/5",
-      border: "border-emerald-500/20",
-      color: "text-emerald-400",
-      icon: <CheckCircle className="w-4 h-4" />,
-    };
+    const value = (booking.status || "confirmed").toLowerCase();
+    if (value === "cancelled")
+      return { label: "CANCELLED", fg: "#ff5c2b", bg: "rgba(255,92,43,.12)" };
+    if (value === "pending")
+      return { label: "PAYMENT DUE", fg: "#ff5c2b", bg: "rgba(255,92,43,.12)" };
+    if (value === "completed")
+      return { label: "PLAYED", fg: "rgba(242,240,234,.5)", bg: "rgba(242,240,234,.06)" };
+    return { label: "CONFIRMED", fg: "#d8ff3c", bg: "rgba(216,255,60,.12)" };
   }
 
   function canCancelBooking(b: BookingWithCafe) {
     const status = (b.status || "").toLowerCase();
     if (status === "cancelled") return false;
     if (!b.booking_date) return false;
-    const todayStr = getIndiaDateString();
-    return b.booking_date >= todayStr;
+    return b.booking_date >= getIndiaDateString();
   }
 
   async function handleCancelBooking(id: string, e: React.MouseEvent) {
@@ -339,585 +268,254 @@ export default function DashboardPage() {
       const result = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(result.error || "Could not cancel booking");
 
-      setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: "cancelled" } : b))
-      );
+      setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: "cancelled" } : b)));
     } catch (err) {
-      console.error("Error cancelling booking:", err);
-      alert(err instanceof Error ? err.message : "Could not cancel booking. Please try again.");
+      console.error("Cancel failed:", err);
+      alert(err instanceof Error ? err.message : "Could not cancel this booking");
     } finally {
       setCancelingId(null);
     }
   }
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-950">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          {/* Skeleton Header */}
-          <div className="mb-8">
-            <div className="h-4 w-32 bg-gray-800 rounded-full mb-2 animate-pulse"></div>
-            <div className="h-8 w-48 bg-gray-800 rounded-lg mb-2 animate-pulse"></div>
-            <div className="h-4 w-64 bg-gray-800 rounded-full animate-pulse"></div>
-          </div>
-
-          {/* Skeleton Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-gray-800/50 rounded-2xl animate-pulse"></div>
-            ))}
-          </div>
-
-          {/* Skeleton Tabs */}
-          <div className="flex gap-4 mb-6">
-            <div className="h-10 w-32 bg-gray-800 rounded-lg animate-pulse"></div>
-            <div className="h-10 w-32 bg-gray-800 rounded-lg animate-pulse"></div>
-          </div>
-
-          {/* Skeleton Cards */}
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-800/30 rounded-xl animate-pulse"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const showing = activeTab === "upcoming" ? upcoming : past;
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <style jsx global>{`
-        .dashboard-bg {
-          background: linear-gradient(135deg, 
-            #08080c 0%, 
-            #0a0a10 50%, 
-            #08080c 100%);
-          min-height: 100vh;
-        }
+      <div className="min-h-screen bg-[#0b0b0c] font-display text-[#f2f0ea]">
+        <AccountTabs />
+        <ScreenTitle
+          title="My bookings"
+          meta={`${upcoming.length} UPCOMING · ${past.length} PLAYED`}
+        />
 
-        .glass-card {
-          background: linear-gradient(145deg, 
-            rgba(16, 16, 22, 0.8) 0%, 
-            rgba(10, 10, 15, 0.9) 100%);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: 
-            0 8px 32px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        }
-
-        .stat-card {
-          background: linear-gradient(135deg, 
-            rgba(255, 7, 58, 0.1) 0%,
-            rgba(0, 240, 255, 0.1) 100%);
-          border: 1px solid rgba(255, 7, 58, 0.2);
-          position: relative;
-          overflow: hidden;
-          transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 40px rgba(255, 7, 58, 0.15);
-        }
-
-        .booking-card {
-          background: linear-gradient(145deg, 
-            rgba(16, 16, 22, 0.9) 0%,
-            rgba(10, 10, 15, 0.95) 100%);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          cursor: pointer;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .booking-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(135deg, 
-            rgba(255, 7, 58, 0.1) 0%,
-            rgba(0, 240, 255, 0.05) 100%);
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-
-        .booking-card:hover::before {
-          opacity: 1;
-        }
-
-        .booking-card:hover {
-          border-color: rgba(255, 7, 58, 0.3);
-          transform: translateY(-4px);
-          box-shadow: 
-            0 12px 40px rgba(255, 7, 58, 0.2),
-            0 0 0 1px rgba(255, 7, 58, 0.1);
-        }
-
-        .status-badge {
-          background: linear-gradient(135deg, 
-            rgba(34, 197, 94, 0.15) 0%,
-            rgba(34, 197, 94, 0.05) 100%);
-          border: 1px solid rgba(34, 197, 94, 0.2);
-        }
-
-        .cancel-btn {
-          background: linear-gradient(135deg, 
-            rgba(239, 68, 68, 0.15) 0%,
-            rgba(239, 68, 68, 0.05) 100%);
-          border: 1px solid rgba(239, 68, 68, 0.2);
-          transition: all 0.2s ease;
-        }
-
-        .cancel-btn:hover {
-          background: rgba(239, 68, 68, 0.25);
-          transform: scale(1.05);
-        }
-
-        .tab-button {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          transition: all 0.3s ease;
-        }
-
-        .tab-button.active {
-          background: linear-gradient(135deg, 
-            rgba(255, 7, 58, 0.2) 0%,
-            rgba(0, 240, 255, 0.1) 100%);
-          border-color: rgba(255, 7, 58, 0.3);
-          box-shadow: 0 4px 20px rgba(255, 7, 58, 0.15);
-        }
-
-        .empty-state {
-          background: linear-gradient(145deg, 
-            rgba(16, 16, 22, 0.5) 0%,
-            rgba(10, 10, 15, 0.6) 100%);
-          border: 2px dashed rgba(255, 255, 255, 0.1);
-        }
-
-        .primary-btn {
-          background: linear-gradient(135deg, 
-            #ff073a 0%, 
-            #ff3366 100%);
-          box-shadow: 
-            0 8px 32px rgba(255, 7, 58, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          transition: all 0.3s ease;
-        }
-
-        .primary-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 
-            0 12px 40px rgba(255, 7, 58, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        }
-
-        .primary-btn:active {
-          transform: translateY(0);
-        }
-      `}</style>
-
-      <div className="dashboard-bg text-white">
-        {/* Background Effects */}
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#ff073a]/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#00f0ff]/10 rounded-full blur-3xl"></div>
+        <div className="px-5 sm:px-8 lg:px-12">
+          <ActiveSessionTimer />
+          <LeaveReviewPrompt />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
-          {/* Header */}
-          <header className="mb-10">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-[#ff073a]/20 to-[#00f0ff]/20">
-                    <Gamepad2 className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm text-zinc-400 uppercase tracking-wider">
-                    My Dashboard
-                  </span>
-                </div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                  Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff073a] to-[#00f0ff]">{userName}</span>!
-                </h1>
-                <p className="text-zinc-400" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  Manage your gaming sessions and track your activity
-                </p>
-              </div>
-
+        <div className="flex gap-2.5 px-5 pb-7 pt-4 sm:px-8 lg:px-12">
+          {(["upcoming", "history"] as const).map((tab) => {
+            const on = activeTab === tab;
+            return (
               <button
-                onClick={() => router.push("/")}
-                className="primary-btn hidden md:flex items-center gap-2 px-6 py-3 rounded-xl font-bold"
-                style={{ fontFamily: 'Orbitron, sans-serif' }}
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className="border px-6 py-3 font-mono text-xs font-semibold tracking-[0.18em] transition-colors"
+                style={
+                  on
+                    ? { background: "#d8ff3c", borderColor: "#d8ff3c", color: "#0b0b0c" }
+                    : {
+                        background: "transparent",
+                        borderColor: "rgba(242,240,234,.16)",
+                        color: "rgba(242,240,234,.55)",
+                      }
+                }
               >
-                <Zap className="w-4 h-4" />
-                Book New Session
-                <ChevronRight className="w-4 h-4" />
+                {tab === "upcoming" ? "UPCOMING" : "PAST"}
               </button>
-            </div>
+            );
+          })}
+        </div>
 
-            {/* Mobile Book Button */}
-            <button
-              onClick={() => router.push("/")}
-              className="primary-btn w-full md:hidden flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold mb-6"
-              style={{ fontFamily: 'Orbitron, sans-serif' }}
+        {loading && (
+          <div className="border-t border-[#f2f0ea]/[0.12] px-5 py-16 font-mono text-xs tracking-[0.2em] text-[#f2f0ea]/40 sm:px-8 lg:px-12">
+            LOADING YOUR BOOKINGS…
+          </div>
+        )}
+
+        {errorMsg && !loading && (
+          <div className="mx-5 mb-8 border border-[#ff5c2b]/40 bg-[#ff5c2b]/[0.08] px-6 py-5 text-sm font-semibold text-[#ff5c2b] sm:mx-8 lg:mx-12">
+            {errorMsg}
+          </div>
+        )}
+
+        {!loading && !errorMsg && showing.length === 0 && (
+          <div className="border-t border-[#f2f0ea]/[0.12] px-5 py-16 sm:px-8 lg:px-12">
+            <h2 className="text-2xl font-black tracking-[-0.02em]">
+              {activeTab === "upcoming" ? "Nothing booked yet" : "Nothing played yet"}
+            </h2>
+            <p className="mt-3 max-w-[46ch] text-[15px] leading-relaxed text-[#f2f0ea]/55">
+              {activeTab === "upcoming"
+                ? "Pick a café, pick an hour, and your seat is held."
+                : "Sessions you have finished show up here."}
+            </p>
+            <Link
+              href="/"
+              className="mt-7 inline-block bg-[#d8ff3c] px-8 py-4 font-display text-[13px] font-black tracking-[0.14em] text-[#0b0b0c] transition-[filter] hover:brightness-110"
             >
-              <Zap className="w-4 h-4" />
-              Book New Gaming Session
-            </button>
+              BROWSE CAFÉS →
+            </Link>
+          </div>
+        )}
 
-            {/* Active Session Timer - Shows when user has an active session */}
-            <ActiveSessionTimer />
+        {!loading && !errorMsg && activeTab === "upcoming" && upcoming.length > 0 && (
+          <div className="flex flex-col border-t border-[#f2f0ea]/[0.12]">
+            {upcoming.map((booking) => {
+              const state = stateOf(booking);
+              const cafe = booking.cafe;
+              const hours = booking.hours ?? (booking.duration ? booking.duration / 60 : null);
+              const mapQuery = [cafe?.name, cafe?.address, cafe?.city].filter(Boolean).join(", ");
 
-            {/* Asks about a visit that has already happened. Shows nothing when
-                there is nothing left to rate. */}
-            <LeaveReviewPrompt />
+              return (
+                <div
+                  key={booking.id}
+                  className="grid border-b border-[#f2f0ea]/10 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,0.7fr)]"
+                >
+                  <div className="border-[#f2f0ea]/10 px-5 pb-9 pt-8 sm:px-8 lg:border-r lg:px-12">
+                    <div className="flex flex-wrap items-center gap-3.5">
+                      <span className="font-mono text-xs tracking-[0.22em] text-[#d8ff3c]">
+                        {shortDate(booking.booking_date)}
+                        {booking.start_time ? ` · ${booking.start_time}` : ""}
+                      </span>
+                      <span
+                        className="whitespace-nowrap px-2.5 py-[5px] font-mono text-[10px] tracking-[0.14em]"
+                        style={{ background: state.bg, color: state.fg }}
+                      >
+                        {state.label}
+                      </span>
+                    </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="stat-card rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <CalendarCheck className="w-8 h-8 text-[#ff073a]" />
-                  <span className="text-xs text-zinc-400">Total</span>
-                </div>
-                <div className="text-2xl font-bold mb-1" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                  {stats.total}
-                </div>
-                <div className="text-sm text-zinc-400">Bookings</div>
-              </div>
+                    <div className="mt-4 text-[clamp(28px,3vw,38px)] font-black leading-[1.05] tracking-[-0.03em]">
+                      {cafe?.name || "Your booking"}
+                    </div>
+                    <div className="mt-2.5 font-mono text-xs tracking-[0.14em] text-[#f2f0ea]/45">
+                      {[cafe?.address, cafe?.city].filter(Boolean).join(", ").toUpperCase() ||
+                        "ADDRESS AT THE CAFÉ"}
+                    </div>
 
-              <div className="stat-card rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <TrendingUp className="w-8 h-8 text-[#00f0ff]" />
-                  <span className="text-xs text-zinc-400">Upcoming</span>
-                </div>
-                <div className="text-2xl font-bold mb-1" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                  {upcoming.length}
-                </div>
-                <div className="text-sm text-zinc-400">Sessions</div>
-              </div>
+                    <div className="mt-6 grid border border-[#f2f0ea]/[0.12] sm:grid-cols-3">
+                      {[
+                        {
+                          k: "STARTS",
+                          v: booking.start_time || "At the counter",
+                        },
+                        {
+                          k: "ENDS",
+                          v: booking.end_time || (hours ? `+${hours}h` : "—"),
+                        },
+                        {
+                          k: "LENGTH",
+                          v: hours ? `${hours} hour${hours === 1 ? "" : "s"}` : "—",
+                        },
+                      ].map((row) => (
+                        <div key={row.k} className="border-r border-[#f2f0ea]/10 px-[18px] py-4">
+                          <div className="whitespace-nowrap font-mono text-[10px] tracking-[0.18em] text-[#f2f0ea]/35">
+                            {row.k}
+                          </div>
+                          <div className="mt-2 whitespace-nowrap text-[15px] font-extrabold">
+                            {row.v}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
-              <div className="stat-card rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <Clock className="w-8 h-8 text-emerald-400" />
-                  <span className="text-xs text-zinc-400">Hours</span>
-                </div>
-                <div className="text-2xl font-bold mb-1" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                  {stats.totalHours}
-                </div>
-                <div className="text-sm text-zinc-400">Played</div>
-              </div>
-
-              <div className="stat-card rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <CreditCard className="w-8 h-8 text-amber-400" />
-                  <span className="text-xs text-zinc-400">Spent</span>
-                </div>
-                <div className="text-2xl font-bold mb-1" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                  ₹{stats.totalSpent}
-                </div>
-                <div className="text-sm text-zinc-400">Total</div>
-              </div>
-            </div>
-          </header>
-
-          {/* Error Message */}
-          {errorMsg && (
-            <div className="glass-card rounded-2xl p-4 mb-8 flex items-center gap-3 border-l-4 border-red-500">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-              <p className="text-sm text-red-300" style={{ fontFamily: 'Inter, sans-serif' }}>
-                {errorMsg}
-              </p>
-            </div>
-          )}
-
-          {/* Main Content */}
-          <main>
-            {/* Tabs */}
-            <div className="flex gap-2 mb-8">
-              <button
-                onClick={() => setActiveTab("upcoming")}
-                className={`tab-button flex items-center gap-2 px-6 py-3 rounded-xl font-medium ${activeTab === "upcoming" ? "active" : ""}`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
-              >
-                <CalendarCheck className="w-4 h-4" />
-                Upcoming ({upcoming.length})
-              </button>
-              <button
-                onClick={() => setActiveTab("history")}
-                className={`tab-button flex items-center gap-2 px-6 py-3 rounded-xl font-medium ${activeTab === "history" ? "active" : ""}`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
-              >
-                <History className="w-4 h-4" />
-                History ({past.length})
-              </button>
-            </div>
-
-            {/* Booking List */}
-            {activeTab === "upcoming" ? (
-              upcoming.length === 0 ? (
-                <div className="empty-state rounded-2xl p-12 text-center">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#ff073a]/10 to-[#00f0ff]/10 flex items-center justify-center">
-                    <CalendarCheck className="w-12 h-12 text-zinc-600" />
+                    <div className="mt-5 font-mono text-[11px] leading-[1.8] tracking-[0.1em] text-[#f2f0ea]/40">
+                      Give your number at the counter and they will put you on a machine. Arrive
+                      a few minutes early if you want a particular seat.
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-3" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                    No Upcoming Sessions
-                  </h3>
-                  <p className="text-zinc-400 mb-8 max-w-md mx-auto" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    You don't have any upcoming gaming sessions. Book your first session to start your gaming journey!
-                  </p>
-                  <button
-                    onClick={() => router.push("/")}
-                    className="primary-btn inline-flex items-center gap-2 px-8 py-3 rounded-xl font-bold"
-                    style={{ fontFamily: 'Orbitron, sans-serif' }}
+
+                  <div className="flex flex-col justify-between gap-6 bg-[#d8ff3c]/[0.05] px-6 pb-9 pt-8 sm:px-8">
+                    <div>
+                      <div className="font-mono text-[11px] tracking-[0.2em] text-[#d8ff3c]">
+                        BOOKING REF
+                      </div>
+                      <div className="mt-3 font-mono text-[clamp(26px,3.4vw,38px)] font-semibold leading-none tracking-[0.1em]">
+                        {booking.id.slice(0, 8).toUpperCase()}
+                      </div>
+                      <div className="mt-4 flex items-baseline justify-between gap-3.5">
+                        <span className="font-mono text-[11px] tracking-[0.16em] text-[#f2f0ea]/40">
+                          {(booking.status || "").toLowerCase() === "pending" ? "TO PAY" : "PAID"}
+                        </span>
+                        <span className="whitespace-nowrap text-lg font-extrabold">
+                          ₹{(booking.total_amount ?? 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5">
+                      <Link
+                        href={`/bookings/${booking.id}`}
+                        className="bg-[#d8ff3c] px-5 py-4 text-center font-display text-[13px] font-black tracking-[0.14em] text-[#0b0b0c] transition-[filter] hover:brightness-110"
+                      >
+                        VIEW BOOKING
+                      </Link>
+                      {mapQuery && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="border border-[#f2f0ea]/20 px-5 py-4 text-center font-mono text-[11px] tracking-[0.18em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                        >
+                          GET DIRECTIONS
+                        </a>
+                      )}
+                      {canCancelBooking(booking) && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleCancelBooking(booking.id, e)}
+                          disabled={cancelingId === booking.id}
+                          className="px-5 py-4 text-center font-mono text-[11px] tracking-[0.18em] text-[#ff5c2b] transition-colors hover:bg-[#ff5c2b]/10 disabled:opacity-50"
+                        >
+                          {cancelingId === booking.id ? "CANCELLING…" : "CANCEL BOOKING"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="flex flex-wrap items-center justify-between gap-6 px-5 pb-14 pt-8 sm:px-8 lg:px-12">
+              <span className="font-mono text-xs tracking-[0.16em] text-[#f2f0ea]/40">
+                WANT ANOTHER SEAT THIS WEEK?
+              </span>
+              <Link
+                href="/"
+                className="border border-[#d8ff3c] px-7 py-4 font-mono text-xs font-semibold tracking-[0.2em] text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c] hover:text-[#0b0b0c]"
+              >
+                BROWSE CAFÉS
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!loading && !errorMsg && activeTab === "history" && past.length > 0 && (
+          <div className="border-t border-[#f2f0ea]/[0.12] pb-14">
+            {past.map((booking) => {
+              const state = stateOf(booking);
+
+              return (
+                <Link
+                  key={booking.id}
+                  href={`/bookings/${booking.id}`}
+                  className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 border-b border-[#f2f0ea]/[0.08] px-5 py-[22px] transition-colors hover:bg-[#f2f0ea]/[0.03] sm:grid-cols-[96px_minmax(0,1fr)_minmax(0,0.8fr)_110px_90px] sm:px-8 lg:px-12"
+                >
+                  <span className="whitespace-nowrap font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/35">
+                    {shortDate(booking.booking_date)}
+                  </span>
+                  <span className="truncate text-base font-bold">
+                    {booking.cafe?.name || "Booking"}
+                  </span>
+                  <span className="hidden truncate font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/40 sm:block">
+                    {booking.start_time || ""}
+                    {booking.hours ? ` · ${booking.hours}H` : ""}
+                  </span>
+                  <span
+                    className="whitespace-nowrap font-mono text-[11px] tracking-[0.14em]"
+                    style={{ color: state.fg === "#0b0b0c" ? "#d8ff3c" : state.fg }}
                   >
-                    <Zap className="w-4 h-4" />
-                    Find Gaming Cafés
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {upcoming.map((booking) => {
-                    const ongoing = isBookingOngoing(booking);
-                    const statusInfo = getStatusInfo(booking.status, ongoing);
-                    const canCancel = canCancelBooking(booking);
-
-                    return (
-                      <div
-                        key={booking.id}
-                        onClick={() => router.push(`/bookings/${booking.id}`)}
-                        className="booking-card rounded-2xl p-5"
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center gap-5">
-                          {/* Left side - Café Info */}
-                          <div className="flex-1">
-                            <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff073a]/20 to-[#00f0ff]/20 flex items-center justify-center flex-shrink-0">
-                                <Gamepad2 className="w-6 h-6 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-bold truncate" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                                    {booking.cafe?.name || "Gaming Café"}
-                                  </h3>
-                                  <div className={`status-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}>
-                                    {statusInfo.icon}
-                                    {statusInfo.label}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-4 text-sm text-zinc-400">
-                                  <div className="flex items-center gap-1.5">
-                                    <Calendar className="w-4 h-4" />
-                                    <span style={{ fontFamily: 'Inter, sans-serif' }}>
-                                      {formatDate(booking.booking_date)}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <Clock className="w-4 h-4" />
-                                    <span style={{ fontFamily: 'Inter, sans-serif' }}>
-                                      {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                                    </span>
-                                  </div>
-                                  {booking.cafe?.city && (
-                                    <div className="flex items-center gap-1.5">
-                                      <MapPin className="w-4 h-4" />
-                                      <span style={{ fontFamily: 'Inter, sans-serif' }}>
-                                        {booking.cafe.city}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Right side - Price & Actions */}
-                          <div className="flex flex-col md:items-end gap-3">
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-5 h-5 text-[#00f0ff]" />
-                              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                                ₹{booking.total_amount || 0}
-                              </span>
-                              <span className="text-sm text-zinc-400">
-                                for {booking.hours || 1} hour{booking.hours !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-
-                            <div className="flex gap-2">
-                              {canCancel && (
-                                <button
-                                  onClick={(e) => handleCancelBooking(booking.id, e)}
-                                  disabled={cancelingId === booking.id}
-                                  className="cancel-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-                                  style={{ fontFamily: 'Inter, sans-serif' }}
-                                >
-                                  {cancelingId === booking.id ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                      Cancelling...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <XCircle className="w-4 h-4" />
-                                      Cancel
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                              <button
-                                onClick={() => router.push(`/bookings/${booking.id}`)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors"
-                                style={{ fontFamily: 'Inter, sans-serif' }}
-                              >
-                                View Details
-                                <ExternalLink className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            ) : (
-              // History Tab
-              past.length === 0 ? (
-                <div className="empty-state rounded-2xl p-12 text-center">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#ff073a]/10 to-[#00f0ff]/10 flex items-center justify-center">
-                    <History className="w-12 h-12 text-zinc-600" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-3" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                    No Gaming History
-                  </h3>
-                  <p className="text-zinc-400 mb-8 max-w-md mx-auto" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    Your gaming history will appear here after your first session. Start gaming to build your history!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {past.map((booking) => {
-                    const statusInfo = getStatusInfo(booking.status, false);
-
-                    return (
-                      <div
-                        key={booking.id}
-                        onClick={() => router.push(`/bookings/${booking.id}`)}
-                        className="booking-card rounded-2xl p-5 opacity-80 hover:opacity-100 transition-opacity"
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center gap-5">
-                          {/* Left side - Café Info */}
-                          <div className="flex-1">
-                            <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff073a]/10 to-[#00f0ff]/10 flex items-center justify-center flex-shrink-0">
-                                <Gamepad2 className="w-6 h-6 text-zinc-500" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-bold truncate" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                                    {booking.cafe?.name || "Gaming Café"}
-                                  </h3>
-                                  <div className={`status-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}>
-                                    {statusInfo.icon}
-                                    {statusInfo.label}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-4 text-sm text-zinc-400">
-                                  <div className="flex items-center gap-1.5">
-                                    <Calendar className="w-4 h-4" />
-                                    <span style={{ fontFamily: 'Inter, sans-serif' }}>
-                                      {formatDate(booking.booking_date)}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <Clock className="w-4 h-4" />
-                                    <span style={{ fontFamily: 'Inter, sans-serif' }}>
-                                      {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                                    </span>
-                                  </div>
-                                  {booking.cafe?.city && (
-                                    <div className="flex items-center gap-1.5">
-                                      <MapPin className="w-4 h-4" />
-                                      <span style={{ fontFamily: 'Inter, sans-serif' }}>
-                                        {booking.cafe.city}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Right side - Price */}
-                          <div className="flex flex-col md:items-end">
-                            <div className="flex items-center gap-2 mb-2">
-                              <DollarSign className="w-5 h-5 text-[#00f0ff]" />
-                              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                                ₹{booking.total_amount || 0}
-                              </span>
-                            </div>
-                            <div className="text-sm text-zinc-400">
-                              Completed on {formatDate(booking.booking_date)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            )}
-          </main>
-
-          {/* Stats Bar */}
-          {bookings.length > 0 && (
-            <div className="glass-card rounded-2xl p-6 mt-12">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <h3 className="text-lg font-bold mb-2" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                    Your Gaming Stats
-                  </h3>
-                  <p className="text-zinc-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    Track your gaming journey and achievements
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[#ff073a]" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                      {stats.total}
-                    </div>
-                    <div className="text-sm text-zinc-400">Total Sessions</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[#00f0ff]" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                      {stats.totalHours}
-                    </div>
-                    <div className="text-sm text-zinc-400">Hours Played</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-emerald-400" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                      ₹{stats.totalSpent}
-                    </div>
-                    <div className="text-sm text-zinc-400">Total Spent</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-amber-400" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                      {stats.confirmed}
-                    </div>
-                    <div className="text-sm text-zinc-400">Confirmed</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+                    {state.label}
+                  </span>
+                  <span className="justify-self-end whitespace-nowrap text-base font-extrabold">
+                    ₹{(booking.total_amount ?? 0).toLocaleString("en-IN")}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </PullToRefresh>
   );

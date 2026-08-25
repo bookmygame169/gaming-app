@@ -12,6 +12,7 @@ type PlanRow = {
   price: number;
   hours: number | null;
   validity_days: number;
+  is_unlimited: boolean | null;
   cafes: { name: string; slug: string | null } | null;
 };
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("membership_plans")
-      .select("id, cafe_id, plan_type, name, description, price, hours, validity_days, cafes(name, slug)")
+      .select("id, cafe_id, plan_type, name, description, price, hours, validity_days, is_unlimited, cafes(name, slug)")
       .eq("is_active", true)
       .order("price", { ascending: true });
 
@@ -62,6 +63,9 @@ export async function GET(request: NextRequest) {
         price: Number(row.price) || 0,
         hours: row.hours,
         validityDays: row.validity_days,
+        // Sold as play without a meter. The hours column is meaningless on
+        // these, so anything printing "N hours" has to check this first.
+        isUnlimited: row.is_unlimited === true,
       })),
     });
   } catch (err: unknown) {

@@ -2,7 +2,6 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { Home, CalendarCheck, ScanLine, Sparkles, User } from "lucide-react";
-import { colors } from "@/lib/constants";
 
 /**
  * The bottom tab bar, on phones only.
@@ -88,10 +87,10 @@ export default function MobileTabBar() {
           // beat the class rule that hides this on desktop — an inline style
           // outranks a class selector — so the bar sat across the bottom of
           // every laptop window too.
-          background: "rgba(10,10,15,0.92)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          borderTop: `1px solid ${colors.border}`,
+          background: "rgba(11,11,12,0.92)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderTop: "1px solid rgba(242,240,234,0.12)",
           // Clears the home indicator on an iPhone. Without it the last row of
           // labels sits under the system gesture bar and cannot be tapped.
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -120,7 +119,7 @@ export default function MobileTabBar() {
                 padding: "8px 2px 6px",
                 background: "none",
                 border: "none",
-                color: active ? colors.cyan : colors.textMuted,
+                color: active ? "#d8ff3c" : "rgba(242,240,234,0.45)",
                 cursor: "pointer",
                 // Stops the grey flash Android draws over a tapped element.
                 WebkitTapHighlightColor: "transparent",
@@ -128,7 +127,15 @@ export default function MobileTabBar() {
               }}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
-              <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: 0.2 }}>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 9,
+                  fontWeight: active ? 600 : 500,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                }}
+              >
                 {tab.label}
               </span>
             </button>

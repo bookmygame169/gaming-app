@@ -2,11 +2,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, Sparkles, Gift, Clock, LogIn, Phone } from "lucide-react";
-import { colors, fonts } from "@/lib/constants";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import EmptyState from "@/components/ui/EmptyState";
-import { SkeletonList } from "@/components/ui/Skeleton";
+import AccountTabs from "@/components/AccountTabs";
+import ScreenTitle from "@/components/ScreenTitle";
 import PullToRefresh from "@/components/ui/PullToRefresh";
 
 type HistoryEntry = {
@@ -35,6 +34,9 @@ type CafePoints = {
   minRedeemPoints: number;
   canRedeem: boolean;
   programEnabled: boolean;
+  pointsPerDay: number;
+  minDailySpend: number;
+  rupeesPerPoint: number;
   rewards: RewardOption[];
   history: HistoryEntry[];
 };
@@ -48,15 +50,29 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  new Date(iso)
+    .toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+    .toUpperCase();
 
+/**
+ * Points, in the BookMyGame Site design.
+ *
+ * The design gives this screen a tier — BRONZE climbing to something — and a
+ * CLAIM button on every reward. Neither exists: there are no tiers, and points
+ * are handed over at the counter, not claimed from a phone. So the headline
+ * figure is the balance itself, the bar measures the nearest reward actually
+ * within reach, and a reward that is affordable says to ask at the counter.
+ *
+ * Points are per café for the same reason wallets are, and the earn rule is
+ * printed rather than implied, because a customer cannot act on a balance
+ * without knowing what puts points into it.
+ */
 export default function RewardsPage() {
   const [cafes, setCafes] = useState<CafePoints[]>([]);
   const [needsPhone, setNeedsPhone] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openCafeId, setOpenCafeId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,267 +109,240 @@ export default function RewardsPage() {
     load();
   }, [load]);
 
+  const total = cafes.reduce((sum, cafe) => sum + cafe.balance, 0);
+  const worth = cafes.reduce((sum, cafe) => sum + (Number(cafe.worthRupees) || 0), 0);
+
+  const allRewards = cafes.flatMap((cafe) =>
+    cafe.rewards.map((reward) => ({ ...reward, cafeName: cafe.cafeName, cafeId: cafe.cafeId }))
+  );
+  const claimable = allRewards.filter((reward) => reward.affordable).length;
+
+  // The bar measures the nearest thing still out of reach, which is the only
+  // target on this screen a customer is actually working towards.
+  const next = allRewards
+    .filter((reward) => !reward.affordable)
+    .sort((a, b) => a.pointsToGo - b.pointsToGo)[0];
+
+  const progress = next ? Math.min(100, (total / next.pointsCost) * 100) : total > 0 ? 100 : 0;
+
+  const activity = cafes
+    .flatMap((cafe) => cafe.history.map((entry) => ({ ...entry, cafeName: cafe.cafeName })))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 12);
+
   return (
     <PullToRefresh onRefresh={load}>
-      <div style={{ background: colors.dark, minHeight: "100vh", fontFamily: fonts.body }}>
-        <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
-        <h1
-          className="text-3xl font-bold sm:text-4xl"
-          style={{ fontFamily: fonts.heading, color: colors.textPrimary }}
-        >
-          My points
-        </h1>
-        <p className="mt-2 text-sm" style={{ color: colors.textSecondary }}>
-          Spend enough in a day and you earn points. Save them up for free time, drinks
-          and discounts.
-        </p>
+      <div className="min-h-screen bg-[#0b0b0c] font-display text-[#f2f0ea]">
+        <AccountTabs />
+        <ScreenTitle title="Points" meta="EARNED BY PLAYING · SPENT AT THE COUNTER" />
 
         {loading && (
-          <div className="mt-8">
-            <SkeletonList count={2} lines={3} />
+          <div className="border-t border-[#f2f0ea]/[0.12] px-5 py-16 font-mono text-xs tracking-[0.2em] text-[#f2f0ea]/40 sm:px-8 lg:px-12">
+            LOADING YOUR POINTS…
           </div>
         )}
 
         {error && !loading && (
-          <div
-            className="mt-6 flex items-start gap-2 rounded-xl p-4 text-sm"
-            style={{
-              background: "rgba(245,158,11,0.08)",
-              border: "1px solid rgba(245,158,11,0.25)",
-              color: colors.orange,
-            }}
-          >
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-            <span>{error}</span>
+          <div className="mx-5 mt-4 border border-[#ff5c2b]/40 bg-[#ff5c2b]/[0.08] px-6 py-5 text-sm font-semibold text-[#ff5c2b] sm:mx-8 lg:mx-12">
+            {error}
           </div>
         )}
 
         {!loading && !error && !signedIn && (
-          <EmptyState
-            icon={LogIn}
+          <Prompt
             title="Sign in to see your points"
-            message="Your points follow the phone number you give at the café, so they are waiting for you as soon as you sign in."
-            action={{ label: "Sign in", href: "/login" }}
+            body="Points follow the phone number you give at the café — most are earned by walking in, not by booking online."
+            action={{ href: "/login", label: "SIGN IN →" }}
           />
         )}
 
-        {/* Points follow the phone number given at the counter, so an account
-            with no phone on it genuinely has nothing to show. */}
         {!loading && !error && signedIn && needsPhone && (
-          <EmptyState
-            icon={Phone}
+          <Prompt
             title="Add your phone number"
-            message="Points are recorded against the number you give at the counter. Add it to your profile and everything you have already earned appears here."
-            action={{ label: "Add phone number", href: "/profile" }}
-            tone="warning"
+            body="Points are earned against the number you give at the counter. Add it to your profile and they show up here."
+            action={{ href: "/profile", label: "ADD YOUR NUMBER →" }}
           />
         )}
 
-        {!loading && !error && signedIn && !needsPhone && cafes.length === 0 && (
-          <EmptyState
-            icon={Sparkles}
-            title="No points yet"
-            message="Spend enough in a day at a café and points land here on their own. Nothing to collect or scan."
-            action={{ label: "Find a café", href: "/" }}
-          />
-        )}
-
-        {!loading && !error && cafes.length > 0 && (
-          <div className="mt-8 grid gap-4">
-            {cafes.map((cafe) => {
-              const isOpen = openCafeId === cafe.cafeId;
-              const pointsToGo = Math.max(0, cafe.minRedeemPoints - cafe.balance);
-
-              return (
-                <div
-                  key={cafe.cafeId}
-                  className="rounded-2xl p-5"
-                  style={{
-                    background: colors.darkCard,
-                    border: `1px solid ${cafe.canRedeem ? "rgba(34,197,94,0.3)" : colors.border}`,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs" style={{ color: colors.textMuted }}>
-                        {cafe.cafeName}
-                      </p>
-                      <div className="mt-1 flex items-baseline gap-2">
-                        <span className="text-3xl font-bold" style={{ color: colors.cyan }}>
-                          {cafe.balance.toLocaleString("en-IN")}
-                        </span>
-                        <span className="text-xs" style={{ color: colors.textMuted }}>
-                          points
-                        </span>
-                      </div>
-                      {cafe.rewards.length === 0 && cafe.worthRupees > 0 && (
-                        <p className="mt-1 text-sm" style={{ color: colors.textSecondary }}>
-                          Worth ₹{cafe.worthRupees.toLocaleString("en-IN")} off
-                        </p>
-                      )}
-                    </div>
-
-                    <span
-                      className="rounded-md px-2 py-1 text-[10px] font-bold uppercase"
-                      style={{
-                        background: cafe.canRedeem ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)",
-                        color: cafe.canRedeem ? colors.green : colors.textMuted,
-                      }}
-                    >
-                      {cafe.canRedeem ? "Ready to use" : "Collecting"}
-                    </span>
-                  </div>
-
-                  {/* Progress towards the minimum, so a balance that cannot be
-                      spent yet still shows how close it is. */}
-                  {!cafe.programEnabled ? (
-                    <p className="mt-4 text-xs" style={{ color: colors.textMuted }}>
-                      This café has paused its points scheme. Your balance is safe.
-                    </p>
-                  ) : cafe.canRedeem ? (
-                    <p
-                      className="mt-4 flex items-center gap-1.5 text-xs"
-                      style={{ color: colors.green }}
-                    >
-                      <Gift size={13} />
-                      Ask at the counter to use these on your next session.
-                    </p>
-                  ) : (
-                    <>
-                      <div
-                        className="mt-4 h-1.5 w-full overflow-hidden rounded-full"
-                        style={{ background: "rgba(255,255,255,0.08)" }}
-                      >
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${
-                              cafe.minRedeemPoints > 0
-                                ? Math.min(100, (cafe.balance / cafe.minRedeemPoints) * 100)
-                                : 100
-                            }%`,
-                            background: colors.purple,
-                          }}
-                        />
-                      </div>
-                      <p className="mt-2 text-xs" style={{ color: colors.textMuted }}>
-                        {pointsToGo} more {pointsToGo === 1 ? "point" : "points"} until you can use
-                        them
-                      </p>
-                    </>
-                  )}
-
-                  {/* The menu. This is what a balance is for — a number on its
-                      own gives nobody a reason to come back. */}
-                  {cafe.rewards.length > 0 && (
-                    <div className="mt-4">
-                      <p
-                        className="mb-2 text-[11px] font-semibold uppercase tracking-wide"
-                        style={{ color: colors.textMuted }}
-                      >
-                        What you can get
-                      </p>
-
-                      <div className="grid gap-2">
-                        {cafe.rewards.map((reward) => (
-                          <div
-                            key={reward.id}
-                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5"
-                            style={{
-                              background: reward.affordable
-                                ? "rgba(34,197,94,0.07)"
-                                : "rgba(255,255,255,0.03)",
-                              border: `1px solid ${
-                                reward.affordable ? "rgba(34,197,94,0.25)" : "transparent"
-                              }`,
-                            }}
-                          >
-                            <div className="min-w-0">
-                              <p
-                                className="truncate text-sm font-semibold"
-                                style={{ color: colors.textPrimary }}
-                              >
-                                {reward.name}
-                              </p>
-                              <p className="text-[11px]" style={{ color: colors.textMuted }}>
-                                {reward.description || reward.detail}
-                              </p>
-                            </div>
-
-                            <div className="shrink-0 text-right">
-                              <p
-                                className="text-sm font-bold"
-                                style={{
-                                  color: reward.affordable ? colors.green : colors.textSecondary,
-                                }}
-                              >
-                                {reward.pointsCost} pts
-                              </p>
-                              <p className="text-[10px]" style={{ color: colors.textMuted }}>
-                                {reward.affordable
-                                  ? "Ask at the counter"
-                                  : `${reward.pointsToGo} more`}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {cafe.history.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => setOpenCafeId(isOpen ? null : cafe.cafeId)}
-                        className="mt-4 flex items-center gap-1.5 text-xs font-semibold"
-                        style={{ color: colors.cyan }}
-                      >
-                        <Clock size={13} />
-                        {isOpen ? "Hide history" : "See how you earned these"}
-                      </button>
-
-                      {isOpen && (
-                        <div className="mt-3 grid gap-2">
-                          {cafe.history.map((entry) => (
-                            <div
-                              key={entry.id}
-                              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2"
-                              style={{ background: "rgba(255,255,255,0.03)" }}
-                            >
-                              <div>
-                                <p className="text-xs" style={{ color: colors.textPrimary }}>
-                                  {REASON_LABELS[entry.reason] || entry.reason}
-                                </p>
-                                <p className="text-[11px]" style={{ color: colors.textMuted }}>
-                                  {formatDate(entry.createdAt)}
-                                </p>
-                              </div>
-                              <span
-                                className="text-sm font-bold"
-                                style={{ color: entry.points >= 0 ? colors.green : colors.orange }}
-                              >
-                                {entry.points >= 0 ? "+" : ""}
-                                {entry.points}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+        {!loading && !error && signedIn && !needsPhone && (
+          <div className="grid border-t border-[#f2f0ea]/[0.12] lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.6fr)]">
+            <div className="border-[#f2f0ea]/[0.12] lg:border-r">
+              <div className="bg-[#d8ff3c]/[0.06] px-5 py-10 sm:px-8 lg:p-12">
+                <div className="font-mono text-xs tracking-[0.24em] text-[#d8ff3c]">
+                  POINTS BALANCE
+                  {cafes.length > 1 ? ` · ${cafes.length} CAFÉS` : cafes[0] ? ` · ${cafes[0].cafeName.toUpperCase()}` : ""}
                 </div>
-              );
-            })}
+                <div className="mt-3.5 flex flex-wrap items-end gap-5">
+                  <span className="text-[clamp(56px,6.4vw,86px)] font-black leading-[0.9] tracking-[-0.04em]">
+                    {total.toLocaleString("en-IN")}
+                  </span>
+                  <span className="pb-3 font-mono text-xs tracking-[0.16em] text-[#f2f0ea]/45">
+                    {next
+                      ? `${next.pointsToGo} MORE FOR ${next.name.toUpperCase()}`
+                      : claimable > 0
+                        ? "READY TO SPEND"
+                        : "NOTHING TO CLAIM YET"}
+                  </span>
+                </div>
+
+                <div className="mt-6 h-1.5 bg-[#0b0b0c]/35">
+                  <div className="h-full bg-[#d8ff3c]" style={{ width: `${progress}%` }} />
+                </div>
+
+                <div className="mt-7 grid gap-y-6 sm:grid-cols-3">
+                  {[
+                    { label: "WORTH ABOUT", value: `₹${worth.toLocaleString("en-IN")}` },
+                    { label: "READY TO CLAIM", value: String(claimable) },
+                    { label: "CAFÉS", value: String(cafes.length) },
+                  ].map((stat) => (
+                    <div key={stat.label} className="pr-6">
+                      <div className="whitespace-nowrap font-mono text-[10px] tracking-[0.18em] text-[#f2f0ea]/40">
+                        {stat.label}
+                      </div>
+                      <div className="mt-2 text-[26px] font-black tracking-[-0.02em]">
+                        {stat.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {allRewards.length > 0 ? (
+                <>
+                  <div className="px-5 pb-2.5 pt-9 font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40 sm:px-8 lg:px-12">
+                    REDEEM AT A CAFÉ
+                  </div>
+                  {allRewards.map((reward) => (
+                    <div
+                      key={`${reward.cafeId}-${reward.id}`}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-3 border-t border-[#f2f0ea]/[0.09] px-5 py-[22px] sm:grid-cols-[minmax(0,1fr)_100px_auto] sm:px-8 lg:px-12"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-lg font-extrabold tracking-[-0.01em]">
+                          {reward.name}
+                        </div>
+                        <div className="mt-1.5 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/40">
+                          {reward.cafeName} · {reward.detail}
+                        </div>
+                      </div>
+                      <span className="whitespace-nowrap text-[17px] font-black text-[#d8ff3c]">
+                        {reward.pointsCost} PTS
+                      </span>
+                      <span
+                        className="justify-self-end whitespace-nowrap border px-5 py-3 text-center font-display text-xs font-black tracking-[0.12em]"
+                        style={
+                          reward.affordable
+                            ? { background: "#d8ff3c", borderColor: "#d8ff3c", color: "#0b0b0c" }
+                            : {
+                                background: "transparent",
+                                borderColor: "rgba(242,240,234,.16)",
+                                color: "rgba(242,240,234,.4)",
+                              }
+                        }
+                      >
+                        {reward.affordable ? "ASK AT COUNTER" : `${reward.pointsToGo} MORE`}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div className="px-5 py-12 sm:px-8 lg:px-12">
+                  <p className="max-w-[46ch] text-[15px] leading-relaxed text-[#f2f0ea]/60">
+                    {total > 0
+                      ? "Your cafés have not put up a rewards menu yet. Ask at the counter what your points get you."
+                      : "No points yet. Play a session and they start collecting against your number."}
+                  </p>
+                </div>
+              )}
+              <div className="h-14" />
+            </div>
+
+            <div className="flex flex-col border-t border-[#f2f0ea]/[0.12] lg:border-t-0">
+              <div className="border-b border-[#f2f0ea]/[0.12] px-8 py-[26px]">
+                <div className="font-mono text-xs tracking-[0.24em] text-[#d8ff3c]">
+                  HOW YOU EARN
+                </div>
+              </div>
+
+              {cafes.filter((cafe) => cafe.programEnabled).length === 0 ? (
+                <div className="border-b border-[#f2f0ea]/[0.07] px-8 py-5 font-mono text-xs leading-[1.6] text-[#f2f0ea]/50">
+                  No café you play at is running points at the moment.
+                </div>
+              ) : (
+                cafes
+                  .filter((cafe) => cafe.programEnabled)
+                  .map((cafe) => (
+                    <div
+                      key={cafe.cafeId}
+                      className="flex items-baseline gap-4 border-b border-[#f2f0ea]/[0.07] px-8 py-[18px]"
+                    >
+                      <span className="whitespace-nowrap text-[19px] font-black text-[#d8ff3c]">
+                        +{cafe.pointsPerDay}
+                      </span>
+                      <span className="font-mono text-xs leading-[1.6] text-[#f2f0ea]/50">
+                        a day at {cafe.cafeName}
+                        {cafe.minDailySpend > 0 ? `, on ₹${cafe.minDailySpend} or more` : ""}
+                      </span>
+                    </div>
+                  ))
+              )}
+
+              {activity.length > 0 && (
+                <>
+                  <div className="px-8 pb-2.5 pt-[26px] font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40">
+                    POINTS ACTIVITY
+                  </div>
+                  {activity.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between gap-4 border-b border-[#f2f0ea]/[0.07] px-8 py-[15px]"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold">
+                          {REASON_LABELS[entry.reason] || entry.reason}
+                        </div>
+                        <div className="mt-1 truncate font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/[0.32]">
+                          {formatDate(entry.createdAt)} · {entry.cafeName}
+                        </div>
+                      </div>
+                      <span
+                        className="whitespace-nowrap font-mono text-sm font-semibold"
+                        style={{ color: entry.points >= 0 ? "#d8ff3c" : "#ff5c2b" }}
+                      >
+                        {entry.points >= 0 ? "+" : "−"}
+                        {Math.abs(entry.points)}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         )}
-
-        {!loading && !error && signedIn && (
-          <p className="mt-6 text-xs" style={{ color: colors.textMuted }}>
-            Points are counted per café, because each one runs its own scheme.
-          </p>
-        )}
-        </div>
       </div>
     </PullToRefresh>
+  );
+}
+
+function Prompt({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action: { href: string; label: string };
+}) {
+  return (
+    <div className="border-t border-[#f2f0ea]/[0.12] px-5 py-16 sm:px-8 lg:px-12">
+      <h2 className="text-2xl font-black tracking-[-0.02em]">{title}</h2>
+      <p className="mt-3 max-w-[46ch] text-[15px] leading-relaxed text-[#f2f0ea]/55">{body}</p>
+      <Link
+        href={action.href}
+        className="mt-7 inline-block bg-[#d8ff3c] px-8 py-4 font-display text-[13px] font-black tracking-[0.14em] text-[#0b0b0c] transition-[filter] hover:brightness-110"
+      >
+        {action.label}
+      </Link>
+    </div>
   );
 }

@@ -4,15 +4,22 @@ import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import dynamicImport from "next/dynamic";
 import Link from "next/link";
-import { Gamepad, Gamepad2, GamepadDirectional, MapPin, Camera, Info, Check, Monitor, Cpu, Car, RectangleGoggles } from "lucide-react";
 
 // Lazy load heavy components
 const CafeGallery = dynamicImport(() => import("@/components/CafeGallery"), {
-  loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading gallery...</div>,
+  loading: () => (
+    <div className="px-5 py-6 font-mono text-xs tracking-[0.2em] text-[#f2f0ea]/35">
+      LOADING PHOTOS…
+    </div>
+  ),
 });
 
 const CafeDetailsAccordion = dynamicImport(() => import("@/components/CafeDetailsAccordion"), {
-  loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading details...</div>,
+  loading: () => (
+    <div className="px-5 py-6 font-mono text-xs tracking-[0.2em] text-[#f2f0ea]/35">
+      LOADING DETAILS…
+    </div>
+  ),
 });
 
 const LiveAvailability = dynamicImport(() => import("@/components/LiveAvailability"), {
@@ -20,7 +27,11 @@ const LiveAvailability = dynamicImport(() => import("@/components/LiveAvailabili
 });
 
 const CafeReviews = dynamicImport(() => import("@/components/CafeReviews"), {
-  loading: () => <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>Loading reviews...</div>,
+  loading: () => (
+    <div className="px-5 py-6 font-mono text-xs tracking-[0.2em] text-[#f2f0ea]/35">
+      LOADING REVIEWS…
+    </div>
+  ),
 });
 
 type CafePageProps = {
@@ -30,9 +41,17 @@ type CafePageProps = {
 type CafeImageRow = {
   id: string;
   image_url: string;
-  cafe_id?: string;
+  cafe_id: string;
 };
 
+type PricingRow = {
+  console_type: string;
+  quantity: number | null;
+  duration_minutes: number | null;
+  price: number | string | null;
+};
+
+/** The kinds of machine a café can hold, and what each is called on screen. */
 const CONSOLE_CONFIG: {
   key:
     | "ps5_count"
@@ -46,73 +65,41 @@ const CONSOLE_CONFIG: {
     | "racing_sim_count"
     | "vr_count";
   label: string;
-  icon: string;
-  color: string;
+  /** How this kind is named in console_pricing, where the rates live. */
+  pricingKey: string;
 }[] = [
-  { key: "ps5_count", label: "PS5", icon: "ps5", color: "#0070d1" },
-  { key: "ps4_count", label: "PS4", icon: "gamepad", color: "#003791" },
-  { key: "xbox_count", label: "Xbox", icon: "xbox", color: "#107c10" },
-  { key: "pc_count", label: "PC", icon: "monitor", color: "#ff073a" },
-  { key: "pool_count", label: "Pool", icon: "cpu", color: "#8b4513" },
-  { key: "arcade_count", label: "Arcade", icon: "gamepad", color: "#ff6b00" },
-  { key: "snooker_count", label: "Snooker", icon: "cpu", color: "#228b22" },
-  { key: "steering_wheel_count", label: "Steering Wheel", icon: "steering", color: "#e10600" },
-  { key: "racing_sim_count", label: "Racing Sim", icon: "racing_sim", color: "#ff4500" },
-  { key: "vr_count", label: "VR", icon: "vr", color: "#9945ff" },
+  { key: "pc_count", label: "PC", pricingKey: "pc" },
+  { key: "ps5_count", label: "PS5", pricingKey: "ps5" },
+  { key: "ps4_count", label: "PS4", pricingKey: "ps4" },
+  { key: "xbox_count", label: "XBOX", pricingKey: "xbox" },
+  { key: "vr_count", label: "VR", pricingKey: "vr" },
+  { key: "racing_sim_count", label: "RACING SIM", pricingKey: "racing_sim" },
+  { key: "steering_wheel_count", label: "STEERING WHEEL", pricingKey: "steering_wheel" },
+  { key: "pool_count", label: "POOL", pricingKey: "pool" },
+  { key: "snooker_count", label: "SNOOKER", pricingKey: "snooker" },
+  { key: "arcade_count", label: "ARCADE", pricingKey: "arcade" },
 ];
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const fetchCache = "force-no-store";
 
+/**
+ * One café, in the BookMyGame Site design.
+ *
+ * The design's venue screen puts a rate rail down the right-hand side, one row
+ * per kind of machine. Those rows are read from console_pricing rather than
+ * from the café's single hourly_price, because that is where the real per-hour
+ * numbers live and they differ by machine — a PS5 hour is not a PC hour.
+ *
+ * Two things in the design are missing here on purpose. There is no distance,
+ * because no café has coordinates stored, and the seat map with time slots
+ * belongs to the booking screen, which is where BOOK A SEAT leads.
+ */
 export default async function CafePage({ params }: CafePageProps) {
   const { id } = await params;
 
-  // Common styles
-  const fonts = {
-    heading: "'Orbitron', sans-serif",
-    body: "'Rajdhani', sans-serif",
-  };
+  if (!id) return <NotFound message="The URL did not contain a valid café id." />;
 
-  const colors = {
-    red: "#ff073a",
-    cyan: "#00f0ff",
-    dark: "#08080c",
-    cardBg: "rgba(18, 18, 24, 0.9)",
-    border: "rgba(255, 255, 255, 0.08)",
-    textPrimary: "#ffffff",
-    textSecondary: "#9ca3af",
-    textMuted: "#6b7280",
-  };
-
-  if (!id) {
-    return (
-      <main
-        style={{
-          maxWidth: "896px",
-          margin: "0 auto",
-          padding: "48px 16px",
-          fontFamily: fonts.body,
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: fonts.heading,
-            fontSize: "24px",
-            color: colors.red,
-            marginBottom: "16px",
-          }}
-        >
-          Café not found
-        </h1>
-        <p style={{ color: colors.textSecondary }}>
-          The URL did not contain a valid café id.
-        </p>
-      </main>
-    );
-  }
-
-  // Check if id is a UUID (old format) or slug (new format)
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
   const { data: cafeRows, error: cafeError } = await supabase
@@ -155,36 +142,22 @@ export default async function CafePage({ params }: CafePageProps) {
   const cafe = cafeRows?.[0] ?? null;
 
   if (!cafe || cafeError) {
-    return (
-      <main
-        style={{
-          maxWidth: "896px",
-          margin: "0 auto",
-          padding: "48px 16px",
-          fontFamily: fonts.body,
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: fonts.heading,
-            fontSize: "24px",
-            color: colors.red,
-            marginBottom: "16px",
-          }}
-        >
-          Café not found
-        </h1>
-        <p style={{ color: colors.textSecondary }}>
-          This café doesn&apos;t exist anymore or could not be loaded.
-        </p>
-      </main>
-    );
+    return <NotFound message="This café doesn't exist anymore or could not be loaded." />;
   }
 
-  const { data: galleryRows } = await supabase
-    .from("cafe_images")
-    .select("id, image_url, cafe_id")
-    .eq("cafe_id", cafe.id);
+  const [{ data: galleryRows }, { data: pricingRows }, { data: planRows }] = await Promise.all([
+    supabase.from("cafe_images").select("id, image_url, cafe_id").eq("cafe_id", cafe.id),
+    supabase
+      .from("console_pricing")
+      .select("console_type, quantity, duration_minutes, price")
+      .eq("cafe_id", cafe.id),
+    supabase
+      .from("membership_plans")
+      .select("id, name, price, is_unlimited")
+      .eq("cafe_id", cafe.id)
+      .eq("is_active", true)
+      .order("price", { ascending: true }),
+  ]);
 
   const galleryImages =
     (galleryRows as CafeImageRow[] | null)?.map((img) => ({
@@ -196,603 +169,191 @@ export default async function CafePage({ params }: CafePageProps) {
   const mapsUrl =
     cafe.google_maps_url ??
     (cafe.address
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          cafe.address
-        )}`
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cafe.address)}`
       : null);
 
-  const availableConsoles = CONSOLE_CONFIG.filter(({ key }) => {
-    const value = (cafe[key as keyof typeof cafe] as number | null) ?? null;
-    return (value ?? 0) > 0;
-  });
+  const availableConsoles = CONSOLE_CONFIG.map((entry) => ({
+    ...entry,
+    count: (cafe[entry.key as keyof typeof cafe] as number | null) ?? 0,
+  })).filter((entry) => entry.count > 0);
 
-  const renderConsoleIcon = (iconName: string, color: string) => {
-    const baseStyle: React.CSSProperties = { color, display: "inline-flex" };
-    switch (iconName) {
-      case "ps5":
-        return <GamepadDirectional size={16} style={baseStyle} />;
-      case "xbox":
-        return <Gamepad2 size={16} style={baseStyle} />;
-      case "vr":
-        return <RectangleGoggles size={16} style={baseStyle} />;
-      case "monitor":
-        return <Monitor size={16} style={baseStyle} />;
-      case "cpu":
-        return <Cpu size={16} style={baseStyle} />;
-      case "steering":
-      case "racing_sim":
-        return <Car size={16} style={baseStyle} />;
-      default:
-        return <Gamepad size={16} style={baseStyle} />;
-    }
-  };
+  // One hour, one player: the number a customer compares cafés on. Anything
+  // else on the price list is a variation of it and belongs on the booking
+  // screen, where they are actually choosing.
+  const hourlyByType = new Map<string, number>();
+  for (const row of (pricingRows ?? []) as PricingRow[]) {
+    if (Number(row.duration_minutes) !== 60) continue;
+    if (row.quantity != null && Number(row.quantity) !== 1) continue;
+    hourlyByType.set(String(row.console_type), Number(row.price) || 0);
+  }
 
-  // Styles
-  const sectionCardStyle: React.CSSProperties = {
-    background: `linear-gradient(145deg, rgba(18, 18, 24, 0.8) 0%, rgba(14, 14, 18, 0.9) 100%)`,
-    backdropFilter: "blur(10px)",
-    border: `1px solid ${colors.border}`,
-    borderRadius: "12px",
-    padding: "16px",
-  };
+  const rates = availableConsoles
+    .map((entry) => ({
+      label: entry.label,
+      count: entry.count,
+      price: hourlyByType.get(entry.pricingKey) ?? null,
+    }))
+    .filter((rate) => rate.price !== null);
 
-  const sectionTitleStyle: React.CSSProperties = {
-    fontFamily: fonts.heading,
-    fontSize: "13px",
-    fontWeight: 600,
-    color: colors.red,
-    textTransform: "uppercase",
-    letterSpacing: "1.5px",
-    marginBottom: "12px",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  };
+  const plans = planRows ?? [];
+  const cheapestPlan = plans[0] ?? null;
+  const totalSeats = availableConsoles.reduce((sum, entry) => sum + entry.count, 0);
+  const bookHref = `/cafes/${cafe.slug || cafe.id}/book`;
 
   return (
-    <main
-      style={{
-        fontFamily: fonts.body,
-        background: `linear-gradient(180deg, ${colors.dark} 0%, #0a0a10 50%, ${colors.dark} 100%)`,
-        minHeight: "100vh",
-        position: "relative",
-      }}
-    >
-      {/* Background ambient glow */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(ellipse at 20% 0%, rgba(255, 7, 58, 0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 100%, rgba(0, 240, 255, 0.06) 0%, transparent 50%)
-          `,
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
+    <main className="min-h-screen bg-[#0b0b0c] font-display text-[#f2f0ea]">
+      <div className="flex items-center gap-3.5 border-b border-[#f2f0ea]/[0.12] px-5 py-[22px] font-mono text-xs tracking-[0.18em] text-[#f2f0ea]/40 sm:px-8 lg:px-12">
+        <Link href="/" className="transition-colors hover:text-[#d8ff3c]">
+          ← CAFES
+        </Link>
+        <span>/</span>
+        <span className="truncate text-[#f2f0ea]">{cafe.name?.toUpperCase()}</span>
+      </div>
 
-      <div
-        style={{
-          maxWidth: "1024px",
-          margin: "0 auto",
-          padding: "16px",
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-        }}
-        className="cafe-detail-container"
-      >
-        {/* Hero Section */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: "16px",
-          }}
-        >
-          {/* Cover Image */}
-          {cafe.cover_url ? (
-            <div
-              style={{
-                position: "relative",
-                aspectRatio: "16/9",
-                width: "100%",
-                overflow: "hidden",
-                borderRadius: "16px",
-              }}
+      <section className="grid border-b border-[#f2f0ea]/[0.12] lg:grid-cols-[1.4fr_0.6fr]">
+        <div className="border-[#f2f0ea]/[0.12] px-5 py-10 sm:px-8 lg:border-r lg:p-12">
+          <div className="flex items-center gap-3 font-mono text-xs tracking-[0.26em] text-[#d8ff3c]">
+            <span className="h-2 w-2 bg-[#d8ff3c]" />
+            {cafe.opening_hours ? String(cafe.opening_hours).toUpperCase() : "OPEN TODAY"}
+          </div>
+
+          <h1 className="mt-5 text-[clamp(38px,5.4vw,74px)] font-black uppercase leading-[0.92] tracking-[-0.04em]">
+            {cafe.name}
+          </h1>
+
+          <div className="mt-4 font-mono text-[13px] tracking-[0.14em] text-[#f2f0ea]/45">
+            {[cafe.address, totalSeats > 0 ? `${totalSeats} STATIONS` : null]
+              .filter(Boolean)
+              .join(" · ")
+              .toUpperCase()}
+          </div>
+
+          {cafe.description && (
+            <p className="mt-5 max-w-[600px] font-mono text-[15px] leading-[1.8] text-[#f2f0ea]/50">
+              {cafe.description}
+            </p>
+          )}
+
+          {availableConsoles.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              {availableConsoles.map((entry) => (
+                <span
+                  key={entry.key}
+                  className="whitespace-nowrap border border-[#f2f0ea]/[0.14] px-3.5 py-[9px] font-mono text-[11px] tracking-[0.12em] text-[#f2f0ea]/60"
+                >
+                  {entry.count} {entry.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href={bookHref}
+              className="bg-[#d8ff3c] px-9 py-[19px] font-display text-[15px] font-black tracking-[0.12em] text-[#0b0b0c] transition-[filter] hover:brightness-110"
             >
-              <Image
-                src={cafe.cover_url}
-                alt={cafe.name}
-                fill
-                sizes="(max-width: 1024px) 100vw, 1024px"
-                className="object-cover"
-                priority
-              />
-              {/* Gradient overlay */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(180deg, transparent 0%, transparent 40%, rgba(8, 8, 12, 0.6) 70%, rgba(8, 8, 12, 0.95) 100%)`,
-                  pointerEvents: "none",
-                }}
-              />
-              {/* Title overlay */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  padding: "16px",
-                  zIndex: 2,
-                }}
+              BOOK A SEAT →
+            </Link>
+            {mapsUrl && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border border-[#f2f0ea]/20 px-[30px] py-[19px] font-mono text-[13px] font-semibold tracking-[0.18em] text-[#f2f0ea]/70 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
               >
-                <h1
-                  style={{
-                    fontFamily: fonts.heading,
-                    fontSize: "20px",
-                    fontWeight: 700,
-                    color: colors.textPrimary,
-                    textShadow: "0 2px 20px rgba(0, 0, 0, 0.5)",
-                    marginBottom: "8px",
-                  }}
-                  className="cafe-title"
-                >
-                  {cafe.name}
-                </h1>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {/* Status badge */}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "6px 12px",
-                      background: "rgba(34, 197, 94, 0.15)",
-                      border: "1px solid rgba(34, 197, 94, 0.3)",
-                      borderRadius: "20px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#22c55e",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        background: "#22c55e",
-                        borderRadius: "50%",
-                      }}
-                    />
-                    Open Now
-                  </span>
-                  {cafe.address && (
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "rgba(255, 255, 255, 0.7)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <span style={{ display: 'inline-flex', color: colors.red, alignItems: 'center' }}>
-                        <MapPin size={14} style={{ color: colors.red }} />
-                      </span>
-                      {cafe.address}
-                    </span>
-                  )}
+                GET DIRECTIONS
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col">
+          {rates.length > 0 ? (
+            rates.map((rate) => (
+              <div
+                key={rate.label}
+                className="flex flex-1 items-center justify-between gap-4 border-b border-[#f2f0ea]/10 px-6 py-[22px] sm:px-8"
+              >
+                <div className="min-w-0">
+                  <div className="whitespace-nowrap text-base font-extrabold">{rate.label}</div>
+                  <div className="mt-1 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/40">
+                    {rate.count} AVAILABLE
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="whitespace-nowrap text-2xl font-black tracking-[-0.02em]">
+                    ₹{rate.price}
+                  </div>
+                  <div className="font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/35">
+                    PER HOUR
+                  </div>
                 </div>
               </div>
-            </div>
+            ))
           ) : (
-            /* Fallback cover */
-            <div
-              style={{
-                aspectRatio: "16/9",
-                width: "100%",
-                borderRadius: "16px",
-                background: `linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #1a1a2e 75%, #16213e 100%)`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "24px",
-                textAlign: "center",
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  right: "20px",
-                  bottom: "20px",
-                  fontSize: "80px",
-                  opacity: 0.1,
-                }}
-              >
-                <Gamepad size={80} style={{ opacity: 0.08 }} />
-              </div>
-              <div style={{ position: "relative", zIndex: 1 }}>
-                <h1
-                  style={{
-                    fontFamily: fonts.heading,
-                    fontSize: "clamp(24px, 5vw, 36px)",
-                    fontWeight: 700,
-                    color: colors.textPrimary,
-                    marginBottom: "12px",
-                  }}
-                >
-                  {cafe.name}
-                </h1>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "rgba(255, 255, 255, 0.6)",
-                    maxWidth: "300px",
-                  }}
-                >
-                  Premium gaming experience with latest consoles & high-end PCs
-                </p>
+            <div className="flex flex-1 items-center justify-between gap-4 border-b border-[#f2f0ea]/10 px-6 py-[22px] sm:px-8">
+              <div className="text-base font-extrabold">FROM</div>
+              <div className="text-right">
+                <div className="text-2xl font-black tracking-[-0.02em]">
+                  ₹{cafe.hourly_price ?? 0}
+                </div>
+                <div className="font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/35">
+                  PER HOUR
+                </div>
               </div>
             </div>
           )}
 
-          {/* Booking Card */}
-          <div
-            style={{
-              background: `linear-gradient(145deg, rgba(20, 20, 28, 0.95) 0%, rgba(16, 16, 22, 0.98) 100%)`,
-              backdropFilter: "blur(20px)",
-              border: `1px solid rgba(255, 7, 58, 0.2)`,
-              borderRadius: "16px",
-              padding: "16px",
-              position: "relative",
-              overflow: "hidden",
-            }}
-            className="booking-card"
-          >
-            {/* Top accent line */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: "1px",
-                background: `linear-gradient(90deg, transparent, rgba(255, 7, 58, 0.5), transparent)`,
-              }}
-            />
-
-            {/* Cafe Name */}
-            <h2
-              style={{
-                fontFamily: fonts.heading,
-                fontSize: "16px",
-                fontWeight: 600,
-                color: colors.textPrimary,
-                marginBottom: "12px",
-              }}
-              className="booking-card-title"
-            >
-              {cafe.name}
-            </h2>
-
-            {/* Address with directions */}
-            {mapsUrl && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  marginBottom: "20px",
-                  paddingBottom: "16px",
-                  borderBottom: `1px solid ${colors.border}`,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                    flex: 1,
-                    minWidth: 0,
-                  }}
-                >
-                  <span style={{ fontSize: "16px", color: colors.red, display: 'inline-flex', alignItems: 'center' }}>
-                    <MapPin size={16} style={{ color: colors.red }} />
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: colors.textSecondary,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {cafe.address ?? "Address coming soon"}
-                  </span>
-                </div>
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: colors.cyan,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                    padding: "6px 12px",
-                    background: "rgba(0, 240, 255, 0.1)",
-                    borderRadius: "6px",
-                  }}
-                >
-                  Directions →
-                </a>
+          {plans.length > 0 && (
+            <Link href="/membership" className="bg-[#d8ff3c]/[0.06] px-6 py-6 sm:px-8">
+              <div className="font-mono text-[11px] tracking-[0.2em] text-[#d8ff3c]">
+                THIS CAFÉ&apos;S MEMBERSHIP
               </div>
-            )}
-
-            {/* Pricing */}
-            <div style={{ marginBottom: "24px" }}>
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: colors.textMuted,
-                  marginBottom: "6px",
-                  textTransform: "uppercase",
-                  letterSpacing: "1px",
-                }}
-              >
-                Starting from
-              </p>
-              <div>
-                <span
-                  style={{
-                    fontFamily: fonts.body,
-                    fontSize: "18px",
-                    color: colors.cyan,
-                    marginRight: "2px",
-                  }}
-                >
-                  ₹
-                </span>
-                <span
-                  style={{
-                    fontFamily: fonts.heading,
-                    fontSize: "36px",
-                    fontWeight: 700,
-                    color: colors.textPrimary,
-                  }}
-                >
-                  {cafe.hourly_price ?? 0}
-                </span>
-                <span
-                  style={{
-                    fontSize: "14px",
-                    color: colors.textMuted,
-                    fontWeight: 400,
-                  }}
-                >
-                  {" "}
-                  /hr
-                </span>
+              <div className="mt-2.5 text-[19px] font-extrabold leading-[1.3]">
+                {cheapestPlan?.is_unlimited
+                  ? "Unlimited play, one price"
+                  : `Passes from ₹${Number(cheapestPlan?.price ?? 0).toLocaleString("en-IN")}`}
               </div>
-              <p
-                style={{
-                  fontSize: "11px",
-                  color: "#4b5563",
-                  marginTop: "6px",
-                }}
-              >
-                Prices may vary based on console/device
-              </p>
-            </div>
-
-            {/* Quick equipment preview */}
-            {availableConsoles.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                  marginBottom: "20px",
-                }}
-              >
-                {availableConsoles.slice(0, 4).map(({ key, icon, label, color }) => (
-                  <span
-                    key={key}
-                    style={{
-                      fontSize: "11px",
-                      padding: "4px 10px",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      borderRadius: "6px",
-                      color: "#d1d5db",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                  >
-                    <span style={{ fontSize: "14px", display: 'inline-flex' }}>{renderConsoleIcon((icon as unknown as string) ?? 'gamepad', color)}</span>
-                    {label}
-                  </span>
-                ))}
-                {availableConsoles.length > 4 && (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      padding: "4px 10px",
-                      background: "rgba(255, 7, 58, 0.1)",
-                      borderRadius: "6px",
-                      color: colors.red,
-                    }}
-                  >
-                    +{availableConsoles.length - 4} more
-                  </span>
-                )}
+              <div className="mt-2 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/45">
+                SEE {plans.length} PLAN{plans.length === 1 ? "" : "S"} →
               </div>
-            )}
-
-
-
-            {/* Trust indicators */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "16px",
-                marginTop: "16px",
-                paddingTop: "16px",
-                borderTop: `1px solid ${colors.border}`,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "11px",
-                  color: colors.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <Check size={12} style={{ color: "#22c55e" }} /> Instant Confirmation
-              </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  color: colors.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <Check size={12} style={{ color: "#22c55e" }} /> Free Cancellation
-              </span>
-            </div>
-
-            {/* Directly above the Book button: knowing a machine is free is
-                what turns browsing into booking, and it is worth nothing three
-                screens further down. */}
-            <div style={{ marginTop: "18px" }}>
-              <LiveAvailability cafeId={cafe.id} />
-            </div>
-
-            {/* The only route into the booking flow. Without it the checkout
-                page was unreachable and nobody could book from the site. */}
-            <Link
-              href={`/cafes/${cafe.slug || cafe.id}/book`}
-              style={{
-                display: "block",
-                marginTop: "18px",
-                padding: "15px",
-                borderRadius: "14px",
-                background: `linear-gradient(135deg, ${colors.red}, #ff4d6d)`,
-                color: "#fff",
-                fontFamily: fonts.heading,
-                fontWeight: 700,
-                fontSize: "15px",
-                textAlign: "center",
-                letterSpacing: "0.5px",
-                boxShadow: "0 8px 24px rgba(255, 7, 58, 0.25)",
-              }}
-            >
-              BOOK NOW
             </Link>
-          </div>
-        </section>
+          )}
+        </div>
+      </section>
 
-        {/* Equipment Section */}
-        {availableConsoles.length > 0 && (
-          <section style={sectionCardStyle}>
-            <h2 style={sectionTitleStyle}>
-              {<Gamepad size={16} />} Available Equipment
-              <span
-                style={{
-                  flex: 1,
-                  height: "1px",
-                  background: `linear-gradient(90deg, rgba(255, 7, 58, 0.3), transparent)`,
-                }}
-              />
-            </h2>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "10px",
-              }}
-            >
-              {availableConsoles.map(({ key, icon, label, color }) => {
-                return (
-                  <div
-                    key={key}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "8px 14px",
-                      borderRadius: "10px",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: `1px solid rgba(255, 255, 255, 0.1)`,
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#e5e5e5",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "18px",
-                      }}
-                    >
-                      {renderConsoleIcon((icon as unknown as string) ?? "gamepad", color)}
-                    </span>
-                    <span>{label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
+      {cafe.cover_url && (
+        <div className="relative h-[240px] w-full border-b border-[#f2f0ea]/[0.12] sm:h-[360px]">
+          <Image
+            src={cafe.cover_url}
+            alt={cafe.name}
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+          />
+        </div>
+      )}
 
-        {/* About Section */}
-        <section style={sectionCardStyle}>
-          <h2 style={sectionTitleStyle}>
-            {<Info size={16} />} About
-            <span
-              style={{
-                flex: 1,
-                height: "1px",
-                background: `linear-gradient(90deg, rgba(255, 7, 58, 0.3), transparent)`,
-              }}
-            />
+      <section className="border-b border-[#f2f0ea]/[0.12] px-5 py-10 sm:px-8 lg:px-12">
+        <div className="flex items-baseline gap-[18px]">
+          <h2 className="m-0 text-[clamp(24px,3vw,32px)] font-black uppercase tracking-[-0.02em]">
+            Free right now
           </h2>
-          <p
-            style={{
-              fontSize: "14px",
-              lineHeight: 1.7,
-              color: colors.textSecondary,
-            }}
-          >
-            {cafe.description
-              ? cafe.description
-              : `Welcome to ${cafe.name} - your ultimate gaming destination! We offer a premium gaming experience with the latest consoles, high-end PCs, and comfortable seating. Whether you're into competitive esports, casual gaming, or just hanging out with friends, we've got you covered.`}
-          </p>
-        </section>
+          <span className="h-px flex-1 bg-[#f2f0ea]/[0.12]" />
+        </div>
+        <div className="mt-5">
+          <LiveAvailability cafeId={cafe.id} />
+        </div>
+        <Link
+          href={bookHref}
+          className="mt-7 inline-block bg-[#d8ff3c] px-9 py-[19px] font-display text-[15px] font-black tracking-[0.12em] text-[#0b0b0c] transition-[filter] hover:brightness-110"
+        >
+          BOOK A SEAT →
+        </Link>
+      </section>
 
-        {/* Cafe Details Accordion - Highlights & Specs */}
+      <section className="border-b border-[#f2f0ea]/[0.12] px-5 py-10 sm:px-8 lg:px-12">
         <CafeDetailsAccordion
           opening_hours={cafe.opening_hours}
           peak_hours={cafe.peak_hours}
@@ -805,148 +366,72 @@ export default async function CafePage({ params }: CafePageProps) {
           accessories_details={cafe.accessories_details}
           show_tech_specs={cafe.show_tech_specs ?? true}
         />
+      </section>
 
-        {/* What other people thought. Sits above the gallery because a
-            stranger trusts other customers more than the owner's photos. */}
-        <section style={sectionCardStyle}>
-          <CafeReviews cafeId={cafe.id} />
-        </section>
-
-        {/* Gallery Section */}
-        <section style={sectionCardStyle}>
-          <h2 style={sectionTitleStyle}>
-            {<Camera size={16} />} Gallery
-            <span
-              style={{
-                flex: 1,
-                height: "1px",
-                background: `linear-gradient(90deg, rgba(255, 7, 58, 0.3), transparent)`,
-              }}
-            />
+      <section className="border-b border-[#f2f0ea]/[0.12] px-5 py-10 sm:px-8 lg:px-12">
+        <div className="flex items-baseline gap-[18px] pb-6">
+          <h2 className="m-0 text-[clamp(24px,3vw,32px)] font-black uppercase tracking-[-0.02em]">
+            What people say
           </h2>
+          <span className="h-px flex-1 bg-[#f2f0ea]/[0.12]" />
+        </div>
+        <CafeReviews cafeId={cafe.id} />
+      </section>
+
+      {galleryImages.length > 0 && (
+        <section className="border-b border-[#f2f0ea]/[0.12] px-5 py-10 sm:px-8 lg:px-12">
+          <div className="flex items-baseline gap-[18px] pb-6">
+            <h2 className="m-0 text-[clamp(24px,3vw,32px)] font-black uppercase tracking-[-0.02em]">
+              The place
+            </h2>
+            <span className="h-px flex-1 bg-[#f2f0ea]/[0.12]" />
+          </div>
           <CafeGallery images={galleryImages} />
         </section>
+      )}
 
-        {/* Venue Section */}
-        <section
-          style={{
-            background: `linear-gradient(135deg, rgba(20, 20, 28, 0.9) 0%, rgba(16, 16, 22, 0.95) 100%)`,
-            border: `1px solid rgba(0, 240, 255, 0.15)`,
-            borderRadius: "16px",
-            padding: "20px",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {/* Top accent gradient */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "2px",
-              background: `linear-gradient(90deg, ${colors.cyan}, ${colors.red}, ${colors.cyan})`,
-            }}
-          />
-
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-            }}
-          >
-            <div>
-              <h3
-                style={{
-                  fontFamily: fonts.heading,
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  color: colors.textPrimary,
-                  marginBottom: "8px",
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <MapPin size={16} /> {cafe.name}
-                </span>
-              </h3>
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: colors.textSecondary,
-                  maxWidth: "400px",
-                }}
-              >
-                {cafe.address ?? "Address coming soon"}
-              </p>
+      {cafe.address && (
+        <section className="flex flex-wrap items-center justify-between gap-6 px-5 py-10 sm:px-8 lg:px-12">
+          <div>
+            <div className="font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40">
+              WHERE IT IS
             </div>
-            {mapsUrl && (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "10px 20px",
-                  background: "rgba(0, 240, 255, 0.1)",
-                  border: `1px solid rgba(0, 240, 255, 0.3)`,
-                  borderRadius: "10px",
-                  color: colors.cyan,
-                  fontFamily: fonts.body,
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  textDecoration: "none",
-                  width: "fit-content",
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-                Get Directions
-              </a>
-            )}
+            <div className="mt-3 max-w-[46ch] text-lg font-extrabold leading-[1.4]">
+              {cafe.address}
+            </div>
           </div>
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-[#d8ff3c] px-7 py-4 font-mono text-xs font-semibold tracking-[0.2em] text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c] hover:text-[#0b0b0c]"
+            >
+              OPEN IN MAPS
+            </a>
+          )}
         </section>
+      )}
+    </main>
+  );
+}
 
-        {/* Bottom spacing for mobile */}
-        <div style={{ height: "120px" }} />
-      </div>
-
-      {/* Responsive styles */}
-      <style>{`
-        @media (min-width: 640px) {
-          .cafe-detail-container {
-            padding: 24px !important;
-            gap: 24px !important;
-          }
-          .cafe-title {
-            font-size: 28px !important;
-          }
-          .booking-card {
-            padding: 20px !important;
-            border-radius: 20px !important;
-          }
-          .booking-card-title {
-            font-size: 18px !important;
-          }
-        }
-        @media (min-width: 768px) {
-          .cafe-title {
-            font-size: 32px !important;
-          }
-        }
-      `}</style>
+function NotFound({ message }: { message: string }) {
+  return (
+    <main className="min-h-screen bg-[#0b0b0c] px-5 py-16 font-display text-[#f2f0ea] sm:px-8 lg:px-12">
+      <div className="font-mono text-xs tracking-[0.28em] text-[#ff5c2b]">NOT FOUND</div>
+      <h1 className="mt-5 text-[clamp(32px,5vw,56px)] font-black uppercase leading-[0.95] tracking-[-0.04em]">
+        Café not found
+      </h1>
+      <p className="mt-5 max-w-[46ch] font-mono text-[13px] leading-[1.9] text-[#f2f0ea]/45">
+        {message}
+      </p>
+      <Link
+        href="/"
+        className="mt-8 inline-block bg-[#d8ff3c] px-8 py-4 font-display text-[13px] font-black tracking-[0.14em] text-[#0b0b0c] transition-[filter] hover:brightness-110"
+      >
+        BROWSE CAFÉS →
+      </Link>
     </main>
   );
 }

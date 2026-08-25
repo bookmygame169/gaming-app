@@ -1,9 +1,14 @@
 // src/components/booking/ConsoleCard.tsx
 /**
- * Compact console selection card with availability status
+ * One kind of machine, as a tile in the BookMyGame Site design.
+ *
+ * The design's seat tiles carry three lines — what it is, its number, and its
+ * state — and these carry the same three: the name, the hourly price, and how
+ * many are free. Sold out is drawn as a dead tile rather than a red badge on a
+ * live one, because it cannot be pressed at all.
  */
 
-import { colors, fonts, type ConsoleId } from "@/lib/constants";
+import { type ConsoleId } from "@/lib/constants";
 
 export interface ConsoleCardData {
   id: ConsoleId;
@@ -35,107 +40,49 @@ export function ConsoleCard({
   price,
   onClick,
 }: ConsoleCardProps) {
+  const border = isActive ? "#d8ff3c" : isSoldOut ? "rgba(242,240,234,.07)" : "rgba(242,240,234,.16)";
+  const background = isActive ? "#d8ff3c" : isSoldOut ? "rgba(242,240,234,.03)" : "transparent";
+  const foreground = isActive ? "#0b0b0c" : isSoldOut ? "rgba(242,240,234,.3)" : "#f2f0ea";
+  const muted = isActive ? "rgba(11,11,12,.65)" : "rgba(242,240,234,.4)";
+
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={isSoldOut}
-      style={{
-        minWidth: "85px",
-        maxWidth: "85px",
-        padding: "10px 6px",
-        borderRadius: "10px",
-        border: isActive
-          ? `2px solid ${console.color}`
-          : isSoldOut
-          ? `1px solid rgba(255, 255, 255, 0.06)`
-          : `1px solid ${colors.border}`,
-        background: isActive
-          ? `linear-gradient(135deg, ${console.color}25 0%, ${console.color}10 100%)`
-          : isSoldOut
-          ? "rgba(255, 255, 255, 0.02)"
-          : colors.darkCard,
-        cursor: isSoldOut ? "not-allowed" : "pointer",
-        transition: "all 0.2s ease",
-        boxShadow: isActive ? `0 4px 16px ${console.color}35` : "none",
-        opacity: isSoldOut ? 0.5 : 1,
-        textAlign: "center",
-        transform: isActive ? "scale(1.02)" : "none",
-      }}
-      className="console-card"
+      className="w-[112px] shrink-0 border px-3 py-3.5 text-center transition-colors disabled:cursor-not-allowed"
+      style={{ borderColor: border, background, color: foreground }}
     >
-      {/* Console icon */}
-      <div
-        style={{
-          fontSize: "24px",
-          marginBottom: "4px",
-          filter: isSoldOut ? "grayscale(1)" : "none",
-        }}
-      >
-        {console.icon}
+      <div className="font-mono text-[10px] tracking-[0.16em]" style={{ color: muted }}>
+        {console.label.toUpperCase()}
       </div>
 
-      {/* Console name */}
+      <div className="mt-1.5 text-[19px] font-black tracking-[-0.01em]">₹{price}</div>
+
       <div
+        className="mt-1.5 font-mono text-[9px] tracking-[0.14em]"
         style={{
-          fontSize: "11px",
-          fontWeight: 800,
-          fontFamily: fonts.heading,
-          color: isActive ? console.color : colors.textPrimary,
-          marginBottom: "2px",
-          letterSpacing: "-0.2px",
+          color: isActive
+            ? "rgba(11,11,12,.65)"
+            : isSoldOut
+              ? "rgba(242,240,234,.3)"
+              : isLowStock
+                ? "#ff5c2b"
+                : "rgba(242,240,234,.4)",
         }}
       >
-        {console.label}
+        {isSoldOut ? "ALL TAKEN" : `${availableSlots}/${totalSlots} FREE`}
       </div>
 
-      {/* Price */}
-      <div
-        style={{
-          fontSize: "10px",
-          color: colors.textMuted,
-          fontWeight: 600,
-          marginBottom: "6px",
-        }}
-      >
-        ₹{price}
-      </div>
-
-      {/* Availability badge - compact */}
-      <div
-        style={{
-          padding: "4px 8px",
-          background: isSoldOut
-            ? "rgba(239, 68, 68, 0.2)"
-            : isLowStock
-            ? "rgba(245, 158, 11, 0.2)"
-            : "rgba(34, 197, 94, 0.2)",
-          borderRadius: "6px",
-          fontSize: "9px",
-          fontWeight: 700,
-          color: isSoldOut
-            ? "#ef4444"
-            : isLowStock
-            ? colors.orange
-            : colors.green,
-          marginBottom: mySelection > 0 ? "6px" : "0",
-        }}
-      >
-        {isSoldOut ? "Sold Out" : `${availableSlots}/${totalSlots}`}
-      </div>
-
-      {/* Selected indicator - compact */}
       {mySelection > 0 && (
         <div
+          className="mt-2 py-1 font-mono text-[9px] tracking-[0.14em]"
           style={{
-            padding: "3px 6px",
-            background: `${console.color}30`,
-            borderRadius: "5px",
-            fontSize: "9px",
-            fontWeight: 700,
-            color: console.color,
+            background: isActive ? "rgba(11,11,12,.15)" : "rgba(216,255,60,.14)",
+            color: isActive ? "#0b0b0c" : "#d8ff3c",
           }}
         >
-          ✓ {mySelection}
+          {mySelection} PICKED
         </div>
       )}
     </button>

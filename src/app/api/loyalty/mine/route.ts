@@ -159,6 +159,11 @@ export async function GET(request: NextRequest) {
             // Shown so a customer whose café has switched the scheme off is not
             // left wondering why a balance cannot be spent.
             programEnabled: settings.enabled,
+            // The rule itself, not just its result. A balance with no way of
+            // knowing what earns it is a number a customer cannot act on.
+            pointsPerDay: settings.pointsPerDay,
+            minDailySpend: settings.minDailySpend,
+            rupeesPerPoint: settings.rupeesPerPoint,
             // What the points are actually for. Sorted by what they can claim
             // right now, so the top of the list is a reason to come in today
             // rather than something to save towards.

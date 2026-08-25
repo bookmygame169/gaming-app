@@ -1,9 +1,13 @@
 // src/components/booking/DatePicker.tsx
 /**
- * Horizontal scrollable date picker for selecting booking date
+ * Which day, as a row of square tiles in the BookMyGame Site design.
+ *
+ * The selected day is filled lime rather than outlined, because on a scrolling
+ * row of near-identical tiles an outline is easy to lose — and picking the
+ * wrong day is the one mistake on this screen nobody notices until they turn
+ * up at the café.
  */
 
-import { colors, fonts } from "@/lib/constants";
 import { DayOption } from "@/types/booking";
 
 interface DatePickerProps {
@@ -15,79 +19,36 @@ interface DatePickerProps {
 export function DatePicker({ dates, selectedDate, onSelect }: DatePickerProps) {
   return (
     <section>
-      <h2
-        style={{
-          fontSize: "13px",
-          fontWeight: 600,
-          color: colors.textSecondary,
-          marginBottom: "12px",
-        }}
-      >
-        📅 Select Date
-      </h2>
+      <h2 className="m-0 font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40">WHICH DAY</h2>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          overflowX: "auto",
-          paddingBottom: "8px",
-          scrollbarWidth: "none",
-        }}
-      >
+      <div className="mt-3.5 flex gap-2.5 overflow-x-auto pb-2 [scrollbar-width:none]">
         {dates.map((day) => {
-          const isActive = day.key === selectedDate;
+          const on = day.key === selectedDate;
+
           return (
             <button
               key={day.key}
+              type="button"
               onClick={() => onSelect(day.key)}
+              className="w-[76px] shrink-0 border px-1.5 py-3 text-center transition-colors"
               style={{
-                flexShrink: 0,
-                width: "68px",
-                padding: "10px 6px",
-                borderRadius: "10px",
-                border: isActive
-                  ? `2px solid ${colors.red}`
-                  : `1px solid ${colors.border}`,
-                background: isActive
-                  ? `linear-gradient(135deg, rgba(255, 7, 58, 0.2) 0%, rgba(255, 7, 58, 0.1) 100%)`
-                  : colors.darkCard,
-                cursor: "pointer",
-                textAlign: "center",
-                transition: "all 0.2s ease",
-                boxShadow: isActive ? `0 0 20px rgba(255, 7, 58, 0.3)` : "none",
-                minHeight: "48px",
+                borderColor: on ? "#d8ff3c" : "rgba(242,240,234,.16)",
+                background: on ? "#d8ff3c" : "transparent",
+                color: on ? "#0b0b0c" : "#f2f0ea",
               }}
-              className="date-button"
             >
               <div
-                style={{
-                  fontSize: "11px",
-                  color: day.isToday ? colors.cyan : colors.textMuted,
-                  marginBottom: "4px",
-                  fontWeight: 500,
-                }}
+                className="font-mono text-[10px] tracking-[0.16em]"
+                style={{ color: on ? "rgba(11,11,12,.65)" : "rgba(242,240,234,.4)" }}
               >
-                {day.isToday ? "TODAY" : day.dayName}
+                {day.isToday ? "TODAY" : day.dayName.toUpperCase()}
               </div>
+              <div className="mt-1.5 text-xl font-black tracking-[-0.01em]">{day.dayNum}</div>
               <div
-                style={{
-                  fontFamily: fonts.heading,
-                  fontSize: "20px",
-                  fontWeight: 700,
-                  color: isActive ? colors.red : colors.textPrimary,
-                }}
+                className="mt-1 font-mono text-[10px] tracking-[0.14em]"
+                style={{ color: on ? "rgba(11,11,12,.65)" : "rgba(242,240,234,.35)" }}
               >
-                {day.dayNum}
-              </div>
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: colors.textMuted,
-                  marginTop: "2px",
-                }}
-              >
-                {day.month}
+                {day.month.toUpperCase()}
               </div>
             </button>
           );

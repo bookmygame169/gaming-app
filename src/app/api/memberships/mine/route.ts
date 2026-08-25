@@ -25,6 +25,7 @@ type SubscriptionRow = {
   purchase_date: string;
   expiry_date: string;
   status: string;
+  is_unlimited: boolean | null;
   membership_plans: {
     name: string;
     plan_type: string;
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
       .from("subscriptions")
       .select(
         "id, cafe_id, customer_phone, hours_purchased, hours_remaining, amount_paid, " +
-          "purchase_date, expiry_date, status, " +
+          "purchase_date, expiry_date, status, is_unlimited, " +
           "membership_plans(name, plan_type, description, hours, validity_days), " +
           "cafes(name)"
       )
@@ -103,6 +104,7 @@ export async function GET(request: NextRequest) {
         const expiresAt = new Date(row.expiry_date).getTime();
         const isExpired = expiresAt < now || row.status === "expired";
         const daysLeft = Math.max(0, Math.ceil((expiresAt - now) / 86_400_000));
+        const isUnlimited = row.is_unlimited === true;
 
         return {
           id: row.id,
@@ -116,9 +118,12 @@ export async function GET(request: NextRequest) {
           purchaseDate: row.purchase_date,
           expiryDate: row.expiry_date,
           daysLeft,
+          isUnlimited,
           // Both conditions matter: hours can run out before the date, and the
-          // date can pass with hours unused.
-          isUsable: !isExpired && row.hours_remaining > 0,
+          // date can pass with hours unused. An unlimited pass has neither a
+          // balance nor a use for one, so only the date can end it - without
+          // this it reported itself used up from the moment it was sold.
+          isUsable: !isExpired && (isUnlimited || row.hours_remaining > 0),
           isExpired,
         };
       });

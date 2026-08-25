@@ -33,34 +33,12 @@ export function ConsoleGrid({
   onSelectConsole,
 }: ConsoleGridProps) {
   return (
-    <section style={{ marginBottom: "24px" }}>
-      <h2
-        style={{
-          fontSize: "14px",
-          fontWeight: 700,
-          color: "#e0e0e0",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          marginBottom: "12px",
-          textTransform: "uppercase",
-          letterSpacing: "1px",
-        }}
-        className="section-heading"
-      >
-        <span style={{ fontSize: "18px" }}>🎮</span>
-        <span>Select Console</span>
+    <section>
+      <h2 className="m-0 font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40">
+        PICK YOUR STATION
       </h2>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "8px",
-          justifyContent: "flex-start",
-        }}
-        className="console-grid-container"
-      >
+      <div className="mt-3.5 flex flex-wrap gap-2.5">
         {availableConsoleIds.map((consoleId) => {
           const console = consoles.find((c) => c.id === consoleId);
           if (!console) return null;
