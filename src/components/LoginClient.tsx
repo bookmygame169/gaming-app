@@ -35,22 +35,22 @@ const BENEFITS = [
   {
     n: "01",
     title: "Live seat counts",
-    note: "See what is free at each café before you leave the house.",
+    note: "See what is free before you go.",
   },
   {
     n: "02",
     title: "Credit and passes",
-    note: "Your balance and pass hours, held per café, in one place.",
+    note: "Held per café, in one place.",
   },
   {
     n: "03",
     title: "Points every visit",
-    note: "Earned at the counter, spent on whatever your café puts up.",
+    note: "Earned at the counter.",
   },
   {
     n: "04",
     title: "Scan and play",
-    note: "Scan the code on a locked machine and it starts your session.",
+    note: "Scan the machine and it unlocks.",
   },
 ];
 
@@ -74,11 +74,15 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
     }
   };
 
+  // Two labels each: three columns at 375px cannot hold "SEATS BOOKABLE" at a
+  // readable size, and shrinking the type to make it fit is how the whole page
+  // ended up whispering. The mobile drawing shortens these for the same reason.
   const proof = [
-    { value: String(cafeCount), label: "PARTNER CAFÉS", accent: false },
-    { value: String(seatCount), label: "SEATS BOOKABLE", accent: false },
+    { value: String(cafeCount), short: "CAFÉS", label: "PARTNER CAFÉS", accent: false },
+    { value: String(seatCount), short: "SEATS", label: "SEATS BOOKABLE", accent: false },
     {
       value: cheapestHour !== null ? `₹${cheapestHour}` : "—",
+      short: "PER HOUR",
       label: "FROM, PER HOUR",
       accent: true,
     },
@@ -94,7 +98,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
         {/* hero + proof — top left on desktop, first on a phone */}
         <div className="min-w-0 border-b border-[#f2f0ea]/[0.12] lg:col-start-1 lg:row-start-1 lg:border-b-0 lg:border-r">
           <div className="px-[18px] pb-6 pt-7 sm:px-8 lg:px-14 lg:pb-12 lg:pt-16 2xl:px-16 2xl:pt-20">
-            <div className="flex items-center gap-2.5 font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/45 sm:text-xs sm:tracking-[0.26em]">
+            <div className="flex items-center gap-2.5 font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/45 sm:text-[13px] sm:tracking-[0.26em]">
               <span className="block h-[7px] w-[7px] animate-pulse bg-[#d8ff3c] sm:h-2 sm:w-2" />
               {seatCount > 0
                 ? `${seatCount} SEATS BOOKABLE IN DELHI NCR`
@@ -108,8 +112,8 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
             </h1>
 
             <p className="mt-4 max-w-[520px] font-mono text-[13px] leading-[1.85] text-[#f2f0ea]/50 sm:mt-6 sm:text-base">
-              Sign in once and your rig, your hours and your café credit follow you across every
-              partner café in Delhi NCR. No calls, no queues.
+              Sign in once. Your hours, your credit and your bookings follow you to every
+              partner café.
             </p>
           </div>
 
@@ -122,8 +126,9 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
                 >
                   {item.value}
                 </div>
-                <div className="mt-2.5 font-mono text-[9px] tracking-[0.14em] text-[#f2f0ea]/40 sm:text-[11px] sm:tracking-[0.18em]">
-                  {item.label}
+                <div className="mt-2.5 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/40 sm:text-xs sm:tracking-[0.18em]">
+                  <span className="sm:hidden">{item.short}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
                 </div>
               </div>
             ))}
@@ -133,7 +138,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
         {/* sign in — top of the rail on desktop, straight after the figures on a phone */}
         <div className="flex min-w-0 flex-col border-[#f2f0ea]/[0.12] lg:col-start-2 lg:row-start-1">
           <div className="border-b border-[#f2f0ea]/[0.12] px-[18px] pb-6 pt-7 sm:px-8 lg:px-10 lg:pt-12">
-            <div className="font-mono text-[10px] tracking-[0.26em] text-[#d8ff3c] sm:text-xs">
+            <div className="font-mono text-[11px] tracking-[0.26em] text-[#d8ff3c] sm:text-[13px]">
               SIGN IN
             </div>
             <h2 className="mt-4 text-[clamp(28px,3.2vw,44px)] font-black uppercase leading-[1.02] tracking-[-0.03em]">
@@ -142,10 +147,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
               <br className="hidden lg:block" /> left off
             </h2>
             <p className="mt-4 font-mono text-[13px] leading-[1.8] text-[#f2f0ea]/45">
-              One tap. We only read your name and email to build your gaming profile.
-            </p>
-            <p className="mt-3 font-mono text-[11px] leading-[1.8] tracking-[0.1em] text-[#f2f0ea]/[0.32]">
-              NEW HERE? SIGNING IN CREATES YOUR ACCOUNT.
+              One tap. We read your name and email, nothing else.
             </p>
           </div>
 
@@ -162,9 +164,8 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
               </span>
             </button>
 
-            <p className="mt-4 font-mono text-[11px] leading-[1.8] tracking-[0.1em] text-[#f2f0ea]/[0.32]">
-              GOOGLE IS THE ONLY WAY IN FOR NOW. YOUR PHONE NUMBER IS ASKED FOR LATER, ON YOUR
-              PROFILE — THAT IS WHAT THE CAFÉS HOLD YOUR CREDIT AND HOURS AGAINST.
+            <p className="mt-4 font-mono text-xs leading-[1.8] tracking-[0.1em] text-[#f2f0ea]/[0.35]">
+              GOOGLE ONLY, FOR NOW. NEW HERE? THIS CREATES YOUR ACCOUNT.
             </p>
           </div>
 
@@ -172,7 +173,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
 
         {/* what you get — under the hero on desktop, under sign-in on a phone */}
         <div className="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2 lg:border-r lg:border-[#f2f0ea]/[0.12]">
-          <div className="px-[18px] pb-1.5 pt-6 font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/35 sm:px-8 sm:text-[11px] sm:tracking-[0.22em] lg:px-14 lg:pt-10 2xl:px-16">
+          <div className="px-[18px] pb-1.5 pt-6 font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/35 sm:px-8 sm:text-xs sm:tracking-[0.22em] lg:px-14 lg:pt-10 2xl:px-16">
             WHAT YOU GET
           </div>
 
@@ -187,7 +188,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
                 </span>
                 <div className="min-w-0 lg:flex lg:items-baseline lg:gap-[18px]">
                   <div className="shrink-0 text-[15px] font-bold sm:text-base">{benefit.title}</div>
-                  <div className="mt-1.5 font-mono text-[11px] leading-[1.7] text-[#f2f0ea]/[0.42] lg:mt-0 lg:text-xs lg:leading-[1.6]">
+                  <div className="mt-1.5 font-mono text-xs leading-[1.7] text-[#f2f0ea]/[0.45] lg:mt-0 lg:leading-[1.6]">
                     {benefit.note}
                   </div>
                 </div>
@@ -205,14 +206,14 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
         {/* partner console + the legal line — bottom of the rail on desktop, last on a phone */}
         <div className="flex min-w-0 flex-col justify-between border-[#f2f0ea]/[0.12] lg:col-start-2 lg:row-start-2">
           <div className="border-b border-[#f2f0ea]/[0.12] px-[18px] py-6 sm:px-8 lg:border-b-0 lg:px-10">
-            <div className="font-mono text-[10px] tracking-[0.18em] text-[#f2f0ea]/40 sm:text-[11px] sm:tracking-[0.2em]">
+            <div className="font-mono text-[11px] tracking-[0.18em] text-[#f2f0ea]/40 sm:text-xs sm:tracking-[0.2em]">
               RUN A CAFÉ?
             </div>
             <div className="mt-3 flex items-center justify-between gap-4">
               <span className="text-[15px] font-extrabold sm:text-base">Partner console</span>
               <Link
                 href="/owner/login"
-                className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#d8ff3c] transition-opacity hover:opacity-80 sm:text-[11px]"
+                className="whitespace-nowrap font-mono text-[11px] tracking-[0.16em] text-[#d8ff3c] transition-opacity hover:opacity-80 sm:text-xs"
               >
                 SIGN IN →
               </Link>
@@ -220,7 +221,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
           </div>
 
           <div className="border-t border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.02] px-[18px] pb-8 pt-5 sm:px-8 lg:px-10 lg:pb-7">
-            <div className="font-mono text-[10px] leading-[1.9] tracking-[0.1em] text-[#f2f0ea]/[0.32] sm:text-[11px]">
+            <div className="font-mono text-[11px] leading-[1.9] tracking-[0.1em] text-[#f2f0ea]/[0.35] sm:text-xs">
               BY CONTINUING YOU AGREE TO OUR{" "}
               <Link href="/terms" className="hover:text-[#d8ff3c]">
                 TERMS
@@ -231,7 +232,7 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
               </Link>
               .
             </div>
-            <div className="mt-4 flex items-center justify-between gap-4 font-mono text-[10px] tracking-[0.16em] text-[#f2f0ea]/[0.28] sm:text-[11px]">
+            <div className="mt-4 flex items-center justify-between gap-4 font-mono text-[11px] tracking-[0.16em] text-[#f2f0ea]/[0.32] sm:text-xs">
               <Link href="/" className="text-[#f2f0ea]/50 transition-colors hover:text-[#d8ff3c]">
                 ← BACK TO HOME
               </Link>
