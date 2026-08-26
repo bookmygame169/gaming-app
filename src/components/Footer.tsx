@@ -36,7 +36,10 @@ export default function Footer() {
     pathname.startsWith("/owner") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/play") ||
-    pathname.startsWith("/scan");
+    pathname.startsWith("/scan") ||
+    // Sign in carries its own legal line and its own back-to-home, in the
+    // rail. A second footer under it repeats both.
+    pathname.startsWith("/login");
 
   if (hidden) return null;
 
