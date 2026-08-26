@@ -28,9 +28,8 @@ export default function CustomerDetailsModal({
         ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
         : (customer.name?.[0] || 'U').toUpperCase();
 
-    const totalSpent = typeof customer.totalSpent === 'number'
-        ? customer.totalSpent
-        : customerBookings.reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
+    const bookingsSpent = customerBookings.reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
+    const totalSpent = typeof customer.totalSpent === 'number' ? customer.totalSpent : bookingsSpent;
     const totalHours = customerBookings.reduce((sum, b) => sum + (b.duration ? b.duration / 60 : 0), 0);
 
     // Visit frequency analytics
@@ -433,10 +432,12 @@ export default function CustomerDetailsModal({
                                                             padding: '2px 8px', borderRadius: 6, background: 'rgba(59, 130, 246, 0.1)',
                                                             color: '#60a5fa', fontSize: 12, fontWeight: 600
                                                         }}>
-                                                            {stationName}
+                                                            {booking.source === 'membership' ? 'Membership' : stationName}
                                                         </span>
                                                         <span style={{ color: '#94a3b8' }}>
-                                                            {booking.duration ? `${Math.floor(booking.duration / 60)}h ${booking.duration % 60}m` : 'N/A'}
+                                                            {booking.source === 'membership'
+                                                              ? (customer.activeSubscription?.membership_plans?.name || 'Plan')
+                                                              : booking.duration ? `${Math.floor(booking.duration / 60)}h ${booking.duration % 60}m` : 'N/A'}
                                                         </span>
                                                     </div>
                                                 </td>

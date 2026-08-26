@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAFE_PC_GAMES, mapGameRowToAgentJson } from "@/lib/cafePcGames";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { cafeStationToken } from "@/lib/stationAgentAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,6 @@ export async function POST(request: NextRequest) {
     }
 
     const brokerUrl = process.env.MQTT_BROKER_URL;
-    const heartbeatToken = process.env.STATION_HEARTBEAT_TOKEN;
 
     if (!brokerUrl) {
       console.error("MQTT_BROKER_URL is not set; cannot enroll stations.");
@@ -160,6 +160,9 @@ export async function POST(request: NextRequest) {
       .select("name")
       .eq("id", enrollment.cafe_id)
       .maybeSingle();
+
+    const heartbeatToken =
+      cafeStationToken(enrollment.cafe_id) || process.env.STATION_HEARTBEAT_TOKEN?.trim();
 
     return NextResponse.json({
       stationId: enrollment.station_name,

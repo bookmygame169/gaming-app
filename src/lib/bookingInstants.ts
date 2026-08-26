@@ -56,7 +56,7 @@ export async function insertBooking<T extends Record<string, unknown>>(
     typeof row.duration === "number" ? row.duration : Number(row.duration) || null
   );
 
-  const first = await supabase.from("bookings").insert(payload).select(select).maybeSingle();
+  const first = await supabase.from("bookings").insert(payload).select(select).single();
   if (!first.error || !isMissingInstantColumnError(first.error.message)) {
     return {
       data: (first.data as (T & { id: string }) | null) ?? null,
@@ -64,7 +64,7 @@ export async function insertBooking<T extends Record<string, unknown>>(
     };
   }
 
-  const fallback = await supabase.from("bookings").insert(row).select(select).maybeSingle();
+  const fallback = await supabase.from("bookings").insert(row).select(select).single();
   return {
     data: (fallback.data as (T & { id: string }) | null) ?? null,
     error: fallback.error,

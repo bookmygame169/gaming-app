@@ -19,6 +19,7 @@ import {
 import { syncStationsForBooking } from "@/lib/stationSync";
 import { getOpeningWindow, sessionFitsOpeningHours } from "@/lib/openingHours";
 import { getWalletBalance, isMissingWalletTable, toRupees } from "@/lib/wallet";
+import { insertBooking } from "@/lib/bookingInstants";
 import type { ConsoleId } from "@/lib/constants";
 import type { ConsolePricingTier } from "@/types/booking";
 
@@ -327,9 +328,7 @@ export async function POST(request: NextRequest) {
 
     // ------------------------------------------------------------------ write
 
-    const { data: newBooking, error: bookingError } = await supabase
-      .from("bookings")
-      .insert({
+    const { data: newBooking, error: bookingError } = await insertBooking(supabase, {
         cafe_id: cafe.id,
         user_id: userId,
         booking_date: bookingDate,
@@ -357,9 +356,7 @@ export async function POST(request: NextRequest) {
         // reader — availability, auto-complete, the lock agent — goes by.
         coupon_code: coupon?.code ?? null,
         discount_amount: coupon?.discount ?? 0,
-      })
-      .select("id")
-      .maybeSingle();
+      });
 
     if (bookingError || !newBooking) {
       console.error("Booking insert failed:", bookingError?.message);

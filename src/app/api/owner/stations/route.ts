@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
               session_id: bookingId,
             }
           : { action: "lock" }
-      );
+      , { cafeId: ownedCafeId });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error("Station command publish failed:", err);

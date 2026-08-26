@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { getBookingRevenueTotal, isBillableRevenueBooking } from '@/lib/ownerRevenue';
+import { phoneKey } from '@/lib/phone';
 import { BookingRow } from '../../types';
 import { getLocalDateString } from '../../utils';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
@@ -17,6 +18,7 @@ type CustomerSubscription = {
   membership_plans?: {
     hours?: number | null;
     name?: string | null;
+    price?: number | string | null;
   } | null;
   purchase_date?: string | null;
   status?: string | null;
@@ -29,6 +31,7 @@ type Customer = {
   hasMembership: boolean;
   id: string;
   lastVisit: string;
+  membershipSpendIncluded: boolean;
   name: string;
   phone: string | null;
   sessions: number;
@@ -66,16 +69,19 @@ function getCustomerKey({
   phone?: string | null;
   userId?: string | null;
 }) {
+  const normalizedPhone = phoneKey(phone);
+  if (normalizedPhone) return `phone:${normalizedPhone}`;
   if (userId) return `user:${userId}`;
-  if (phone) return `phone:${phone}`;
   if (email) return `email:${email.toLowerCase()}`;
   if (name) return `name:${name.trim().toLowerCase()}`;
   return 'unknown';
 }
 
-function getSubscriptionAmount(amountPaid?: number | string | null) {
-  if (typeof amountPaid === 'number') return amountPaid;
-  return parseFloat(amountPaid ?? '0') || 0;
+function getSubscriptionAmount(subscription: CustomerSubscription) {
+  if (typeof subscription.amount_paid === 'number') {
+    return Number.isFinite(subscription.amount_paid) ? subscription.amount_paid : 0;
+  }
+  return parseFloat(String(subscription.amount_paid ?? '0')) || 0;
 }
 
 function isWalkInSource(source?: string | null): boolean {
@@ -148,7 +154,6 @@ export default function CustomersTab({
     const customerMap = new Map<string, Customer>();
 
     bookings.forEach((booking) => {
-      if (booking.source === 'membership') return;
       if (!isBillableRevenueBooking(booking)) return;
       const customerId = getCustomerKey({
         userId: booking.user_id,
@@ -160,11 +165,16 @@ export default function CustomersTab({
       const customerPhone = booking.customer_phone || booking.user_phone || null;
       const customerEmail = booking.user_email || null;
       const bookingDate = booking.booking_date || '';
+      const isMembershipBooking = booking.source === 'membership';
 
       if (customerMap.has(customerId)) {
         const existing = customerMap.get(customerId)!;
-        existing.sessions += 1;
+        if (!isMembershipBooking) existing.sessions += 1;
         existing.totalSpent += getBookingRevenueTotal(booking);
+        if (isMembershipBooking) {
+          existing.hasMembership = true;
+          if (getBookingRevenueTotal(booking) > 0) existing.membershipSpendIncluded = true;
+        }
         if (bookingDate && new Date(bookingDate) > new Date(existing.lastVisit || 0)) {
           existing.lastVisit = bookingDate;
         }
@@ -178,13 +188,16 @@ export default function CustomersTab({
           activeSubscription: null,
           email: customerEmail,
           hasActiveSubscription: false,
-          hasMembership: false,
+          hasMembership: isMembershipBooking,
           id: customerId,
           lastVisit: bookingDate,
+          membershipSpendIncluded: isMembershipBooking && getBookingRevenueTotal(booking) > 0,
           name: customerName,
           phone: customerPhone,
-          sessions: 1,
-          source: isWalkInSource(booking.source) ? 'walk-in' : 'online',
+          sessions: isMembershipBooking ? 0 : 1,
+          source: isMembershipBooking
+            ? 'membership'
+            : isWalkInSource(booking.source) ? 'walk-in' : 'online',
           totalSpent: getBookingRevenueTotal(booking),
         });
       }
@@ -199,12 +212,16 @@ export default function CustomersTab({
       const purchaseDate = subscription.purchase_date
         ? getLocalDateString(new Date(subscription.purchase_date))
         : '';
+      const membershipAmount = getSubscriptionAmount(subscription);
 
       if (customerMap.has(customerId)) {
         const existing = customerMap.get(customerId)!;
         existing.hasMembership = true;
         existing.hasActiveSubscription = existing.hasActiveSubscription || Boolean(activeSubscription);
-        existing.totalSpent += getSubscriptionAmount(subscription.amount_paid);
+        if (!existing.membershipSpendIncluded && membershipAmount > 0) {
+          existing.totalSpent += membershipAmount;
+          existing.membershipSpendIncluded = true;
+        }
         if (!existing.phone && subscription.customer_phone) existing.phone = subscription.customer_phone;
         if ((!existing.lastVisit || (purchaseDate && new Date(purchaseDate) > new Date(existing.lastVisit))) && purchaseDate) {
           existing.lastVisit = purchaseDate;
@@ -223,11 +240,12 @@ export default function CustomersTab({
           hasMembership: true,
           id: customerId,
           lastVisit: purchaseDate,
+          membershipSpendIncluded: membershipAmount > 0,
           name: subscription.customer_name || 'Unknown',
           phone: subscription.customer_phone || null,
           sessions: 0,
           source: 'membership',
-          totalSpent: getSubscriptionAmount(subscription.amount_paid),
+          totalSpent: membershipAmount,
         });
       }
     });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { syncDueStationSessions } from "@/lib/stationSchedule";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,19 @@ export async function GET(request: NextRequest) {
       console.error(`[Housekeeping] ${job} threw:`, detail);
       results.push({ job, ok: false, detail });
     }
+  }
+
+  try {
+    const stationSync = await syncDueStationSessions(supabase);
+    results.push({
+      job: "station_sync",
+      ok: stationSync.failed === 0,
+      detail: `unlocked=${stationSync.unlocked} completed=${stationSync.completed} skipped=${stationSync.skipped} failed=${stationSync.failed}`,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[Housekeeping] station_sync threw:", detail);
+    results.push({ job: "station_sync", ok: false, detail });
   }
 
   const failed = results.filter((result) => !result.ok);

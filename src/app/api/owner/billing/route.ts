@@ -18,6 +18,7 @@ import { getInitialOwnerBookingStatus } from "@/lib/bookingFilters";
 import { syncStationsForBooking } from "@/lib/stationSync";
 import { sendStationCommands } from "@/lib/stationCommands";
 import { awardPointsForBooking } from "@/lib/loyalty";
+import { insertBooking } from "@/lib/bookingInstants";
 
 export const dynamic = 'force-dynamic';
 
@@ -517,7 +518,9 @@ export async function DELETE(request: NextRequest) {
       // running and is brought back in line below.
       if (freedStations.length > 0) {
         try {
-          await sendStationCommands(freedStations, () => ({ action: "lock" }));
+          await sendStationCommands(freedStations, () => ({ action: "lock" }), {
+            cafeId: ownedCafeId,
+          });
         } catch (err) {
           console.error("Could not lock the removed station:", err);
         }
@@ -627,13 +630,13 @@ export async function POST(request: NextRequest) {
       : booking.status,
   };
 
-  const { data: newBooking, error: bookingError } = await supabase
-    .from('bookings')
-    .insert(resolvedBooking)
-    .select()
-    .single();
+  const { data: newBooking, error: bookingError } = await insertBooking(
+    supabase,
+    resolvedBooking as Record<string, unknown>,
+    "*"
+  );
 
-  if (bookingError) return NextResponse.json({ error: bookingError.message }, { status: 500 });
+  if (bookingError || !newBooking) return NextResponse.json({ error: bookingError?.message || "Could not create the booking." }, { status: 500 });
 
   if (resolvedItems.length > 0) {
     const itemsToInsert = resolvedItems.map((item: BookingItemPayload) => ({
@@ -687,7 +690,13 @@ export async function POST(request: NextRequest) {
   // A session entered after the fact is created already completed, so it never
   // passes through the status change that normally awards points.
   if (String(resolvedBooking.status ?? "").toLowerCase() === "completed") {
-    await awardPointsForBooking(supabase, newBooking);
+    await awardPointsForBooking(supabase, {
+      id: newBooking.id,
+      cafe_id: String(resolvedBooking.cafe_id || ""),
+      customer_phone: (resolvedBooking.customer_phone as string | null) ?? null,
+      user_id: (resolvedBooking.user_id as string | null) ?? null,
+      booking_date: (resolvedBooking.booking_date as string | null) ?? null,
+    });
   }
 
   return NextResponse.json({ success: true, bookingId: newBooking.id });

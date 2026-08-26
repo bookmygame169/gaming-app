@@ -1,8 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { requireStationToken } from "@/lib/stationAgentAuth";
+import { requireKnownStation, requireStationToken } from "@/lib/stationAgentAuth";
+import { syncDueStationSessions } from "@/lib/stationSchedule";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * How often the due-session sweep may run for one café.
+ *
+ * Every station heartbeats every 30 seconds, so ten machines would otherwise
+ * run the same café sweep twenty times a minute.
+ */
+const SWEEP_EVERY_MS = 40_000;
+
+/**
+ * How long a heartbeat will wait for the sweep before answering anyway.
+ *
+ * A station that gets no answer treats the heartbeat as failed and shows as
+ * offline on the dashboard - and the QR flow refuses to take money for a
+ * machine it thinks is offline.
+ */
+const SWEEP_WAIT_MS = 4_000;
+
+const lastSweepFinishedAtMs = new Map<string, number>();
+const sweepInFlight = new Map<string, Promise<void>>();
+
+/**
+ * Unlocks machines whose paid start time has arrived, for this café only.
+ *
+ * This is deliberately not a Vercel cron. Crons on the Hobby plan run once a
+ * day, and a schedule finer than that does not merely get ignored - it makes
+ * the whole deployment invalid, which has already stopped production twice.
+ *
+ * The throttle is recorded when the sweep *finishes*, not when it starts, so a
+ * 4s timeout cannot black out the next 40s of heartbeats while MQTT is still
+ * connecting. Overlapping heartbeats wait on the in-flight sweep instead of
+ * starting a second copy.
+ */
+async function sweepDueSessions(cafeId: string): Promise<void> {
+  const now = Date.now();
+  const lastFinished = lastSweepFinishedAtMs.get(cafeId) ?? 0;
+  if (now - lastFinished < SWEEP_EVERY_MS && !sweepInFlight.has(cafeId)) return;
+
+  let sweep = sweepInFlight.get(cafeId);
+  if (!sweep) {
+    sweep = syncDueStationSessions(getSupabaseAdmin(), cafeId)
+      .then((result) => {
+        if (result.unlocked > 0 || result.completed > 0 || result.failed > 0) {
+          console.log(
+            `[Station sync] cafe ${cafeId}: unlocked=${result.unlocked} completed=${result.completed} failed=${result.failed}`
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        console.error(
+          "[Station sync] heartbeat-triggered sweep failed:",
+          err instanceof Error ? err.message : err
+        );
+      })
+      .finally(() => {
+        lastSweepFinishedAtMs.set(cafeId, Date.now());
+        sweepInFlight.delete(cafeId);
+      });
+    sweepInFlight.set(cafeId, sweep);
+  }
+
+  await Promise.race([sweep, new Promise((resolve) => setTimeout(resolve, SWEEP_WAIT_MS))]);
+}
 
 /**
  * POST /api/stations/heartbeat
@@ -16,9 +80,8 @@ export const dynamic = "force-dynamic";
  * Not part of /api/owner/* on purpose: the caller is a café PC, not a signed-in
  * owner, so it authenticates with a shared token instead of a session cookie.
  *
- * The token is only good for reporting status. Even if one leaks off a café PC,
- * it cannot unlock anything — unlock commands go over MQTT and are only ever
- * sent by the owner-authenticated route.
+ * The token is only good for reporting this station's status and for kicking
+ * this café's due-session sweep. Unlock commands still go over MQTT.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -50,6 +113,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    const stationCheck = await requireKnownStation(supabase, { cafeId, stationName });
+    if (stationCheck && stationCheck.status !== 404) {
+      return stationCheck;
+    }
 
     const base = {
       cafe_id: cafeId,
@@ -87,6 +155,8 @@ export async function POST(request: NextRequest) {
       console.error("Heartbeat upsert failed:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await sweepDueSessions(cafeId);
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

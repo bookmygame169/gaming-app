@@ -5,6 +5,7 @@ import { completeEndedBookings } from "@/lib/autoComplete";
 import { normalizeRealtimeBookingStatus } from "@/lib/bookingFilters";
 import { getIndiaDateDaysAgo, getIndiaDateString } from "@/lib/indiaTime";
 import { buildStationPricingMap, dedupeStationPricingRows } from "@/lib/stationNames";
+import { loadOwnerRevenueStats } from "@/lib/ownerDashboardStats";
 
 export const dynamic = 'force-dynamic';
 
@@ -52,8 +53,8 @@ async function getRequestedScope(request: NextRequest): Promise<{ scope: OwnerDa
   }
 }
 
-// Tabs that only need bookings — skip subscriptions, pricing, profiles
-// Note: 'bookings' intentionally excluded so pricing loads for edit modal auto-calc
+// Customers skip station/console pricing, not subscriptions (membership spend).
+// Note: 'bookings' is not in this set so pricing still loads for the edit modal.
 const BOOKINGS_ONLY_TABS = new Set(['customers']);
 // Tabs that only need pricing — skip bookings, subscriptions, profiles
 const PRICING_ONLY_TABS = new Set(['billing']);
@@ -98,6 +99,7 @@ export async function POST(request: NextRequest) {
         cafes: [], bookings: [], stationPricing: {}, consolePricing: {},
         cafeConsoles: [], availableConsoleTypes: [], membershipPlans: [],
         subscriptions: [], totalBookingsCount: 0,
+        dashboardStats: null,
       });
     }
 
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
 
       return supabase
         .from("bookings")
-        .select(bookingSelect)
+        .select(bookingSelect, { count: "exact" })
         .in("cafe_id", cafeIds)
         .is("deleted_at", null)
         .gte("booking_date", dashboardStartDate)
@@ -161,8 +163,11 @@ export async function POST(request: NextRequest) {
           .order('price')
       : Promise.resolve({ data: [], error: null });
 
+    // Customers still skip station pricing, but spend and the Members filter
+    // need subscriptions. Membership checkout is billed on the subscription
+    // (and a source=membership booking); omitting this list left Spent at ₹0.
     const subscriptionsPromise =
-      isBookingsOnlyTab || isPricingOnlyTab
+      isPricingOnlyTab
         ? Promise.resolve({ data: [], error: null })
         : scope === "full"
         ? supabase
@@ -318,6 +323,14 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    const { count: windowBookingCount } = isPricingOnlyTab
+      ? { count: bookingsResult.count ?? 0 }
+      : { count: bookingsResult.count ?? enrichedBookings.length };
+
+    const dashboardStats = isPricingOnlyTab
+      ? null
+      : await loadOwnerRevenueStats(supabase, cafeIds);
+
     return NextResponse.json({
       cafes: ownerCafes,
       bookings: enrichedBookings,
@@ -327,7 +340,8 @@ export async function POST(request: NextRequest) {
       availableConsoleTypes: uniqueTypes,
       membershipPlans: plansRes.data || [],
       subscriptions: subscriptionsRes.data || [],
-      totalBookingsCount: scope === "full" ? (bookingsResult.count ?? enrichedBookings.length) : 0,
+      totalBookingsCount: windowBookingCount ?? enrichedBookings.length,
+      dashboardStats,
     });
   } catch (err: any) {
     console.error("Error loading owner data:", err);

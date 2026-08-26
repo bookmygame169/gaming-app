@@ -36,6 +36,7 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
   const [stationPricing, setStationPricing] = useState<Record<string, any>>({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [totalBookingsCount, setTotalBookingsCount] = useState(0);
+  const [serverStats, setServerStats] = useState<Partial<OwnerStats> | null>(null);
 
   const [loadedScope, setLoadedScope] = useState<OwnerDataScope>('dashboard');
   const [hasLoadedData, setHasLoadedData] = useState(false);
@@ -84,17 +85,17 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
 
     return {
       cafesCount: cafes.length,
-      bookingsToday,
+      bookingsToday: serverStats?.bookingsToday ?? bookingsToday,
       recentBookings: Math.min(activeBookings.length, 20),
-      todayRevenue,
-      weekRevenue,
-      monthRevenue,
-      quarterRevenue,
-      totalRevenue,
-      totalBookings: totalBookingsCount || bookings.length,
-      pendingBookings,
+      todayRevenue: serverStats?.todayRevenue ?? todayRevenue,
+      weekRevenue: serverStats?.weekRevenue ?? weekRevenue,
+      monthRevenue: serverStats?.monthRevenue ?? monthRevenue,
+      quarterRevenue: serverStats?.quarterRevenue ?? quarterRevenue,
+      totalRevenue: serverStats?.totalRevenue ?? totalRevenue,
+      totalBookings: serverStats?.totalBookings ?? (totalBookingsCount || bookings.length),
+      pendingBookings: serverStats?.pendingBookings ?? pendingBookings,
     };
-  }, [bookings, cafes, totalBookingsCount]);
+  }, [bookings, cafes, totalBookingsCount, serverStats]);
 
   // Auto-refresh bookings based on timer (60s — fast enough to catch new walk-ins)
   const lastFetchTimeRef = useRef(0);
@@ -147,8 +148,11 @@ export function useOwnerData(canFetch: boolean, canAutoRefresh: boolean, activeT
         // Don't overwrite bookings/subscriptions on billing-only fetches (avoids state poisoning)
         if (!isPricingOnly) {
           setBookings(((data.bookings as BookingRow[]) || []).filter((booking) => !booking.deleted_at));
-          setSubscriptions(data.subscriptions);
+          if (Array.isArray(data.subscriptions)) {
+            setSubscriptions(data.subscriptions);
+          }
           setTotalBookingsCount(data.totalBookingsCount);
+          setServerStats(data.dashboardStats || null);
           setLoadedScope(dataScope);
         }
         setStationPricing(data.stationPricing);

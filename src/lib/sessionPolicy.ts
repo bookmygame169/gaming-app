@@ -23,6 +23,8 @@ export type StationSessionInput = {
   startTime?: string | null;
   durationMinutes: number;
   now?: Date;
+  startsAt?: string | Date | null;
+  endsAt?: string | Date | null;
 };
 
 /**
@@ -61,12 +63,13 @@ export function decideStationSession(input: StationSessionInput): StationSession
     return { action: "lock", reason: `status:${status}` };
   }
 
-  if (!input.bookingDate || !input.startTime) {
-    return { action: "noop", reason: "missing_start" };
-  }
+  const start = resolveStart(input);
+  const end = resolveEnd(input, start);
 
-  const start = parseBookingStartIst(input.bookingDate, input.startTime);
   if (!start) {
+    if (!input.bookingDate || !input.startTime) {
+      return { action: "noop", reason: "missing_start" };
+    }
     return { action: "noop", reason: "unreadable_start" };
   }
 
@@ -74,10 +77,12 @@ export function decideStationSession(input: StationSessionInput): StationSession
     return { action: "lock", reason: "not_started" };
   }
 
-  const durationMinutes = input.durationMinutes > 0 ? input.durationMinutes : 60;
-  const remainingSeconds = Math.floor(
-    (start.getTime() + durationMinutes * 60_000 - now) / 1000
-  );
+  const sessionEnd =
+    end ??
+    new Date(
+      start.getTime() + (input.durationMinutes > 0 ? input.durationMinutes : 60) * 60_000
+    );
+  const remainingSeconds = Math.floor((sessionEnd.getTime() - now) / 1000);
 
   if (remainingSeconds <= 0) {
     return { action: "lock", reason: "ended" };
@@ -93,4 +98,31 @@ export function decideStationSession(input: StationSessionInput): StationSession
 export function sessionDurationMinutes(parts: Array<number | null | undefined>): number {
   const values = parts.map((value) => Number(value) || 0);
   return Math.max(0, ...values) || 60;
+}
+
+function parseInstant(value?: string | Date | null): Date | null {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function resolveStart(input: StationSessionInput): Date | null {
+  const fromColumn = parseInstant(input.startsAt);
+  if (fromColumn) return fromColumn;
+  if (!input.bookingDate || !input.startTime) return null;
+  return parseBookingStartIst(input.bookingDate, input.startTime);
+}
+
+function resolveEnd(input: StationSessionInput, start: Date | null): Date | null {
+  const fromColumn = parseInstant(input.endsAt);
+  const minutes = input.durationMinutes > 0 ? input.durationMinutes : 60;
+  const fromDuration = start ? new Date(start.getTime() + minutes * 60_000) : null;
+
+  // Item duration can be longer than a stale header `ends_at` (written before
+  // the lines existed). Ending early kicks a paid session off the PC.
+  // Staff shortening a booking must also shrink duration / items.
+  if (fromColumn && fromDuration) {
+    return fromColumn.getTime() >= fromDuration.getTime() ? fromColumn : fromDuration;
+  }
+  return fromColumn ?? fromDuration;
 }

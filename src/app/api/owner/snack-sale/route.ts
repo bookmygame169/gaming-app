@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerContext, requireOwnerCafeAccess } from "@/lib/ownerAuth";
 import { awardPointsForBooking } from "@/lib/loyalty";
 import { adjustInventoryStockBatch } from "@/lib/inventoryStock";
+import { insertBooking } from "@/lib/bookingInstants";
 
 export const dynamic = "force-dynamic";
 
@@ -110,9 +111,7 @@ export async function POST(request: NextRequest) {
     await adjustInventoryStockBatch(supabase, stockAdjustments, "deduct");
 
     // 1. Create booking record
-    const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .insert({
+    const { data: booking, error: bookingError } = await insertBooking(supabase, {
         cafe_id: cafeId,
         customer_name: isOwnerUse ? "Owner" : (customerName || "Walk-in"),
         customer_phone: customerPhone || null,
@@ -123,14 +122,12 @@ export async function POST(request: NextRequest) {
         status: "completed",
         source: "walk-in",
         payment_mode: isOwnerUse ? "owner" : (paymentMode || "cash"),
-      })
-      .select("id")
-      .single();
+      });
 
-    if (bookingError) {
+    if (bookingError || !booking) {
       await adjustInventoryStockBatch(supabase, stockAdjustments, "restore");
       console.error("Booking insert error:", bookingError);
-      throw new Error(bookingError.message || JSON.stringify(bookingError));
+      throw new Error(bookingError?.message || JSON.stringify(bookingError));
     }
 
     // 2. Insert booking_orders

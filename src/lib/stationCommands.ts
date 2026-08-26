@@ -40,6 +40,11 @@ export type SendStationCommandOptions = {
 };
 
 const CONNECT_TIMEOUT_MS = 8000;
+const PUBLISH_ATTEMPTS = 3;
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function getBrokerUrl(): string {
   const url = process.env.MQTT_BROKER_URL;
@@ -73,30 +78,57 @@ export async function sendStationCommands(
     return;
   }
 
-  const client = await mqtt.connectAsync(getBrokerUrl(), {
-    username: process.env.MQTT_USERNAME || undefined,
-    password: process.env.MQTT_PASSWORD || undefined,
-    connectTimeout: CONNECT_TIMEOUT_MS,
-    clientId: `bookmygame-web-${randomUUID()}`,
-    clean: true,
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const publishes = stationNames.flatMap((stationName) => {
+    const commandId = randomUUID();
+    const payload = JSON.stringify({
+      ...buildCommand(stationName),
+      command_id: commandId,
+      issued_at: issuedAt,
+      cafe_id: options.cafeId || undefined,
+    });
+
+    return stationCommandTopics(stationName, options.cafeId).map((topic) => ({
+      topic,
+      payload,
+    }));
   });
 
-  try {
-    await Promise.all(
-      stationNames.flatMap((stationName) => {
-        const payload = JSON.stringify({
-          ...buildCommand(stationName),
-          command_id: randomUUID(),
-          issued_at: Math.floor(Date.now() / 1000),
-          cafe_id: options.cafeId || undefined,
-        });
+  let lastError: unknown;
 
-        return stationCommandTopics(stationName, options.cafeId).map((topic) =>
+  for (let attempt = 1; attempt <= PUBLISH_ATTEMPTS; attempt += 1) {
+    const client = await mqtt.connectAsync(getBrokerUrl(), {
+      username: process.env.MQTT_USERNAME || undefined,
+      password: process.env.MQTT_PASSWORD || undefined,
+      connectTimeout: CONNECT_TIMEOUT_MS,
+      clientId: `bookmygame-web-${randomUUID()}`,
+      clean: true,
+    }).catch((error: unknown) => {
+      lastError = error;
+      return null;
+    });
+
+    if (!client) {
+      if (attempt < PUBLISH_ATTEMPTS) await sleep(400 * attempt);
+      continue;
+    }
+
+    try {
+      await Promise.all(
+        publishes.map(({ topic, payload }) =>
           client.publishAsync(topic, payload, { qos: 1, retain: false })
-        );
-      })
-    );
-  } finally {
-    await client.endAsync();
+        )
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < PUBLISH_ATTEMPTS) await sleep(400 * attempt);
+    } finally {
+      await client.endAsync().catch(() => undefined);
+    }
   }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Could not publish station commands.");
 }

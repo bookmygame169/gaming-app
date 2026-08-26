@@ -19,6 +19,8 @@ type BookingForSync = {
   duration: number | null;
   status: string | null;
   deleted_at: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
   booking_items: BookingItemRow[] | null;
 };
 
@@ -51,22 +53,58 @@ async function warnAboutStationsWithNoAgent(
   }
 }
 
+export function sessionDurationMinutesForBooking(booking: {
+  duration?: number | null;
+  booking_items?: Array<{ duration?: number | null; title?: string | null }> | null;
+  scannedDurationMinutes?: number;
+}): number {
+  return sessionDurationMinutes([
+    ...(booking.booking_items || []).map((item) =>
+      getItemDurationFromPayload({ duration: item.duration ?? null, title: item.title })
+    ),
+    Number(booking.duration) || 0,
+    booking.scannedDurationMinutes || 0,
+  ]);
+}
+
+export type StationSyncResult = "sent" | "noop" | "failed";
+
 export async function syncStationsForBooking(
   supabase: SupabaseClient,
   bookingId: string,
   options: { forceLock?: boolean } = {}
-): Promise<void> {
+): Promise<StationSyncResult> {
   try {
     const columnsWithStations =
-      "cafe_id, booking_date, start_time, duration, status, deleted_at, booking_items(title, station_names)";
+      "cafe_id, booking_date, start_time, duration, status, deleted_at, starts_at, ends_at, booking_items(title, duration, station_names)";
     const columnsWithoutStations =
-      "cafe_id, booking_date, start_time, duration, status, deleted_at, booking_items(title)";
+      "cafe_id, booking_date, start_time, duration, status, deleted_at, booking_items(title, duration)";
+    const columnsWithoutInstants =
+      "cafe_id, booking_date, start_time, duration, status, deleted_at, booking_items(title, duration, station_names)";
 
     let { data, error } = await supabase
       .from("bookings")
       .select(columnsWithStations)
       .eq("id", bookingId)
       .maybeSingle();
+
+    if (error && /starts_at|ends_at/i.test(error.message)) {
+      ({ data, error } = await supabase
+        .from("bookings")
+        .select(columnsWithoutInstants)
+        .eq("id", bookingId)
+        .maybeSingle());
+    }
+
+    if (error && /booking_items/i.test(error.message) && /duration/i.test(error.message)) {
+      ({ data, error } = await supabase
+        .from("bookings")
+        .select(
+          "cafe_id, booking_date, start_time, duration, status, deleted_at, starts_at, ends_at, booking_items(title, station_names)"
+        )
+        .eq("id", bookingId)
+        .maybeSingle());
+    }
 
     if (error && /station_names/i.test(error.message)) {
       ({ data, error } = await supabase
@@ -78,7 +116,7 @@ export async function syncStationsForBooking(
 
     if (error || !data) {
       if (error) console.error("Station sync: could not read booking:", error.message);
-      return;
+      return "failed";
     }
 
     const booking = data as unknown as BookingForSync;
@@ -99,7 +137,7 @@ export async function syncStationsForBooking(
         .maybeSingle();
 
       if (!scanned?.station_name) {
-        return;
+        return "noop";
       }
 
       stationNames.push(scanned.station_name);
@@ -108,13 +146,11 @@ export async function syncStationsForBooking(
 
     await warnAboutStationsWithNoAgent(supabase, stationNames, cafeId);
 
-    const durationMinutes = sessionDurationMinutes([
-      ...(booking.booking_items || []).map((item) =>
-        getItemDurationFromPayload({ duration: item.duration ?? null, title: item.title })
-      ),
-      Number(booking.duration) || 0,
+    const durationMinutes = sessionDurationMinutesForBooking({
+      duration: booking.duration,
+      booking_items: booking.booking_items,
       scannedDurationMinutes,
-    ]);
+    });
 
     const decision = decideStationSession({
       sessionId: bookingId,
@@ -124,6 +160,8 @@ export async function syncStationsForBooking(
       bookingDate: booking.booking_date,
       startTime: booking.start_time,
       durationMinutes,
+      startsAt: booking.starts_at,
+      endsAt: booking.ends_at,
     });
 
     if (decision.action === "noop") {
@@ -132,12 +170,12 @@ export async function syncStationsForBooking(
           `Station sync: could not read the start time "${booking.start_time}" on booking ${bookingId}.`
         );
       }
-      return;
+      return "noop";
     }
 
     if (decision.action === "lock") {
       await sendStationCommands(stationNames, () => ({ action: "lock" }), { cafeId });
-      return;
+      return "sent";
     }
 
     await sendStationCommands(
@@ -149,7 +187,9 @@ export async function syncStationsForBooking(
       }),
       { cafeId }
     );
+    return "sent";
   } catch (err) {
     console.error(`Station sync failed for booking ${bookingId}:`, err);
+    return "failed";
   }
 }
