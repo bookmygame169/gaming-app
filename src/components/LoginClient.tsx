@@ -130,8 +130,8 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
           </div>
         </div>
 
-        {/* the sign-in rail — full height down the right on desktop */}
-        <div className="flex min-w-0 flex-col border-[#f2f0ea]/[0.12] lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        {/* sign in — top of the rail on desktop, straight after the figures on a phone */}
+        <div className="flex min-w-0 flex-col border-[#f2f0ea]/[0.12] lg:col-start-2 lg:row-start-1">
           <div className="border-b border-[#f2f0ea]/[0.12] px-[18px] pb-6 pt-7 sm:px-8 lg:px-10 lg:pt-12">
             <div className="font-mono text-[10px] tracking-[0.26em] text-[#d8ff3c] sm:text-xs">
               SIGN IN
@@ -168,40 +168,6 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
             </p>
           </div>
 
-          <div className="border-b border-[#f2f0ea]/[0.12] px-[18px] py-6 sm:px-8 lg:px-10">
-            <div className="font-mono text-[10px] tracking-[0.18em] text-[#f2f0ea]/40 sm:text-[11px] sm:tracking-[0.2em]">
-              RUN A CAFÉ?
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-4">
-              <span className="text-[15px] font-extrabold sm:text-base">Partner console</span>
-              <Link
-                href="/owner/login"
-                className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#d8ff3c] transition-opacity hover:opacity-80 sm:text-[11px]"
-              >
-                SIGN IN →
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-auto bg-[#f2f0ea]/[0.02] px-[18px] pb-8 pt-5 sm:px-8 lg:px-10 lg:pb-7">
-            <div className="font-mono text-[10px] leading-[1.9] tracking-[0.1em] text-[#f2f0ea]/[0.32] sm:text-[11px]">
-              BY CONTINUING YOU AGREE TO OUR{" "}
-              <Link href="/terms" className="hover:text-[#d8ff3c]">
-                TERMS
-              </Link>{" "}
-              AND{" "}
-              <Link href="/privacy" className="hover:text-[#d8ff3c]">
-                PRIVACY POLICY
-              </Link>
-              .
-            </div>
-            <div className="mt-4 flex items-center justify-between gap-4 font-mono text-[10px] tracking-[0.16em] text-[#f2f0ea]/[0.28] sm:text-[11px]">
-              <Link href="/" className="text-[#f2f0ea]/50 transition-colors hover:text-[#d8ff3c]">
-                ← BACK TO HOME
-              </Link>
-              <span className="whitespace-nowrap">V1.0 BETA</span>
-            </div>
-          </div>
         </div>
 
         {/* what you get — under the hero on desktop, under sign-in on a phone */}
@@ -236,6 +202,44 @@ export default function LoginClient({ cafeCount, seatCount, cheapestHour, ticker
             />
           )}
         </div>
+        {/* partner console + the legal line — bottom of the rail on desktop, last on a phone */}
+        <div className="flex min-w-0 flex-col justify-between border-[#f2f0ea]/[0.12] lg:col-start-2 lg:row-start-2">
+          <div className="border-b border-[#f2f0ea]/[0.12] px-[18px] py-6 sm:px-8 lg:border-b-0 lg:px-10">
+            <div className="font-mono text-[10px] tracking-[0.18em] text-[#f2f0ea]/40 sm:text-[11px] sm:tracking-[0.2em]">
+              RUN A CAFÉ?
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <span className="text-[15px] font-extrabold sm:text-base">Partner console</span>
+              <Link
+                href="/owner/login"
+                className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#d8ff3c] transition-opacity hover:opacity-80 sm:text-[11px]"
+              >
+                SIGN IN →
+              </Link>
+            </div>
+          </div>
+
+          <div className="border-t border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.02] px-[18px] pb-8 pt-5 sm:px-8 lg:px-10 lg:pb-7">
+            <div className="font-mono text-[10px] leading-[1.9] tracking-[0.1em] text-[#f2f0ea]/[0.32] sm:text-[11px]">
+              BY CONTINUING YOU AGREE TO OUR{" "}
+              <Link href="/terms" className="hover:text-[#d8ff3c]">
+                TERMS
+              </Link>{" "}
+              AND{" "}
+              <Link href="/privacy" className="hover:text-[#d8ff3c]">
+                PRIVACY POLICY
+              </Link>
+              .
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-4 font-mono text-[10px] tracking-[0.16em] text-[#f2f0ea]/[0.28] sm:text-[11px]">
+              <Link href="/" className="text-[#f2f0ea]/50 transition-colors hover:text-[#d8ff3c]">
+                ← BACK TO HOME
+              </Link>
+              <span className="whitespace-nowrap">V1.0 BETA</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
   );
