@@ -142,7 +142,7 @@ export default function WalletPage() {
                   <div className="font-mono text-xs tracking-[0.24em] text-[#d8ff3c]">
                     SPENDABLE BALANCE
                   </div>
-                  <div className="mt-3.5 whitespace-nowrap text-[clamp(52px,6vw,80px)] font-black leading-[0.9] tracking-[-0.04em]">
+                  <div className="mt-3.5 whitespace-nowrap text-[clamp(52px,4.6vw,104px)] font-black leading-[0.9] tracking-[-0.04em]">
                     ₹{total.toLocaleString("en-IN")}
                   </div>
                   <div className="mt-3 font-mono text-xs tracking-[0.14em] text-[#f2f0ea]/45">

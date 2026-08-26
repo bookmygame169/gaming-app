@@ -15,13 +15,13 @@ import type { ReactNode } from "react";
  */
 export default function ScreenTitle({ title, meta }: { title: string; meta?: ReactNode }) {
   return (
-    <div className="flex items-baseline gap-[18px] px-5 pb-7 pt-10 sm:px-8 sm:pt-[52px] lg:px-12">
-      <h1 className="m-0 font-display text-[clamp(30px,6vw,44px)] font-black uppercase leading-none tracking-[-0.03em] text-[#f2f0ea]">
+    <div className="flex items-baseline gap-[18px] px-5 pb-7 pt-10 sm:px-8 sm:pt-[52px] lg:px-12 2xl:px-16 2xl:pb-9 2xl:pt-16">
+      <h1 className="m-0 font-display text-[clamp(30px,3.1vw,60px)] font-black uppercase leading-none tracking-[-0.03em] text-[#f2f0ea]">
         {title}
       </h1>
       <span className="h-px flex-1 bg-[#f2f0ea]/[0.14]" />
       {meta && (
-        <span className="hidden whitespace-nowrap font-mono text-[13px] tracking-[0.2em] text-[#f2f0ea]/40 md:block">
+        <span className="hidden whitespace-nowrap font-mono text-[13px] tracking-[0.2em] text-[#f2f0ea]/40 md:block 2xl:text-[15px]">
           {meta}
         </span>
       )}

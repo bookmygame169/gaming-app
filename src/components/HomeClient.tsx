@@ -218,14 +218,14 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
 
       {/* ── hero ─────────────────────────────────────────────────────── */}
       <section className="grid border-b border-[#f2f0ea]/[0.12] lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="border-b border-[#f2f0ea]/[0.12] px-5 pb-14 pt-14 sm:px-8 lg:border-b-0 lg:border-r lg:px-12 lg:pb-16 lg:pt-20">
-          <div className="flex items-center gap-3 font-mono text-[11px] tracking-[0.28em] text-[#f2f0ea]/45 sm:text-xs">
+        <div className="border-b border-[#f2f0ea]/[0.12] px-5 pb-14 pt-14 sm:px-8 lg:border-b-0 lg:border-r lg:px-12 lg:pb-16 lg:pt-20 2xl:px-16 2xl:pb-24 2xl:pt-28">
+          <div className="flex items-center gap-3 font-mono text-[11px] tracking-[0.28em] text-[#f2f0ea]/45 sm:text-xs 2xl:text-[14px]">
             <span className="block h-2 w-2 animate-pulse bg-[#d8ff3c]" />
             {cities.length > 0 ? cities.join(" · ").toUpperCase() : "GAMING CAFES"}
             {totalSeats > 0 && ` · ${totalSeats} SEATS BOOKABLE`}
           </div>
 
-          <h1 className="mt-6 font-display text-[clamp(44px,9vw,104px)] font-black uppercase leading-[0.88] tracking-[-0.04em] text-balance">
+          <h1 className="mt-6 font-display text-[clamp(44px,7.4vw,152px)] font-black uppercase leading-[0.88] tracking-[-0.04em] text-balance">
             Book the
             <br />
             seat. Skip
@@ -233,7 +233,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
             the <span className="text-[#d8ff3c]">queue.</span>
           </h1>
 
-          <p className="mt-7 max-w-[520px] font-mono text-sm leading-[1.8] text-[#f2f0ea]/50 sm:text-base">
+          <p className="mt-7 max-w-[520px] font-mono text-sm leading-[1.8] text-[#f2f0ea]/50 sm:text-base 2xl:max-w-[620px] 2xl:text-[18px]">
             Live availability at gaming cafés near you. Pick a rig, pick an hour, pay from your
             wallet — your station unlocks the moment you sit down.
           </p>
@@ -241,13 +241,13 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
           <div className="mt-10 flex flex-wrap gap-3.5">
             <a
               href="#venues"
-              className="bg-[#d8ff3c] px-8 py-5 font-display text-base font-black tracking-[0.1em] text-[#0b0b0c] transition-[filter,transform] hover:-translate-y-0.5 hover:brightness-110 sm:px-11 sm:text-lg"
+              className="bg-[#d8ff3c] px-8 py-5 font-display text-base font-black tracking-[0.1em] text-[#0b0b0c] transition-[filter,transform] hover:-translate-y-0.5 hover:brightness-110 sm:px-11 sm:text-lg 2xl:px-14 2xl:py-7 2xl:text-[22px]"
             >
               BOOK NOW →
             </a>
             <Link
               href="/tournaments"
-              className="border border-[#f2f0ea]/20 px-7 py-5 font-mono text-xs font-semibold tracking-[0.2em] text-[#f2f0ea]/70 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] sm:text-[13px]"
+              className="border border-[#f2f0ea]/20 px-7 py-5 font-mono text-xs font-semibold tracking-[0.2em] text-[#f2f0ea]/70 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] sm:text-[13px] 2xl:px-10 2xl:py-7 2xl:text-[15px]"
             >
               HOST A TOURNAMENT
             </Link>
@@ -258,13 +258,13 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="flex flex-1 items-baseline justify-between gap-4 border-b border-[#f2f0ea]/10 px-6 py-6 sm:px-10"
+              className="flex flex-1 items-baseline justify-between gap-4 border-b border-[#f2f0ea]/10 px-6 py-6 sm:px-10 2xl:px-14 2xl:py-9"
             >
-              <span className="font-mono text-[11px] tracking-[0.22em] text-[#f2f0ea]/40 sm:text-xs">
+              <span className="font-mono text-[11px] tracking-[0.22em] text-[#f2f0ea]/40 sm:text-xs 2xl:text-[14px]">
                 {stat.label}
               </span>
               <span
-                className={`font-display text-3xl font-black tracking-[-0.03em] sm:text-[38px] ${
+                className={`font-display text-3xl font-black tracking-[-0.03em] sm:text-[38px] 2xl:text-[46px] ${
                   stat.accent ? "text-[#d8ff3c]" : "text-[#f2f0ea]"
                 }`}
               >
@@ -276,15 +276,15 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
           {nextTournament ? (
             <Link
               href="/tournaments"
-              className="bg-[#d8ff3c]/[0.06] px-6 py-6 transition-colors hover:bg-[#d8ff3c]/[0.12] sm:px-10"
+              className="bg-[#d8ff3c]/[0.06] px-6 py-6 transition-colors hover:bg-[#d8ff3c]/[0.12] sm:px-10 2xl:px-14 2xl:py-9"
             >
-              <div className="font-mono text-[11px] tracking-[0.22em] text-[#d8ff3c] sm:text-xs">
+              <div className="font-mono text-[11px] tracking-[0.22em] text-[#d8ff3c] sm:text-xs 2xl:text-[14px]">
                 NEXT TOURNAMENT
               </div>
-              <div className="mt-2.5 text-xl font-extrabold leading-tight sm:text-[22px]">
+              <div className="mt-2.5 text-xl font-extrabold leading-tight sm:text-[22px] 2xl:text-[28px]">
                 {nextTournament.game} · {formatWhen(nextTournament)}
               </div>
-              <div className="mt-2 font-mono text-[11px] text-[#f2f0ea]/45 sm:text-xs">
+              <div className="mt-2 font-mono text-[11px] text-[#f2f0ea]/45 sm:text-xs 2xl:text-[14px]">
                 {[
                   nextTournament.prize_amount
                     ? `₹${Number(nextTournament.prize_amount).toLocaleString("en-IN")} POOL`
@@ -298,14 +298,14 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
               </div>
             </Link>
           ) : (
-            <div className="px-6 py-6 sm:px-10">
-              <div className="font-mono text-[11px] tracking-[0.22em] text-[#f2f0ea]/40 sm:text-xs">
+            <div className="px-6 py-6 sm:px-10 2xl:px-14 2xl:py-9">
+              <div className="font-mono text-[11px] tracking-[0.22em] text-[#f2f0ea]/40 sm:text-xs 2xl:text-[14px]">
                 TOURNAMENTS
               </div>
-              <div className="mt-2.5 text-xl font-extrabold leading-tight sm:text-[22px]">
+              <div className="mt-2.5 text-xl font-extrabold leading-tight sm:text-[22px] 2xl:text-[28px]">
                 Nothing scheduled yet
               </div>
-              <div className="mt-2 font-mono text-[11px] text-[#f2f0ea]/45 sm:text-xs">
+              <div className="mt-2 font-mono text-[11px] text-[#f2f0ea]/45 sm:text-xs 2xl:text-[14px]">
                 ASK YOUR CAFÉ ABOUT HOSTING ONE
               </div>
             </div>
@@ -315,8 +315,8 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
 
       {/* ── ticker ───────────────────────────────────────────────────── */}
       {ticker && (
-        <div className="flex h-[46px] items-center overflow-hidden border-b border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.02]">
-          <div className="animate-[bmg-marquee_40s_linear_infinite] whitespace-nowrap font-mono text-[11px] tracking-[0.26em] text-[#f2f0ea]/[0.32] sm:text-xs">
+        <div className="flex h-[46px] items-center overflow-hidden border-b border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.02] 2xl:h-[58px]">
+          <div className="animate-[bmg-marquee_40s_linear_infinite] whitespace-nowrap font-mono text-[11px] tracking-[0.26em] text-[#f2f0ea]/[0.32] sm:text-xs 2xl:text-[14px]">
             {ticker}
             {ticker}
           </div>
@@ -324,7 +324,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
       )}
 
       {/* ── venues ───────────────────────────────────────────────────── */}
-      <section id="venues" className="px-5 pb-20 pt-12 sm:px-8 lg:px-12 lg:pb-24 lg:pt-14">
+      <section id="venues" className="px-5 pb-20 pt-12 sm:px-8 lg:px-12 lg:pb-24 lg:pt-14 2xl:px-16 2xl:pt-20">
         <div className="flex flex-col items-stretch border border-[#f2f0ea]/[0.14] md:flex-row">
           <div className="flex flex-1 items-center gap-3.5 px-5">
             <span className="font-mono text-[13px] text-[#f2f0ea]/35">⌕</span>
@@ -332,7 +332,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search cafés, areas, games…"
-              className="w-full border-none bg-transparent py-5 font-mono text-[15px] text-[#f2f0ea] outline-none placeholder:text-[#f2f0ea]/30"
+              className="w-full border-none bg-transparent py-5 font-mono text-[15px] text-[#f2f0ea] outline-none placeholder:text-[#f2f0ea]/30 2xl:py-7 2xl:text-[17px]"
             />
           </div>
 
@@ -379,11 +379,11 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
         )}
 
         <div className="mb-6 mt-12 flex items-baseline gap-4 sm:gap-[18px] lg:mt-14">
-          <h2 className="font-display text-[clamp(26px,5vw,44px)] font-black uppercase tracking-[-0.03em]">
+          <h2 className="font-display text-[clamp(26px,3.2vw,52px)] font-black uppercase tracking-[-0.03em]">
             Cafés near you
           </h2>
           <span className="h-px flex-1 bg-[#f2f0ea]/[0.14]" />
-          <span className="whitespace-nowrap font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40 sm:text-[13px]">
+          <span className="whitespace-nowrap font-mono text-[11px] tracking-[0.2em] text-[#f2f0ea]/40 sm:text-[13px] 2xl:text-[15px]">
             {filtered.length} {filtered.length === 1 ? "VENUE" : "VENUES"}
           </span>
         </div>
@@ -416,7 +416,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
               <Link
                 key={tier.id}
                 href="/membership"
-                className={`flex flex-col gap-4 border-b border-[#f2f0ea]/[0.12] px-8 py-11 lg:border-b-0 lg:border-r lg:px-10 ${
+                className={`flex flex-col gap-4 border-b border-[#f2f0ea]/[0.12] px-8 py-11 lg:border-b-0 lg:border-r lg:px-10 2xl:px-14 2xl:py-14 ${
                   featured ? "bg-[#d8ff3c] text-[#0b0b0c]" : "text-[#f2f0ea]"
                 } ${index === 2 ? "bg-[#f2f0ea]/[0.03]" : ""}`}
               >
@@ -428,7 +428,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
                   {tier.cafeName.toUpperCase()}
                 </span>
 
-                <div className="font-display text-[clamp(34px,6vw,52px)] font-black leading-none tracking-[-0.03em]">
+                <div className="font-display text-[clamp(34px,3.8vw,60px)] font-black leading-none tracking-[-0.03em]">
                   ₹{Number(tier.price).toLocaleString("en-IN")}
                 </div>
 

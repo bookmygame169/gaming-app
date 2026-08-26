@@ -128,15 +128,15 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 flex h-[76px] items-center gap-4 border-b border-[#f2f0ea]/[0.12] bg-[#0b0b0c]/90 px-5 backdrop-blur-[14px] sm:gap-8 sm:px-8 lg:px-12">
+    <header className="sticky top-0 z-50 flex h-[76px] items-center gap-4 border-b border-[#f2f0ea]/[0.12] bg-[#0b0b0c]/90 px-5 backdrop-blur-[14px] sm:gap-8 sm:px-8 lg:px-12 2xl:h-[92px] 2xl:px-16">
       <Link href="/" className="flex shrink-0 items-center gap-2.5">
-        <span className="block h-3.5 w-3.5 bg-[#d8ff3c]" />
-        <span className="font-display text-[19px] font-black tracking-[-0.01em] text-[#f2f0ea]">
+        <span className="block h-3.5 w-3.5 bg-[#d8ff3c] 2xl:h-4 2xl:w-4" />
+        <span className="font-display text-[19px] font-black tracking-[-0.01em] text-[#f2f0ea] 2xl:text-[23px]">
           BOOKMYGAME
         </span>
       </Link>
 
-      <nav className="hidden min-w-0 flex-initial gap-4 overflow-hidden font-mono text-[13px] tracking-[0.14em] text-[#f2f0ea]/55 md:flex lg:gap-7">
+      <nav className="hidden min-w-0 flex-initial gap-4 overflow-hidden font-mono text-[13px] tracking-[0.14em] text-[#f2f0ea]/55 md:flex lg:gap-7 2xl:gap-9 2xl:text-[15px]">
         {links.map((link) => {
           const active = link.match(pathname || "");
           return (

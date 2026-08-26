@@ -173,7 +173,7 @@ export default function RewardsPage() {
                   {cafes.length > 1 ? ` · ${cafes.length} CAFÉS` : cafes[0] ? ` · ${cafes[0].cafeName.toUpperCase()}` : ""}
                 </div>
                 <div className="mt-3.5 flex flex-wrap items-end gap-5">
-                  <span className="text-[clamp(56px,6.4vw,86px)] font-black leading-[0.9] tracking-[-0.04em]">
+                  <span className="text-[clamp(56px,5vw,112px)] font-black leading-[0.9] tracking-[-0.04em]">
                     {total.toLocaleString("en-IN")}
                   </span>
                   <span className="pb-3 font-mono text-xs tracking-[0.16em] text-[#f2f0ea]/45">
