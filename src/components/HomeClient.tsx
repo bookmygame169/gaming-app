@@ -23,18 +23,6 @@ import type { Cafe } from "../types/cafe";
 
 type SortKey = "relevance" | "price_asc" | "price_desc";
 
-type MembershipTierPreview = {
-  id: string;
-  cafeId: string;
-  cafeName: string;
-  planType: string;
-  name: string;
-  description?: string | null;
-  price: number;
-  hours?: number | null;
-  validityDays: number;
-};
-
 type TournamentPreview = {
   id: string;
   name: string;
@@ -83,7 +71,6 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
   const [query, setQuery] = useState("");
   const [rig, setRig] = useState<RigKey | "all">("all");
   const [sortBy, setSortBy] = useState<SortKey>("relevance");
-  const [tiers, setTiers] = useState<MembershipTierPreview[]>([]);
   const [tournaments, setTournaments] = useState<TournamentPreview[]>([]);
 
   useEffect(() => {
@@ -91,15 +78,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
 
     const load = async () => {
       try {
-        const [planRes, tourRes] = await Promise.all([
-          fetch("/api/memberships/plans"),
-          fetch("/api/tournaments?status=upcoming"),
-        ]);
-
-        if (planRes.ok) {
-          const data = await planRes.json();
-          if (!cancelled) setTiers(Array.isArray(data?.plans) ? data.plans : []);
-        }
+        const tourRes = await fetch("/api/tournaments?status=upcoming");
 
         if (tourRes.ok) {
           const data = await tourRes.json();
@@ -108,7 +87,7 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
           }
         }
       } catch {
-        // Both sections simply do not appear. A landing page is not worth an
+        // The tile simply does not appear. A landing page is not worth an
         // error message the visitor can do nothing about.
       }
     };
@@ -404,53 +383,6 @@ export default function HomeClient({ cafes }: { cafes: Cafe[] }) {
         )}
       </section>
 
-      {/* ── membership ───────────────────────────────────────────────── */}
-      {tiers.length > 0 && (
-        <section
-          id="membership"
-          className="grid border-t border-[#f2f0ea]/[0.12] md:grid-cols-2 lg:grid-cols-3"
-        >
-          {tiers.slice(0, 3).map((tier, index) => {
-            const featured = index === 1;
-            return (
-              <Link
-                key={tier.id}
-                href="/membership"
-                className={`flex flex-col gap-4 border-b border-[#f2f0ea]/[0.12] px-8 py-11 lg:border-b-0 lg:border-r lg:px-10 2xl:px-14 2xl:py-14 ${
-                  featured ? "bg-[#d8ff3c] text-[#0b0b0c]" : "text-[#f2f0ea]"
-                } ${index === 2 ? "bg-[#f2f0ea]/[0.03]" : ""}`}
-              >
-                <span
-                  className={`font-mono text-[11px] tracking-[0.26em] sm:text-xs ${
-                    featured ? "text-[#0b0b0c]/55" : "text-[#f2f0ea]/40"
-                  }`}
-                >
-                  {tier.cafeName.toUpperCase()}
-                </span>
-
-                <div className="font-display text-[clamp(34px,3.8vw,60px)] font-black leading-none tracking-[-0.03em]">
-                  ₹{Number(tier.price).toLocaleString("en-IN")}
-                </div>
-
-                <div
-                  className={`font-mono text-[13px] leading-[1.8] ${
-                    featured ? "text-[#0b0b0c]/70" : "text-[#f2f0ea]/45"
-                  }`}
-                >
-                  {tier.name}
-                  <br />
-                  {describeTier(tier)}
-                </div>
-
-                <span className="mt-auto pt-5 font-mono text-[11px] font-semibold tracking-[0.2em] sm:text-xs">
-                  GET MEMBERSHIP →
-                </span>
-              </Link>
-            );
-          })}
-        </section>
-      )}
-
       <PWAInstaller />
     </main>
   );
@@ -542,21 +474,6 @@ function VenueCard({ cafe }: { cafe: Cafe }) {
       </div>
     </Link>
   );
-}
-
-function describeTier(tier: MembershipTierPreview): string {
-  const bits: string[] = [];
-
-  if (tier.planType === "day_pass") {
-    bits.push("Day pass");
-  } else if (tier.hours) {
-    bits.push(`${tier.hours} hours`);
-  } else {
-    bits.push("Unlimited play");
-  }
-
-  bits.push(`${tier.validityDays} day${tier.validityDays === 1 ? "" : "s"}`);
-  return bits.join(" · ");
 }
 
 function formatWhen(tournament: TournamentPreview): string {
