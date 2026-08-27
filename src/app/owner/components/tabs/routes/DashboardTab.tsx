@@ -124,21 +124,25 @@ export function DashboardTab() {
 
               {/* Active Sessions */}
               <section>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm text-slate-500" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em', fontWeight: 600 }}>Active Sessions</h2>
-                    {(() => {
-                      const count = bookings.filter((b) => !b.deleted_at && isBookingActiveNow(b)).length;
-                      return count > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]" style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid transparent' }}>
-                          <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-red-400 pulse-dot" style={{ color: '#ef4444' }} />
-                          {count} live
-                        </span>
-                      ) : null;
-                    })()}
-                  </div>
-                  <button onClick={() => handleTabChange('bookings')} className="text-[12px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
-                    View all <ChevronRight size={12} />
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                    FLOOR · ACTIVE SESSIONS
+                  </span>
+                  {(() => {
+                    const count = bookings.filter((b) => !b.deleted_at && isBookingActiveNow(b)).length;
+                    return count > 0 ? (
+                      <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-[#d8ff3c]">
+                        <span className="h-1.5 w-1.5 animate-pulse bg-[#d8ff3c]" />
+                        {count} LIVE
+                      </span>
+                    ) : null;
+                  })()}
+                  <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+                  <button
+                    onClick={() => handleTabChange('bookings')}
+                    className="font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/50 transition-colors hover:text-[#d8ff3c]"
+                  >
+                    SESSION HISTORY →
                   </button>
                 </div>
                 <ActiveSessions

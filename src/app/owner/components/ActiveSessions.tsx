@@ -4,10 +4,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseTimeToMinutes } from "@/lib/timeUtils";
-import { ConsoleId, CONSOLE_ICONS, CONSOLE_COLORS, CONSOLE_LABELS } from '@/lib/constants';
+import { ConsoleId, CONSOLE_LABELS } from '@/lib/constants';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
-import { Clock3, MessageCircle, Banknote, Smartphone, Gamepad2, X, Square, UtensilsCrossed, Lock, Unlock } from 'lucide-react';
 
 interface SessionEndedInfo {
     customerName: string;
@@ -81,7 +80,7 @@ export function ActiveSessions({
     );
 
     const activeMemberships = subscriptions.filter((sub) => activeTimers.has(sub.id));
-    const actionButtonCount = Number(Boolean(onAddTime)) + Number(Boolean(onAddItems)) + Number(Boolean(onEndCollect));
+
 
     const flattenedBookings = activeBookings.flatMap((booking) => {
         const items = booking.booking_items || [];
@@ -118,14 +117,6 @@ export function ActiveSessions({
         });
     }, [flattenedBookings, sortMinute]);
 
-    const getConsoleIcon = (consoleName: string) => {
-        const key = consoleName?.toLowerCase() as ConsoleId;
-        return CONSOLE_ICONS[key] || '🎮';
-    };
-    const getConsoleColor = (consoleName: string) => {
-        const key = consoleName?.toLowerCase() as ConsoleId;
-        return CONSOLE_COLORS[key] || '#6b7280';
-    };
     const getConsoleLabel = (consoleName: string) => {
         const key = consoleName?.toLowerCase() as ConsoleId;
         return CONSOLE_LABELS[key] || consoleName;
@@ -156,23 +147,22 @@ export function ActiveSessions({
 
     if (sortedActiveBookings.length === 0 && activeMemberships.length === 0) {
         return (
-            <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl px-5 py-12 text-center flex flex-col items-center gap-3 md:p-16">
-                <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-1">
-                    <Gamepad2 size={28} className="text-slate-600" />
-                </div>
-                <p className="text-base text-slate-400 font-medium">No active sessions</p>
-                <p className="text-sm text-slate-600">Sessions in progress will appear here</p>
+            <div className="flex flex-col gap-3 border border-dashed border-[#f2f0ea]/[0.16] bg-[#111113] p-[26px]">
+                <span className="font-mono text-[11.5px] text-[#f2f0ea]/45">
+                    No live sessions right now. Start one and it appears on the floor.
+                </span>
             </div>
         );
     }
 
     return (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 2xl:grid-cols-4">
-            {/* Active Membership Sessions */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+            {/* ── memberships on the clock ── */}
             {activeMemberships.map((sub: any) => {
                 const planDetails = sub.membership_plans || {};
                 const elapsedSeconds = timerElapsed.get(sub.id) || 0;
                 const isDayPass = planDetails.plan_type === 'day_pass';
+                const isUnlimited = sub.is_unlimited === true;
                 const consoleType = planDetails.console_type?.toUpperCase() || 'UNKNOWN';
                 const stationName = sub.assigned_console_station?.toUpperCase() || `${consoleType}-??`;
                 const hours = Math.floor(elapsedSeconds / 3600);
@@ -192,40 +182,55 @@ export function ActiveSessions({
                 };
 
                 return (
-                    <div key={sub.id} className="flex flex-col justify-between rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-4 min-h-[136px] sm:min-h-[160px] sm:rounded-2xl sm:p-5">
-                        <div>
-                            <div className="mb-2.5 flex items-start justify-between sm:mb-3">
-                                <div>
-                                    <p className="text-xs text-[#6b7280] mb-1 font-semibold uppercase tracking-wide">{stationName}</p>
-                                    <p className="mb-0 text-[15px] font-bold text-white sm:text-base">{sub.customer_name}</p>
-                                    <p className="text-xs text-[#6b7280] mt-0.5">{planDetails.name || 'Membership'}</p>
-                                </div>
-                                <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-xl text-xs font-semibold whitespace-nowrap">MEMBERSHIP</span>
+                    <div
+                        key={sub.id}
+                        className="flex flex-col border border-[#f2f0ea]/10 bg-[#111113]"
+                        style={{ borderTop: '2px solid #d8ff3c' }}
+                    >
+                        <div className="flex items-center gap-2.5 px-4 pb-[11px] pt-[13px]">
+                            <span className="h-[7px] w-[7px] shrink-0 animate-pulse bg-[#d8ff3c]" />
+                            <span className="font-mono text-[11.5px] font-semibold tracking-[0.02em] text-[#f2f0ea]/90">
+                                {stationName}
+                            </span>
+                            <span className="flex-1" />
+                            <span className="font-mono text-[9px] tracking-[0.16em] text-[#d8ff3c]">MEMBERSHIP</span>
+                        </div>
+
+                        <div className="flex items-end gap-3.5 px-4 pb-3.5">
+                            <div className="flex min-w-0 flex-col gap-1">
+                                <span className="truncate text-xl font-extrabold leading-[1.1] tracking-[-0.015em] text-[#f2f0ea]">
+                                    {sub.customer_name}
+                                </span>
+                                <span className="font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {planDetails.name || 'Membership'}
+                                </span>
+                            </div>
+                            <span className="flex-1" />
+                            <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-mono text-[26px] font-bold leading-[0.85] tracking-[-0.02em] text-[#d8ff3c]">
+                                    {timeString}
+                                </span>
+                                <span className="font-mono text-[9.5px] tracking-[0.12em] text-[#f2f0ea]/40">
+                                    {isUnlimited ? 'UNLIMITED · ELAPSED' : isDayPass ? 'DAY PASS · ELAPSED' : 'ELAPSED'}
+                                </span>
                             </div>
                         </div>
-                        <div>
-                            <div className="mb-2 sm:mb-3">
-                                <p className="text-xs text-[#6b7280] mb-1">{isDayPass ? 'Valid Until' : 'Session Time'}</p>
-                                <p className="m-0 font-mono text-xl font-bold text-emerald-500 sm:text-2xl">{isDayPass ? '10:00 PM' : timeString}</p>
-                                {isDayPass && <p className="mt-1 text-xs font-semibold text-slate-400">Elapsed {timeString}</p>}
-                            </div>
-                            {onEndMembership && (
-                                <button
-                                    type="button"
-                                    onClick={handleEndMembership}
-                                    disabled={isEnding}
-                                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-[11px] font-semibold text-red-300 transition-colors hover:border-red-400/40 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    <Square className="h-3 w-3" />
-                                    {isEnding ? 'Ending...' : isDayPass ? 'End Day Pass' : 'Stop Membership'}
-                                </button>
-                            )}
-                        </div>
+
+                        {onEndMembership && (
+                            <button
+                                type="button"
+                                onClick={handleEndMembership}
+                                disabled={isEnding}
+                                className="border-t border-[#f2f0ea]/10 bg-[#d8ff3c] py-3.5 font-mono text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:opacity-60"
+                            >
+                                {isEnding ? 'ENDING…' : isDayPass ? 'END DAY PASS' : 'STOP MEMBERSHIP'}
+                            </button>
+                        )}
                     </div>
                 );
             })}
 
-            {/* Regular Booking Sessions */}
+            {/* ── machines in use ── */}
             {sortedActiveBookings.map((booking, index) => {
                 const consoleInfo = booking.booking_items?.[0];
                 const isWalkIn = booking.source === 'walk-in';
@@ -256,212 +261,210 @@ export function ActiveSessions({
                 const stationNumber = sameTypeBookings.length;
                 const stationName = assignedStation || `${consoleType}-${String(stationNumber).padStart(2, '0')}`;
 
-                // Thresholds: ≤5 min = critical (pulse), 5–15 min = warning, >15 min = healthy
+                // Thresholds: <=5 min is about to end, 5-15 min is close.
                 const isCritical = timeRemaining <= 5;
                 const isWarning = timeRemaining > 5 && timeRemaining <= 15;
-                const badgeBg = isCritical ? 'bg-red-500/25' : isWarning ? 'bg-amber-500/20' : 'bg-emerald-500/20';
-                const badgeText = isCritical ? 'text-red-400' : isWarning ? 'text-amber-500' : 'text-emerald-500';
-                const pulseClass = isCritical ? 'animate-pulse' : '';
+                const accent = isCritical ? '#ff5c2b' : isWarning ? '#ffa53c' : '#d8ff3c';
 
                 const bookingId = booking.originalBookingId || booking.id;
                 const customerName = isWalkIn ? booking.customer_name : (booking.user_name || 'Guest');
+                const phone = booking.customer_phone || booking.user_phone || '';
                 const isShowingEndCollect = endCollectId === booking.id;
-
-                const ringProgress = Math.min(1, Math.max(0, timeRemaining / (itemDuration || booking.duration || 60)));
-                const ringR = 34;
-                const ringCircumference = 2 * Math.PI * ringR;
-                const ringOffset = ringCircumference * (1 - ringProgress);
-                const consoleBaseColor = getConsoleColor(consoleInfo?.console || '');
-                const ringStroke = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : consoleBaseColor;
+                const isUnpaid = (booking.status || '').toLowerCase() === 'pending';
+                const amount = getBookingRevenueTotal(booking);
+                const elapsedPct = itemDuration
+                    ? Math.min(100, Math.max(0, ((itemDuration - timeRemaining) / itemDuration) * 100))
+                    : 0;
 
                 return (
                     <div
                         key={booking.id}
-                        className={`group relative flex flex-col glass ${pulseClass} rounded-2xl overflow-hidden transition-all duration-300`}
-                        style={{ borderLeft: `2px solid ${ringStroke}`, boxShadow: `0 0 0 1px ${ringStroke}22, 0 0 28px -8px ${ringStroke}44` }}
+                        className="flex flex-col border border-[#f2f0ea]/10 bg-[#111113]"
+                        style={{ borderTop: `2px solid ${accent}` }}
                     >
-                        {/* Card header */}
-                        <div className="flex items-center justify-between px-3 pt-3 pb-1.5 sm:px-4 sm:pt-4 sm:pb-2">
-                            <div className="flex items-center gap-2 sm:gap-2.5">
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm sm:h-8 sm:w-8 sm:text-base" style={{ background: `${consoleBaseColor}22`, color: consoleBaseColor }}>
-                                    {getConsoleIcon(consoleInfo?.console || '')}
-                                </div>
-                                <div>
-                                    <p className="mono text-[12px] font-bold text-white tracking-wide">{stationName}</p>
-                                    <p className="text-[10px] text-slate-500">{getConsoleLabel(consoleInfo?.console || '')}</p>
-                                </div>
-                            </div>
-                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide sm:px-2.5 sm:py-1 sm:text-[10px] ${badgeBg} ${badgeText}`}>
-                                {isCritical ? 'Urgent' : isWarning ? 'Ending' : 'Live'}
+                        <div className="flex items-center gap-2.5 px-4 pb-[11px] pt-[13px]">
+                            <span
+                                className={`h-[7px] w-[7px] shrink-0 ${isCritical ? 'animate-pulse' : ''}`}
+                                style={{ background: accent }}
+                            />
+                            <span className="font-mono text-[11.5px] font-semibold tracking-[0.02em] text-[#f2f0ea]/90">
+                                {stationName}
+                            </span>
+                            <span className="flex-1" />
+                            <span className="font-mono text-[9px] tracking-[0.16em]" style={{ color: accent }}>
+                                {getConsoleLabel(consoleInfo?.console || '').toUpperCase()}
                             </span>
                         </div>
 
-                        {/* Middle: ring + customer info */}
-                        <div className="flex items-center gap-3 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3">
-                            {/* Circular ring */}
-                            <div className="relative flex h-[60px] w-[60px] shrink-0 items-center justify-center sm:h-[76px] sm:w-[76px]">
-                                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
-                                    <circle cx="40" cy="40" r={ringR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
-                                    <circle
-                                        cx="40" cy="40" r={ringR} fill="none"
-                                        stroke={ringStroke} strokeWidth="5"
-                                        strokeLinecap="round"
-                                        strokeDasharray={ringCircumference}
-                                        strokeDashoffset={ringOffset}
-                                        style={{ transition: 'stroke-dashoffset 1s linear' }}
-                                    />
-                                </svg>
-                                <div className="text-center z-10">
-                                    <p className="mono text-lg font-bold leading-none sm:text-xl" style={{ color: ringStroke }}>{timeRemaining}</p>
-                                    <p className="mt-0.5 text-[8px] uppercase tracking-wide text-slate-500 sm:text-[9px]">min</p>
-                                </div>
+                        <div className="flex items-end gap-3.5 px-4 pb-3.5">
+                            <div className="flex min-w-0 flex-col gap-1">
+                                <span className="truncate text-xl font-extrabold leading-[1.1] tracking-[-0.015em] text-[#f2f0ea]">
+                                    {customerName}
+                                </span>
+                                {phone && (
+                                    <span className="font-mono text-[10.5px] text-[#f2f0ea]/40">{phone}</span>
+                                )}
                             </div>
-
-                            {/* Customer info */}
-                            <div className="flex-1 min-w-0">
-                                <p className="mb-0.5 text-[9px] text-slate-500 sm:text-[10px]" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em' }}>Customer</p>
-                                <p className="truncate text-[15px] font-bold text-white sm:text-sm">{customerName}</p>
-                                {endTime && <p className="mt-0.5 text-[10px] text-slate-500 sm:mt-1 sm:text-[11px]">ends {endTime}</p>}
-                                <div className="mt-1 flex items-center gap-1.5 sm:mt-1.5">
-                                    {booking.payment_mode && (
-                                        <span className="flex items-center gap-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-slate-400">
-                                            {booking.payment_mode.toLowerCase() === 'cash' ? <Banknote size={9} /> : <Smartphone size={9} />}
-                                            {booking.payment_mode}
-                                        </span>
-                                    )}
-                                    {(isWalkIn ? booking.customer_phone : booking.user_phone) && (
-                                        <a
-                                            href={`https://wa.me/${(isWalkIn ? booking.customer_phone : booking.user_phone)?.replace(/\D/g, '')}`}
-                                            target="_blank" rel="noopener noreferrer"
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="flex items-center gap-1 rounded bg-green-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-green-400 transition-colors hover:bg-green-500/20"
-                                        >
-                                            <MessageCircle size={9} />WA
-                                        </a>
-                                    )}
-                                </div>
+                            <span className="flex-1" />
+                            <div className="flex flex-col items-end gap-0.5">
+                                <span
+                                    className="text-[32px] font-black leading-[0.85] tracking-[-0.03em]"
+                                    style={{ color: accent }}
+                                >
+                                    {timeRemaining}
+                                </span>
+                                <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.12em] text-[#f2f0ea]/40">
+                                    MIN{endTime ? ` · ENDS ${endTime.toUpperCase()}` : ''}
+                                </span>
                             </div>
                         </div>
 
-                        {/* End & Collect inline panel */}
-                        {isShowingEndCollect && (
-                            <div className="mx-4 mb-3 pt-3 border-t border-white/[0.08] space-y-2.5">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-xs font-semibold text-white">End & Collect</p>
-                                    <button onClick={() => setEndCollectId(null)} className="text-slate-500 hover:text-white transition-colors">
-                                        <X size={13} />
-                                    </button>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setEndCollectPayment('cash')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${endCollectPayment === 'cash' ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}>
-                                        <Banknote size={12} /> Cash
-                                    </button>
-                                    <button onClick={() => setEndCollectPayment('upi')} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${endCollectPayment === 'upi' ? 'bg-blue-500/15 border-blue-500/50 text-blue-400' : 'bg-white/[0.04] border-white/[0.08] text-slate-400'}`}>
-                                        <Smartphone size={12} /> UPI
-                                    </button>
-                                </div>
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="text-slate-400">Amount</span>
-                                    <span className="font-bold text-emerald-400">₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}</span>
-                                </div>
-                                <button onClick={() => { onEndCollect!(bookingId, endCollectPayment); setEndCollectId(null); }} className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-colors">
-                                    ✓ Confirm & End Session
-                                </button>
-                            </div>
-                        )}
+                        <div className="mx-4 h-[3px] bg-[#f2f0ea]/[0.08]">
+                            <div
+                                className="h-[3px] transition-[width] duration-300"
+                                style={{ width: `${elapsedPct}%`, background: accent }}
+                            />
+                        </div>
 
-                        {/* Action buttons */}
+                        <div className="flex flex-wrap gap-1.5 px-4 pb-3.5 pt-[13px]">
+                            <span
+                                className="px-2 py-1 font-mono text-[9.5px] tracking-[0.12em]"
+                                style={
+                                    isUnpaid
+                                        ? { background: 'rgba(255,92,43,.12)', color: '#ff5c2b' }
+                                        : { background: 'rgba(216,255,60,.12)', color: '#d8ff3c' }
+                                }
+                            >
+                                {isUnpaid ? 'UNPAID' : `PAID · ${(booking.payment_mode || 'CASH').toUpperCase()}`}
+                            </span>
+                            <span className="bg-[#f2f0ea]/[0.07] px-2 py-1 font-mono text-[9.5px] tracking-[0.12em] text-[#f2f0ea]/60">
+                                {isWalkIn ? 'WALK-IN' : 'BOOKED'} · {itemDuration} MIN
+                            </span>
+                            {amount > 0 && (
+                                <span className="bg-[#f2f0ea]/[0.07] px-2 py-1 font-mono text-[9.5px] tracking-[0.12em] text-[#f2f0ea]/60">
+                                    ₹{amount.toLocaleString('en-IN')}
+                                </span>
+                            )}
+                        </div>
+
                         {!isShowingEndCollect && (
-                            <div className={`mt-2 grid ${actionButtonCount === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 px-3 pb-3 sm:mt-3 sm:px-4 sm:pb-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]`}>
-                                {onAddTime && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onAddTime(booking); }}
-                                        className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-slate-300 transition-colors hover:border-cyan-500/30 hover:bg-cyan-500/8 hover:text-white sm:gap-1.5 sm:text-[11px] rounded-lg"
-                                        style={{ border: '1px solid rgba(255,255,255,0.07)' }}
-                                    >
-                                        <Clock3 className="h-3 w-3" />
-                                        <span className="sm:hidden">Time</span>
-                                        <span className="hidden sm:inline">Add time</span>
-                                    </button>
-                                )}
-                                {onAddItems && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onAddItems(bookingId, customerName); }}
-                                        className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-slate-300 transition-colors hover:border-amber-500/30 hover:bg-amber-500/8 hover:text-white sm:gap-1.5 sm:text-[11px] rounded-lg"
-                                        style={{ border: '1px solid rgba(255,255,255,0.07)' }}
-                                    >
-                                        <UtensilsCrossed className="h-3 w-3" />
-                                        <span className="sm:hidden">Item</span>
-                                        <span className="hidden sm:inline">Add item</span>
-                                    </button>
-                                )}
+                            <>
+                                <div className="grid grid-cols-2 gap-px border-t border-[#f2f0ea]/10 bg-[#f2f0ea]/10 sm:grid-cols-4">
+                                    {onAddTime && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onAddTime(booking); }}
+                                            className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#f2f0ea] transition-colors hover:bg-[#1c1c20]"
+                                        >
+                                            + TIME
+                                        </button>
+                                    )}
+                                    {onAddItems && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onAddItems(bookingId, customerName); }}
+                                            className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#f2f0ea] transition-colors hover:bg-[#1c1c20]"
+                                        >
+                                            + SNACK
+                                        </button>
+                                    )}
+                                    {onStationCommand && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                // 'pending' is this app's "money not taken yet". The API
+                                                // refuses these too; this only stops the button looking
+                                                // available. Locking stays allowed whatever the state.
+                                                title={isUnpaid ? 'Record the payment before starting this session' : undefined}
+                                                disabled={isUnpaid || stationBusyId === bookingId}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    setStationBusyId(bookingId);
+                                                    try {
+                                                        await onStationCommand(bookingId, 'unlock');
+                                                    } finally {
+                                                        setStationBusyId(null);
+                                                    }
+                                                }}
+                                                className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#d8ff3c] transition-colors hover:bg-[#1c1c20] disabled:text-[#f2f0ea]/25"
+                                            >
+                                                {stationBusyId === bookingId ? 'SENDING…' : isUnpaid ? 'UNPAID' : 'UNLOCK'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={stationBusyId === bookingId}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    setStationBusyId(bookingId);
+                                                    try {
+                                                        await onStationCommand(bookingId, 'lock');
+                                                    } finally {
+                                                        setStationBusyId(null);
+                                                    }
+                                                }}
+                                                className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#f2f0ea]/70 transition-colors hover:bg-[#1c1c20] disabled:opacity-40"
+                                            >
+                                                LOCK
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
                                 {onEndCollect && (
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setEndCollectId(booking.id); setEndCollectPayment('cash'); }}
-                                        className={`${actionButtonCount === 1 ? 'col-span-full' : ''} flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:border-white/20 sm:text-[11px]`}
-                                        style={{ border: '1px solid rgba(255,255,255,0.07)', color: '#fca5a5' }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEndCollectId(booking.id);
+                                            setEndCollectPayment('cash');
+                                        }}
+                                        className="bg-[#d8ff3c] py-3.5 font-mono text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px"
                                     >
-                                        <Square className="h-3 w-3" /> End
+                                        END &amp; CHECKOUT · ₹{amount.toLocaleString('en-IN')}
                                     </button>
                                 )}
-                            </div>
+                            </>
                         )}
 
-                        {/* Physical machine control. Separate row from the
-                            buttons above so the grid there is left alone. */}
-                        {onStationCommand && !isShowingEndCollect && (() => {
-                            // 'pending' is this app's "money not taken yet".
-                            // The API refuses these too — this only stops the
-                            // button looking available. Locking stays allowed
-                            // whatever the payment state.
-                            const isUnpaid = (booking.status || '').toLowerCase() === 'pending';
+                        {isShowingEndCollect && onEndCollect && (
+                            <div className="border-t border-[#f2f0ea]/10 px-4 pb-4 pt-3.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                                        TAKE PAYMENT
+                                    </span>
+                                    <button
+                                        onClick={() => setEndCollectId(null)}
+                                        className="font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/40 transition-colors hover:text-[#f2f0ea]"
+                                    >
+                                        CANCEL
+                                    </button>
+                                </div>
 
-                            return (
-                            <div className="grid grid-cols-2 gap-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    {(['cash', 'upi'] as const).map((mode) => (
+                                        <button
+                                            key={mode}
+                                            onClick={() => setEndCollectPayment(mode)}
+                                            className="border py-2.5 font-mono text-[10.5px] font-semibold tracking-[0.14em] transition-colors"
+                                            style={
+                                                endCollectPayment === mode
+                                                    ? { borderColor: '#d8ff3c', background: 'rgba(216,255,60,.12)', color: '#d8ff3c' }
+                                                    : { borderColor: 'rgba(242,240,234,.16)', color: 'rgba(242,240,234,.5)' }
+                                            }
+                                        >
+                                            {mode.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+
                                 <button
-                                    type="button"
-                                    title={isUnpaid ? 'Record the payment before starting this session' : undefined}
-                                    disabled={isUnpaid || stationBusyId === bookingId}
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        setStationBusyId(bookingId);
-                                        try {
-                                            await onStationCommand(bookingId, 'unlock');
-                                        } finally {
-                                            setStationBusyId(null);
-                                        }
+                                    onClick={() => {
+                                        onEndCollect(bookingId, endCollectPayment);
+                                        setEndCollectId(null);
                                     }}
-                                    className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-emerald-300 transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/8 hover:text-white disabled:opacity-40 sm:gap-1.5 sm:text-[11px] rounded-lg"
-                                    style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+                                    className="mt-2.5 w-full bg-[#d8ff3c] py-3 font-mono text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px"
                                 >
-                                    <Unlock className="h-3 w-3" />
-                                    {stationBusyId === bookingId
-                                        ? 'Sending…'
-                                        : isUnpaid
-                                            ? 'Unpaid'
-                                            : 'Unlock PC'}
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={stationBusyId === bookingId}
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        setStationBusyId(bookingId);
-                                        try {
-                                            await onStationCommand(bookingId, 'lock');
-                                        } finally {
-                                            setStationBusyId(null);
-                                        }
-                                    }}
-                                    className="flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-slate-300 transition-colors hover:border-red-500/30 hover:bg-red-500/8 hover:text-white disabled:opacity-40 sm:gap-1.5 sm:text-[11px] rounded-lg"
-                                    style={{ border: '1px solid rgba(255,255,255,0.07)' }}
-                                >
-                                    <Lock className="h-3 w-3" />
-                                    Lock PC
+                                    COLLECT ₹{amount.toLocaleString('en-IN')} · {endCollectPayment.toUpperCase()}
                                 </button>
                             </div>
-                            );
-                        })()}
+                        )}
                     </div>
                 );
             })}

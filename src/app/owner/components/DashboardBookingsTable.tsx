@@ -16,11 +16,11 @@ interface DashboardBookingsTableProps {
 }
 
 const STATUS_MAP: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
-    'in-progress': { bg: 'rgba(6,182,212,0.12)',  fg: '#67e8f9', dot: '#06b6d4',  label: 'In progress' },
-    'completed':   { bg: 'rgba(16,185,129,0.10)', fg: '#6ee7b7', dot: '#10b981',  label: 'Completed' },
-    'confirmed':   { bg: 'rgba(245,158,11,0.12)', fg: '#fbbf24', dot: '#f59e0b',  label: 'Confirmed' },
-    'pending':     { bg: 'rgba(245,158,11,0.12)', fg: '#fbbf24', dot: '#f59e0b',  label: 'Payment pending' },
-    'cancelled':   { bg: 'rgba(239,68,68,0.10)',  fg: '#fca5a5', dot: '#ef4444',  label: 'Cancelled' },
+    'in-progress': { bg: 'rgba(216,255,60,0.12)',  fg: '#d8ff3c', dot: '#d8ff3c', label: 'IN PROGRESS' },
+    'completed':   { bg: 'rgba(242,240,234,0.07)', fg: 'rgba(242,240,234,.6)', dot: 'rgba(242,240,234,.4)', label: 'DONE' },
+    'confirmed':   { bg: 'rgba(216,255,60,0.10)',  fg: '#d8ff3c', dot: '#d8ff3c', label: 'CONFIRMED' },
+    'pending':     { bg: 'rgba(255,92,43,0.12)',   fg: '#ff5c2b', dot: '#ff5c2b', label: 'UNPAID' },
+    'cancelled':   { bg: 'rgba(242,240,234,0.05)', fg: 'rgba(242,240,234,.35)', dot: 'rgba(242,240,234,.3)', label: 'CANCELLED' },
 };
 
 const CONSOLE_ICON: Record<string, string> = {
@@ -87,18 +87,18 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
         .slice(0, 10);
 
     return (
-        <div className="glass rounded-2xl overflow-hidden">
+        <div className="overflow-hidden border border-[#f2f0ea]/10 bg-[#111113]">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/[0.05] px-4 py-3 sm:px-5 sm:py-4">
+            <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-4 py-3 sm:px-5 sm:py-4">
                 <div className="flex items-center gap-2">
                     <div className="flex h-6 w-6 items-center justify-center rounded-lg sm:h-7 sm:w-7" style={{ background: 'rgba(6,182,212,0.12)', color: '#06b6d4' }}>
                         <CalendarX size={13} />
                     </div>
-                    <h2 className="text-[13px] text-slate-300 sm:text-sm" style={{ fontVariant: 'all-small-caps', letterSpacing: '0.12em', fontWeight: 600 }}>Today&apos;s Bookings</h2>
+                    <h2 className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">TODAY&apos;S BOOKINGS</h2>
                     <span className="mono text-[11px] text-slate-500">({bookings.filter(b => !b.deleted_at && b.status !== 'cancelled' && isSessionBooking(b)).length})</span>
                 </div>
                 {onViewAll && (
-                    <button onClick={onViewAll} className="flex items-center gap-1 text-[11px] transition-colors hover:opacity-80" style={{ color: '#06b6d4' }}>
+                    <button onClick={onViewAll} className="flex items-center gap-1 font-mono text-[10.5px] tracking-[0.14em] transition-colors hover:opacity-80" style={{ color: '#d8ff3c' }}>
                         View all <ArrowRight size={11} />
                     </button>
                 )}
@@ -137,7 +137,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                     <p className="truncate text-[15px] font-semibold text-white">{name || '—'}</p>
                                     {phone && <p className="mono mt-0.5 text-[10px] text-slate-500">+91 {phone.replace(/^\+?91/, '')}</p>}
                                 </div>
-                                <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px]"
+                                <span className="inline-flex items-center gap-1.5 px-2 py-1 font-mono text-[9.5px] tracking-[0.12em]"
                                     style={{ background: status.bg, color: status.fg }}>
                                     <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: status.dot }} />
                                     {status.label}
@@ -178,16 +178,16 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                         </button>
                                     )}
                                     {onPaymentModeChange && !(b.source === 'advance' && statusKey === 'pending') && (
-                                        <div className="flex items-center rounded-lg border border-white/[0.07] bg-white/[0.04] p-1">
+                                        <div className="flex items-center border border-[#f2f0ea]/[0.14] p-0.5">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}
-                                                className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase transition-all ${!isDigital ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                                className={`px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${!isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/45 hover:text-[#f2f0ea]'}`}
                                             >
                                                 Cash
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'upi'); }}
-                                                className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase transition-all ${isDigital ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                                className={`px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/45 hover:text-[#f2f0ea]'}`}
                                             >
                                                 UPI
                                             </button>
@@ -245,7 +245,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                     <p className="text-sm text-slate-500">No bookings today</p>
                                 </td>
                             </tr>
-                        ) : displayed.map((b, i) => {
+                        ) : displayed.map((b) => {
                             const isWalkIn = b.source === 'walk-in';
                             const name = isWalkIn ? b.customer_name : (b.user_name || 'Guest');
                             const phone = isWalkIn ? b.customer_phone : b.user_phone;
@@ -267,7 +267,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                             const sessionAmount = getBookingGamingTotal(b);
 
                             return (
-                                <tr key={b.id} className={`border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors ${i === displayed.length - 1 ? '' : ''}`}>
+                                <tr key={b.id} className="border-t border-[#f2f0ea]/[0.07] transition-colors hover:bg-[#f2f0ea]/[0.03]">
                                     {/* Customer */}
                                     <td className="px-5 py-3">
                                         <p className="text-[13px] font-medium text-white">{name || '—'}</p>
@@ -323,17 +323,17 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                                                     </button>
                                                 )}
                                                 {onPaymentModeChange && !(b.source === 'advance' && statusKey === 'pending') && (
-                                                    <div className="flex items-center rounded-xl border border-white/[0.07] bg-white/[0.04] p-1">
+                                                    <div className="flex items-center border border-[#f2f0ea]/[0.14] p-0.5">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}
-                                                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase transition-all ${!isDigital ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                                            className={`px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${!isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/45 hover:text-[#f2f0ea]'}`}
                                                             title="Set cash payment"
                                                         >
                                                             Cash
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'upi'); }}
-                                                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase transition-all ${isDigital ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+                                                            className={`px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/45 hover:text-[#f2f0ea]'}`}
                                                             title="Set UPI payment"
                                                         >
                                                             UPI
