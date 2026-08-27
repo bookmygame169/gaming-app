@@ -24,6 +24,8 @@ interface DashboardLayoutProps {
     onRefresh?: () => void;
     /** Work waiting inside a tab, keyed by tab id. Passed through to the sidebar. */
     navBadges?: Partial<Record<string, number>>;
+    /** Records a counter sale. The design keeps this next to New Booking. */
+    onNewSnackSale?: () => void;
     /**
      * Whether the rail starts collapsed, read from a cookie on the server.
      *
@@ -86,6 +88,7 @@ export function DashboardLayout({
     setMobileMenuOpen,
     onRefresh,
     navBadges,
+    onNewSnackSale,
     initialCollapsed = false,
 }: DashboardLayoutProps) {
     const [spinning, setSpinning] = useState(false);
@@ -215,6 +218,15 @@ export function DashboardLayout({
                                 </span>
                             )}
                         </button>
+
+                        {onNewSnackSale && (
+                            <button
+                                onClick={onNewSnackSale}
+                                className="h-[38px] shrink-0 whitespace-nowrap border border-[#f2f0ea]/[0.18] px-[15px] font-mono text-[11.5px] font-semibold tracking-[0.14em] text-[#f2f0ea]/[0.72] transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                            >
+                                + SNACK SALE
+                            </button>
+                        )}
 
                         <button
                             onClick={() => onTabChange('billing')}

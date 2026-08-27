@@ -10,6 +10,10 @@ import type { BookingRow } from '../types';
 interface DashboardBookingsTableProps {
     bookings: BookingRow[];
     onViewAll?: () => void;
+    /** The design's feed labels above the table: which one is lit, and the counts. */
+    feeds?: { id: string; label: string; count: number }[];
+    activeFeed?: string;
+    onFeedChange?: (feed: string) => void;
     onEdit?: (booking: BookingRow) => void;
     onPaymentModeChange?: (bookingId: string, mode: string) => void | Promise<boolean>;
     onStatusChange?: (bookingId: string, status: string) => void | Promise<void>;
@@ -80,13 +84,39 @@ function getWhatsAppUrl(booking: BookingRow): string | null {
     return buildWhatsAppUrl(phone, message);
 }
 
-export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentModeChange, onStatusChange }: DashboardBookingsTableProps) {
+export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed, onFeedChange, onEdit, onPaymentModeChange, onStatusChange }: DashboardBookingsTableProps) {
     const displayed = bookings
         .filter(b => !b.deleted_at && b.status !== 'cancelled' && isSessionBooking(b))
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
         .slice(0, 10);
 
     return (
+        <>
+        {feeds && feeds.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+                {feeds.map((feed) => {
+                    const on = feed.id === activeFeed;
+                    return (
+                        <button
+                            key={feed.id}
+                            type="button"
+                            onClick={() => onFeedChange?.(feed.id)}
+                            className="flex items-center gap-2 border px-3 py-[7px] font-mono text-[10.5px] tracking-[0.14em] transition-colors"
+                            style={
+                                on
+                                    ? { borderColor: '#d8ff3c', background: 'rgba(216,255,60,.10)', color: '#d8ff3c' }
+                                    : { borderColor: 'rgba(242,240,234,.14)', color: 'rgba(242,240,234,.5)' }
+                            }
+                        >
+                            {feed.label}
+                            <span className="opacity-50">{feed.count}</span>
+                        </button>
+                    );
+                })}
+                <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+            </div>
+        )}
+
         <div className="overflow-hidden border border-[#f2f0ea]/10 bg-[#111113]">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-4 py-3 sm:px-5 sm:py-4">
@@ -375,5 +405,6 @@ export function DashboardBookingsTable({ bookings, onViewAll, onEdit, onPaymentM
                 </table>
             </div>
         </div>
+        </>
     );
 }

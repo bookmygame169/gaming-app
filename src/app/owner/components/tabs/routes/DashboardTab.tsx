@@ -1,23 +1,17 @@
 "use client";
 
-import type { ComponentProps } from 'react';
+import { useState } from 'react';
 import type { BookingRow } from "../../../types";
-import { AlarmClock, ShoppingBag, BarChart3, ChevronRight } from 'lucide-react';
-import { getBookingRevenueTotal, getOwnerPaymentBucket, isBillableRevenueBooking } from '@/lib/ownerRevenue';
 import { isBookingActiveNow, isSessionBooking } from '@/lib/bookingFilters';
 import { getLocalDateString } from '../../../utils';
-import {
-  DashboardStats,
-  BookingsTable,
-  ActiveSessions,
-} from "../../";
-import { NeedsAttention, FeatureStats } from '../../NeedsAttention';
-import { TodaySnackOrders } from '../../TodaySnackOrders';
+import { DashboardStats, ActiveSessions } from "../../";
+import { NeedsAttention } from '../../NeedsAttention';
 import { DashboardBookingsTable } from '../../DashboardBookingsTable';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import { useOwnerDashboard } from '../../../context/OwnerDashboardContext';
 
 export function DashboardTab() {
+  const [activityFeed, setActivityFeed] = useState('sessions');
   const {
     loadingData,
     bookings: bookingsFromContext,
@@ -40,7 +34,6 @@ export function DashboardTab() {
     setSessionEndedInfo,
     setSessionEndedPopupOpen,
     handleStopTimer,
-    setSnackSaleModalOpen,
     setViewOrdersBookingId,
     setViewOrdersCustomerName,
     setViewOrdersModalOpen,
@@ -54,6 +47,23 @@ export function DashboardTab() {
   const bookings = bookingsFromContext as BookingRow[];
 
   if (loadingData) return null;
+
+  const todayOnly = (b: BookingRow) =>
+    !b.deleted_at &&
+    b.booking_date === getLocalDateString() &&
+    (!currentCafeId || b.cafe_id === currentCafeId);
+
+  // Three feeds over one table, as the design draws it: what played today,
+  // what is booked, and what was sold over the counter. A snack sale is a
+  // booking with no session on it, which is how this app has always stored it.
+  const sessionFeed = bookings.filter((b) => todayOnly(b) && isSessionBooking(b));
+  const snackFeed = bookings.filter((b) => todayOnly(b) && !isSessionBooking(b));
+  const bookedFeed = bookings.filter(
+    (b) => todayOnly(b) && isSessionBooking(b) && b.source !== 'walk-in'
+  );
+
+  const feedRows =
+    activityFeed === 'snacks' ? snackFeed : activityFeed === 'booked' ? bookedFeed : sessionFeed;
 
   return (
     <ErrorBoundary>
@@ -82,31 +92,28 @@ export function DashboardTab() {
                 });
                 if (endingSoon.length === 0) return null;
                 return (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
-                      <AlarmClock size={16} className="text-amber-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-amber-400 font-semibold text-sm">
+                  <div
+                    className="flex items-center gap-3 bg-[#111113] px-[13px] py-3"
+                    style={{ borderLeft: '2px solid #ff5c2b' }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[13px] font-bold text-[#f2f0ea]">
                         {endingSoon.length} session{endingSoon.length > 1 ? 's' : ''} ending in under 15 min
                       </span>
-                      <span className="text-amber-400/60 text-xs ml-2 truncate">
+                      <span className="ml-2 truncate font-mono text-[10.5px] text-[#f2f0ea]/45">
                         {endingSoon.map((b) => b.customer_name || 'Guest').join(', ')}
                       </span>
                     </div>
                     <button
                       onClick={() => handleTabChange('bookings')}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                      className="whitespace-nowrap font-mono text-[10px] tracking-[0.12em] text-[#ff5c2b] transition-opacity hover:opacity-80"
                     >
-                      View <ChevronRight size={12} />
+                      VIEW
                     </button>
                   </div>
                 );
               })()}
 
-              {/* Things from the other tabs that need a decision. Renders
-                  nothing when there is nothing waiting. */}
-              <NeedsAttention summary={ownerSummary} onNavigate={handleTabChange} />
 
               {/* KPI Stats */}
               <DashboardStats
@@ -117,12 +124,8 @@ export function DashboardTab() {
                 isMobile={isMobile}
               />
 
-              {/* Standing numbers from loyalty, reviews and tournaments, each
-                  linking to its own tab. */}
-              <FeatureStats summary={ownerSummary} onNavigate={handleTabChange} />
-
-
               {/* Active Sessions */}
+              <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_336px]">
               <section>
                 <div className="mb-3 flex items-center gap-3">
                   <span className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
@@ -171,131 +174,34 @@ export function DashboardTab() {
                 />
               </section>
 
-              {/* Today's Bookings — clean design-matching table */}
+              {/* Things from the other tabs that need a decision. Renders
+                  nothing when there is nothing waiting. */}
+              <NeedsAttention summary={ownerSummary} onNavigate={handleTabChange} />
+              </div>
+
+              {/* The day's activity, under the design's feed labels. */}
               <DashboardBookingsTable
-                bookings={bookings.filter((b) =>
-                  !b.deleted_at &&
-                  b.booking_date === getLocalDateString() &&
-                  (!currentCafeId || b.cafe_id === currentCafeId) &&
-                  isSessionBooking(b)
-                )}
-                onViewAll={() => handleTabChange('bookings')}
-                onEdit={handleEditBooking}
+                bookings={feedRows}
+                feeds={[
+                  { id: 'sessions', label: 'SESSIONS', count: sessionFeed.length },
+                  { id: 'booked', label: 'BOOKINGS', count: bookedFeed.length },
+                  { id: 'snacks', label: 'SNACK SALES', count: snackFeed.length },
+                ]}
+                activeFeed={activityFeed}
+                onFeedChange={setActivityFeed}
+                onViewAll={() => handleTabChange(activityFeed === 'snacks' ? 'inventory' : 'bookings')}
+                // On the snack feed, editing means the items on the sale, not
+                // the booking around them - that is the flow the old snack
+                // block owned, kept here rather than dropped with it.
+                onEdit={(booking) => {
+                  if (activityFeed !== 'snacks') return handleEditBooking(booking);
+                  setViewOrdersBookingId(booking.id);
+                  setViewOrdersCustomerName(booking.customer_name || 'Guest');
+                  setViewOrdersModalOpen(true);
+                }}
                 onPaymentModeChange={handlePaymentModeChange}
                 onStatusChange={handleBookingStatusChange}
               />
-
-              {/* Today's Snack Orders */}
-              <section>
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-7 h-7 rounded-lg bg-orange-500/15 flex items-center justify-center">
-                    <ShoppingBag size={14} className="text-orange-400" />
-                  </div>
-                  <h2 className="text-base font-semibold text-white">Snack Sales</h2>
-                </div>
-                <TodaySnackOrders
-                  // Its prop type declares booking_date as non-null while its
-                  // own code handles the null case. Narrowed here rather than
-                  // loosening a shared type from the outside.
-                  bookings={bookings as ComponentProps<typeof TodaySnackOrders>["bookings"]}
-                  todayStr={getLocalDateString()}
-                  onNewSale={() => setSnackSaleModalOpen(true)}
-                  onEditSale={(bookingId, customerName) => {
-                    setViewOrdersBookingId(bookingId);
-                    setViewOrdersCustomerName(customerName);
-                    setViewOrdersModalOpen(true);
-                  }}
-                />
-              </section>
-
-              {/* Last 7 Days */}
-              {(() => {
-                const today = new Date();
-                const lastWeek = new Date(today);
-                lastWeek.setDate(today.getDate() - 7);
-                const lastWeekStr = getLocalDateString(lastWeek);
-                const todayStr = getLocalDateString(today);
-
-                const weeklyBookings = bookings.filter((b) => {
-                  if (b.deleted_at) return false;
-                  const bDate = b.booking_date;
-                  // Explicit, and equivalent: comparing null against a date
-                  // string is false in JavaScript either way, so a booking with
-                  // no date was already excluded here. Now it says so.
-                  if (!bDate) return false;
-                  return bDate >= lastWeekStr && bDate <= todayStr;
-                });
-
-                const weeklyRevenue = weeklyBookings
-                  .filter(isBillableRevenueBooking)
-                  .reduce((sum, b) => sum + getBookingRevenueTotal(b), 0);
-
-                return (
-                  <section>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
-                          <BarChart3 size={14} className="text-violet-400" />
-                        </div>
-                        <h2 className="text-base font-semibold text-white">Last 7 Days</h2>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[11px] font-bold">
-                          Rs.{weeklyRevenue.toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleTabChange('bookings')}
-                        className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition-colors"
-                      >
-                        View all <ChevronRight size={12} />
-                      </button>
-                    </div>
-                    <BookingsTable
-                      title=""
-                      bookings={weeklyBookings}
-                      loading={loadingData}
-                      limit={10}
-                      showActions={false}
-                      onViewAll={() => handleTabChange('bookings')}
-                    />
-                  </section>
-                );
-              })()}
-
-              {/* End-of-Day Cash Summary */}
-              {(() => {
-                const todayStr = getLocalDateString();
-                const todayDone = bookings.filter((b) =>
-                  isBillableRevenueBooking(b) &&
-                  b.booking_date === todayStr &&
-                  b.source !== 'membership'
-                );
-                const cashTotal = todayDone
-                  .filter((b) => getOwnerPaymentBucket(b.payment_mode) === 'cash')
-                  .reduce((s, b) => s + getBookingRevenueTotal(b), 0);
-                const upiTotal = todayDone
-                  .filter((b) => getOwnerPaymentBucket(b.payment_mode) === 'upi')
-                  .reduce((s, b) => s + getBookingRevenueTotal(b), 0);
-                if (cashTotal === 0 && upiTotal === 0) return null;
-                return (
-                  <section className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Cash Drawer Summary</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 p-3 text-center">
-                        <p className="text-[10px] text-emerald-400/70 uppercase tracking-widest mb-1">Cash</p>
-                        <p className="text-lg font-bold text-emerald-400">₹{cashTotal.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="rounded-xl bg-blue-500/8 border border-blue-500/20 p-3 text-center">
-                        <p className="text-[10px] text-blue-400/70 uppercase tracking-widest mb-1">UPI</p>
-                        <p className="text-lg font-bold text-blue-400">₹{upiTotal.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-3 text-center">
-                        <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Total</p>
-                        <p className="text-lg font-bold text-white">₹{(cashTotal + upiTotal).toLocaleString('en-IN')}</p>
-                      </div>
-                    </div>
-                  </section>
-                );
-              })()}
 
             </div>
     </ErrorBoundary>

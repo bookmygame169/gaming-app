@@ -18,6 +18,7 @@ function OwnerDashboardView({ railCollapsed }: { railCollapsed: boolean }) {
     setMobileMenuOpen,
     refreshData,
     ownerSummary,
+    setSnackSaleModalOpen,
     allowed,
     checkingRole,
     hasLoadedData,
@@ -56,6 +57,7 @@ function OwnerDashboardView({ railCollapsed }: { railCollapsed: boolean }) {
         setMobileMenuOpen={setMobileMenuOpen}
         title="Dashboard"
         onRefresh={refreshData}
+        onNewSnackSale={() => setSnackSaleModalOpen(true)}
         initialCollapsed={railCollapsed}
         navBadges={{
           payments: ownerSummary?.payments.waiting ?? 0,
