@@ -7,7 +7,7 @@ import { OwnerTabContent } from './components/OwnerTabContent';
 import { OwnerDashboardModals } from './components/OwnerDashboardModals';
 import type { OwnerRouteTab } from './navigation';
 
-function OwnerDashboardView() {
+function OwnerDashboardView({ railCollapsed }: { railCollapsed: boolean }) {
   const {
     activeTab,
     handleTabChange,
@@ -56,6 +56,7 @@ function OwnerDashboardView() {
         setMobileMenuOpen={setMobileMenuOpen}
         title="Dashboard"
         onRefresh={refreshData}
+        initialCollapsed={railCollapsed}
         navBadges={{
           payments: ownerSummary?.payments.waiting ?? 0,
           reviews: ownerSummary?.reviews.needsReply ?? 0,
@@ -85,10 +86,16 @@ function OwnerDashboardView() {
   );
 }
 
-export default function OwnerDashboardShell({ activeTab }: { activeTab: OwnerRouteTab }) {
+export default function OwnerDashboardShell({
+  activeTab,
+  railCollapsed = false,
+}: {
+  activeTab: OwnerRouteTab;
+  railCollapsed?: boolean;
+}) {
   return (
     <OwnerDashboardProvider activeTab={activeTab}>
-      <OwnerDashboardView />
+      <OwnerDashboardView railCollapsed={railCollapsed} />
     </OwnerDashboardProvider>
   );
 }

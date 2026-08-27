@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
 import { ownerPathForTab } from '../navigation';
@@ -14,7 +13,6 @@ import {
     BarChart3,
     Settings,
     LogOut,
-    X,
     Menu,
     Package,
     Trophy,
@@ -22,34 +20,43 @@ import {
     Star,
     IndianRupee,
     Wallet,
-    ChevronDown,
-    ChevronRight,
     PanelLeftClose,
     PanelLeftOpen,
+    ScanLine,
 } from 'lucide-react';
 
-const PRIMARY_NAV = [
+/**
+ * The owner console's rail, in the BookMyGame Owner Console design.
+ *
+ * One flat list of fifteen, which is the design's own arrangement and a
+ * correction: ten of these used to sit inside a collapsed "Manage" group, so
+ * Payments and Reviews — the two that carry work waiting — were behind a click
+ * exactly when they had something to say. The group is gone; the badges are
+ * visible from anywhere.
+ *
+ * Rounded corners here, unlike the customer site's square edges. That is the
+ * design's distinction, not an oversight: this is a tool somebody uses all day
+ * rather than a page they visit.
+ */
+const NAV = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'billing', label: 'New Booking', icon: CreditCard },
     { id: 'bookings', label: 'Bookings', icon: CalendarCheck },
-    { id: 'customers', label: 'Customers', icon: Users },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
-] as const;
-
-const MANAGE_NAV = [
-    { id: 'stations', label: 'Stations', icon: Gamepad2 },
+    { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'memberships', label: 'Memberships', icon: Ticket },
+    { id: 'coupons', label: 'Coupons', icon: Ticket },
+    { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'stations', label: 'Stations', icon: Gamepad2 },
     { id: 'tournaments', label: 'Tournaments', icon: Trophy },
     { id: 'loyalty', label: 'Loyalty Points', icon: Sparkles },
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'payments', label: 'Payments', icon: IndianRupee },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'coupons', label: 'Coupons', icon: Ticket },
     { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 
-type NavTabId = typeof PRIMARY_NAV[number]['id'] | typeof MANAGE_NAV[number]['id'];
+type NavTabId = typeof NAV[number]['id'];
 
 interface SidebarProps {
     activeTab: string;
@@ -73,7 +80,6 @@ function NavItem({
     item,
     isActive,
     collapsed,
-    isBilling = false,
     badge = 0,
     href,
     onNavigate,
@@ -81,7 +87,6 @@ function NavItem({
     item: { id: string; label: string; icon: LucideIcon };
     isActive: boolean;
     collapsed: boolean;
-    isBilling?: boolean;
     badge?: number;
     href: string;
     onNavigate?: () => void;
@@ -93,47 +98,40 @@ function NavItem({
             href={href}
             onClick={onNavigate}
             title={collapsed ? item.label : undefined}
-            className={`
-                relative w-full flex items-center gap-3 rounded-xl transition-all duration-200 group
-                ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}
-                ${isBilling
-                    ? isActive
-                        ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
-                        : 'text-cyan-400/70 hover:bg-cyan-500/8 border border-cyan-500/15'
-                    : isActive
-                        ? 'bg-white/[0.07] text-white'
-                        : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.04]'
-                }
-            `}
+            className={`relative my-px flex items-center gap-3.5 rounded-xl transition-colors ${
+                collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
+            } ${
+                isActive
+                    ? 'bg-[#d8ff3c]/[0.10] text-[#f2f0ea]'
+                    : 'text-[#f2f0ea]/55 hover:bg-[#f2f0ea]/[0.05] hover:text-[#f2f0ea]'
+            }`}
         >
-            {isActive && !isBilling && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style={{ background: '#06b6d4' }} />
-            )}
-            <Icon
-                size={17}
-                className={`shrink-0 ${isActive ? (isBilling ? 'text-cyan-400' : 'text-cyan-300') : isBilling ? 'text-cyan-400/70' : 'text-slate-500 group-hover:text-slate-200'}`}
-            />
-            {!collapsed && (
-                <span className="font-medium text-sm truncate">{item.label}</span>
+            {isActive && (
+                <span className="absolute -left-3 bottom-2 top-2 w-[3px] rounded-r-[3px] bg-[#d8ff3c]" />
             )}
 
-            {badge > 0 && (
+            <Icon
+                size={21}
+                strokeWidth={1.7}
+                className={`shrink-0 ${isActive ? 'text-[#d8ff3c]' : ''}`}
+            />
+
+            {!collapsed && (
+                <span className="truncate text-[15px] font-semibold tracking-[-0.01em]">
+                    {item.label}
+                </span>
+            )}
+
+            {badge > 0 &&
                 // Collapsed shows a dot rather than a number: there is no room
                 // for a count, but "something is waiting" still fits.
-                collapsed ? (
-                    <span
-                        className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
-                        style={{ background: '#fbbf24' }}
-                    />
+                (collapsed ? (
+                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#ff5c2b]" />
                 ) : (
-                    <span
-                        className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
-                        style={{ background: 'rgba(245,158,11,0.16)', color: '#fbbf24' }}
-                    >
+                    <span className="ml-auto shrink-0 font-mono text-[10px] tracking-[0.06em] text-[#ff5c2b]">
                         {badge > 99 ? '99+' : badge}
                     </span>
-                )
-            )}
+                ))}
         </Link>
     );
 }
@@ -150,165 +148,143 @@ export function Sidebar({
     onToggleCollapsed,
     badges = {},
 }: SidebarProps) {
-    const isManageActive = MANAGE_NAV.some(item => item.id === activeTab);
-
-    // Reviews and Payments live inside Manage, which is collapsed by default —
-    // so their badges would be hidden exactly when they matter. The group
-    // header carries the total until it is opened.
-    const manageWaiting = MANAGE_NAV.reduce(
-        (sum, item) => sum + (badges[item.id] ?? 0),
-        0
-    );
-    // Default collapsed — expands only when a manage tab is active
-    const [manageOpen, setManageOpen] = useState<boolean>(isMobile || isManageActive);
-
     const handleNav = (id: NavTabId) => {
         onTabChange(id);
         if (isMobile) onClose();
     };
 
-    const tabHref = (id: string) => ownerPathForTab(id);
+    const isCollapsed = collapsed && !isMobile;
+    const sidebarWidth = isMobile ? 'w-[86vw] max-w-[320px]' : isCollapsed ? 'w-[76px]' : 'w-[248px]';
 
-    const sidebarWidth = isMobile ? 'w-[86vw] max-w-[320px]' : collapsed ? 'w-16' : 'w-64';
+    const initials = cafeName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((word) => word[0])
+        .join('')
+        .toUpperCase() || 'BG';
 
     return (
         <>
             {isMobile && isOpen && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={onClose} />
+                <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={onClose} />
             )}
 
-            <aside className={`
-                fixed top-0 left-0 z-50 h-screen
-                ${sidebarWidth}
-                border-r border-white/[0.06]
-                flex flex-col
-                transition-all duration-300 ease-out
-                ${isMobile ? (isOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
-            `} style={{ background: 'linear-gradient(180deg, #0e0e16, #0a0a0f)', boxShadow: '1px 0 0 rgba(255,255,255,0.04)' }}>
-                {/* Header */}
-                <div className={`shrink-0 h-14 flex items-center border-b border-white/[0.06] ${collapsed && !isMobile ? 'justify-center px-0' : 'px-4 justify-between'}`}>
-                    {(!collapsed || isMobile) && (
-                        <div className="min-w-0">
-                            <h1 className="text-sm font-bold text-white truncate leading-tight">{cafeName}</h1>
-                            <div className="text-[9px] tracking-[2px] font-semibold text-slate-600 mt-0.5 uppercase">
-                                <span className="text-red-500">BOOK</span>MYGAME
-                            </div>
+            <aside
+                className={`fixed left-0 top-0 z-50 flex h-screen flex-col overflow-hidden border-r border-[#f2f0ea]/10 bg-[#0e0e10] transition-all duration-200 ${sidebarWidth} ${
+                    isMobile ? (isOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'
+                }`}
+            >
+                <div
+                    className={`flex shrink-0 flex-nowrap items-center gap-[11px] px-3.5 pb-3.5 pt-5 ${
+                        isCollapsed ? 'flex-col gap-3' : ''
+                    }`}
+                >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[#d8ff3c] text-sm font-black text-[#0b0b0c]">
+                        BG
+                    </span>
+
+                    {!isCollapsed && (
+                        <div className="flex min-w-0 flex-col gap-px overflow-hidden">
+                            <span className="whitespace-nowrap text-base font-extrabold leading-[1.15] tracking-[-0.02em] text-[#f2f0ea]">
+                                BookMyGame
+                            </span>
+                            <span className="whitespace-nowrap text-xs text-[#f2f0ea]/[0.42]">
+                                Owner Console
+                            </span>
                         </div>
                     )}
 
-                    {collapsed && !isMobile && (
-                        <div className="w-7 h-7 rounded-lg bg-red-500/20 flex items-center justify-center">
-                            <span className="text-red-400 text-xs font-black">B</span>
-                        </div>
-                    )}
+                    {!isCollapsed && <span className="flex-1" />}
 
-                    {isMobile && (
-                        <button onClick={onClose} className="p-1.5 text-slate-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                            <X size={16} />
+                    {!isMobile && (
+                        <button
+                            type="button"
+                            onClick={onToggleCollapsed}
+                            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#f2f0ea]/[0.42] transition-colors hover:bg-[#f2f0ea]/[0.07] hover:text-[#f2f0ea]"
+                        >
+                            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                         </button>
                     )}
                 </div>
 
-                {/* Navigation */}
-                <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 ${collapsed && !isMobile ? 'px-2' : 'px-3'}`}>
-                    {isMobile && (
-                        <div className="mb-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-3">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Quick access</div>
-                            <p className="mt-1 text-sm text-slate-300">Navigate the owner app faster on mobile.</p>
-                        </div>
+                <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-2 pt-1">
+                    {!isCollapsed && (
+                        <span className="px-2.5 pb-2.5 pt-1.5 font-mono text-[10px] tracking-[0.24em] text-[#f2f0ea]/[0.32]">
+                            MENU
+                        </span>
                     )}
 
-                    {(!collapsed || isMobile) && (
-                        <div className="px-3 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">Main</div>
-                    )}
-
-                    {PRIMARY_NAV.map((item) => (
+                    {NAV.map((item) => (
                         <NavItem
                             key={item.id}
                             item={item}
                             isActive={activeTab === item.id}
-                            collapsed={collapsed && !isMobile}
-                            isBilling={item.id === 'billing'}
+                            collapsed={isCollapsed}
                             badge={badges[item.id] ?? 0}
-                            href={tabHref(item.id)}
+                            href={ownerPathForTab(item.id)}
                             onNavigate={() => handleNav(item.id)}
                         />
                     ))}
-
-                    {/* Manage group */}
-                    <div className="pt-3">
-                        {(!collapsed || isMobile) ? (
-                            <button
-                                onClick={() => setManageOpen(prev => !prev)}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-slate-600 hover:text-slate-400 transition-colors"
-                            >
-                                <span className="text-[9px] font-bold uppercase tracking-widest">Manage</span>
-                                <span className="flex items-center gap-1.5">
-                                    {!manageOpen && manageWaiting > 0 && (
-                                        <span
-                                            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
-                                            style={{ background: 'rgba(245,158,11,0.16)', color: '#fbbf24' }}
-                                        >
-                                            {manageWaiting > 99 ? '99+' : manageWaiting}
-                                        </span>
-                                    )}
-                                    {manageOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                                </span>
-                            </button>
-                        ) : (
-                            <div className="flex justify-center py-1">
-                                <div className="w-4 h-px bg-white/10" />
-                            </div>
-                        )}
-
-                        {(manageOpen || (collapsed && !isMobile)) && (
-                            <div className="space-y-0.5 mt-1">
-                                {MANAGE_NAV.map((item) => (
-                                    <NavItem
-                                        key={item.id}
-                                        item={item}
-                                        isActive={activeTab === item.id}
-                                        collapsed={collapsed && !isMobile}
-                                        badge={badges[item.id] ?? 0}
-                                        href={tabHref(item.id)}
-                                        onNavigate={() => handleNav(item.id)}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
                 </nav>
 
-                {/* Footer */}
-                <div className={`shrink-0 border-t border-white/[0.06] py-3 space-y-0.5 ${collapsed && !isMobile ? 'px-2' : 'px-3'}`}>
-                    {!isMobile && (
-                        <button
-                            onClick={onToggleCollapsed}
-                            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-slate-500 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'justify-center px-0' : ''}`}
-                        >
-                            {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-                            {!collapsed && <span className="text-sm font-medium">Collapse</span>}
-                        </button>
-                    )}
-
+                <div className="flex shrink-0 flex-col gap-2.5 px-3 pb-4 pt-2.5">
                     <button
-                        onClick={() => (window.location.href = '/')}
-                        title={collapsed && !isMobile ? 'User Dashboard' : undefined}
-                        className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-slate-500 hover:text-white hover:bg-white/5 transition-colors ${collapsed && !isMobile ? 'justify-center px-0' : ''}`}
-                    >
-                        <Users size={17} className="shrink-0" />
-                        {(!collapsed || isMobile) && <span className="font-medium text-sm">User Dashboard</span>}
-                    </button>
-
-                    <button
+                        type="button"
                         onClick={onLogout}
-                        title={collapsed && !isMobile ? 'Sign Out' : undefined}
-                        className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-red-500/70 hover:text-red-400 hover:bg-red-500/8 transition-colors ${collapsed && !isMobile ? 'justify-center px-0' : ''}`}
+                        title={isCollapsed ? 'Sign out' : undefined}
+                        className={`flex items-center gap-3.5 rounded-xl px-3 py-2.5 text-[#ff5c2b] transition-colors hover:bg-[#ff5c2b]/[0.09] ${
+                            isCollapsed ? 'justify-center px-0' : ''
+                        }`}
                     >
-                        <LogOut size={17} className="shrink-0" />
-                        {(!collapsed || isMobile) && <span className="font-medium text-sm">Sign Out</span>}
+                        <LogOut size={21} strokeWidth={1.7} className="shrink-0" />
+                        {!isCollapsed && (
+                            <span className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.01em]">
+                                Sign out
+                            </span>
+                        )}
                     </button>
+
+                    {/* The scanner reads the code on a locked PC, which is the
+                        one thing here that gets used standing up, away from the
+                        desk. It is a real page, not the design's placeholder. */}
+                    <Link
+                        href="/scan"
+                        title={isCollapsed ? 'Scan QR ticket' : undefined}
+                        className={`flex items-center gap-3 rounded-xl border border-[#f2f0ea]/10 bg-[#17171a] px-3.5 py-3 transition-colors hover:border-[#d8ff3c] hover:bg-[#d8ff3c]/[0.08] ${
+                            isCollapsed ? 'justify-center px-0' : ''
+                        }`}
+                    >
+                        <ScanLine size={19} strokeWidth={1.7} className="shrink-0 text-[#d8ff3c]" />
+                        {!isCollapsed && (
+                            <span className="whitespace-nowrap text-sm font-bold tracking-[-0.01em] text-[#f2f0ea]">
+                                Scan QR Ticket
+                            </span>
+                        )}
+                    </Link>
+
+                    <Link
+                        href="/"
+                        title={isCollapsed ? cafeName : undefined}
+                        className={`flex items-center gap-3 rounded-[14px] bg-[#141417] px-3 py-2.5 transition-colors hover:bg-[#1c1c20] ${
+                            isCollapsed ? 'justify-center px-0' : ''
+                        }`}
+                    >
+                        <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[#d8ff3c] text-[12.5px] font-black text-[#0b0b0c]">
+                            {initials}
+                        </span>
+                        {!isCollapsed && (
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                                <span className="truncate text-[13.5px] font-bold tracking-[-0.01em] text-[#f2f0ea]">
+                                    {cafeName}
+                                </span>
+                                <span className="truncate text-[11.5px] text-[#f2f0ea]/40">
+                                    Go to the customer site
+                                </span>
+                            </div>
+                        )}
+                    </Link>
                 </div>
             </aside>
         </>
@@ -319,7 +295,7 @@ export function MobileMenuButton({ onClick }: { onClick: () => void }) {
     return (
         <button
             onClick={onClick}
-            className="flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f2f0ea]/10 bg-[#f2f0ea]/5 text-[#f2f0ea] transition-colors hover:bg-[#f2f0ea]/10"
         >
             <Menu size={18} />
         </button>
