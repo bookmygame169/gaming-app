@@ -5,11 +5,7 @@ import {
   createAdminSession,
   getSupabaseAdmin,
 } from "@/lib/adminAuth";
-import {
-  configuredAdminEmail,
-  ensureAdminProfileForEmail,
-  isConfiguredAdminLogin,
-} from "@/lib/adminLoginAccount";
+import { authenticateAdminLogin } from "@/lib/adminLoginAccount";
 import { authRateLimiter, enforceRateLimit } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -25,42 +21,40 @@ export async function POST(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json().catch(() => ({}));
-    const email = String(body?.email || body?.username || "")
-      .trim()
-      .toLowerCase();
+    const identifier = String(body?.email || body?.username || "").trim();
     const password = String(body?.password || "");
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 }
       );
     }
 
-    if (!isConfiguredAdminLogin(email, password)) {
-      if (!configuredAdminEmail()) {
-        console.error("ADMIN_LOGIN_EMAIL / ADMIN_LOGIN_PASSWORD are not set.");
-        return NextResponse.json({ error: "Admin login is not configured" }, { status: 503 });
-      }
+    const supabase = getSupabaseAdmin();
+    const session = await authenticateAdminLogin(supabase, identifier, password);
+
+    if (!session) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
-    const adminEmail = configuredAdminEmail()!;
-    const supabase = getSupabaseAdmin();
-    const userId = await ensureAdminProfileForEmail(supabase, adminEmail);
-
-    if (!userId) {
-      return NextResponse.json({ error: "Could not set up admin session" }, { status: 500 });
-    }
-
-    const response = NextResponse.json({ userId, email: adminEmail });
+    const response = NextResponse.json({
+      userId: session.userId,
+      email: session.username,
+    });
     applyAdminSessionCookie(
       response,
-      createAdminSession(userId, adminEmail)
+      createAdminSession(session.userId, session.username)
     );
     return response;
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("Admin login error:", err);
+
+    if (message.includes("Could not set up")) {
+      return NextResponse.json({ error: "Could not set up admin session" }, { status: 500 });
+    }
+
     return NextResponse.json({ error: "An error occurred during login" }, { status: 500 });
   }
 }

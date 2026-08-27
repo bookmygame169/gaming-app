@@ -79,16 +79,16 @@ export default function AdminLoginPage() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-1.5">
               <label htmlFor="email" className="block text-sm font-medium text-slate-300">
-                Admin email
+                Email or username
               </label>
               <input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter admin email"
+                placeholder="Admin email or username"
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.09] text-white placeholder-slate-600 text-sm outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-all"
               />
             </div>
