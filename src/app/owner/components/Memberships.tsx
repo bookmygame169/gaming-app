@@ -2,7 +2,18 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, Button, Input, Select } from './ui';
-import { Search, XCircle, Plus, Edit2, Trash2, Smartphone, Monitor, User, Users, CheckCircle2, AlertTriangle } from 'lucide-react';
+import {
+    Chips,
+    EmptyRow,
+    Field,
+    Kpis,
+    Panel,
+    PrimaryButton,
+    TableHead,
+    TableRow,
+    Tag,
+} from './consoleUi';
+import { XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 type MembershipPlanType = 'day_pass' | 'hourly_package';
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -231,6 +242,9 @@ export function Memberships({
     }, [subscriptions, cafeId]);
 
     // Filter Logic
+    const MEMBER_COLUMNS = 'minmax(150px,1.4fr) minmax(0,1fr) 158px 96px 200px';
+    const PLAN_COLUMNS = 'minmax(150px,1.6fr) 92px 110px 80px 120px';
+
     const filteredSubscriptions = useMemo(() => {
         return cafeSubscriptions.filter(sub => {
             const matchesSearch = !search ||
@@ -409,347 +423,363 @@ export function Memberships({
 
     return (
         <div className="space-y-6">
-            {/* Tabs */}
-            <div className="border-b border-white/[0.08] flex gap-6">
-                <button
-                    onClick={() => setSubTab('subscriptions')}
-                    className={`pb-3 text-sm font-semibold transition-colors relative ${subTab === 'subscriptions' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
-                        }`}
+            <div className="flex flex-wrap items-center gap-[9px]">
+                <Chips
+                    items={[
+                        { id: 'subscriptions', label: 'MEMBERS', count: cafeSubscriptions.length },
+                        { id: 'plans', label: 'PLANS', count: cafeMembershipPlans.length },
+                    ]}
+                    active={subTab}
+                    onPick={(id: string) => setSubTab(id as 'subscriptions' | 'plans')}
+                />
+                <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                <PrimaryButton
+                    onClick={() => {
+                        if (subTab === 'plans') {
+                            resetForm();
+                            setEditingPlan(null);
+                            setShowPlanModal(true);
+                            return;
+                        }
+
+                        // Clearing the form and loading the name list are part
+                        // of opening this, not extras: without them the modal
+                        // carries the last sale's values and the customer
+                        // autocomplete never fills.
+                        setSubCustomerName('');
+                        setSubCustomerPhone('');
+                        setSubSelectedPlanId(hourlyMembershipPlans[0]?.id || '');
+                        setSubAmountPaid(hourlyMembershipPlans[0]?.price?.toString() || '');
+                        setSubPaymentMode('cash');
+                        setSuggestions([]);
+                        setShowSuggestions(false);
+                        if (cafeId && allCustomers.length === 0) {
+                            fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
+                                .then((r) => r.json())
+                                .then((data) => { if (Array.isArray(data)) setAllCustomers(data); });
+                        }
+                        setShowAddSubModal(true);
+                    }}
                 >
-                    Subscriptions
-                    {subTab === 'subscriptions' && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-full" />
-                    )}
-                </button>
-                <button
-                    onClick={() => setSubTab('plans')}
-                    className={`pb-3 text-sm font-semibold transition-colors flex items-center gap-2 relative ${subTab === 'plans' ? 'text-white' : 'text-slate-500 hover:text-slate-300'
-                        }`}
-                >
-                    Plans
-                    <span className="bg-white/[0.06] text-slate-400 text-[10px] px-1.5 py-0.5 rounded-md">
-                        {cafeMembershipPlans.length}
-                    </span>
-                    {subTab === 'plans' && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-full" />
-                    )}
-                </button>
+                    {subTab === 'plans' ? '+ NEW PLAN' : '+ SELL A PASS'}
+                </PrimaryButton>
             </div>
 
-            {/* Subscriptions Content */}
             {subTab === 'subscriptions' && (
-                <div className="space-y-4">
-                    {/* Expiring soon banner */}
+                <div className="flex flex-col gap-[18px]">
                     {(() => {
-                        const soonCount = cafeSubscriptions.filter(s => {
-                            if (s.status !== 'active' || !s.expiry_date) return false;
-                            const daysLeft = Math.ceil((new Date(s.expiry_date).getTime() - Date.now()) / 86400000);
-                            return daysLeft >= 0 && daysLeft <= 7;
-                        }).length;
-                        if (!soonCount) return null;
+                        const active = cafeSubscriptions.filter((s) => s.status === 'active');
+                        const unlimited = active.filter((s) => s.is_unlimited);
+                        const expiringSoon = active.filter((s) => {
+                            if (!s.expiry_date) return false;
+                            const days = Math.ceil((new Date(s.expiry_date).getTime() - Date.now()) / 86400000);
+                            return days >= 0 && days <= 7;
+                        });
+                        const hoursLeft = active
+                            .filter((s) => !s.is_unlimited)
+                            .reduce((sum, s) => sum + (s.hours_remaining || 0), 0);
+
                         return (
-                            <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-sm">
-                                <span className="text-lg">⏳</span>
-                                <span className="text-amber-300 font-semibold">{soonCount} subscription{soonCount > 1 ? 's' : ''} expiring within 7 days</span>
-                                <button onClick={() => { setStatusFilter('active'); setSearch(''); }} className="ml-auto text-xs text-amber-400/70 hover:text-amber-300 underline">View</button>
-                            </div>
+                            <Kpis
+                                items={[
+                                    { label: 'ACTIVE PASSES', value: String(active.length), tone: 'lime', sub: `${cafeSubscriptions.length} sold in total` },
+                                    { label: 'HOURS OWED', value: String(Math.round(hoursLeft)), sub: 'paid for, not yet played' },
+                                    { label: 'UNLIMITED', value: String(unlimited.length), sub: unlimited.length > 0 ? 'no hours to run down' : 'none on unlimited' },
+                                    {
+                                        label: 'EXPIRING THIS WEEK',
+                                        value: String(expiringSoon.length),
+                                        tone: expiringSoon.length > 0 ? 'orange' : 'ink',
+                                        sub: expiringSoon.length > 0 ? 'worth a word at the counter' : 'nothing about to lapse',
+                                    },
+                                ]}
+                            />
                         );
                     })()}
 
-                    {/* Top action bar */}
-                    <div className="flex gap-2 items-center justify-between">
-                        <div className="relative flex-1 max-w-sm">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                            <input
-                                type="text"
-                                placeholder="Search customer..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30"
-                            />
-                        </div>
-                        <div className="flex gap-1.5 items-center">
-                            {/* Status chips */}
-                            {(['all', 'active', 'expired'] as const).map(s => (
-                                <button key={s} onClick={() => setStatusFilter(s)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${statusFilter === s ? (s === 'active' ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40' : s === 'expired' ? 'bg-red-600/20 text-red-300 border-red-500/40' : 'bg-white/[0.1] text-white border-white/20') : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}>
-                                    {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-                                </button>
-                            ))}
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => {
-                                    setSubCustomerName('');
-                                    setSubCustomerPhone('');
-                                    setSubSelectedPlanId(hourlyMembershipPlans[0]?.id || '');
-                                    setSubAmountPaid(hourlyMembershipPlans[0]?.price?.toString() || '');
-                                    setSubPaymentMode('cash');
-                                    setSuggestions([]);
-                                    setShowSuggestions(false);
-                                    if (cafeId && allCustomers.length === 0) {
-                                        fetch(`/api/owner/coupons/customers?cafeId=${cafeId}`)
-                                            .then(r => r.json())
-                                            .then(data => { if (Array.isArray(data)) setAllCustomers(data); });
-                                    }
-                                    setShowAddSubModal(true);
-                                }}
-                                className="whitespace-nowrap"
-                            >
-                                <Plus size={15} className="mr-1" /> Sell Membership
-                            </Button>
-                        </div>
+                    <div className="flex flex-wrap items-center gap-[9px]">
+                        <Chips
+                            items={['all', 'active', 'expired', 'cancelled'].map((status) => ({
+                                id: status,
+                                label: status.toUpperCase(),
+                                count:
+                                    status === 'all'
+                                        ? cafeSubscriptions.length
+                                        : cafeSubscriptions.filter((s) => s.status === status).length,
+                            }))}
+                            active={statusFilter}
+                            onPick={setStatusFilter}
+                        />
+                        <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                        <Field value={search} onChange={setSearch} placeholder="FIND A MEMBER" className="w-[210px]" />
                     </div>
 
-                    {/* List */}
-                    <div className="space-y-3">
+                    <Panel>
+                        <TableHead columns={MEMBER_COLUMNS}>
+                            <span>MEMBER</span>
+                            <span>PLAN</span>
+                            <span>HOURS LEFT</span>
+                            <span className="text-right">EXPIRES</span>
+                            <span className="text-right">ACTIONS</span>
+                        </TableHead>
+
                         {filteredSubscriptions.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
-                                <Users size={40} className="mx-auto mb-3 opacity-20" />
-                                <p>No subscriptions found matching filters</p>
-                            </div>
+                            <EmptyRow>
+                                {cafeSubscriptions.length === 0
+                                    ? 'No passes sold yet. Sell one above and it starts counting here.'
+                                    : 'Nobody matches that filter.'}
+                            </EmptyRow>
                         ) : (
-                            <div className="grid grid-cols-1 gap-3">
-                                {filteredSubscriptions.map(sub => {
-                                    const baseHours = sub.hours_remaining || 0;
-                                    const elapsed = activeTimers.has(sub.id)
-                                        ? (timerElapsed.get(sub.id) || 0) / 3600
-                                        : 0;
-                                    // Round to 4 decimal places to avoid floating-point drift in comparisons
-                                    const currentRem = Math.max(0, Math.round((baseHours - elapsed) * 10000) / 10000);
-                                    const percent = (currentRem / (sub.hours_purchased || 1)) * 100;
-                                    const isRunning = activeTimers.has(sub.id);
+                            filteredSubscriptions.map((sub) => {
+                                const baseHours = sub.hours_remaining || 0;
+                                const elapsed = activeTimers.has(sub.id)
+                                    ? (timerElapsed.get(sub.id) || 0) / 3600
+                                    : 0;
+                                const currentRem = Math.max(0, Math.round((baseHours - elapsed) * 10000) / 10000);
+                                const percent = (currentRem / (sub.hours_purchased || 1)) * 100;
+                                const isRunning = activeTimers.has(sub.id);
+                                const isUnlimited = sub.is_unlimited === true;
+                                const isDayPass = sub.membership_plans?.plan_type === 'day_pass';
+                                const isLowHours = sub.status === 'active' && !isUnlimited && currentRem < 1 && !isDayPass;
+                                const daysToExpiry = sub.expiry_date
+                                    ? Math.ceil((new Date(sub.expiry_date).getTime() - Date.now()) / 86400000)
+                                    : null;
+                                const isExpiringSoon =
+                                    sub.status === 'active' && daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
 
-                                    const isLowHours = sub.status === 'active' && !sub.is_unlimited && currentRem < 1 && sub.membership_plans?.plan_type !== 'day_pass';
-                                    const isAlmostEmpty = sub.status === 'active' && currentRem < 0.25;
-                                    const daysToExpiry = sub.expiry_date
-                                        ? Math.ceil((new Date(sub.expiry_date).getTime() - Date.now()) / 86400000)
-                                        : null;
-                                    const isExpiringSoon = sub.status === 'active' && daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
+                                const edge = isRunning
+                                    ? '#d8ff3c'
+                                    : isLowHours || isExpiringSoon
+                                        ? '#ff5c2b'
+                                        : sub.status !== 'active'
+                                            ? 'rgba(242,240,234,.2)'
+                                            : 'transparent';
 
-                                    return (
-                                        <Card key={sub.id} padding="sm" className={`hover:border-white/[0.15] transition-colors ${isAlmostEmpty ? 'border-red-500/50' : isLowHours ? 'border-amber-500/40' : isExpiringSoon ? 'border-amber-500/30' : ''}`}>
-                                            {isLowHours && (
-                                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-sm -mx-3 -mt-2 mb-2 text-xs font-medium ${isAlmostEmpty ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
-                                                    <span>{isAlmostEmpty ? '🔴' : '⚠️'}</span>
-                                                    <span>{isAlmostEmpty ? 'Almost out of hours!' : 'Less than 1 hour remaining'}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                {/* User Info */}
-                                                <div className="flex items-center gap-3 md:w-1/4">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">
-                                                        {sub.customer_name?.[0]?.toUpperCase() || 'U'}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium text-white text-sm">{sub.customer_name}</div>
-                                                        <div className="text-xs text-slate-500">{sub.customer_phone}</div>
-                                                    </div>
-                                                </div>
+                                return (
+                                    <TableRow key={sub.id} columns={MEMBER_COLUMNS} edge={edge}>
+                                        <div className="flex min-w-0 flex-col gap-[3px]">
+                                            <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
+                                                {sub.customer_name || 'Customer'}
+                                            </span>
+                                            <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                                {sub.customer_phone || '—'}
+                                            </span>
+                                        </div>
 
-                                                {/* Plan Info */}
-                                                <div className="md:w-1/4">
-                                                    <div className="text-xs text-slate-400 mb-1">{sub.membership_plans?.name || 'Unknown Plan'}</div>
-                                                    <div className="flex items-center gap-2 text-xs flex-wrap">
-                                                        <span className={`px-2 py-0.5 rounded-full ${sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                                            {sub.status}
+                                        <div className="flex min-w-0 flex-col gap-[3px]">
+                                            <span className="truncate font-mono text-[11.5px] text-[#f2f0ea]/75">
+                                                {sub.membership_plans?.name || 'Membership'}
+                                            </span>
+                                            <Tag tone={isRunning ? 'lime' : sub.status === 'active' ? 'muted' : 'muted'}>
+                                                {isRunning ? 'PLAYING NOW' : (sub.status || '').toUpperCase()}
+                                            </Tag>
+                                        </div>
+
+                                        <div className="flex min-w-0 flex-col gap-1.5">
+                                            {isUnlimited ? (
+                                                <>
+                                                    <span className="whitespace-nowrap text-[15px] font-extrabold text-[#d8ff3c]">
+                                                        UNLIMITED
+                                                    </span>
+                                                    <div className="h-[5px] bg-[#d8ff3c]" />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span
+                                                        className="whitespace-nowrap text-[15px] font-extrabold"
+                                                        style={{ color: isLowHours ? '#ff5c2b' : '#f2f0ea' }}
+                                                    >
+                                                        {currentRem.toFixed(1)}
+                                                        <span className="font-mono text-[10px] font-medium text-[#f2f0ea]/35">
+                                                            {' '}/ {sub.hours_purchased || 0}h
                                                         </span>
-                                                        <span className="text-slate-400">₹{sub.amount_paid}</span>
-                                                    </div>
-                                                    {sub.expiry_date && (
-                                                        <div className={`text-[10px] mt-1 ${isExpiringSoon ? 'text-amber-400 font-semibold' : 'text-slate-600'}`}>
-                                                            {isExpiringSoon && '⚠️ '}
-                                                            Expires {daysToExpiry === 0 ? 'today' : daysToExpiry === 1 ? 'tomorrow' : daysToExpiry !== null && daysToExpiry > 0 ? `in ${daysToExpiry}d` : new Date(sub.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-	                                                {/* Progress */}
-	                                                <div className="flex-1 md:max-w-xs">
-                                                    {sub.is_unlimited ? (
-                                                        <div className="flex justify-between text-xs mb-1.5">
-                                                            <span className="text-slate-400">Balance</span>
-                                                            <span className={`font-medium ${isRunning ? 'text-emerald-400' : 'text-slate-200'}`}>
-                                                                Unlimited
-                                                            </span>
-                                                        </div>
-                                                    ) : sub.membership_plans?.plan_type === 'day_pass' ? (
-                                                        <div className="flex justify-between text-xs mb-1.5">
-                                                            <span className="text-slate-400">Ends at</span>
-                                                            <span className={`font-mono font-medium ${isRunning ? 'text-emerald-400' : 'text-slate-200'}`}>
-                                                                {DAY_PASS_END_LABEL}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex justify-between text-xs mb-1.5">
-                                                            <span className="text-slate-400">Balance</span>
-                                                            <span className={`font-mono font-medium ${isRunning ? 'text-emerald-400' : 'text-slate-200'}`}>
-                                                                {Math.floor(currentRem)}h {Math.round((currentRem % 1) * 60)}m
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                                                    </span>
+                                                    <div className="h-[5px] bg-[#f2f0ea]/[0.08]">
                                                         <div
-                                                            className={`h-full rounded-full transition-all duration-1000 ${sub.is_unlimited ? 'bg-emerald-500' : percent < 10 ? 'bg-red-500' : percent < 30 ? 'bg-amber-500' : 'bg-emerald-500'
-                                                                }`}
-                                                            style={{ width: `${sub.is_unlimited ? 100 : percent}%` }}
+                                                            className="h-[5px]"
+                                                            style={{
+                                                                width: `${Math.min(100, Math.max(0, percent))}%`,
+                                                                background: isLowHours ? '#ff5c2b' : '#d8ff3c',
+                                                            }}
                                                         />
                                                     </div>
-                                                </div>
+                                                </>
+                                            )}
+                                        </div>
 
-                                                {/* Actions */}
-                                                <div className="flex items-center gap-2 md:justify-end md:w-auto flex-wrap">
-                                                    {sub.status === 'active' && (
-                                                        isRunning ? (
-                                                            <Button
-                                                                variant="danger"
-                                                                size="sm"
-                                                                onClick={() => onStopTimer(sub.id)}
-                                                                className="flex-none font-semibold"
-                                                            >
-                                                                ⏹ Stop
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                variant="primary"
-                                                                size="sm"
-                                                                onClick={() => onStartTimer(sub.id)}
-                                                                className="flex-none bg-emerald-600 hover:bg-emerald-700 font-semibold"
-                                                            >
-                                                                ▶ Start
-                                                            </Button>
-                                                        )
-                                                    )}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setEditWho({ id: sub.id, name: sub.customer_name || '', phone: sub.customer_phone || '' });
-                                                            setEditName(sub.customer_name || '');
-                                                            setEditPhone(sub.customer_phone || '');
-                                                        }}
-                                                        className="flex-none text-slate-400 hover:text-indigo-400"
-                                                        title="Correct the name or number"
-                                                    >
-                                                        <Edit2 size={14} />
-                                                    </Button>
-                                                    {sub.status === 'active' && !sub.is_unlimited && sub.membership_plans?.plan_type !== 'day_pass' && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => { setAdjustHoursSub({ id: sub.id, name: sub.customer_name || 'Customer', current: currentRem }); setAdjustHoursDelta(''); }}
-                                                            className="flex-none text-slate-400 hover:text-amber-400"
-                                                            title="Adjust hours"
-                                                        >
-                                                            ±h
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        variant="danger"
-                                                        size="sm"
-                                                        onClick={() => handleDeleteSubscription(sub.id, sub.customer_name)}
-                                                        className="flex-none"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
+                                        <div className="flex flex-col items-end gap-[3px]">
+                                            <span
+                                                className="whitespace-nowrap font-mono text-[11px]"
+                                                style={{ color: isExpiringSoon ? '#ff5c2b' : 'rgba(242,240,234,.7)' }}
+                                            >
+                                                {sub.expiry_date
+                                                    ? new Date(sub.expiry_date)
+                                                          .toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                                                          .toUpperCase()
+                                                    : '—'}
+                                            </span>
+                                            {daysToExpiry !== null && daysToExpiry >= 0 && (
+                                                <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                                    {daysToExpiry}d left
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-wrap justify-end gap-[5px]">
+                                            <button
+                                                type="button"
+                                                onClick={() => (isRunning ? onStopTimer(sub.id) : onStartTimer(sub.id))}
+                                                title={isRunning ? 'Stop the clock' : 'Start their session'}
+                                                className="flex h-[26px] items-center border px-[9px] font-mono text-[9.5px] tracking-[0.1em] transition-colors"
+                                                style={
+                                                    isRunning
+                                                        ? { borderColor: '#ff5c2b', color: '#ff5c2b' }
+                                                        : { borderColor: '#d8ff3c', background: 'rgba(216,255,60,.10)', color: '#d8ff3c' }
+                                                }
+                                            >
+                                                {isRunning ? 'STOP' : 'START'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                title="Correct the name or number"
+                                                onClick={() => {
+                                                    setEditWho({
+                                                        id: sub.id,
+                                                        name: sub.customer_name || '',
+                                                        phone: sub.customer_phone || '',
+                                                    });
+                                                    setEditName(sub.customer_name || '');
+                                                    setEditPhone(sub.customer_phone || '');
+                                                }}
+                                                className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                                            >
+                                                EDIT
+                                            </button>
+                                            {!isUnlimited && (
+                                                <button
+                                                    type="button"
+                                                    title="Adjust hours"
+                                                    onClick={() => {
+                                                        setAdjustHoursSub({
+                                                            id: sub.id,
+                                                            name: sub.customer_name || 'Customer',
+                                                            current: currentRem,
+                                                        });
+                                                        setAdjustHoursDelta('');
+                                                    }}
+                                                    className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                                >
+                                                    ±H
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                title="Delete this pass"
+                                                onClick={() => handleDeleteSubscription(sub.id, sub.customer_name)}
+                                                className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#ff5c2b] hover:text-[#ff5c2b]"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </TableRow>
+                                );
+                            })
                         )}
-                    </div>
+
+                        <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+                            <span>{filteredSubscriptions.length} of {cafeSubscriptions.length} passes</span>
+                        </div>
+                    </Panel>
                 </div>
             )}
 
-            {/* Plans Content */}
             {subTab === 'plans' && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {cafeMembershipPlans.map((plan, i) => {
-                            const colors = plan.plan_type === 'day_pass'
-                                ? { bg: 'bg-blue-500/5', border: 'border-blue-500/20', text: 'text-blue-400', icon: '☀️' }
-                                : i % 3 === 0
-                                    ? { bg: 'bg-purple-500/5', border: 'border-purple-500/20', text: 'text-purple-400', icon: '⏱️' }
-                                    : i % 3 === 1
-                                        ? { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', text: 'text-emerald-400', icon: '⏳' }
-                                        : { bg: 'bg-orange-500/5', border: 'border-orange-500/20', text: 'text-orange-400', icon: '🎯' };
+                <div className="flex flex-col gap-[18px]">
+                    <Panel>
+                        <TableHead columns={PLAN_COLUMNS}>
+                            <span>PLAN</span>
+                            <span className="text-right">PRICE</span>
+                            <span className="text-right">GIVES</span>
+                            <span className="text-right">VALID</span>
+                            <span className="text-right">ACTIONS</span>
+                        </TableHead>
 
-                            return (
-                                <Card
-                                    key={plan.id}
-                                    padding="none"
-                                    className={`relative overflow-hidden group hover:border-white/[0.15] transition-all ${colors.bg} ${colors.border} border`}
-                                >
-                                    <div className="p-5">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className={`p-2 rounded-lg bg-white/[0.03] ${colors.text}`}>
-                                                {plan.console_type === 'PC' ? <Monitor size={20} /> : <Smartphone size={20} />}
-                                            </div>
-                                            <div className="text-2xl opacity-20 filter grayscale">{colors.icon}</div>
+                        {cafeMembershipPlans.length === 0 ? (
+                            <EmptyRow>
+                                No plans yet. Create one and it shows on the customer site straight away.
+                            </EmptyRow>
+                        ) : (
+                            cafeMembershipPlans.map((plan) => {
+                                const unlimited = plan.is_unlimited === true;
+                                const dayPass = plan.plan_type === 'day_pass';
+                                const sold = cafeSubscriptions.filter(
+                                    (sub) => sub.membership_plan_id === plan.id
+                                ).length;
+
+                                return (
+                                    <TableRow
+                                        key={plan.id}
+                                        columns={PLAN_COLUMNS}
+                                        edge={unlimited ? '#d8ff3c' : 'transparent'}
+                                    >
+                                        <div className="flex min-w-0 flex-col gap-[3px]">
+                                            <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
+                                                {plan.name}
+                                            </span>
+                                            <span className="truncate font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/35">
+                                                {(plan.console_type || 'PC').toUpperCase()} ·{' '}
+                                                {(plan.player_count || 'single').toUpperCase()} · {sold} SOLD
+                                            </span>
                                         </div>
 
-                                        <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
-                                        <p className="text-xs text-slate-400 mb-4 h-8 line-clamp-2">
-                                            {plan.description || `${plan.hours} hours valid for ${plan.validity_days} days`}
-                                        </p>
+                                        <span className="whitespace-nowrap text-right text-[15px] font-extrabold text-[#f2f0ea]">
+                                            ₹{plan.price}
+                                        </span>
 
-                                        <div className="flex items-baseline gap-1 mb-4">
-                                            <span className="text-2xl font-bold text-white">₹{plan.price}</span>
-                                            {isHourlyPlan(plan.plan_type) && (
-                                                <span className="text-xs text-slate-500">/ {plan.hours}h</span>
+                                        <div className="flex justify-end">
+                                            {unlimited ? (
+                                                <Tag tone="lime">UNLIMITED</Tag>
+                                            ) : dayPass ? (
+                                                <Tag>TILL {DAY_PASS_END_LABEL}</Tag>
+                                            ) : (
+                                                <span className="whitespace-nowrap font-mono text-[11.5px] text-[#f2f0ea]/75">
+                                                    {plan.hours}h
+                                                </span>
                                             )}
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2 mb-6">
-                                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-white/[0.02] text-slate-400">
-                                                {plan.validity_days} Day{plan.validity_days === 1 ? '' : 's'}
-                                            </span>
-                                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-white/[0.02] text-slate-400 flex items-center gap-1">
-                                                {plan.player_count === 'single' ? <User size={10} /> : <Users size={10} />}
-                                                {plan.player_count}
-                                            </span>
-                                        </div>
+                                        <span className="whitespace-nowrap text-right font-mono text-[11px] text-[#f2f0ea]/60">
+                                            {plan.validity_days}d
+                                        </span>
 
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
+                                        <div className="flex justify-end gap-[5px]">
+                                            <button
+                                                type="button"
+                                                title="Edit this plan"
                                                 onClick={() => openEditModal(plan)}
-                                                className="w-full"
+                                                className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
                                             >
-                                                <Edit2 size={14} className="mr-2" /> Edit
-                                            </Button>
-                                            <Button
-                                                variant="danger"
-                                                size="sm"
+                                                EDIT
+                                            </button>
+                                            <button
+                                                type="button"
+                                                title="Delete this plan"
                                                 onClick={() => handleDeletePlan(plan.id)}
-                                                className="w-full"
+                                                className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#ff5c2b] hover:text-[#ff5c2b]"
                                             >
-                                                <Trash2 size={14} className="mr-2" /> Delete
-                                            </Button>
+                                                ✕
+                                            </button>
                                         </div>
-                                    </div>
-                                </Card>
-                            )
-                        })}
+                                    </TableRow>
+                                );
+                            })
+                        )}
 
-                        {/* Add New Plan Card */}
-                        <button
-                            onClick={() => {
-                                resetForm();
-                                setEditingPlan(null);
-                                setShowPlanModal(true);
-                            }}
-                            className="group flex flex-col items-center justify-center p-6 border-2 border-dashed border-white/[0.08] rounded-2xl hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-slate-500 hover:text-emerald-500"
-                        >
-                            <div className="w-12 h-12 rounded-full bg-white/[0.06] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform group-hover:bg-emerald-500/20">
-                                <Plus size={24} />
-                            </div>
-                            <span className="font-semibold text-sm">Create New Plan</span>
-                        </button>
-                    </div>
+                        <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+                            <span>{cafeMembershipPlans.length} plan{cafeMembershipPlans.length === 1 ? '' : 's'}</span>
+                            <span className="flex-1" />
+                            <span>PASSES ARE PAID FOR AT THE COUNTER</span>
+                        </div>
+                    </Panel>
                 </div>
             )}
 
