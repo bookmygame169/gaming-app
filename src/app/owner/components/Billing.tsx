@@ -736,15 +736,9 @@ export function Billing({
     const customerInfoCard = (
         <Card className={`overflow-visible space-y-5 ${SECTION_CARD_CLASS}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
-                        <User size={18} />
-                    </div>
-                    <div>
-                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Customer</div>
-                        <h3 className="text-base font-semibold text-[#f2f0ea]">{customerCardTitle}</h3>
-                    </div>
-                </div>
+                <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+                    {customerCardTitle}
+                </span>
 
                 {matchedCustomer && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -1008,77 +1002,87 @@ export function Billing({
                 </div>
             ) : isGamingFlow ? (
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_410px] xl:items-start">
-                    <div className="space-y-5">
-                        {customerInfoCard}
-
-                        <Card className={`space-y-6 ${SECTION_CARD_CLASS}`}>
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
-                                        <Gamepad2 size={18} />
-                                    </div>
-                                    <div>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Session Builder</div>
-                                        <h3 className="text-base font-semibold text-[#f2f0ea]">Build shared session</h3>
-                                        {items.length > 0 && (
-                                            <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
-                                                <span>One customer bill</span>
-                                                <span className="text-[#f2f0ea]/30">/</span>
-                                                <span>Same start time</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                {items.length > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={addItem}
-                                        className="whitespace-nowrap border border-dashed border-[#f2f0ea]/[0.22] px-4 py-3 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/70 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
-                                    >
-                                        + ADD CONSOLE LINE
-                                    </button>
-                                )}
+                    <div className="flex flex-col gap-3.5">
+                        {/* Name, phone, lookup — one row, as the design draws
+                            it. This was a card with an icon chip and a title
+                            above two fields. */}
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px]">
+                            <input
+                                value={customerName}
+                                onChange={(e) => setCustomerName(e.target.value)}
+                                placeholder="Customer name"
+                                className="border border-[#f2f0ea]/[0.14] bg-[#111113] px-3.5 py-3 text-sm font-semibold text-[#f2f0ea] outline-none transition-colors placeholder:font-normal placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
+                            />
+                            <input
+                                value={customerPhone}
+                                onChange={(e) => setCustomerPhone(e.target.value)}
+                                placeholder="Phone"
+                                inputMode="tel"
+                                className="border border-[#f2f0ea]/[0.14] bg-[#111113] px-3.5 py-3 font-mono text-[13px] text-[#f2f0ea] outline-none transition-colors placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
+                            />
+                            {/* The design's third column is a LOOKUP button.
+                                This app already looks the number up as it is
+                                typed, so a button that does it again would do
+                                nothing - the column reports the result
+                                instead, which is what the button was for. */}
+                            <div
+                                className="flex items-center justify-center gap-2 border border-dashed px-3 py-3 font-mono text-[10.5px] tracking-[0.12em]"
+                                style={
+                                    customerInsight
+                                        ? { borderColor: '#d8ff3c', color: '#d8ff3c' }
+                                        : { borderColor: 'rgba(242,240,234,.18)', color: 'rgba(242,240,234,.4)' }
+                                }
+                            >
+                                {customerInsight ? '◍ KNOWN CUSTOMER' : '◍ LOOKUP'}
                             </div>
+                        </div>
 
+                        <div className="flex flex-col gap-3.5">
                             {items.length === 0 ? (
-                                <div className={`${CONTROL_SURFACE_CLASS} p-3`}>
-                                    <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                                        <div>
-                                            <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Available setups</div>
-                                            <div className="text-sm font-medium text-[#f2f0ea]">Start with the first console for this customer</div>
-                                        </div>
-                                        <span className="chip border-transparent bg-[#f2f0ea]/[0.05] text-[#f2f0ea]/70">
+                                /* No line yet: the console chips are the whole
+                                   empty state. Five cards saying "tap to add
+                                   first line" said the same thing five times. */
+                                <div className="border border-[#f2f0ea]/10 bg-[#111113]">
+                                    <div className="flex items-center gap-3 border-b border-[#f2f0ea]/[0.08] px-4 py-3">
+                                        <span className="font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">
+                                            LINE 1
+                                        </span>
+                                        <span className="text-[15px] font-extrabold tracking-[-0.01em] text-[#f2f0ea]/40">
+                                            Pick a console
+                                        </span>
+                                        <span className="flex-1" />
+                                        <span className="font-mono text-[11px] text-[#f2f0ea]/[0.42]">
                                             {availableConsoles.length} type{availableConsoles.length === 1 ? '' : 's'}
                                         </span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                                        {availableConsoles.map((consoleType) => {
-                                            const theme = getConsoleTheme(consoleType);
-                                            const stationCount = stationOptions(consoleType).length;
-                                            return (
-                                                <button
-                                                    key={consoleType}
-                                                    type="button"
-                                                    onClick={() => setItems([createItem(consoleType)])}
-                                                    className={`relative overflow-hidden  p-4 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
-                                                    style={{ background: `#111113) , var(--card-2)` }}
-                                                >
-                                                    <span className="absolute inset-0 grid-dots opacity-30" />
-                                                    <div className="relative flex items-start justify-between gap-3">
-                                                        <span className="flex h-10 w-10 items-center justify-center text-sm font-bold text-[#f2f0ea]" style={{ background: `${theme.accent}22`, color: theme.accent }}>
-                                                            {theme.short}
+
+                                    <div className="grid grid-cols-1 items-start gap-2.5 px-4 py-3.5 sm:grid-cols-[74px_minmax(0,1fr)] sm:items-center sm:gap-4">
+                                        <span className="font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">
+                                            CONSOLE
+                                        </span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {availableConsoles.map((consoleType) => {
+                                                const freeCount = stationOptions(consoleType).length;
+                                                const busy = freeCount === 0;
+
+                                                return (
+                                                    <button
+                                                        key={consoleType}
+                                                        type="button"
+                                                        onClick={() => setItems([createItem(consoleType)])}
+                                                        className="flex items-center gap-[7px] border border-[#f2f0ea]/[0.14] px-[11px] py-2 font-mono text-[11px] text-[#f2f0ea]/60 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                                    >
+                                                        {CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}
+                                                        <span
+                                                            className="text-[9.5px]"
+                                                            style={{ color: busy ? '#ff5c2b' : 'inherit', opacity: busy ? 1 : 0.5 }}
+                                                        >
+                                                            {busy ? 'busy' : `${freeCount} free`}
                                                         </span>
-                                                        <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
-                                                            {stationCount} station{stationCount === 1 ? '' : 's'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="relative mt-4">
-                                                        <div className="text-sm font-semibold text-[#f2f0ea]">{CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}</div>
-                                                        <div className="mono mt-1 text-[11px] text-[var(--muted)]">Tap to add first line</div>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -1247,31 +1251,37 @@ export function Billing({
                                     })}
                                 </div>
                             )}
-                        </Card>
 
+                            {/* Under the lines, as the design puts it, with the
+                                rate opposite. Losing this button would mean no
+                                second console on one bill. */}
+                            {items.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={addItem}
+                                        className="whitespace-nowrap border border-dashed border-[#f2f0ea]/[0.22] px-4 py-3 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/70 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                    >
+                                        + ADD CONSOLE LINE
+                                    </button>
+                                    <span className="min-w-[10px] flex-1" />
+                                    <span className="self-center font-mono text-[10.5px] text-[#f2f0ea]/[0.38]">
+                                        One customer bill · same start time
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-5">
                         <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center bg-[#ff5c2b]/12 text-[#ff5c2b]">
-                                    <Clock size={18} />
-                                </div>
-                                <div>
-                                    <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Summary</div>
-                                    <h3 className="text-base font-semibold text-[#f2f0ea]">
-                                        {isAdvanceMode ? 'Create payment link' : 'Collect payment'}
-                                    </h3>
-                                </div>
-                            </div>
-
                             <div className={`${GAMING_SUMMARY_HERO_CLASS} p-5`}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <div className="text-[10px] smallcaps text-[#d8ff3c]/70">
-                                            {isAdvanceMode ? 'Payable by customer' : 'Due now'}
+                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-[#f2f0ea]/[0.42]">
+                                            {isAdvanceMode ? 'PAYABLE BY CUSTOMER' : 'DUE NOW'}
                                         </div>
-                                        <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-[#f2f0ea]">Rs.{totalAmount}</div>
+                                        <div className="mt-2 text-[44px] font-black leading-[0.9] tracking-[-0.03em] text-[#f2f0ea]">₹{totalAmount}</div>
                                         <p className="mt-2 text-sm text-[#d8ff3c]/70">
                                             {items.length > 0
                                                 ? isAdvanceMode
@@ -1280,7 +1290,7 @@ export function Billing({
                                                 : 'Add a setup to begin billing'}
                                         </p>
                                     </div>
-                                    <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-3 py-1.5 text-xs font-semibold text-[#d8ff3c]">
+                                    <span className="bg-[#d8ff3c]/[0.12] px-2.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-[#d8ff3c]">
                                         {(isAdvanceMode ? 'upi' : paymentMode).toUpperCase()}
                                     </span>
                                 </div>
@@ -1648,7 +1658,7 @@ export function Billing({
                                                 : 'Add a membership plan to begin checkout'}
                                         </p>
                                     </div>
-                                    <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-3 py-1.5 text-xs font-semibold text-[#d8ff3c]">
+                                    <span className="bg-[#d8ff3c]/[0.12] px-2.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-[#d8ff3c]">
                                         {memPaymentMode.toUpperCase()}
                                     </span>
                                 </div>
