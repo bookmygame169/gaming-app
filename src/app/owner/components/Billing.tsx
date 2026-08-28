@@ -80,28 +80,28 @@ const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 const PLAYER_OPTIONS = [1, 2, 3, 4];
 
 const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
-    ps5: { accent: '#06b6d4', short: 'PS5' },
-    ps4: { accent: '#3b82f6', short: 'PS4' },
-    xbox: { accent: '#10b981', short: 'XB' },
-    pc: { accent: '#8b5cf6', short: 'PC' },
-    pool: { accent: '#f59e0b', short: 'PL' },
-    snooker: { accent: '#22c55e', short: 'SN' },
-    arcade: { accent: '#ef4444', short: 'AR' },
-    vr: { accent: '#a855f7', short: 'VR' },
-    steering: { accent: '#f97316', short: 'SW' },
-    racing_sim: { accent: '#fb7185', short: 'RS' },
+    ps5: { accent: '#d8ff3c', short: 'PS5' },
+    ps4: { accent: '#d8ff3c', short: 'PS4' },
+    xbox: { accent: '#d8ff3c', short: 'XB' },
+    pc: { accent: '#d8ff3c', short: 'PC' },
+    pool: { accent: '#ffa53c', short: 'PL' },
+    snooker: { accent: '#ffa53c', short: 'SN' },
+    arcade: { accent: '#ff5c2b', short: 'AR' },
+    vr: { accent: '#d8ff3c', short: 'VR' },
+    steering: { accent: '#ffa53c', short: 'SW' },
+    racing_sim: { accent: '#ff5c2b', short: 'RS' },
 };
 
-const SECTION_CARD_CLASS = 'border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] shadow-[0_24px_64px_-36px_rgba(0,0,0,0.9)]';
-const SUBPANEL_CLASS = 'rounded-2xl border border-white/[0.08] bg-white/[0.03] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
-const HOVER_CARD_CLASS = 'transition-all duration-200 hover:-translate-y-0.5 hover:border-white/[0.16]';
-const CONTROL_SURFACE_CLASS = 'rounded-[24px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
-const GAMING_SUMMARY_HERO_CLASS = 'rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] shadow-[0_28px_60px_-36px_rgba(0,0,0,0.95)]';
-const MEMBERSHIP_SUMMARY_HERO_CLASS = 'rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.16),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] shadow-[0_28px_60px_-36px_rgba(0,0,0,0.95)]';
+const SECTION_CARD_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
+const SUBPANEL_CLASS = 'border border-[#f2f0ea]/10 bg-[#0b0b0c]';
+const HOVER_CARD_CLASS = 'transition-colors duration-150 hover:border-[#d8ff3c]';
+const CONTROL_SURFACE_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
+const GAMING_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
+const MEMBERSHIP_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const CONTROL_LABEL_CLASS = 'mb-2 text-[10px] smallcaps text-[var(--dim)]';
 
 function getConsoleTheme(consoleType: string) {
-    return CONSOLE_THEME[consoleType] || { accent: '#06b6d4', short: consoleType.slice(0, 2).toUpperCase() };
+    return CONSOLE_THEME[consoleType] || { accent: '#d8ff3c', short: consoleType.slice(0, 2).toUpperCase() };
 }
 
 function normalizePhone(phone: string | null | undefined) {

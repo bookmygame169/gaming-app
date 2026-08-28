@@ -432,7 +432,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
 
             {/* Sub-tabs */}
             <div className="overflow-x-auto -mx-1 px-1">
-            <div className="flex w-fit gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] p-1">
+            <div className="flex w-fit gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
                 {([
                     { id: 'all', label: 'All Bookings' },
                     { id: 'normal', label: 'Normal' },
@@ -441,7 +441,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                     <button
                         key={tab.id}
                         onClick={() => setBookingSubTab(tab.id)}
-                        className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors md:px-4 md:py-2 md:text-xs ${bookingSubTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
+                        className={`px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.12em] transition-colors md:px-4 md:py-2 ${bookingSubTab === tab.id ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:bg-[#f2f0ea]/[0.04] hover:text-[#f2f0ea]'}`}
                     >
                         {tab.label}
                     </button>
