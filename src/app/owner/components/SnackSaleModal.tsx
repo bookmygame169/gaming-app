@@ -219,11 +219,11 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2f0ea]/10/40">
             <div className="flex items-center gap-2.5">
-              <div className={`w-8 h-8  flex items-center justify-center ${isOwnerUse ? 'bg-purple-500/15' : 'bg-orange-500/15'}`}>
-                <ShoppingCart size={16} className={isOwnerUse ? 'text-purple-400' : 'text-orange-400'} />
+              <div className={`w-8 h-8  flex items-center justify-center ${isOwnerUse ? 'bg-[#d8ff3c]/15' : 'bg-[#ff5c2b]/15'}`}>
+                <ShoppingCart size={16} className={isOwnerUse ? 'text-[#d8ff3c]' : 'text-[#ff5c2b]'} />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-slate-100">Snack Sale</h2>
+                <h2 className="text-sm font-semibold text-[#f2f0ea]">Snack Sale</h2>
                 <p className="text-[11px] text-[#f2f0ea]/40">No gaming session required</p>
               </div>
             </div>
@@ -241,8 +241,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                   onClick={() => setIsOwnerUse(false)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5  text-sm font-medium transition-all border ${
                     !isOwnerUse
-                      ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
-                      : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
+                      ? "bg-[#ff5c2b]/15 border-[#ff5c2b]/40 text-[#ff5c2b]"
+                      : "bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:border-[#f2f0ea]/40"
                   }`}
                 >
                   <User size={14} /> Customer
@@ -251,8 +251,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                   onClick={() => setIsOwnerUse(true)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5  text-sm font-medium transition-all border ${
                     isOwnerUse
-                      ? "bg-purple-500/15 border-purple-500/40 text-purple-400"
-                      : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
+                      ? "bg-[#d8ff3c]/15 border-[#d8ff3c]/40 text-[#d8ff3c]"
+                      : "bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:border-[#f2f0ea]/40"
                   }`}
                 >
                   <Lock size={14} /> Owner (Me)
@@ -261,9 +261,9 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
 
               {/* Owner info notice */}
               {isOwnerUse ? (
-                <div className="flex items-start gap-2 px-3 py-2.5 bg-purple-500/8 border border-purple-500/20">
-                  <Lock size={12} className="text-purple-400 mt-0.5 shrink-0" />
-                  <p className="text-[11px] text-purple-300/80">
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-[#d8ff3c]/8 border border-[#d8ff3c]/20">
+                  <Lock size={12} className="text-[#d8ff3c] mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-[#d8ff3c]/80">
                     Recorded as owner use. <span className="font-semibold">Not counted in revenue.</span> PIN required to confirm.
                   </p>
                 </div>
@@ -278,10 +278,10 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                       onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                       placeholder="Walk-in customer"
                       autoComplete="off"
-                      className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-slate-600/50 text-sm text-[#f2f0ea] placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                      className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-sm text-[#f2f0ea] placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/50"
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                      <div className="absolute z-10 left-0 right-0 mt-1 bg-[#f2f0ea]/[0.06] border border-slate-600/60 shadow-xl overflow-hidden">
+                      <div className="absolute z-10 left-0 right-0 mt-1 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 shadow-xl overflow-hidden">
                         {suggestions.map((s, i) => (
                           <button
                             key={i}
@@ -311,7 +311,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                       value={customerPhone}
                       onChange={e => setCustomerPhone(e.target.value)}
                       placeholder="9XXXXXXXXX"
-                      className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-slate-600/50 text-sm text-[#f2f0ea] placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                      className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-sm text-[#f2f0ea] placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/50"
                     />
                   </div>
                 </div>
@@ -324,8 +324,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                     onClick={() => setPaymentMode("cash")}
                     className={`flex-1 flex items-center justify-center gap-2 py-2  text-sm font-medium transition-all border ${
                       paymentMode === "cash"
-                        ? "bg-[#d8ff3c]/15 border-emerald-500/40 text-[#d8ff3c]"
-                        : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
+                        ? "bg-[#d8ff3c]/15 border-[#d8ff3c]/40 text-[#d8ff3c]"
+                        : "bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:border-[#f2f0ea]/40"
                     }`}
                   >
                     <Banknote size={14} /> Cash
@@ -334,8 +334,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                     onClick={() => setPaymentMode("online")}
                     className={`flex-1 flex items-center justify-center gap-2 py-2  text-sm font-medium transition-all border ${
                       paymentMode === "online"
-                        ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
-                        : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
+                        ? "bg-[#d8ff3c]/15 border-[#d8ff3c]/40 text-[#d8ff3c]"
+                        : "bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:border-[#f2f0ea]/40"
                     }`}
                   >
                     <Smartphone size={14} /> UPI / Online
@@ -353,7 +353,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search items..."
-                  className="w-full pl-8 pr-3 py-2 bg-[#f2f0ea]/[0.06] border border-slate-600/50 text-sm text-[#f2f0ea] placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                  className="w-full pl-8 pr-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-sm text-[#f2f0ea] placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/50"
                 />
               </div>
               <div className="flex gap-1.5 flex-wrap">
@@ -363,8 +363,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-2.5 py-1.5  text-[11px] font-medium transition-all border ${
                       selectedCategory === cat
-                        ? "bg-orange-500/15 border-orange-500/30 text-orange-400"
-                        : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/40 hover:text-[#f2f0ea]/70"
+                        ? "bg-[#ff5c2b]/15 border-[#ff5c2b]/30 text-[#ff5c2b]"
+                        : "bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 text-[#f2f0ea]/40 hover:text-[#f2f0ea]/70"
                     }`}
                   >
                     {cat === "all" ? "All" : CATEGORY_LABELS[cat]}
@@ -399,14 +399,14 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                               key={item.id}
                               className={`relative  p-3 border transition-all ${
                                 qty > 0
-                                  ? isOwnerUse ? "bg-purple-500/10 border-purple-500/30" : "bg-orange-500/10 border-orange-500/30"
-                                  : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10/40 hover:border-slate-600"
+                                  ? isOwnerUse ? "bg-[#d8ff3c]/10 border-[#d8ff3c]/30" : "bg-[#ff5c2b]/10 border-[#ff5c2b]/30"
+                                  : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10/40 hover:border-[#f2f0ea]/30"
                               }`}
                             >
                               <div className="flex items-start justify-between mb-1.5">
                                 <span className="text-sm font-medium text-[#f2f0ea] leading-tight pr-1">{item.name}</span>
                                 {qty > 0 && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-[#f2f0ea] shrink-0 ${isOwnerUse ? 'bg-purple-500' : 'bg-orange-500'}`}>{qty}</span>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-[#f2f0ea] shrink-0 ${isOwnerUse ? 'bg-[#d8ff3c]' : 'bg-[#ff5c2b]'}`}>{qty}</span>
                                 )}
                               </div>
                               <div className="flex items-center justify-between">
@@ -419,12 +419,12 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                                     <button onClick={() => removeFromCart(item.id)} className="flex-1 flex items-center justify-center h-7 bg-white/[0.08] hover:bg-white/[0.10] text-[#f2f0ea]/70 transition-colors">
                                       <Minus size={12} />
                                     </button>
-                                    <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className={`flex-1 flex items-center justify-center h-7  transition-colors disabled:opacity-40 ${isOwnerUse ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-400' : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-400'}`}>
+                                    <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className={`flex-1 flex items-center justify-center h-7  transition-colors disabled:opacity-40 ${isOwnerUse ? 'bg-[#d8ff3c]/20 hover:bg-[#d8ff3c]/30 text-[#d8ff3c]' : 'bg-[#ff5c2b]/20 hover:bg-[#ff5c2b]/30 text-[#ff5c2b]'}`}>
                                       <Plus size={12} />
                                     </button>
                                   </>
                                 ) : (
-                                  <button onClick={() => addToCart(item)} className={`w-full flex items-center justify-center gap-1 h-7  bg-white/[0.08] text-[#f2f0ea]/50 text-xs font-medium transition-all ${isOwnerUse ? 'hover:bg-purple-500/20 hover:text-purple-400' : 'hover:bg-orange-500/20 hover:text-orange-400'}`}>
+                                  <button onClick={() => addToCart(item)} className={`w-full flex items-center justify-center gap-1 h-7  bg-white/[0.08] text-[#f2f0ea]/50 text-xs font-medium transition-all ${isOwnerUse ? 'hover:bg-[#d8ff3c]/20 hover:text-[#d8ff3c]' : 'hover:bg-[#ff5c2b]/20 hover:text-[#ff5c2b]'}`}>
                                     <Plus size={11} /> Add
                                   </button>
                                 )}
@@ -445,8 +445,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
             {cart.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {cart.map(c => (
-                  <span key={c.inventory_item_id} className="text-[11px] px-2 py-0.5 bg-white/[0.08]/60 text-[#f2f0ea]/70 border border-slate-600/30">
-                    {c.name} ×{c.quantity} <span className={isOwnerUse ? 'text-purple-400' : 'text-orange-400'}>₹{c.total_price}</span>
+                  <span key={c.inventory_item_id} className="text-[11px] px-2 py-0.5 bg-white/[0.08]/60 text-[#f2f0ea]/70 border border-[#f2f0ea]/10">
+                    {c.name} ×{c.quantity} <span className={isOwnerUse ? 'text-[#d8ff3c]' : 'text-[#ff5c2b]'}>₹{c.total_price}</span>
                   </span>
                 ))}
               </div>
@@ -459,8 +459,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                   <div>
                     <span className="text-xs text-[#f2f0ea]/40">{cartCount} item{cartCount !== 1 ? "s" : ""} · </span>
                     {isOwnerUse
-                      ? <span className="text-base font-bold text-purple-400">Owner Use</span>
-                      : <span className="text-base font-bold text-slate-100">₹{cartTotal.toLocaleString()}</span>
+                      ? <span className="text-base font-bold text-[#d8ff3c]">Owner Use</span>
+                      : <span className="text-base font-bold text-[#f2f0ea]">₹{cartTotal.toLocaleString()}</span>
                     }
                   </div>
                 )}
@@ -470,12 +470,12 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                 disabled={cart.length === 0 || saving || done}
                 className={`flex items-center gap-2 px-5 py-2.5  text-sm font-semibold transition-all ${
                   done
-                    ? "bg-[#d8ff3c]/20 text-[#d8ff3c] border border-emerald-500/30"
+                    ? "bg-[#d8ff3c]/20 text-[#d8ff3c] border border-[#d8ff3c]/30"
                     : cart.length === 0
                     ? "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/30 cursor-not-allowed"
                     : isOwnerUse
-                    ? "bg-purple-500 hover:bg-purple-400 text-[#f2f0ea] shadow-lg shadow-purple-500/20"
-                    : "bg-orange-500 hover:bg-orange-400 text-[#f2f0ea] shadow-lg shadow-orange-500/20"
+                    ? "bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] shadow-lg shadow-[#d8ff3c]/20"
+                    : "bg-[#ff5c2b] hover:bg-[#ff5c2b] text-[#f2f0ea] shadow-lg shadow-[#ff5c2b]/20"
                 }`}
               >
                 {done ? <><Check size={14} /> Saved!</>

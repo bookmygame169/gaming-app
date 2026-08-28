@@ -197,7 +197,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
         <section className=" border border-[#f2f0ea]/10 bg-[#111113] p-4 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center bg-amber-500/15">
+                    <div className="flex h-8 w-8 items-center justify-center bg-[#ff5c2b]/15">
                         <Gift size={15} className="text-[#ff5c2b]" />
                     </div>
                     <div>
@@ -215,7 +215,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                         setShowForm(true);
                     }}
                     disabled={!cafeId}
-                    className="flex items-center gap-1.5 bg-amber-500 px-3 py-2 text-[12px] font-bold text-black transition-colors hover:bg-amber-400 disabled:opacity-40"
+                    className="flex items-center gap-1.5 bg-[#ff5c2b] px-3 py-2 text-[12px] font-bold text-black transition-colors hover:bg-[#ff5c2b] disabled:opacity-40"
                 >
                     <Plus size={13} />
                     Add reward
@@ -223,7 +223,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
             </div>
 
             {error && (
-                <div className="mb-4 border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
+                <div className="mb-4 border border-[#ff5c2b]/25 bg-[#ff5c2b]/[0.06] p-3 text-[12px] text-[#ff5c2b]">
                     {error}
                 </div>
             )}
@@ -245,7 +245,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                 key={template.name}
                                 type="button"
                                 onClick={() => applyTemplate(template)}
-                                className=" border border-[#f2f0ea]/10 px-3 py-2 text-[12px] text-[#f2f0ea]/70 transition-colors hover:border-amber-500/40 hover:text-[#f2f0ea]"
+                                className=" border border-[#f2f0ea]/10 px-3 py-2 text-[12px] text-[#f2f0ea]/70 transition-colors hover:border-[#ff5c2b]/40 hover:text-[#f2f0ea]"
                             >
                                 {template.name}
                                 <span className="ml-1.5 text-[11px] text-[#f2f0ea]/40">
@@ -285,7 +285,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                             </p>
                         </div>
 
-                        <span className=" bg-amber-500/12 px-2.5 py-1 text-[12px] font-bold text-amber-300">
+                        <span className=" bg-[#ff5c2b]/12 px-2.5 py-1 text-[12px] font-bold text-[#ff5c2b]">
                             {reward.pointsCost} pts
                         </span>
 
@@ -335,7 +335,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                     value={form.name}
                                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     placeholder="Free Coke"
-                                    className="w-full border border-[#f2f0ea]/10 bg-[#0b1018] px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-amber-500/50 focus:outline-none"
+                                    className="w-full border border-[#f2f0ea]/10 bg-transparent px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-[#ff5c2b]/50 focus:outline-none"
                                 />
                             </div>
 
@@ -348,7 +348,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                     onChange={(e) =>
                                         setForm({ ...form, kind: e.target.value as RewardKind })
                                     }
-                                    className="w-full border border-[#f2f0ea]/10 bg-[#0b1018] px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-amber-500/50 focus:outline-none"
+                                    className="w-full border border-[#f2f0ea]/10 bg-transparent px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-[#ff5c2b]/50 focus:outline-none"
                                 >
                                     {(Object.keys(KIND_META) as RewardKind[]).map((kind) => (
                                         <option key={kind} value={kind}>
@@ -368,7 +368,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                         min={0}
                                         value={form.value}
                                         onChange={(e) => setForm({ ...form, value: e.target.value })}
-                                        className="w-full border border-[#f2f0ea]/10 bg-[#0b1018] px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-amber-500/50 focus:outline-none"
+                                        className="w-full border border-[#f2f0ea]/10 bg-transparent px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-[#ff5c2b]/50 focus:outline-none"
                                     />
                                 </div>
                                 <div>
@@ -382,7 +382,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                         onChange={(e) =>
                                             setForm({ ...form, pointsCost: e.target.value })
                                         }
-                                        className="w-full border border-[#f2f0ea]/10 bg-[#0b1018] px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-amber-500/50 focus:outline-none"
+                                        className="w-full border border-[#f2f0ea]/10 bg-transparent px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-[#ff5c2b]/50 focus:outline-none"
                                     />
                                 </div>
                             </div>
@@ -397,7 +397,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                         setForm({ ...form, description: e.target.value })
                                     }
                                     placeholder="One per visit"
-                                    className="w-full border border-[#f2f0ea]/10 bg-[#0b1018] px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-amber-500/50 focus:outline-none"
+                                    className="w-full border border-[#f2f0ea]/10 bg-transparent px-2.5 py-2 text-[13px] text-[#f2f0ea] focus:border-[#ff5c2b]/50 focus:outline-none"
                                 />
                             </div>
                         </div>
@@ -407,7 +407,7 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                                 type="button"
                                 onClick={save}
                                 disabled={saving}
-                                className="flex items-center gap-1.5 bg-amber-500 px-4 py-2 text-[12px] font-bold text-black transition-colors hover:bg-amber-400 disabled:opacity-40"
+                                className="flex items-center gap-1.5 bg-[#ff5c2b] px-4 py-2 text-[12px] font-bold text-black transition-colors hover:bg-[#ff5c2b] disabled:opacity-40"
                             >
                                 {saving && <Loader2 size={12} className="animate-spin" />}
                                 Save

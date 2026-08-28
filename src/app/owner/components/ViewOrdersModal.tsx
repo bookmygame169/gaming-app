@@ -319,7 +319,7 @@ export default function ViewOrdersModal({
                               <button
                                 onClick={() => addToCart(item)}
                                 disabled={inCart >= item.stock_quantity}
-                                className="p-1 bg-cyan-600 hover:bg-[#d8ff3c] rounded text-[#f2f0ea] disabled:opacity-50"
+                                className="p-1 bg-[#d8ff3c] hover:bg-[#d8ff3c] rounded text-[#f2f0ea] disabled:opacity-50"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
@@ -327,7 +327,7 @@ export default function ViewOrdersModal({
                           ) : (
                             <button
                               onClick={() => addToCart(item)}
-                              className="px-3 py-1 bg-cyan-600 hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm transition"
+                              className="px-3 py-1 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm transition"
                             >
                               Add
                             </button>
@@ -349,7 +349,7 @@ export default function ViewOrdersModal({
                   <button
                     onClick={handleAddItems}
                     disabled={adding}
-                    className="w-full px-4 py-2.5 bg-cyan-600 hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {adding ? (
                       <>
@@ -385,7 +385,7 @@ export default function ViewOrdersModal({
             <>
               <button
                 onClick={() => setShowAddSection(true)}
-                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Items

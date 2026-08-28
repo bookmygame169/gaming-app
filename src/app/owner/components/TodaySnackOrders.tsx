@@ -34,7 +34,7 @@ interface TodaySnackOrdersProps {
 function PaymentBadge({ mode }: { mode?: string | null }) {
   if (mode === 'owner') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#d8ff3c]/15 text-[#d8ff3c] border border-[#d8ff3c]/20">
         <Lock size={10} /> Owner Use
       </span>
     );
@@ -42,20 +42,20 @@ function PaymentBadge({ mode }: { mode?: string | null }) {
   const m = (mode || 'cash').toLowerCase();
   if (m === 'online' || m === 'upi') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#d8ff3c]/15 text-[#d8ff3c] border border-[#d8ff3c]/20">
         <Smartphone size={10} /> UPI
       </span>
     );
   }
   if (m === 'card') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#d8ff3c]/15 text-[#d8ff3c] border border-[#d8ff3c]/20">
         <CreditCard size={10} /> Card
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#d8ff3c]/15 text-[#d8ff3c] border border-emerald-500/20">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#d8ff3c]/15 text-[#d8ff3c] border border-[#d8ff3c]/20">
       <Banknote size={10} /> Cash
     </span>
   );
@@ -92,11 +92,11 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
       {/* Header */}
       <div className="flex flex-col gap-3 px-5 py-4 border-b border-[#f2f0ea]/10/40 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 bg-orange-500/15 flex items-center justify-center">
-            <ShoppingBag size={16} className="text-orange-400" />
+          <div className="w-8 h-8 bg-[#ff5c2b]/15 flex items-center justify-center">
+            <ShoppingBag size={16} className="text-[#ff5c2b]" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-100">Today&apos;s Snack Orders</h3>
+            <h3 className="text-sm font-semibold text-[#f2f0ea]">Today&apos;s Snack Orders</h3>
             <p className="text-[11px] text-[#f2f0ea]/40 mt-0.5">Inventory items sold today</p>
           </div>
         </div>
@@ -106,19 +106,19 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
           {onNewSale && (
             <button
               onClick={onNewSale}
-              className="flex w-full items-center justify-center gap-1.5 px-3 py-1.5 bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-xs font-medium transition-all sm:w-auto"
+              className="flex w-full items-center justify-center gap-1.5 px-3 py-1.5 bg-[#ff5c2b]/15 hover:bg-[#ff5c2b]/25 border border-[#ff5c2b]/30 text-[#ff5c2b] text-xs font-medium transition-all sm:w-auto"
             >
               <Plus size={11} /> New Sale
             </button>
           )}
-          <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08]/60 text-[#f2f0ea]/50 border border-slate-600/40">
+          <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08]/60 text-[#f2f0ea]/50 border border-[#f2f0ea]/10">
             {billableOrdersToday.length} {billableOrdersToday.length === 1 ? 'sale' : 'sales'}
           </span>
-          <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08]/60 text-[#f2f0ea]/50 border border-slate-600/40">
+          <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08]/60 text-[#f2f0ea]/50 border border-[#f2f0ea]/10">
             {totalItems} items
           </span>
           {totalRevenue > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 font-medium">
+            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-[#ff5c2b]/10 text-[#ff5c2b] border border-[#ff5c2b]/20 font-medium">
               <TrendingUp size={10} /> ₹{totalRevenue.toLocaleString()}
             </span>
           )}
@@ -139,7 +139,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
             const orderTotal = booking.booking_orders!.reduce((s, o) => s + (o.total_price || 0), 0);
 
             return (
-              <div key={booking.id} className={`px-5 py-3.5 transition-colors ${booking.payment_mode === 'owner' ? 'bg-purple-500/5 hover:bg-purple-500/8' : 'hover:bg-white/[0.08]/20'}`}>
+              <div key={booking.id} className={`px-5 py-3.5 transition-colors ${booking.payment_mode === 'owner' ? 'bg-[#d8ff3c]/5 hover:bg-[#d8ff3c]/8' : 'hover:bg-white/[0.08]/20'}`}>
                 {/* Row top: customer + payment + total */}
                 <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 min-w-0">
@@ -166,8 +166,8 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
                     )}
                     <PaymentBadge mode={booking.payment_mode} />
                     {booking.payment_mode === 'owner'
-                      ? <span className="text-sm font-semibold text-purple-400">Owner</span>
-                      : <span className="text-sm font-semibold text-orange-400">₹{orderTotal.toLocaleString()}</span>
+                      ? <span className="text-sm font-semibold text-[#d8ff3c]">Owner</span>
+                      : <span className="text-sm font-semibold text-[#ff5c2b]">₹{orderTotal.toLocaleString()}</span>
                     }
                   </div>
                 </div>
@@ -177,9 +177,9 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
                   {booking.booking_orders!.map((order, idx) => (
                     <span
                       key={order.id || idx}
-                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-white/[0.08]/60 text-[#f2f0ea]/70 border border-slate-600/30"
+                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-white/[0.08]/60 text-[#f2f0ea]/70 border border-[#f2f0ea]/10"
                     >
-                      <span className="text-orange-400 font-medium">×{order.quantity}</span>
+                      <span className="text-[#ff5c2b] font-medium">×{order.quantity}</span>
                       {order.item_name || 'Item'}
                       {order.total_price > 0 && (
                         <span className="text-[#f2f0ea]/40 ml-0.5">₹{order.total_price}</span>

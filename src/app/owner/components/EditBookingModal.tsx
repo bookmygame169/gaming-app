@@ -77,16 +77,16 @@ const STATION_CONSOLES = new Set(['pc', 'pool', 'snooker', 'arcade', 'vr', 'stee
 const DURATIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending', color: 'text-[#ff5c2b] bg-amber-500/10 border-amber-500/30' },
-  { value: 'confirmed', label: 'Confirmed', color: 'text-blue-400 bg-blue-500/10 border-blue-500/30' },
-  { value: 'in-progress', label: 'In Progress', color: 'text-[#d8ff3c] bg-[#d8ff3c]/10 border-emerald-500/30' },
-  { value: 'completed', label: 'Completed', color: 'text-[#d8ff3c] bg-[#d8ff3c]/10 border-emerald-500/30' },
-  { value: 'cancelled', label: 'Cancelled', color: 'text-[#ff5c2b] bg-[#ff5c2b]/10 border-red-500/30' },
+  { value: 'pending', label: 'Pending', color: 'text-[#ff5c2b] bg-[#ff5c2b]/10 border-[#ff5c2b]/30' },
+  { value: 'confirmed', label: 'Confirmed', color: 'text-[#d8ff3c] bg-[#d8ff3c]/10 border-[#d8ff3c]/30' },
+  { value: 'in-progress', label: 'In Progress', color: 'text-[#d8ff3c] bg-[#d8ff3c]/10 border-[#d8ff3c]/30' },
+  { value: 'completed', label: 'Completed', color: 'text-[#d8ff3c] bg-[#d8ff3c]/10 border-[#d8ff3c]/30' },
+  { value: 'cancelled', label: 'Cancelled', color: 'text-[#ff5c2b] bg-[#ff5c2b]/10 border-[#ff5c2b]/30' },
 ];
 
 const PAYMENT_OPTIONS = [
-  { value: 'cash', label: 'Cash', icon: '💵', active: 'border-emerald-500 bg-[#d8ff3c]/10 text-emerald-300', inactive: 'border-slate-700 bg-slate-800 text-[#f2f0ea]/50' },
-  { value: 'upi', label: 'UPI', icon: '📱', active: 'border-indigo-500 bg-indigo-500/10 text-indigo-300', inactive: 'border-slate-700 bg-slate-800 text-[#f2f0ea]/50' },
+  { value: 'cash', label: 'Cash', icon: '💵', active: 'border-[#d8ff3c] bg-[#d8ff3c]/10 text-[#d8ff3c]', inactive: 'border-[#f2f0ea]/[0.14] bg-[#f2f0ea]/10 text-[#f2f0ea]/50' },
+  { value: 'upi', label: 'UPI', icon: '📱', active: 'border-[#d8ff3c] bg-[#d8ff3c]/10 text-[#d8ff3c]', inactive: 'border-[#f2f0ea]/[0.14] bg-[#f2f0ea]/10 text-[#f2f0ea]/50' },
 ];
 
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -287,25 +287,25 @@ export function EditBookingModal({
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#0f1520] border-b border-slate-800">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#0f1520] border-b border-[#f2f0ea]/10">
           <div>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-indigo-500/15 flex items-center justify-center">
+              <div className="w-9 h-9 bg-[#d8ff3c]/15 flex items-center justify-center">
                 <span className="text-lg">{isMembershipBooking ? '🎟️' : '📝'}</span>
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-100">
+                <h2 className="text-base font-bold text-[#f2f0ea]">
                   {isMembershipBooking ? 'Edit Membership Entry' : isAppBooking ? 'Edit App Booking' : 'Edit Walk-In Booking'}
                 </h2>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[11px] text-[#f2f0ea]/40 font-mono">#{booking.id.slice(0, 8).toUpperCase()}</span>
                   {isMembershipBooking ? (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-semibold">MEMBERSHIP</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#d8ff3c]/15 text-[#d8ff3c] font-semibold">MEMBERSHIP</span>
                   ) : isAppBooking && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold">APP</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#d8ff3c]/15 text-[#d8ff3c] font-semibold">APP</span>
                   )}
                   {booking.status && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold border ${STATUS_OPTIONS.find(s => s.value === booking.status)?.color || 'text-[#f2f0ea]/50 bg-slate-800 border-slate-600'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold border ${STATUS_OPTIONS.find(s => s.value === booking.status)?.color || 'text-[#f2f0ea]/50 bg-[#f2f0ea]/10 border-[#f2f0ea]/30'}`}>
                       {booking.status.toUpperCase()}
                     </span>
                   )}
@@ -313,7 +313,7 @@ export function EditBookingModal({
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-[#f2f0ea]/50 hover:text-[#f2f0ea] transition-colors">
+          <button onClick={onClose} className="w-8 h-8 bg-[#f2f0ea]/10 hover:bg-[#f2f0ea]/[0.14] flex items-center justify-center text-[#f2f0ea]/50 hover:text-[#f2f0ea] transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -323,9 +323,9 @@ export function EditBookingModal({
 
           {/* Customer Information */}
           <section className="bg-[#111827] border border-[#f2f0ea]/[0.14] overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-800 bg-[#151d2a]">
-              <div className="w-7 h-7 bg-indigo-500/15 flex items-center justify-center">
-                <User size={13} className="text-indigo-400" />
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#f2f0ea]/10 bg-[#151d2a]">
+              <div className="w-7 h-7 bg-[#d8ff3c]/15 flex items-center justify-center">
+                <User size={13} className="text-[#d8ff3c]" />
               </div>
               <span className="text-xs font-bold text-[#f2f0ea]/50 uppercase tracking-wider">{isMembershipBooking ? 'Member Information' : 'Customer Information'}</span>
             </div>
@@ -334,7 +334,7 @@ export function EditBookingModal({
               <div className="relative" ref={suggRef}>
                 <label className="block text-[11px] font-semibold text-[#f2f0ea]/40 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
                   Name
-                  {searching && <span className="inline-block w-3 h-3 border border-slate-500 border-t-transparent rounded-full animate-spin" />}
+                  {searching && <span className="inline-block w-3 h-3 border border-[#f2f0ea]/40 border-t-transparent rounded-full animate-spin" />}
                 </label>
                 <input
                   type="text"
@@ -342,22 +342,22 @@ export function EditBookingModal({
                   onChange={e => { setCustomerName(e.target.value); }}
                   placeholder="Customer name"
                   maxLength={100}
-                  className="w-full px-3 py-2.5 bg-[#0b1018] border border-slate-700 text-[#f2f0ea] text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 transition-colors"
+                  className="w-full px-3 py-2.5 bg-transparent border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-sm placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/60 transition-colors"
                 />
                 {showSugg && suggestions.length > 0 && (
-                  <div className="absolute z-50 w-full top-full mt-1 bg-[#111827] border border-slate-700 shadow-xl overflow-hidden">
+                  <div className="absolute z-50 w-full top-full mt-1 bg-[#111827] border border-[#f2f0ea]/[0.14] shadow-xl overflow-hidden">
                     {suggestions.map((s, i) => (
                       <button
                         key={i}
                         type="button"
-                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800 transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#f2f0ea]/10 transition-colors text-left"
                         onMouseDown={() => {
                           setCustomerName(s.name);
                           if (s.phone) setCustomerPhone(s.phone);
                           setShowSugg(false);
                         }}
                       >
-                        <div className="w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center text-xs text-indigo-400 shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-[#d8ff3c]/15 flex items-center justify-center text-xs text-[#d8ff3c] shrink-0">
                           {s.name[0]?.toUpperCase()}
                         </div>
                         <div>
@@ -381,7 +381,7 @@ export function EditBookingModal({
                     onChange={e => setCustomerPhone(e.target.value.replace(/[^\d+\-\s()]/g, ''))}
                     placeholder="e.g. 9876543210"
                     maxLength={15}
-                    className={`w-full pl-8 pr-3 py-2.5  bg-[#0b1018] border text-[#f2f0ea] text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 transition-colors ${customerPhone && !/^(\+91|0)?[6-9]\d{9}$|^\+\d{7,15}$/.test(customerPhone) ? 'border-red-500/60' : 'border-slate-700'}`}
+                    className={`w-full pl-8 pr-3 py-2.5  bg-transparent border text-[#f2f0ea] text-sm placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/60 transition-colors ${customerPhone && !/^(\+91|0)?[6-9]\d{9}$|^\+\d{7,15}$/.test(customerPhone) ? 'border-[#ff5c2b]/60' : 'border-[#f2f0ea]/[0.14]'}`}
                   />
                 </div>
               </div>
@@ -396,25 +396,25 @@ export function EditBookingModal({
           </section>
 
           {isMembershipBooking ? (
-            <section className="bg-[#111827] border border-violet-500/25 overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-violet-500/20 bg-[#151d2a]">
-                <div className="w-7 h-7 bg-violet-500/15 flex items-center justify-center">
-                  <Calendar size={13} className="text-violet-300" />
+            <section className="bg-[#111827] border border-[#d8ff3c]/25 overflow-hidden">
+              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#d8ff3c]/20 bg-[#151d2a]">
+                <div className="w-7 h-7 bg-[#d8ff3c]/15 flex items-center justify-center">
+                  <Calendar size={13} className="text-[#d8ff3c]" />
                 </div>
                 <span className="text-xs font-bold text-[#f2f0ea]/50 uppercase tracking-wider">Membership Details</span>
               </div>
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="border border-[#f2f0ea]/[0.14] bg-[#0b1018] px-3 py-2.5">
+                <div className="border border-[#f2f0ea]/[0.14] bg-transparent px-3 py-2.5">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-[#f2f0ea]/40">Plan</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">{membershipPlan?.name || 'Membership Plan'}</div>
+                  <div className="mt-1 text-sm font-semibold text-[#f2f0ea]">{membershipPlan?.name || 'Membership Plan'}</div>
                   <div className="mt-0.5 text-xs text-[#f2f0ea]/40">
                     {isDayPassMembership ? 'Day pass' : `${formatDurationLabel(membershipDuration, { long: true })} package`}
                   </div>
                 </div>
 
-                <div className="border border-[#f2f0ea]/[0.14] bg-[#0b1018] px-3 py-2.5">
+                <div className="border border-[#f2f0ea]/[0.14] bg-transparent px-3 py-2.5">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-[#f2f0ea]/40">Console / Station</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100 uppercase">{membershipConsole}</div>
+                  <div className="mt-1 text-sm font-semibold text-[#f2f0ea] uppercase">{membershipConsole}</div>
                   <div className="mt-0.5 text-xs text-[#f2f0ea]/40">{membershipStation}</div>
                 </div>
 
@@ -424,7 +424,7 @@ export function EditBookingModal({
                     type="date"
                     value={date}
                     onChange={e => setDate(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-[#0b1018] border border-slate-700 text-[#f2f0ea] text-sm focus:outline-none focus:border-violet-500/60 transition-colors"
+                    className="w-full px-3 py-2.5 bg-transparent border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]/60 transition-colors"
                     style={{ colorScheme: 'dark' }}
                   />
                 </div>
@@ -437,23 +437,23 @@ export function EditBookingModal({
                       type="time"
                       value={startTime}
                       onChange={e => setStartTime(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2.5 bg-[#0b1018] border border-slate-700 text-[#f2f0ea] text-sm focus:outline-none focus:border-violet-500/60 transition-colors"
+                      className="w-full pl-8 pr-3 py-2.5 bg-transparent border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]/60 transition-colors"
                       style={{ colorScheme: 'dark' }}
                     />
                   </div>
                 </div>
 
-                <div className="border border-[#f2f0ea]/[0.14] bg-[#0b1018] px-3 py-2.5">
+                <div className="border border-[#f2f0ea]/[0.14] bg-transparent px-3 py-2.5">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-[#f2f0ea]/40">{isDayPassMembership ? 'Valid Until' : 'Expires'}</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">{membershipValidityLabel}</div>
+                  <div className="mt-1 text-sm font-semibold text-[#f2f0ea]">{membershipValidityLabel}</div>
                   {isDayPassMembership && (
-                    <div className="mt-0.5 text-xs text-violet-300">Day pass closes at 10:00 PM.</div>
+                    <div className="mt-0.5 text-xs text-[#d8ff3c]">Day pass closes at 10:00 PM.</div>
                   )}
                 </div>
 
-                <div className="border border-[#f2f0ea]/[0.14] bg-[#0b1018] px-3 py-2.5">
+                <div className="border border-[#f2f0ea]/[0.14] bg-transparent px-3 py-2.5">
                   <div className="text-[10px] uppercase tracking-[0.14em] text-[#f2f0ea]/40">Subscription</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-100">
+                  <div className="mt-1 text-sm font-semibold text-[#f2f0ea]">
                     {membershipSubscription?.id ? `#${membershipSubscription.id.slice(0, 8).toUpperCase()}` : 'Linked membership entry'}
                   </div>
                   <div className="mt-0.5 text-xs text-[#f2f0ea]/40">{membershipSubscription?.purchase_date ? formatDateTimeLabel(membershipSubscription.purchase_date) : 'Created from membership checkout'}</div>
@@ -464,9 +464,9 @@ export function EditBookingModal({
             <>
           {/* Booking Details */}
           <section className="bg-[#111827] border border-[#f2f0ea]/[0.14] overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-800 bg-[#151d2a]">
-              <div className="w-7 h-7 bg-blue-500/15 flex items-center justify-center">
-                <Calendar size={13} className="text-blue-400" />
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#f2f0ea]/10 bg-[#151d2a]">
+              <div className="w-7 h-7 bg-[#d8ff3c]/15 flex items-center justify-center">
+                <Calendar size={13} className="text-[#d8ff3c]" />
               </div>
               <span className="text-xs font-bold text-[#f2f0ea]/50 uppercase tracking-wider">Booking Details</span>
             </div>
@@ -477,7 +477,7 @@ export function EditBookingModal({
                   type="date"
                   value={date}
                   onChange={e => setDate(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#0b1018] border border-slate-700 text-[#f2f0ea] text-sm focus:outline-none focus:border-indigo-500/60 transition-colors"
+                  className="w-full px-3 py-2.5 bg-transparent border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]/60 transition-colors"
                   style={{ colorScheme: 'dark' }}
                 />
               </div>
@@ -489,7 +489,7 @@ export function EditBookingModal({
                     type="time"
                     value={startTime}
                     onChange={e => setStartTime(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2.5 bg-[#0b1018] border border-slate-700 text-[#f2f0ea] text-sm focus:outline-none focus:border-indigo-500/60 transition-colors"
+                    className="w-full pl-8 pr-3 py-2.5 bg-transparent border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]/60 transition-colors"
                     style={{ colorScheme: 'dark' }}
                   />
                 </div>
@@ -509,13 +509,13 @@ export function EditBookingModal({
                           setTimeout(() => setEndNowMsg(null), 3000);
                         }
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-[#ff5c2b]/10 border border-red-500/30 text-[#ff5c2b] text-[11px] font-semibold hover:bg-[#ff5c2b]/20 transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 bg-[#ff5c2b]/10 border border-[#ff5c2b]/30 text-[#ff5c2b] text-[11px] font-semibold hover:bg-[#ff5c2b]/20 transition-colors"
                     >
                       <Zap size={10} /> End Now
                     </button>
                   )}
                 </div>
-                <div className="px-3 py-2.5 bg-[#0b1018] border border-dashed border-slate-700 text-[#f2f0ea]/50 text-sm font-medium">
+                <div className="px-3 py-2.5 bg-transparent border border-dashed border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 text-sm font-medium">
                   {endTime}
                 </div>
                 {endNowMsg && (
@@ -529,15 +529,15 @@ export function EditBookingModal({
 
           {/* Console & Controllers */}
           <section className="bg-[#111827] border border-[#f2f0ea]/[0.14] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-[#151d2a]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#f2f0ea]/10 bg-[#151d2a]">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 bg-purple-500/15 flex items-center justify-center">
+                <div className="w-7 h-7 bg-[#d8ff3c]/15 flex items-center justify-center">
                   <span className="text-sm">🎮</span>
                 </div>
                 <span className="text-xs font-bold text-[#f2f0ea]/50 uppercase tracking-wider">Console & Controllers</span>
               </div>
               {bookingItemsCount > 1 && bookingItemId && (
-                <span className="text-[11px] text-[#f2f0ea]/40 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
+                <span className="text-[11px] text-[#f2f0ea]/40 bg-[#f2f0ea]/10 px-2 py-0.5 rounded-full border border-[#f2f0ea]/[0.14]">
                   Editing selected item
                 </span>
               )}
@@ -545,11 +545,11 @@ export function EditBookingModal({
 
             <div className="p-4 flex flex-col gap-3">
               {items.map((item, idx) => (
-                <div key={idx} className="relative bg-[#0b1018] border border-[#f2f0ea]/[0.14] p-3">
+                <div key={idx} className="relative bg-transparent border border-[#f2f0ea]/[0.14] p-3">
                   {!isSingleItemEdit && items.length > 1 && (
                     <button
                       onClick={() => removeItem(idx)}
-                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#ff5c2b] text-[#f2f0ea] flex items-center justify-center hover:bg-red-400 transition-colors z-10"
+                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#ff5c2b] text-[#f2f0ea] flex items-center justify-center hover:bg-[#ff5c2b] transition-colors z-10"
                     >
                       <X size={10} />
                     </button>
@@ -562,7 +562,7 @@ export function EditBookingModal({
                         <select
                           value={item.console}
                           onChange={e => { updateItem(idx, { console: e.target.value }); setAmountManuallyEdited(false); }}
-                          className="w-full appearance-none px-2.5 py-2 pr-7 bg-[#151d2a] border border-slate-700 text-[#f2f0ea] text-xs font-medium focus:outline-none focus:border-purple-500/60 transition-colors cursor-pointer"
+                          className="w-full appearance-none px-2.5 py-2 pr-7 bg-[#151d2a] border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-xs font-medium focus:outline-none focus:border-[#d8ff3c]/60 transition-colors cursor-pointer"
                         >
                           {selectableConsoleOptions.map(o => (
                             <option key={o.id} value={o.id}>{o.icon} {o.label}</option>
@@ -579,7 +579,7 @@ export function EditBookingModal({
                         <select
                           value={item.duration}
                           onChange={e => { updateItem(idx, { duration: parseInt(e.target.value) }); setAmountManuallyEdited(false); }}
-                          className="w-full appearance-none px-2.5 py-2 pr-7 bg-[#151d2a] border border-slate-700 text-[#f2f0ea] text-xs font-medium focus:outline-none focus:border-purple-500/60 transition-colors cursor-pointer"
+                          className="w-full appearance-none px-2.5 py-2 pr-7 bg-[#151d2a] border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-xs font-medium focus:outline-none focus:border-[#d8ff3c]/60 transition-colors cursor-pointer"
                         >
                           {DURATIONS.map(d => (
                             <option key={d} value={d}>{formatDurationLabel(d, { long: true })}</option>
@@ -597,14 +597,14 @@ export function EditBookingModal({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => { if (item.quantity > 1) { updateItem(idx, { quantity: item.quantity - 1 }); setAmountManuallyEdited(false); } }}
-                          className="w-7 h-7 bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-[#f2f0ea]/70 transition-colors shrink-0"
+                          className="w-7 h-7 bg-[#f2f0ea]/10 hover:bg-[#f2f0ea]/[0.14] flex items-center justify-center text-[#f2f0ea]/70 transition-colors shrink-0"
                         >
                           <Minus size={11} />
                         </button>
                         <span className="flex-1 text-center text-sm font-bold text-[#f2f0ea]">{item.quantity}</span>
                         <button
                           onClick={() => { if (item.quantity < 4) { updateItem(idx, { quantity: item.quantity + 1 }); setAmountManuallyEdited(false); } }}
-                          className="w-7 h-7 bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-[#f2f0ea]/70 transition-colors shrink-0"
+                          className="w-7 h-7 bg-[#f2f0ea]/10 hover:bg-[#f2f0ea]/[0.14] flex items-center justify-center text-[#f2f0ea]/70 transition-colors shrink-0"
                         >
                           <Plus size={11} />
                         </button>
@@ -634,8 +634,8 @@ export function EditBookingModal({
                 disabled={isSingleItemEdit || configuredConsoleOptions.length === 0}
                 className={`flex items-center justify-center gap-2 py-2.5  border border-dashed text-xs font-semibold transition-colors ${
                   isSingleItemEdit || configuredConsoleOptions.length === 0
-                    ? 'border-slate-800 text-[#f2f0ea]/30 cursor-not-allowed'
-                    : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/5'
+                    ? 'border-[#f2f0ea]/10 text-[#f2f0ea]/30 cursor-not-allowed'
+                    : 'border-[#d8ff3c]/30 text-[#d8ff3c] hover:bg-[#d8ff3c]/5'
                 }`}
               >
                 <Plus size={13} /> {isSingleItemEdit ? 'Editing One Item Only' : configuredConsoleOptions.length === 0 ? 'No Stations Configured' : 'Add Console / Station'}
@@ -644,9 +644,9 @@ export function EditBookingModal({
           </section>
 
           {/* Snacks & Orders */}
-          <section className="overflow-hidden bg-[#111827] border border-amber-500/20">
+          <section className="overflow-hidden bg-[#111827] border border-[#ff5c2b]/20">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-[#151d2a]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#ff5c2b]/20 bg-[#151d2a]">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 flex items-center justify-center" style={{ background: 'rgba(251,146,60,0.15)' }}>
                   <UtensilsCrossed size={13} className="text-[#ff5c2b]" />
@@ -673,7 +673,7 @@ export function EditBookingModal({
 
           {/* Payment */}
           <section className="bg-[#111827] border border-[#f2f0ea]/[0.14] overflow-hidden">
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-800 bg-[#151d2a]">
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#f2f0ea]/10 bg-[#151d2a]">
               <div className="w-7 h-7 bg-[#d8ff3c]/15 flex items-center justify-center">
                 <CreditCard size={13} className="text-[#d8ff3c]" />
               </div>
@@ -694,7 +694,7 @@ export function EditBookingModal({
                       onChange={e => { setAmount(e.target.value); setAmountManuallyEdited(true); }}
                       min="0"
                       step="1"
-                      className="w-full pl-7 pr-3 py-2.5 bg-[#0b1018] border border-emerald-500/30 text-emerald-300 font-bold text-base focus:outline-none focus:border-emerald-500/50 transition-colors"
+                      className="w-full pl-7 pr-3 py-2.5 bg-transparent border border-[#d8ff3c]/30 text-[#d8ff3c] font-bold text-base focus:outline-none focus:border-[#d8ff3c]/50 transition-colors"
                     />
                   </div>
                 </div>
@@ -720,12 +720,12 @@ export function EditBookingModal({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 bg-[#0f1520] border-t border-slate-800">
+        <div className="sticky bottom-0 flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 bg-[#0f1520] border-t border-[#f2f0ea]/10">
           {/* Delete */}
           <button
             onClick={onDelete}
             disabled={saving || deleting}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#ff5c2b]/10 border border-red-500/25 text-[#ff5c2b] text-sm font-semibold hover:bg-[#ff5c2b]/20 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#ff5c2b]/10 border border-[#ff5c2b]/25 text-[#ff5c2b] text-sm font-semibold hover:bg-[#ff5c2b]/20 transition-colors disabled:opacity-40"
           >
 	            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
 	            {isMembershipBooking ? 'Delete Entry' : 'Delete'}
@@ -737,7 +737,7 @@ export function EditBookingModal({
           <button
             onClick={onClose}
             disabled={saving || deleting}
-            className="px-4 py-2.5 border border-slate-700 bg-slate-800 text-[#f2f0ea]/50 text-sm font-semibold hover:text-[#f2f0ea] hover:border-slate-600 transition-colors disabled:opacity-40"
+            className="px-4 py-2.5 border border-[#f2f0ea]/[0.14] bg-[#f2f0ea]/10 text-[#f2f0ea]/50 text-sm font-semibold hover:text-[#f2f0ea] hover:border-[#f2f0ea]/30 transition-colors disabled:opacity-40"
           >
             Cancel
           </button>
@@ -746,7 +746,7 @@ export function EditBookingModal({
           <button
             onClick={onSave}
             disabled={saving || deleting || !amount || !date || !startTime}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-[#f2f0ea] text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#d8ff3c]/20"
           >
 	            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
 	            {saving ? 'Saving...' : isMembershipBooking ? 'Save Membership' : 'Save Changes'}

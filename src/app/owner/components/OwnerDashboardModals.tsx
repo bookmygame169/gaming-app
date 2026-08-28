@@ -94,7 +94,7 @@ export function OwnerDashboardModals() {
         const diffLabel = !hasChange
           ? 'No change yet'
           : `${diffMinutes > 0 ? 'Extends by' : 'Reduces by'} ${formatDurationLabel(Math.abs(diffMinutes), { long: true })}`;
-        const diffTone = diffMinutes > 0 ? 'text-cyan-200' : diffMinutes < 0 ? 'text-rose-200' : 'text-[#f2f0ea]/50';
+        const diffTone = diffMinutes > 0 ? 'text-[#d8ff3c]' : diffMinutes < 0 ? 'text-[#ff5c2b]' : 'text-[#f2f0ea]/50';
         const adjustDuration = (delta: number) => {
           setTimeAdjustment((prev: TimeAdjustmentTarget | null) => prev ? {
             ...prev,
@@ -116,7 +116,7 @@ export function OwnerDashboardModals() {
               <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-5 py-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#d8ff3c]/15 text-cyan-300">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#d8ff3c]/15 text-[#d8ff3c]">
                       <Clock3 size={17} />
                     </span>
                     <div className="min-w-0">
@@ -149,8 +149,8 @@ export function OwnerDashboardModals() {
                     </div>
                     <ChevronRight size={18} className="text-[#f2f0ea]/30" />
                     <div className="text-right">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/70">New</p>
-                      <p className="mt-1 text-2xl font-black tracking-tight text-cyan-100">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d8ff3c]/70">New</p>
+                      <p className="mt-1 text-2xl font-black tracking-tight text-[#d8ff3c]">
                         {formatDurationLabel(timeAdjustment.nextDuration, { long: true })}
                       </p>
                     </div>
@@ -171,8 +171,8 @@ export function OwnerDashboardModals() {
                       onClick={() => adjustDuration(option.delta)}
                       className={`flex h-12 items-center justify-center  border text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-35 ${
                         option.tone === 'add'
-                          ? 'border-cyan-500/25 bg-[#d8ff3c]/10 text-cyan-100 hover:border-cyan-400/50 hover:bg-[#d8ff3c]/18'
-                          : 'border-rose-500/25 bg-rose-500/10 text-rose-100 hover:border-rose-400/50 hover:bg-rose-500/18'
+                          ? 'border-[#d8ff3c]/25 bg-[#d8ff3c]/10 text-[#d8ff3c] hover:border-[#d8ff3c]/50 hover:bg-[#d8ff3c]/18'
+                          : 'border-[#ff5c2b]/25 bg-[#ff5c2b]/10 text-[#ff5c2b] hover:border-[#ff5c2b]/50 hover:bg-[#ff5c2b]/18'
                       }`}
                     >
                       {option.label}
@@ -199,7 +199,7 @@ export function OwnerDashboardModals() {
                   type="button"
                   disabled={savingTimeAdjustment || !hasChange}
                   onClick={handleSaveTimeAdjustment}
-                  className="flex h-11 items-center justify-center gap-2 bg-cyan-400 px-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-[#f2f0ea]/50 disabled:shadow-none"
+                  className="flex h-11 items-center justify-center gap-2 bg-[#d8ff3c] px-4 text-sm font-black text-[#f2f0ea]/40 shadow-lg shadow-[#d8ff3c]/20 transition hover:bg-[#d8ff3c] disabled:cursor-not-allowed disabled:bg-[#f2f0ea]/[0.14] disabled:text-[#f2f0ea]/50 disabled:shadow-none"
                 >
                   {savingTimeAdjustment ? (
                     <Loader2 size={16} className="animate-spin" />

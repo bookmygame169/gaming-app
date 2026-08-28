@@ -147,7 +147,7 @@ export function CafePcGamesEditor({ cafeId }: CafePcGamesEditorProps) {
           {games.map((game, index) => (
             <div
               key={game.id || `row-${index}`}
-              className="rounded-xl border border-white/[0.06] bg-[#0b1018] p-3 space-y-2"
+              className="rounded-xl border border-white/[0.06] bg-transparent p-3 space-y-2"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">

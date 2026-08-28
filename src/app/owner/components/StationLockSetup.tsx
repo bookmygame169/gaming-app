@@ -234,7 +234,7 @@ export function StationLockSetup({
         </li>
       </ol>
 
-      <div className="rounded-xl border border-white/[0.08] bg-[#0b1018] p-4">
+      <div className="rounded-xl border border-white/[0.08] bg-transparent p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Setup code for {displayName}

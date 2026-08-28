@@ -215,7 +215,7 @@ export default function AddItemsModal({
               placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/50 focus:outline-none focus:border-[#d8ff3c]"
             />
           </div>
 
@@ -290,8 +290,8 @@ export default function AddItemsModal({
                             key={item.id}
                             className={`flex items-center justify-between p-3  border transition ${
                               qty > 0
-                                ? "bg-[#d8ff3c]/10 border-cyan-500/30"
-                                : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10 hover:border-slate-600"
+                                ? "bg-[#d8ff3c]/10 border-[#d8ff3c]/30"
+                                : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10 hover:border-[#f2f0ea]/30"
                             }`}
                           >
                             <div className="flex-1 min-w-0">
@@ -321,7 +321,7 @@ export default function AddItemsModal({
                                   <button
                                     onClick={() => addToCart(item)}
                                     disabled={isMaxed}
-                                    className="w-8 h-8 flex items-center justify-center bg-[#d8ff3c] hover:bg-cyan-600 text-[#f2f0ea] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 flex items-center justify-center bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] transition disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
@@ -329,7 +329,7 @@ export default function AddItemsModal({
                               ) : (
                                 <button
                                   onClick={() => addToCart(item)}
-                                  className="px-4 py-2 bg-[#d8ff3c] hover:bg-cyan-600 text-[#f2f0ea] text-sm font-medium transition"
+                                  className="px-4 py-2 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm font-medium transition"
                                 >
                                   Add
                                 </button>
@@ -382,7 +382,7 @@ export default function AddItemsModal({
               <button
                 onClick={handleSave}
                 disabled={cart.length === 0 || saving}
-                className="px-6 py-2.5 bg-[#d8ff3c] hover:bg-cyan-600 text-[#f2f0ea] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving ? (
                   <>

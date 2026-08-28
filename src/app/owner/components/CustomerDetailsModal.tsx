@@ -106,7 +106,7 @@ export default function CustomerDetailsModal({
             `}</style>
             <div
                 style={{
-                    background: '#0f172a', // Slate 950
+                    background: '#0e0e10', // Slate 950
                     borderRadius: isMobile ? 20 : 28,
                     border: '1px solid rgba(255,255,255,0.1)',
                     maxWidth: 1000,

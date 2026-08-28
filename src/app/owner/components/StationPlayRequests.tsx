@@ -167,9 +167,9 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
 
     if (migrationMissing) {
         return (
-            <div className="flex items-start gap-2 border border-amber-500/20 bg-amber-500/10 p-4">
+            <div className="flex items-start gap-2 border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 p-4">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[#ff5c2b]" />
-                <p className="text-[11px] leading-relaxed text-amber-300/90">
+                <p className="text-[11px] leading-relaxed text-[#ff5c2b]/90">
                     Customers cannot pay from a locked PC yet — run migration{' '}
                     <span className="font-mono">20260820000000_station_play_requests.sql</span> in Supabase.
                 </p>
@@ -178,13 +178,13 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
     }
 
     return (
-        <div className="border border-rose-500/25 bg-rose-500/[0.05] p-5">
+        <div className="border border-[#ff5c2b]/25 bg-[#ff5c2b]/[0.05] p-5">
             <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center bg-rose-500/15">
-                    <MonitorPlay size={15} className="text-rose-400" />
+                <div className="flex h-8 w-8 items-center justify-center bg-[#ff5c2b]/15">
+                    <MonitorPlay size={15} className="text-[#ff5c2b]" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-bold text-slate-100">
+                    <h3 className="text-sm font-bold text-[#f2f0ea]">
                         {requests.length} waiting at a PC
                     </h3>
                     <p className="text-[11px] text-[#f2f0ea]/40">
@@ -196,7 +196,7 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
             </div>
 
             {error && (
-                <p className="mt-3 border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300">
+                <p className="mt-3 border border-[#ff5c2b]/25 bg-[#ff5c2b]/10 px-3 py-2 text-[11px] font-semibold text-[#ff5c2b]">
                     {error}
                 </p>
             )}
@@ -210,10 +210,10 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="bg-rose-500/15 px-2 py-0.5 font-mono text-[11px] font-bold uppercase text-rose-300">
+                                    <span className="bg-[#ff5c2b]/15 px-2 py-0.5 font-mono text-[11px] font-bold uppercase text-[#ff5c2b]">
                                         {request.stationName}
                                     </span>
-                                    <span className="text-sm font-bold text-slate-100">
+                                    <span className="text-sm font-bold text-[#f2f0ea]">
                                         {request.customerName}
                                     </span>
                                 </div>
@@ -265,7 +265,7 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                                     type="button"
                                     onClick={() => answer(request, 'approve')}
                                     disabled={busyId === request.id}
-                                    className="inline-flex items-center gap-1.5 bg-[#d8ff3c]/15 px-4 py-2 text-xs font-bold text-emerald-300 transition-colors hover:bg-[#d8ff3c]/25 disabled:opacity-40"
+                                    className="inline-flex items-center gap-1.5 bg-[#d8ff3c]/15 px-4 py-2 text-xs font-bold text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c]/25 disabled:opacity-40"
                                 >
                                     <Check size={13} />
                                     {request.requestType === 'extend'

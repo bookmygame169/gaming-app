@@ -70,10 +70,10 @@ const parseLocalDate = (value: string): Date => {
 };
 
 const CATEGORY_COLORS: Record<InventoryCategory, { bg: string; text: string; bar: string }> = {
-  snacks: { bg: 'bg-amber-500/10', text: 'text-[#ff5c2b]', bar: 'bg-amber-500' },
+  snacks: { bg: 'bg-[#ff5c2b]/10', text: 'text-[#ff5c2b]', bar: 'bg-[#ff5c2b]' },
   cold_drinks: { bg: 'bg-[#d8ff3c]/10', text: 'text-[#d8ff3c]', bar: 'bg-[#d8ff3c]' },
   hot_drinks: { bg: 'bg-[#ff5c2b]/10', text: 'text-[#ff5c2b]', bar: 'bg-[#ff5c2b]' },
-  combo: { bg: 'bg-purple-500/10', text: 'text-purple-500', bar: 'bg-purple-500' },
+  combo: { bg: 'bg-[#d8ff3c]/10', text: 'text-[#d8ff3c]', bar: 'bg-[#d8ff3c]' },
 };
 
 export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) {
@@ -480,7 +480,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="w-full px-4 py-2.5 border border-[#f2f0ea]/10 bg-[#111113] text-[#f2f0ea] focus:border-cyan-500 focus:outline-none"
+                className="w-full px-4 py-2.5 border border-[#f2f0ea]/10 bg-[#111113] text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
               />
             </div>
             <div className="flex-1">
@@ -489,7 +489,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="w-full px-4 py-2.5 border border-[#f2f0ea]/10 bg-[#111113] text-[#f2f0ea] focus:border-cyan-500 focus:outline-none"
+                className="w-full px-4 py-2.5 border border-[#f2f0ea]/10 bg-[#111113] text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
               />
             </div>
             <div className="flex items-end">
@@ -503,7 +503,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">F&B Revenue</p>
@@ -519,7 +519,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           </div>
         </Card>
 
-        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Total Profit</p>
@@ -527,7 +527,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
               <p className="text-xs text-[#f2f0ea]/40 mt-1">After costs</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <div className="p-2 bg-green-500/10 text-green-500">
+              <div className="p-2 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                 <TrendingUp size={18} />
               </div>
               <span className="text-xs text-[#f2f0ea]/50">{stats.profitMargin.toFixed(1)}% margin</span>
@@ -535,7 +535,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           </div>
         </Card>
 
-        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Items Sold</p>
@@ -543,7 +543,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
               <p className="text-xs text-[#f2f0ea]/40 mt-1">Total units</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <div className="p-2 bg-blue-500/10 text-blue-500">
+              <div className="p-2 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                 <ShoppingCart size={18} />
               </div>
               <GrowthIndicator value={stats.itemsChange} />
@@ -551,7 +551,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           </div>
         </Card>
 
-        <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Avg Order</p>
@@ -559,7 +559,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
               <p className="text-xs text-[#f2f0ea]/40 mt-1">Per transaction</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <div className="p-2 bg-amber-500/10 text-[#ff5c2b]">
+              <div className="p-2 bg-[#ff5c2b]/10 text-[#ff5c2b]">
                 <Percent size={18} />
               </div>
             </div>
@@ -622,7 +622,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-[#f2f0ea] flex items-center gap-2">
-                <BarChart3 size={20} className="text-purple-500" />
+                <BarChart3 size={20} className="text-[#d8ff3c]" />
                 Sales by Category
               </h3>
               <p className="text-sm text-[#f2f0ea]/50">Revenue breakdown</p>
@@ -697,7 +697,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
                         <div className="w-full flex flex-col items-center h-full justify-end relative">
                           <div className="w-full max-w-[60px] relative flex items-end h-[120px]">
                             <div
-                              className="w-full bg-[#d8ff3c]/20 border-t-2 border-cyan-500 rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
+                              className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
                               style={{ height: `${barHeight}%` }}
                             >
                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-[#d8ff3c] font-medium whitespace-nowrap">
@@ -763,13 +763,13 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
                         )}
                         {/* Payment badge */}
                         {isOwner ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-400">Owner Use</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Owner Use</span>
                         ) : payMode === 'cash' ? (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-500/15 text-green-400">
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">
                             <Banknote size={10} />Cash
                           </span>
                         ) : payMode === 'upi' ? (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400">
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">
                             <CreditCard size={10} />UPI
                           </span>
                         ) : (
@@ -819,7 +819,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {stockAlerts.outOfStock.length > 0 && (
-              <div className="bg-[#ff5c2b]/10 border border-red-500/20 p-4">
+              <div className="bg-[#ff5c2b]/10 border border-[#ff5c2b]/20 p-4">
                 <h4 className="text-sm font-medium text-[#ff5c2b] mb-2">Out of Stock ({stockAlerts.outOfStock.length})</h4>
                 <div className="space-y-1">
                   {stockAlerts.outOfStock.slice(0, 5).map(item => (
@@ -833,7 +833,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
             )}
 
             {stockAlerts.lowStock.length > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/20 p-4">
+              <div className="bg-[#ff5c2b]/10 border border-[#ff5c2b]/20 p-4">
                 <h4 className="text-sm font-medium text-[#ff5c2b] mb-2">Low Stock ({stockAlerts.lowStock.length})</h4>
                 <div className="space-y-1">
                   {stockAlerts.lowStock.slice(0, 5).map(item => (
