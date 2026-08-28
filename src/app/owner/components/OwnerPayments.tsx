@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-    IndianRupee,
-    Loader2,
-    AlertCircle,
-    Check,
-    X,
-    Save,
-    ShieldAlert,
-} from 'lucide-react';
+    Chips,
+    EmptyRow,
+    Field,
+    Kpis,
+    Panel,
+    PrimaryButton,
+    TableHead,
+    TableRow,
+    Tag,
+} from './consoleUi';
 
 type Claim = {
     id: string;
@@ -54,7 +56,6 @@ const formatWhen = (iso: string) =>
  */
 export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: OwnerPaymentsProps) {
     const [claims, setClaims] = useState<Claim[]>([]);
-    const [pendingCount, setPendingCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
     const [upi, setUpi] = useState(upiId || '');
     const [payeeName, setPayeeName] = useState(upiDisplayName || '');
     const [savingUpi, setSavingUpi] = useState(false);
+    const [filter, setFilter] = useState('waiting');
 
     useEffect(() => {
         setUpi(upiId || '');
@@ -81,7 +83,6 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
             if (!res.ok) throw new Error(data.error || 'Could not load payments');
 
             setClaims(Array.isArray(data.claims) ? data.claims : []);
-            setPendingCount(Number(data.pendingCount) || 0);
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Could not load payments');
@@ -165,218 +166,215 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
 
     const waiting = claims.filter((claim) => claim.status === 'claimed');
     const settled = claims.filter((claim) => claim.status !== 'claimed');
+    const verified = claims.filter((claim) => claim.status === 'verified');
+    const rejected = claims.filter((claim) => claim.status === 'rejected');
+    const mismatched = waiting.filter((claim) => !claim.amountMatches);
+
+    const shown =
+        filter === 'waiting' ? waiting
+        : filter === 'verified' ? verified
+        : filter === 'rejected' ? rejected
+        : claims;
+
+    const COLUMNS = '96px minmax(130px,1.3fr) minmax(120px,1fr) 104px 100px 132px';
 
     return (
-        <div className="flex flex-col gap-4">
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15">
-                        <IndianRupee size={15} className="text-emerald-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-200">Where your money goes</h3>
-                        <p className="text-[11px] text-slate-500">
-                            Your own UPI id. Advance payments go straight to you.
-                        </p>
-                    </div>
+        <div className="flex flex-col gap-[18px]">
+            <Kpis
+                items={[
+                    {
+                        label: 'WAITING ON YOU',
+                        value: String(waiting.length),
+                        tone: waiting.length > 0 ? 'orange' : 'ink',
+                        sub: `₹${waiting.reduce((sum, c) => sum + c.amount, 0).toLocaleString('en-IN')} claimed`,
+                    },
+                    {
+                        label: 'AMOUNT MISMATCH',
+                        value: String(mismatched.length),
+                        tone: mismatched.length > 0 ? 'orange' : 'ink',
+                        sub: mismatched.length > 0 ? 'check these first' : 'all claims match',
+                    },
+                    {
+                        label: 'CONFIRMED',
+                        value: String(verified.length),
+                        tone: 'lime',
+                        sub: `₹${verified.reduce((sum, c) => sum + c.amount, 0).toLocaleString('en-IN')} taken`,
+                    },
+                    {
+                        label: 'NOT RECEIVED',
+                        value: String(rejected.length),
+                        sub: rejected.length > 0 ? 'marked as never arrived' : 'none turned away',
+                    },
+                ]}
+            />
+
+            {/* Where the money is told to go. Wrong here means every UPI QR in
+                the café points at nobody, so it sits above the queue. */}
+            <Panel className="flex flex-wrap items-center gap-3 px-4 py-3.5">
+                <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#d8ff3c]">
+                    PAID INTO
+                </span>
+                <Field value={upi} onChange={setUpi} placeholder="yourname@bank" className="w-[220px]" />
+                <Field
+                    value={payeeName}
+                    onChange={setPayeeName}
+                    placeholder={cafeName || 'Name on the account'}
+                    className="w-[180px]"
+                />
+                <PrimaryButton onClick={saveUpi} disabled={savingUpi}>
+                    {savingUpi ? 'SAVING…' : 'SAVE UPI ID'}
+                </PrimaryButton>
+                <span className="min-w-[10px] flex-1" />
+                <span className="font-mono text-[10.5px] text-[#f2f0ea]/40">
+                    {upiId ? 'CUSTOMERS CAN PAY ONLINE' : 'NO UPI ID · CUSTOMERS ARE SENT TO THE COUNTER'}
+                </span>
+            </Panel>
+
+            {notice && (
+                <div className="border border-[#d8ff3c]/[0.28] bg-[#d8ff3c]/[0.06] px-[15px] py-3 font-mono text-[10.5px] leading-[1.6] tracking-[0.1em] text-[#d8ff3c]">
+                    {notice}
                 </div>
-
-                {error && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
-                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                {notice && (
-                    <div className="mb-4 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3 text-[12px] text-emerald-300">
-                        {notice}
-                    </div>
-                )}
-
-                {!upiId && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-200">
-                        <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                        <span>
-                            No UPI id set, so customers cannot pay online — they are told to pay at
-                            the counter. Add yours below to take advance payments.
-                        </span>
-                    </div>
-                )}
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Your UPI id
-                        </label>
-                        <input
-                            value={upi}
-                            onChange={(e) => setUpi(e.target.value)}
-                            placeholder="yourname@okhdfcbank"
-                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Name customers will see
-                        </label>
-                        <input
-                            value={payeeName}
-                            onChange={(e) => setPayeeName(e.target.value)}
-                            placeholder={cafeName || 'Your café name'}
-                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                        />
-                    </div>
+            )}
+            {error && (
+                <div className="border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#ff5c2b]">
+                    {error}
                 </div>
+            )}
 
-                <button
-                    type="button"
-                    onClick={saveUpi}
-                    disabled={!cafeId || savingUpi}
-                    className="mt-4 flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-[12px] font-bold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
-                >
-                    {savingUpi ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                    Save
-                </button>
-            </section>
+            <div className="flex flex-wrap items-center gap-[9px]">
+                <Chips
+                    items={[
+                        { id: 'waiting', label: 'WAITING', count: waiting.length },
+                        { id: 'verified', label: 'CONFIRMED', count: verified.length },
+                        { id: 'rejected', label: 'NOT RECEIVED', count: rejected.length },
+                        { id: 'all', label: 'ALL', count: claims.length },
+                    ]}
+                    active={filter}
+                    onPick={setFilter}
+                />
+                <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                <span className="whitespace-nowrap font-mono text-[10.5px] text-[#f2f0ea]/40">
+                    {loading ? 'LOADING…' : `${settled.length} SETTLED`}
+                </span>
+            </div>
 
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-4">
-                    <h3 className="text-sm font-bold text-slate-200">
-                        Payments to check
-                        {pendingCount > 0 && (
-                            <span className="ml-2 rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-400">
-                                {pendingCount}
-                            </span>
-                        )}
-                    </h3>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                        Match the reference against your UPI app, then confirm. Confirming is what
-                        releases the booking and unlocks the machine.
-                    </p>
-                </div>
+            <Panel>
+                <TableHead columns={COLUMNS}>
+                    <span>WHEN</span>
+                    <span>CUSTOMER</span>
+                    <span>AGAINST</span>
+                    <span className="text-right">REFERENCE</span>
+                    <span className="text-right">AMOUNT</span>
+                    <span className="text-right">ACTIONS</span>
+                </TableHead>
 
-                {loading && (
-                    <div className="flex items-center gap-2 py-6 text-[12px] text-slate-500">
-                        <Loader2 size={14} className="animate-spin" /> Loading…
-                    </div>
-                )}
+                {shown.length === 0 ? (
+                    <EmptyRow>
+                        {claims.length === 0
+                            ? 'No payment claims yet. They appear the moment a customer says they have paid.'
+                            : 'Nothing under this filter.'}
+                    </EmptyRow>
+                ) : (
+                    shown.map((claim) => {
+                        const isWaiting = claim.status === 'claimed';
+                        const edge = isWaiting
+                            ? claim.amountMatches ? '#d8ff3c' : '#ff5c2b'
+                            : claim.status === 'verified' ? 'rgba(216,255,60,.4)' : 'rgba(242,240,234,.2)';
 
-                {!loading && waiting.length === 0 && (
-                    <p className="py-6 text-center text-[12px] text-slate-500">
-                        Nothing waiting. Customers who pay online show up here.
-                    </p>
-                )}
-
-                <div className="flex flex-col gap-2">
-                    {waiting.map((claim) => (
-                        <div
-                            key={claim.id}
-                            className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] p-3"
-                        >
-                            <div className="flex flex-wrap items-center gap-3">
-                                <div className="min-w-[140px] flex-1">
-                                    <p className="text-[13px] font-bold text-slate-200">
-                                        {claim.customerName || claim.customerPhone || 'Customer'}
-                                    </p>
-                                    <p className="text-[11px] text-slate-500">
+                        return (
+                            <TableRow key={claim.id} columns={COLUMNS} edge={edge}>
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="whitespace-nowrap font-mono text-[11.5px] text-[#f2f0ea]/80">
+                                        {formatWhen(claim.createdAt).toUpperCase()}
+                                    </span>
+                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
                                         #{claim.shortId}
-                                        {claim.bookingDate ? ` · ${claim.bookingDate}` : ''}
-                                        {claim.startTime ? ` ${claim.startTime}` : ''}
-                                    </p>
+                                    </span>
                                 </div>
 
-                                <div>
-                                    <p className="text-[15px] font-bold text-slate-100">
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
+                                        {claim.customerName || 'Guest'}
+                                    </span>
+                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                        {claim.customerPhone || '—'}
+                                    </span>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate font-mono text-[11.5px] text-[#f2f0ea]/75">
+                                        {claim.bookingDate || '—'}
+                                    </span>
+                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                        {claim.startTime || ''}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/60">
+                                        {claim.reference || 'NO REF'}
+                                    </span>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-[3px] text-right">
+                                    <span
+                                        className="whitespace-nowrap text-[13.5px] font-extrabold"
+                                        style={{ color: claim.amountMatches ? '#f2f0ea' : '#ff5c2b' }}
+                                    >
                                         ₹{claim.amount.toLocaleString('en-IN')}
-                                    </p>
-                                    {/* The one thing most worth catching: a claim
-                                        that does not match what is owed. */}
-                                    {!claim.amountMatches && (
-                                        <p className="text-[10px] font-semibold text-amber-400">
-                                            booking says ₹{claim.expectedAmount.toLocaleString('en-IN')}
-                                        </p>
+                                    </span>
+                                    {/* The one number worth arguing with: what
+                                        they say they sent against what the
+                                        booking costs. */}
+                                    <span
+                                        className="whitespace-nowrap font-mono text-[10px]"
+                                        style={{ color: claim.amountMatches ? 'rgba(242,240,234,.35)' : '#ff5c2b' }}
+                                    >
+                                        {claim.amountMatches
+                                            ? claim.status.toUpperCase()
+                                            : `EXPECTED ₹${claim.expectedAmount.toLocaleString('en-IN')}`}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-end gap-[5px]">
+                                    {isWaiting ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                disabled={actioningId === claim.id}
+                                                onClick={() => act(claim.id, 'verify')}
+                                                title="Confirm the money arrived — this releases the booking"
+                                                className="flex h-[26px] items-center border border-[#d8ff3c] bg-[#d8ff3c]/[0.10] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c]/20 disabled:opacity-40"
+                                            >
+                                                {actioningId === claim.id ? '…' : 'CONFIRM'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={actioningId === claim.id}
+                                                onClick={() => act(claim.id, 'reject')}
+                                                title="Mark as never received"
+                                                className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#ff5c2b] hover:text-[#ff5c2b] disabled:opacity-40"
+                                            >
+                                                NO
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <Tag tone={claim.status === 'verified' ? 'lime' : 'muted'}>
+                                            {claim.status.toUpperCase()}
+                                        </Tag>
                                     )}
                                 </div>
-
-                                <div className="min-w-[120px]">
-                                    <p className="text-[10px] uppercase tracking-wide text-slate-500">
-                                        Reference
-                                    </p>
-                                    <p className="font-mono text-[12px] text-slate-300">
-                                        {claim.reference || '—'}
-                                    </p>
-                                </div>
-
-                                <span className="text-[11px] text-slate-500">
-                                    {formatWhen(claim.createdAt)}
-                                </span>
-
-                                <div className="flex gap-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => act(claim.id, 'verify')}
-                                        disabled={actioningId === claim.id}
-                                        className="flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
-                                    >
-                                        {actioningId === claim.id ? (
-                                            <Loader2 size={11} className="animate-spin" />
-                                        ) : (
-                                            <Check size={11} />
-                                        )}
-                                        Got it
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => act(claim.id, 'reject')}
-                                        disabled={actioningId === claim.id}
-                                        className="flex items-center gap-1 rounded-lg border border-white/[0.08] px-3 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:text-red-400 disabled:opacity-40"
-                                    >
-                                        <X size={11} />
-                                        Not received
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {settled.length > 0 && (
-                    <div className="mt-5">
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                            Already checked
-                        </p>
-                        <div className="flex flex-col gap-1.5">
-                            {settled.slice(0, 20).map((claim) => (
-                                <div
-                                    key={claim.id}
-                                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.02] px-3 py-2"
-                                >
-                                    <span className="text-[12px] text-slate-300">
-                                        #{claim.shortId} · {claim.customerName || claim.customerPhone || 'Customer'}
-                                    </span>
-                                    <span className="font-mono text-[11px] text-slate-500">
-                                        {claim.reference || '—'}
-                                    </span>
-                                    <span className="text-[12px] text-slate-400">
-                                        ₹{claim.amount.toLocaleString('en-IN')}
-                                    </span>
-                                    <span
-                                        className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase"
-                                        style={
-                                            claim.status === 'verified'
-                                                ? { background: 'rgba(34,197,94,0.12)', color: '#4ade80' }
-                                                : { background: 'rgba(239,68,68,0.12)', color: '#f87171' }
-                                        }
-                                    >
-                                        {claim.status === 'verified' ? 'Received' : 'Not received'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                            </TableRow>
+                        );
+                    })
                 )}
-            </section>
+
+                <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] leading-[1.7] text-[#f2f0ea]/40">
+                    {/* Said plainly, because the button says CONFIRM and it
+                        would be easy to read that as the app having checked. */}
+                    NOTHING HERE CAN SEE YOUR BANK. CONFIRM MEANS YOU CHECKED AND THE MONEY IS THERE.
+                </div>
+            </Panel>
         </div>
     );
 }
