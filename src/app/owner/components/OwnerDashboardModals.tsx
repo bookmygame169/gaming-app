@@ -94,7 +94,7 @@ export function OwnerDashboardModals() {
         const diffLabel = !hasChange
           ? 'No change yet'
           : `${diffMinutes > 0 ? 'Extends by' : 'Reduces by'} ${formatDurationLabel(Math.abs(diffMinutes), { long: true })}`;
-        const diffTone = diffMinutes > 0 ? 'text-cyan-200' : diffMinutes < 0 ? 'text-rose-200' : 'text-slate-400';
+        const diffTone = diffMinutes > 0 ? 'text-cyan-200' : diffMinutes < 0 ? 'text-rose-200' : 'text-[#f2f0ea]/50';
         const adjustDuration = (delta: number) => {
           setTimeAdjustment((prev: TimeAdjustmentTarget | null) => prev ? {
             ...prev,
@@ -104,24 +104,24 @@ export function OwnerDashboardModals() {
 
         return (
           <div
-            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-4"
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0b0b0c]/90 backdrop-blur-sm p-4"
             onClick={() => {
               if (!savingTimeAdjustment) setTimeAdjustment(null);
             }}
           >
             <div
-              className="w-full max-w-sm overflow-hidden rounded-[26px] border border-white/[0.08] bg-[#090d14] shadow-2xl"
+              className="w-full max-w-sm overflow-hidden rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113] shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
+              <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-5 py-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#d8ff3c]/15 text-cyan-300">
                       <Clock3 size={17} />
                     </span>
                     <div className="min-w-0">
-                      <h2 className="text-base font-bold text-white">Add or remove time</h2>
-                      <p className="truncate text-xs text-slate-500">
+                      <h2 className="text-base font-bold text-[#f2f0ea]">Add or remove time</h2>
+                      <p className="truncate text-xs text-[#f2f0ea]/40">
                         {timeAdjustment.stationName} · {timeAdjustment.customerName}
                       </p>
                     </div>
@@ -131,7 +131,7 @@ export function OwnerDashboardModals() {
                   type="button"
                   disabled={savingTimeAdjustment}
                   onClick={() => setTimeAdjustment(null)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-slate-400 transition hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 transition hover:bg-white/[0.1] hover:text-[#f2f0ea] disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label="Close time adjustment"
                 >
                   <X size={16} />
@@ -139,15 +139,15 @@ export function OwnerDashboardModals() {
               </div>
 
               <div className="space-y-4 p-5">
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                <div className="border border-[#f2f0ea]/10 bg-white/[0.035] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Current</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-300">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f2f0ea]/40">Current</p>
+                      <p className="mt-1 text-sm font-semibold text-[#f2f0ea]/70">
                         {formatDurationLabel(timeAdjustment.currentDuration, { long: true })}
                       </p>
                     </div>
-                    <ChevronRight size={18} className="text-slate-600" />
+                    <ChevronRight size={18} className="text-[#f2f0ea]/30" />
                     <div className="text-right">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/70">New</p>
                       <p className="mt-1 text-2xl font-black tracking-tight text-cyan-100">
@@ -169,9 +169,9 @@ export function OwnerDashboardModals() {
                       type="button"
                       disabled={savingTimeAdjustment || (option.delta < 0 && timeAdjustment.nextDuration <= 30)}
                       onClick={() => adjustDuration(option.delta)}
-                      className={`flex h-12 items-center justify-center rounded-2xl border text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                      className={`flex h-12 items-center justify-center  border text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-35 ${
                         option.tone === 'add'
-                          ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-100 hover:border-cyan-400/50 hover:bg-cyan-500/18'
+                          ? 'border-cyan-500/25 bg-[#d8ff3c]/10 text-cyan-100 hover:border-cyan-400/50 hover:bg-[#d8ff3c]/18'
                           : 'border-rose-500/25 bg-rose-500/10 text-rose-100 hover:border-rose-400/50 hover:bg-rose-500/18'
                       }`}
                     >
@@ -180,18 +180,18 @@ export function OwnerDashboardModals() {
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3">
-                  <span className="text-sm text-slate-500">Change</span>
+                <div className="flex items-center justify-between border border-[#f2f0ea]/10 bg-white/[0.035] px-4 py-3">
+                  <span className="text-sm text-[#f2f0ea]/40">Change</span>
                   <span className={`text-sm font-bold ${diffTone}`}>{diffLabel}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 border-t border-white/[0.08] bg-white/[0.025] px-5 py-4">
+              <div className="grid grid-cols-2 gap-3 border-t border-[#f2f0ea]/10 bg-white/[0.025] px-5 py-4">
                 <button
                   type="button"
                   disabled={savingTimeAdjustment}
                   onClick={() => setTimeAdjustment(null)}
-                  className="h-11 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 text-sm font-semibold text-slate-300 transition hover:border-white/[0.18] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-11 border border-white/[0.1] bg-[#f2f0ea]/[0.04] px-4 text-sm font-semibold text-[#f2f0ea]/70 transition hover:border-white/[0.18] hover:text-[#f2f0ea] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -199,7 +199,7 @@ export function OwnerDashboardModals() {
                   type="button"
                   disabled={savingTimeAdjustment || !hasChange}
                   onClick={handleSaveTimeAdjustment}
-                  className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                  className="flex h-11 items-center justify-center gap-2 bg-cyan-400 px-4 text-sm font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-[#f2f0ea]/50 disabled:shadow-none"
                 >
                   {savingTimeAdjustment ? (
                     <Loader2 size={16} className="animate-spin" />

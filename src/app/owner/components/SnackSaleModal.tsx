@@ -213,46 +213,46 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-        <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white/[0.03] border border-white/[0.09]/60 shadow-2xl overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0b0c]/90 backdrop-blur-sm">
+        <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#f2f0ea]/10 bg-[#111113]/60 shadow-2xl overflow-hidden">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.09]/40">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2f0ea]/10/40">
             <div className="flex items-center gap-2.5">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isOwnerUse ? 'bg-purple-500/15' : 'bg-orange-500/15'}`}>
+              <div className={`w-8 h-8  flex items-center justify-center ${isOwnerUse ? 'bg-purple-500/15' : 'bg-orange-500/15'}`}>
                 <ShoppingCart size={16} className={isOwnerUse ? 'text-purple-400' : 'text-orange-400'} />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">Snack Sale</h2>
-                <p className="text-[11px] text-slate-500">No gaming session required</p>
+                <p className="text-[11px] text-[#f2f0ea]/40">No gaming session required</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/[0.08]/60 text-slate-400 hover:text-slate-200 transition-colors">
+            <button onClick={onClose} className="p-1.5 hover:bg-white/[0.08]/60 text-[#f2f0ea]/50 hover:text-[#f2f0ea] transition-colors">
               <X size={16} />
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {/* Customer / Owner Toggle */}
-            <div className="px-5 py-4 border-b border-white/[0.09]/30">
-              <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wide mb-2.5">Who is this for?</p>
+            <div className="px-5 py-4 border-b border-[#f2f0ea]/10/30">
+              <p className="text-[11px] text-[#f2f0ea]/40 font-medium uppercase tracking-wide mb-2.5">Who is this for?</p>
               <div className="flex gap-2 mb-4">
                 <button
                   onClick={() => setIsOwnerUse(false)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5  text-sm font-medium transition-all border ${
                     !isOwnerUse
                       ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
-                      : "bg-white/[0.06] border-slate-600/40 text-slate-400 hover:border-slate-500"
+                      : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
                   }`}
                 >
                   <User size={14} /> Customer
                 </button>
                 <button
                   onClick={() => setIsOwnerUse(true)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5  text-sm font-medium transition-all border ${
                     isOwnerUse
                       ? "bg-purple-500/15 border-purple-500/40 text-purple-400"
-                      : "bg-white/[0.06] border-slate-600/40 text-slate-400 hover:border-slate-500"
+                      : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
                   }`}
                 >
                   <Lock size={14} /> Owner (Me)
@@ -261,7 +261,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
 
               {/* Owner info notice */}
               {isOwnerUse ? (
-                <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-purple-500/8 border border-purple-500/20">
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-purple-500/8 border border-purple-500/20">
                   <Lock size={12} className="text-purple-400 mt-0.5 shrink-0" />
                   <p className="text-[11px] text-purple-300/80">
                     Recorded as owner use. <span className="font-semibold">Not counted in revenue.</span> PIN required to confirm.
@@ -270,7 +270,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="relative" ref={suggestionsRef}>
-                    <label className="text-[11px] text-slate-500 font-medium uppercase tracking-wide block mb-1.5">Customer Name (optional)</label>
+                    <label className="text-[11px] text-[#f2f0ea]/40 font-medium uppercase tracking-wide block mb-1.5">Customer Name (optional)</label>
                     <input
                       type="text"
                       value={customerName}
@@ -278,10 +278,10 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                       onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                       placeholder="Walk-in customer"
                       autoComplete="off"
-                      className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-slate-600/50 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                      className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-slate-600/50 text-sm text-[#f2f0ea] placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                      <div className="absolute z-10 left-0 right-0 mt-1 rounded-xl bg-white/[0.06] border border-slate-600/60 shadow-xl overflow-hidden">
+                      <div className="absolute z-10 left-0 right-0 mt-1 bg-[#f2f0ea]/[0.06] border border-slate-600/60 shadow-xl overflow-hidden">
                         {suggestions.map((s, i) => (
                           <button
                             key={i}
@@ -292,26 +292,26 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                               setCustomerPhone(s.phone || "");
                               setShowSuggestions(false);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/[0.08]/60 transition-colors border-b border-white/[0.09]/30 last:border-0"
+                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/[0.08]/60 transition-colors border-b border-[#f2f0ea]/10/30 last:border-0"
                           >
                             <div>
-                              <p className="text-sm text-slate-200 font-medium">{s.name}</p>
-                              {s.phone && <p className="text-[11px] text-slate-500">{s.phone}</p>}
+                              <p className="text-sm text-[#f2f0ea] font-medium">{s.name}</p>
+                              {s.phone && <p className="text-[11px] text-[#f2f0ea]/40">{s.phone}</p>}
                             </div>
-                            <ChevronRight size={12} className="text-slate-600 shrink-0" />
+                            <ChevronRight size={12} className="text-[#f2f0ea]/30 shrink-0" />
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-500 font-medium uppercase tracking-wide block mb-1.5">Phone (optional)</label>
+                    <label className="text-[11px] text-[#f2f0ea]/40 font-medium uppercase tracking-wide block mb-1.5">Phone (optional)</label>
                     <input
                       type="tel"
                       value={customerPhone}
                       onChange={e => setCustomerPhone(e.target.value)}
                       placeholder="9XXXXXXXXX"
-                      className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-slate-600/50 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                      className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-slate-600/50 text-sm text-[#f2f0ea] placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
                     />
                   </div>
                 </div>
@@ -322,20 +322,20 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => setPaymentMode("cash")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all border ${
+                    className={`flex-1 flex items-center justify-center gap-2 py-2  text-sm font-medium transition-all border ${
                       paymentMode === "cash"
-                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-                        : "bg-white/[0.06] border-slate-600/40 text-slate-400 hover:border-slate-500"
+                        ? "bg-[#d8ff3c]/15 border-emerald-500/40 text-[#d8ff3c]"
+                        : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
                     }`}
                   >
                     <Banknote size={14} /> Cash
                   </button>
                   <button
                     onClick={() => setPaymentMode("online")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all border ${
+                    className={`flex-1 flex items-center justify-center gap-2 py-2  text-sm font-medium transition-all border ${
                       paymentMode === "online"
                         ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
-                        : "bg-white/[0.06] border-slate-600/40 text-slate-400 hover:border-slate-500"
+                        : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/50 hover:border-slate-500"
                     }`}
                   >
                     <Smartphone size={14} /> UPI / Online
@@ -345,15 +345,15 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
             </div>
 
             {/* Search + Category Filter */}
-            <div className="px-5 py-3 border-b border-white/[0.09]/30 flex gap-2">
+            <div className="px-5 py-3 border-b border-[#f2f0ea]/10/30 flex gap-2">
               <div className="relative flex-1">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#f2f0ea]/40" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search items..."
-                  className="w-full pl-8 pr-3 py-2 rounded-lg bg-white/[0.06] border border-slate-600/50 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                  className="w-full pl-8 pr-3 py-2 bg-[#f2f0ea]/[0.06] border border-slate-600/50 text-sm text-[#f2f0ea] placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
                 />
               </div>
               <div className="flex gap-1.5 flex-wrap">
@@ -361,10 +361,10 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
+                    className={`px-2.5 py-1.5  text-[11px] font-medium transition-all border ${
                       selectedCategory === cat
                         ? "bg-orange-500/15 border-orange-500/30 text-orange-400"
-                        : "bg-white/[0.06] border-slate-600/40 text-slate-500 hover:text-slate-300"
+                        : "bg-[#f2f0ea]/[0.06] border-slate-600/40 text-[#f2f0ea]/40 hover:text-[#f2f0ea]/70"
                     }`}
                   >
                     {cat === "all" ? "All" : CATEGORY_LABELS[cat]}
@@ -376,9 +376,9 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
             {/* Items Grid */}
             <div className="px-5 py-4">
               {loading ? (
-                <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-slate-500" /></div>
+                <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[#f2f0ea]/40" /></div>
               ) : items.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 text-sm">No inventory items available</div>
+                <div className="text-center py-8 text-[#f2f0ea]/40 text-sm">No inventory items available</div>
               ) : (
                 Object.entries(groupedItems).map(([category, categoryItems]) => {
                   const config = CATEGORY_CONFIG[category as InventoryCategory];
@@ -386,7 +386,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                     <div key={category} className="mb-5">
                       <div className="flex items-center gap-1.5 mb-2.5">
                         <span style={{ color: config?.color }}>{config?.icon}</span>
-                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        <span className="text-xs font-semibold text-[#f2f0ea]/50 uppercase tracking-wide">
                           {CATEGORY_LABELS[category as InventoryCategory] || category}
                         </span>
                       </div>
@@ -397,34 +397,34 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                           return (
                             <div
                               key={item.id}
-                              className={`relative rounded-xl p-3 border transition-all ${
+                              className={`relative  p-3 border transition-all ${
                                 qty > 0
                                   ? isOwnerUse ? "bg-purple-500/10 border-purple-500/30" : "bg-orange-500/10 border-orange-500/30"
-                                  : "bg-white/[0.04] border-white/[0.09]/40 hover:border-slate-600"
+                                  : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10/40 hover:border-slate-600"
                               }`}
                             >
                               <div className="flex items-start justify-between mb-1.5">
-                                <span className="text-sm font-medium text-slate-200 leading-tight pr-1">{item.name}</span>
+                                <span className="text-sm font-medium text-[#f2f0ea] leading-tight pr-1">{item.name}</span>
                                 {qty > 0 && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0 ${isOwnerUse ? 'bg-purple-500' : 'bg-orange-500'}`}>{qty}</span>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-[#f2f0ea] shrink-0 ${isOwnerUse ? 'bg-purple-500' : 'bg-orange-500'}`}>{qty}</span>
                                 )}
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-emerald-400">₹{item.price}</span>
-                                <span className="text-[10px] text-slate-600">{item.stock_quantity} left</span>
+                                <span className="text-xs font-semibold text-[#d8ff3c]">₹{item.price}</span>
+                                <span className="text-[10px] text-[#f2f0ea]/30">{item.stock_quantity} left</span>
                               </div>
                               <div className="flex items-center gap-1.5 mt-2">
                                 {qty > 0 ? (
                                   <>
-                                    <button onClick={() => removeFromCart(item.id)} className="flex-1 flex items-center justify-center h-7 rounded-lg bg-white/[0.08] hover:bg-white/[0.10] text-slate-300 transition-colors">
+                                    <button onClick={() => removeFromCart(item.id)} className="flex-1 flex items-center justify-center h-7 bg-white/[0.08] hover:bg-white/[0.10] text-[#f2f0ea]/70 transition-colors">
                                       <Minus size={12} />
                                     </button>
-                                    <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className={`flex-1 flex items-center justify-center h-7 rounded-lg transition-colors disabled:opacity-40 ${isOwnerUse ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-400' : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-400'}`}>
+                                    <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className={`flex-1 flex items-center justify-center h-7  transition-colors disabled:opacity-40 ${isOwnerUse ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-400' : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-400'}`}>
                                       <Plus size={12} />
                                     </button>
                                   </>
                                 ) : (
-                                  <button onClick={() => addToCart(item)} className={`w-full flex items-center justify-center gap-1 h-7 rounded-lg bg-white/[0.08] text-slate-400 text-xs font-medium transition-all ${isOwnerUse ? 'hover:bg-purple-500/20 hover:text-purple-400' : 'hover:bg-orange-500/20 hover:text-orange-400'}`}>
+                                  <button onClick={() => addToCart(item)} className={`w-full flex items-center justify-center gap-1 h-7  bg-white/[0.08] text-[#f2f0ea]/50 text-xs font-medium transition-all ${isOwnerUse ? 'hover:bg-purple-500/20 hover:text-purple-400' : 'hover:bg-orange-500/20 hover:text-orange-400'}`}>
                                     <Plus size={11} /> Add
                                   </button>
                                 )}
@@ -441,11 +441,11 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
           </div>
 
           {/* Footer */}
-          <div className="border-t border-white/[0.09]/40 px-5 py-4 bg-white/[0.03]">
+          <div className="border-t border-[#f2f0ea]/10/40 px-5 py-4 bg-[#111113]">
             {cart.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {cart.map(c => (
-                  <span key={c.inventory_item_id} className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.08]/60 text-slate-300 border border-slate-600/30">
+                  <span key={c.inventory_item_id} className="text-[11px] px-2 py-0.5 bg-white/[0.08]/60 text-[#f2f0ea]/70 border border-slate-600/30">
                     {c.name} ×{c.quantity} <span className={isOwnerUse ? 'text-purple-400' : 'text-orange-400'}>₹{c.total_price}</span>
                   </span>
                 ))}
@@ -454,10 +454,10 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 {cart.length === 0 ? (
-                  <p className="text-sm text-slate-600">Add items to proceed</p>
+                  <p className="text-sm text-[#f2f0ea]/30">Add items to proceed</p>
                 ) : (
                   <div>
-                    <span className="text-xs text-slate-500">{cartCount} item{cartCount !== 1 ? "s" : ""} · </span>
+                    <span className="text-xs text-[#f2f0ea]/40">{cartCount} item{cartCount !== 1 ? "s" : ""} · </span>
                     {isOwnerUse
                       ? <span className="text-base font-bold text-purple-400">Owner Use</span>
                       : <span className="text-base font-bold text-slate-100">₹{cartTotal.toLocaleString()}</span>
@@ -468,14 +468,14 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
               <button
                 onClick={handleConfirmClick}
                 disabled={cart.length === 0 || saving || done}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                className={`flex items-center gap-2 px-5 py-2.5  text-sm font-semibold transition-all ${
                   done
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    ? "bg-[#d8ff3c]/20 text-[#d8ff3c] border border-emerald-500/30"
                     : cart.length === 0
-                    ? "bg-white/[0.06] text-slate-600 cursor-not-allowed"
+                    ? "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/30 cursor-not-allowed"
                     : isOwnerUse
-                    ? "bg-purple-500 hover:bg-purple-400 text-white shadow-lg shadow-purple-500/20"
-                    : "bg-orange-500 hover:bg-orange-400 text-white shadow-lg shadow-orange-500/20"
+                    ? "bg-purple-500 hover:bg-purple-400 text-[#f2f0ea] shadow-lg shadow-purple-500/20"
+                    : "bg-orange-500 hover:bg-orange-400 text-[#f2f0ea] shadow-lg shadow-orange-500/20"
                 }`}
               >
                 {done ? <><Check size={14} /> Saved!</>

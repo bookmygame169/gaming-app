@@ -272,3 +272,70 @@ export function EmptyRow({ children }: { children: ReactNode }) {
         <div className="px-4 py-8 font-mono text-[11.5px] text-[#f2f0ea]/45">{children}</div>
     );
 }
+
+/**
+ * The shell every dialog in the console sits in.
+ *
+ * Four modals were each drawing their own backdrop, panel, title bar and
+ * close button, at four different corner radii and three different blacks.
+ * One shell means a dialog opened from any tab looks like it belongs to the
+ * same tool as the page behind it.
+ */
+export function ModalShell({
+    title,
+    subtitle,
+    onClose,
+    width = 'md',
+    footer,
+    children,
+}: {
+    title: string;
+    subtitle?: string;
+    onClose: () => void;
+    /** md suits a form; lg suits a form with a list beside it. */
+    width?: 'sm' | 'md' | 'lg';
+    footer?: ReactNode;
+    children: ReactNode;
+}) {
+    const widths = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
+
+    return (
+        <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0b0b0c]/90 p-4 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <div
+                className={`flex max-h-[92vh] w-full flex-col overflow-hidden border border-[#f2f0ea]/[0.14] bg-[#111113] ${widths[width]}`}
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#f2f0ea]/10 px-5 py-4">
+                    <div className="min-w-0">
+                        <div className="truncate text-base font-extrabold tracking-[-0.01em] text-[#f2f0ea]">
+                            {title}
+                        </div>
+                        {subtitle && (
+                            <div className="mt-1 truncate font-mono text-[10.5px] tracking-[0.1em] text-[#f2f0ea]/[0.42]">
+                                {subtitle}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="shrink-0 font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/40 transition-colors hover:text-[#f2f0ea]"
+                    >
+                        CLOSE
+                    </button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+
+                {footer && (
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[#f2f0ea]/10 px-5 py-4">
+                        {footer}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

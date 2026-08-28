@@ -185,47 +185,47 @@ export default function AddItemsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-      <div className="bg-white/[0.03] border border-white/[0.09] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0b0c]/90 backdrop-blur-sm">
+      <div className="border border-[#f2f0ea]/10 bg-[#111113] w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.09]">
+        <div className="flex items-center justify-between p-4 border-b border-[#f2f0ea]/10">
           <div>
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-cyan-500" />
+            <h3 className="text-xl font-bold text-[#f2f0ea] flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-[#d8ff3c]" />
               Add Items
             </h3>
-            <p className="text-sm text-slate-400 mt-0.5">
+            <p className="text-sm text-[#f2f0ea]/50 mt-0.5">
               Customer: {customerName}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/[0.06] rounded-lg transition"
+            className="p-2 hover:bg-[#f2f0ea]/[0.06] transition"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="w-5 h-5 text-[#f2f0ea]/50" />
           </button>
         </div>
 
         {/* Search & Filter */}
-        <div className="p-4 border-b border-white/[0.09] space-y-3">
+        <div className="p-4 border-b border-[#f2f0ea]/10 space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#f2f0ea]/50" />
             <input
               type="text"
               placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white/[0.06] border border-white/[0.09] rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-slate-400 focus:outline-none focus:border-cyan-500"
             />
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+              className={`px-3 py-1.5  text-sm font-medium whitespace-nowrap transition ${
                 selectedCategory === "all"
-                  ? "bg-cyan-500 text-white"
-                  : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.08]"
+                  ? "bg-[#d8ff3c] text-[#f2f0ea]"
+                  : "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70 hover:bg-white/[0.08]"
               }`}
             >
               All
@@ -236,10 +236,10 @@ export default function AddItemsModal({
                 <button
                   key={key}
                   onClick={() => setSelectedCategory(key as InventoryCategory)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5  text-sm font-medium whitespace-nowrap transition ${
                     selectedCategory === key
-                      ? "text-white"
-                      : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.08]"
+                      ? "text-[#f2f0ea]"
+                      : "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70 hover:bg-white/[0.08]"
                   }`}
                   style={selectedCategory === key ? { backgroundColor: config.color } : {}}
                 >
@@ -255,12 +255,12 @@ export default function AddItemsModal({
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#d8ff3c]" />
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-12">
-              <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">No items available</p>
+              <Package className="w-12 h-12 text-[#f2f0ea]/30 mx-auto mb-3" />
+              <p className="text-[#f2f0ea]/50">No items available</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -270,12 +270,12 @@ export default function AddItemsModal({
                   <div key={category}>
                     <div className="flex items-center gap-2 mb-3">
                       <div
-                        className="p-1.5 rounded-lg"
+                        className="p-1.5 "
                         style={{ backgroundColor: `${config.color}20` }}
                       >
                         <div style={{ color: config.color }}>{config.icon}</div>
                       </div>
-                      <h4 className="font-semibold text-white">
+                      <h4 className="font-semibold text-[#f2f0ea]">
                         {CATEGORY_LABELS[category as InventoryCategory]}
                       </h4>
                     </div>
@@ -288,20 +288,20 @@ export default function AddItemsModal({
                         return (
                           <div
                             key={item.id}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition ${
+                            className={`flex items-center justify-between p-3  border transition ${
                               qty > 0
-                                ? "bg-cyan-500/10 border-cyan-500/30"
-                                : "bg-white/[0.04] border-white/[0.09] hover:border-slate-600"
+                                ? "bg-[#d8ff3c]/10 border-cyan-500/30"
+                                : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10 hover:border-slate-600"
                             }`}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-white truncate">
+                              <div className="font-medium text-[#f2f0ea] truncate">
                                 {item.name}
                               </div>
-                              <div className="text-sm text-cyan-400 font-semibold">
+                              <div className="text-sm text-[#d8ff3c] font-semibold">
                                 ₹{item.price}
                               </div>
-                              <div className="text-xs text-slate-500">
+                              <div className="text-xs text-[#f2f0ea]/40">
                                 Stock: {item.stock_quantity}
                               </div>
                             </div>
@@ -311,17 +311,17 @@ export default function AddItemsModal({
                                 <>
                                   <button
                                     onClick={() => removeFromCart(item.id)}
-                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-white rounded-lg transition"
+                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.10] text-[#f2f0ea] transition"
                                   >
                                     <Minus className="w-4 h-4" />
                                   </button>
-                                  <span className="w-8 text-center font-bold text-white">
+                                  <span className="w-8 text-center font-bold text-[#f2f0ea]">
                                     {qty}
                                   </span>
                                   <button
                                     onClick={() => addToCart(item)}
                                     disabled={isMaxed}
-                                    className="w-8 h-8 flex items-center justify-center bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 flex items-center justify-center bg-[#d8ff3c] hover:bg-cyan-600 text-[#f2f0ea] transition disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
@@ -329,7 +329,7 @@ export default function AddItemsModal({
                               ) : (
                                 <button
                                   onClick={() => addToCart(item)}
-                                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-lg transition"
+                                  className="px-4 py-2 bg-[#d8ff3c] hover:bg-cyan-600 text-[#f2f0ea] text-sm font-medium transition"
                                 >
                                   Add
                                 </button>
@@ -347,19 +347,19 @@ export default function AddItemsModal({
         </div>
 
         {/* Cart Summary & Actions */}
-        <div className="border-t border-white/[0.09] p-4">
+        <div className="border-t border-[#f2f0ea]/10 p-4">
           {cart.length > 0 && (
             <div className="mb-4 space-y-2">
-              <div className="text-sm text-slate-400">Cart Items:</div>
+              <div className="text-sm text-[#f2f0ea]/50">Cart Items:</div>
               <div className="flex flex-wrap gap-2">
                 {cart.map((item) => (
                   <div
                     key={item.inventory_item_id}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.06] rounded-lg text-sm"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[#f2f0ea]/[0.06] text-sm"
                   >
-                    <span className="text-white">{item.name}</span>
-                    <span className="text-slate-400">x{item.quantity}</span>
-                    <span className="text-cyan-400">₹{item.total_price}</span>
+                    <span className="text-[#f2f0ea]">{item.name}</span>
+                    <span className="text-[#f2f0ea]/50">x{item.quantity}</span>
+                    <span className="text-[#d8ff3c]">₹{item.total_price}</span>
                   </div>
                 ))}
               </div>
@@ -368,21 +368,21 @@ export default function AddItemsModal({
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-slate-400">Total</div>
-              <div className="text-2xl font-bold text-cyan-400">₹{cartTotal}</div>
+              <div className="text-sm text-[#f2f0ea]/50">Total</div>
+              <div className="text-2xl font-bold text-[#d8ff3c]">₹{cartTotal}</div>
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 bg-white/[0.06] hover:bg-white/[0.08] text-white rounded-xl font-medium transition"
+                className="px-6 py-2.5 bg-[#f2f0ea]/[0.06] hover:bg-white/[0.08] text-[#f2f0ea] font-medium transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={cart.length === 0 || saving}
-                className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#d8ff3c] hover:bg-cyan-600 text-[#f2f0ea] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving ? (
                   <>

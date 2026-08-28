@@ -167,8 +167,8 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
 
     if (migrationMissing) {
         return (
-            <div className="flex items-start gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-                <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-400" />
+            <div className="flex items-start gap-2 border border-amber-500/20 bg-amber-500/10 p-4">
+                <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[#ff5c2b]" />
                 <p className="text-[11px] leading-relaxed text-amber-300/90">
                     Customers cannot pay from a locked PC yet — run migration{' '}
                     <span className="font-mono">20260820000000_station_play_requests.sql</span> in Supabase.
@@ -178,16 +178,16 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
     }
 
     return (
-        <div className="rounded-2xl border border-rose-500/25 bg-rose-500/[0.05] p-5">
+        <div className="border border-rose-500/25 bg-rose-500/[0.05] p-5">
             <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/15">
+                <div className="flex h-8 w-8 items-center justify-center bg-rose-500/15">
                     <MonitorPlay size={15} className="text-rose-400" />
                 </div>
                 <div>
                     <h3 className="text-sm font-bold text-slate-100">
                         {requests.length} waiting at a PC
                     </h3>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[#f2f0ea]/40">
                         {requests.every((row) => row.requestType === 'extend')
                             ? 'Approving adds the time to the session they are already in.'
                             : 'Approving unlocks the machine and starts their time from now.'}
@@ -196,7 +196,7 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
             </div>
 
             {error && (
-                <p className="mt-3 rounded-xl border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300">
+                <p className="mt-3 border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300">
                     {error}
                 </p>
             )}
@@ -205,12 +205,12 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                 {requests.map((request) => (
                     <div
                         key={request.id}
-                        className="rounded-xl border border-white/[0.08] bg-[#0d0d14] p-4"
+                        className="border border-[#f2f0ea]/10 bg-[#0d0d14] p-4"
                     >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-md bg-rose-500/15 px-2 py-0.5 font-mono text-[11px] font-bold uppercase text-rose-300">
+                                    <span className="bg-rose-500/15 px-2 py-0.5 font-mono text-[11px] font-bold uppercase text-rose-300">
                                         {request.stationName}
                                     </span>
                                     <span className="text-sm font-bold text-slate-100">
@@ -218,33 +218,33 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                                     </span>
                                 </div>
 
-                                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
+                                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#f2f0ea]/50">
                                     <span className="inline-flex items-center gap-1">
-                                        <Phone size={11} className="text-slate-500" />
+                                        <Phone size={11} className="text-[#f2f0ea]/40" />
                                         {request.customerPhone}
                                     </span>
                                     <span className="inline-flex items-center gap-1">
-                                        <IndianRupee size={11} className="text-slate-500" />
+                                        <IndianRupee size={11} className="text-[#f2f0ea]/40" />
                                         {request.amount.toLocaleString('en-IN')}
-                                        <span className="text-slate-600">
+                                        <span className="text-[#f2f0ea]/30">
                                             · {request.paymentMethod === 'online' ? 'paying online' : 'paying at counter'}
                                         </span>
                                     </span>
                                     <span className="inline-flex items-center gap-1">
-                                        <Clock size={11} className="text-slate-500" />
+                                        <Clock size={11} className="text-[#f2f0ea]/40" />
                                         waited {waitedFor(request.createdAt)}
                                     </span>
                                 </div>
 
-                                <p className="mt-1.5 text-[11px] font-semibold text-slate-300">
+                                <p className="mt-1.5 text-[11px] font-semibold text-[#f2f0ea]/70">
                                     {TYPE_LABEL[request.requestType]} — {whatTheyAskedFor(request)}
                                     {request.requestType === 'extend' && (
-                                        <span className="font-normal text-slate-500">
+                                        <span className="font-normal text-[#f2f0ea]/40">
                                             {' '}· already playing, adds to their clock
                                         </span>
                                     )}
                                     {request.requestType !== 'hourly' && request.requestType !== 'extend' && (
-                                        <span className="font-normal text-slate-500">
+                                        <span className="font-normal text-[#f2f0ea]/40">
                                             {' '}· plays until they end the session
                                         </span>
                                     )}
@@ -256,7 +256,7 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                                     type="button"
                                     onClick={() => answer(request, 'decline')}
                                     disabled={busyId === request.id}
-                                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.06] px-3 py-2 text-xs font-bold text-slate-400 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
+                                    className="inline-flex items-center gap-1.5 bg-[#f2f0ea]/[0.06] px-3 py-2 text-xs font-bold text-[#f2f0ea]/50 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
                                 >
                                     <X size={13} />
                                     Turn down
@@ -265,7 +265,7 @@ export function StationPlayRequests({ cafeId, onApproved }: Props) {
                                     type="button"
                                     onClick={() => answer(request, 'approve')}
                                     disabled={busyId === request.id}
-                                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-4 py-2 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-40"
+                                    className="inline-flex items-center gap-1.5 bg-[#d8ff3c]/15 px-4 py-2 text-xs font-bold text-emerald-300 transition-colors hover:bg-[#d8ff3c]/25 disabled:opacity-40"
                                 >
                                     <Check size={13} />
                                     {request.requestType === 'extend'

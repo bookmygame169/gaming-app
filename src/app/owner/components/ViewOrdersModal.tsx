@@ -197,24 +197,24 @@ export default function ViewOrdersModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-      <div className="bg-white/[0.03] border border-white/[0.09] rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0b0c]/90 backdrop-blur-sm">
+      <div className="border border-[#f2f0ea]/10 bg-[#111113] w-full max-w-md max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.09]">
+        <div className="flex items-center justify-between p-4 border-b border-[#f2f0ea]/10">
           <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-cyan-500" />
+            <h3 className="text-lg font-bold text-[#f2f0ea] flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-[#d8ff3c]" />
               F&B Orders
             </h3>
-            <p className="text-sm text-slate-400 mt-0.5">
+            <p className="text-sm text-[#f2f0ea]/50 mt-0.5">
               {customerName}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/[0.06] rounded-lg transition"
+            className="p-2 hover:bg-[#f2f0ea]/[0.06] transition"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="w-5 h-5 text-[#f2f0ea]/50" />
           </button>
         </div>
 
@@ -224,13 +224,13 @@ export default function ViewOrdersModal({
           <div className="p-4">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-[#d8ff3c]" />
               </div>
             ) : orders.length === 0 && !showAddSection ? (
               <div className="text-center py-8">
-                <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400">No F&B items added</p>
-                <p className="text-sm text-slate-500 mt-1">
+                <Package className="w-12 h-12 text-[#f2f0ea]/30 mx-auto mb-3" />
+                <p className="text-[#f2f0ea]/50">No F&B items added</p>
+                <p className="text-sm text-[#f2f0ea]/40 mt-1">
                   Click below to add items
                 </p>
               </div>
@@ -239,21 +239,21 @@ export default function ViewOrdersModal({
                 {orders.map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between p-3 bg-white/[0.04] border border-white/[0.09] rounded-xl"
+                    className="flex items-center justify-between p-3 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/10 "
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-white">
+                      <div className="font-medium text-[#f2f0ea]">
                         {order.item_name}
                       </div>
                       <div className="flex items-center gap-3 text-sm mt-1">
-                        <span className="text-slate-400">
+                        <span className="text-[#f2f0ea]/50">
                           ₹{order.unit_price} × {order.quantity}
                         </span>
-                        <span className="text-cyan-400 font-semibold">
+                        <span className="text-[#d8ff3c] font-semibold">
                           ₹{order.total_price}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">
+                      <div className="text-xs text-[#f2f0ea]/40 mt-1">
                         {new Date(order.ordered_at).toLocaleString("en-IN", {
                           hour: "numeric",
                           minute: "2-digit",
@@ -264,7 +264,7 @@ export default function ViewOrdersModal({
                     <button
                       onClick={() => handleRemoveOrder(order)}
                       disabled={deleting === order.id}
-                      className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition disabled:opacity-50"
+                      className="p-2 text-[#ff5c2b] hover:bg-[#ff5c2b]/10 transition disabled:opacity-50"
                       title="Remove item"
                     >
                       {deleting === order.id ? (
@@ -281,10 +281,10 @@ export default function ViewOrdersModal({
 
           {/* Add Items Section */}
           {showAddSection && (
-            <div className="border-t border-white/[0.09] p-4">
-              <h4 className="text-sm font-semibold text-slate-300 mb-3">Add Items</h4>
+            <div className="border-t border-[#f2f0ea]/10 p-4">
+              <h4 className="text-sm font-semibold text-[#f2f0ea]/70 mb-3">Add Items</h4>
               {inventoryItems.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">
+                <p className="text-sm text-[#f2f0ea]/40 text-center py-4">
                   No items available in inventory
                 </p>
               ) : (
@@ -294,13 +294,13 @@ export default function ViewOrdersModal({
                     return (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-2 bg-white/[0.03] rounded-lg"
+                        className="flex items-center justify-between p-2 bg-[#111113] "
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-white truncate">
+                          <div className="text-sm font-medium text-[#f2f0ea] truncate">
                             {item.name}
                           </div>
-                          <div className="text-xs text-slate-400">
+                          <div className="text-xs text-[#f2f0ea]/50">
                             ₹{item.price} · {item.stock_quantity} left
                           </div>
                         </div>
@@ -309,17 +309,17 @@ export default function ViewOrdersModal({
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => removeFromCart(item.id)}
-                                className="p-1 bg-white/[0.08] hover:bg-white/[0.10] rounded text-white"
+                                className="p-1 bg-white/[0.08] hover:bg-white/[0.10] rounded text-[#f2f0ea]"
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
-                              <span className="w-6 text-center text-white font-medium">
+                              <span className="w-6 text-center text-[#f2f0ea] font-medium">
                                 {inCart}
                               </span>
                               <button
                                 onClick={() => addToCart(item)}
                                 disabled={inCart >= item.stock_quantity}
-                                className="p-1 bg-cyan-600 hover:bg-cyan-500 rounded text-white disabled:opacity-50"
+                                className="p-1 bg-cyan-600 hover:bg-[#d8ff3c] rounded text-[#f2f0ea] disabled:opacity-50"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
@@ -327,7 +327,7 @@ export default function ViewOrdersModal({
                           ) : (
                             <button
                               onClick={() => addToCart(item)}
-                              className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition"
+                              className="px-3 py-1 bg-cyan-600 hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm transition"
                             >
                               Add
                             </button>
@@ -341,15 +341,15 @@ export default function ViewOrdersModal({
 
               {/* Cart Summary */}
               {cart.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-white/[0.09]">
+                <div className="mt-4 pt-3 border-t border-[#f2f0ea]/10">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-slate-400">Cart Total</span>
-                    <span className="text-lg font-bold text-cyan-400">₹{cartTotal}</span>
+                    <span className="text-sm text-[#f2f0ea]/50">Cart Total</span>
+                    <span className="text-lg font-bold text-[#d8ff3c]">₹{cartTotal}</span>
                   </div>
                   <button
                     onClick={handleAddItems}
                     disabled={adding}
-                    className="w-full px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2.5 bg-cyan-600 hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {adding ? (
                       <>
@@ -371,10 +371,10 @@ export default function ViewOrdersModal({
 
         {/* Footer */}
         {orders.length > 0 && (
-          <div className="border-t border-white/[0.09] p-4">
+          <div className="border-t border-[#f2f0ea]/10 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Total F&B Amount</span>
-              <span className="text-xl font-bold text-cyan-400">₹{totalAmount}</span>
+              <span className="text-[#f2f0ea]/50">Total F&B Amount</span>
+              <span className="text-xl font-bold text-[#d8ff3c]">₹{totalAmount}</span>
             </div>
           </div>
         )}
@@ -385,14 +385,14 @@ export default function ViewOrdersModal({
             <>
               <button
                 onClick={() => setShowAddSection(true)}
-                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-medium transition flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Items
               </button>
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2.5 bg-white/[0.06] hover:bg-white/[0.08] text-white rounded-xl font-medium transition"
+                className="flex-1 px-4 py-2.5 bg-[#f2f0ea]/[0.06] hover:bg-white/[0.08] text-[#f2f0ea] font-medium transition"
               >
                 Close
               </button>
@@ -403,7 +403,7 @@ export default function ViewOrdersModal({
                 setShowAddSection(false);
                 setCart([]);
               }}
-              className="w-full px-4 py-2.5 bg-white/[0.06] hover:bg-white/[0.08] text-white rounded-xl font-medium transition"
+              className="w-full px-4 py-2.5 bg-[#f2f0ea]/[0.06] hover:bg-white/[0.08] text-[#f2f0ea] font-medium transition"
             >
               Cancel
             </button>
