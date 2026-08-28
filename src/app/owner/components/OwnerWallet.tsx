@@ -1,7 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Wallet, Loader2, AlertCircle, Plus, Minus, Search } from 'lucide-react';
+import {
+    Chips,
+    EmptyRow,
+    Field,
+    Kpis,
+    Panel,
+    PrimaryButton,
+    SectionBar,
+    TableHead,
+    TableRow,
+} from './consoleUi';
 
 type Holder = { phone: string; name: string | null; balance: number };
 
@@ -165,227 +175,185 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
           )
         : holders;
 
+    const COLUMNS = 'minmax(140px,1.4fr) minmax(120px,1fr) 120px 132px';
+    const inCredit = holders.filter((holder) => holder.balance > 0);
+
     return (
-        <div className="flex flex-col gap-4">
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15">
-                        <Wallet size={15} className="text-emerald-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-200">Wallet</h3>
-                        <p className="text-[11px] text-slate-500">
-                            Take payment now, let them play it down later
-                        </p>
-                    </div>
-                </div>
+        <div className="flex flex-col gap-[18px]">
+            <Kpis
+                items={[
+                    {
+                        label: 'HELD FOR CUSTOMERS',
+                        value: `₹${totalHeld.toLocaleString('en-IN')}`,
+                        tone: 'lime',
+                        sub: 'money already taken, not yet played',
+                    },
+                    {
+                        label: 'IN CREDIT',
+                        value: String(inCredit.length),
+                        sub: `of ${holders.length} with a wallet here`,
+                    },
+                    {
+                        label: 'BIGGEST BALANCE',
+                        value: `₹${Math.max(0, ...holders.map((h) => h.balance)).toLocaleString('en-IN')}`,
+                        sub: inCredit.length > 0 ? 'one customer' : 'nobody in credit',
+                    },
+                    {
+                        label: 'RECENT MOVES',
+                        value: String(recent.length),
+                        sub: 'top-ups and spends logged',
+                    },
+                ]}
+            />
 
-                {error && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
-                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                {notice && (
-                    <div className="mb-4 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3 text-[12px] text-emerald-300">
-                        {notice}
-                    </div>
-                )}
-
-                <div className="mb-3 flex gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setMode('topup')}
-                        className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold transition-colors ${
-                            mode === 'topup'
-                                ? 'bg-emerald-500 text-black'
-                                : 'border border-white/[0.08] text-slate-400 hover:text-white'
-                        }`}
-                    >
-                        <Plus size={13} /> Add money
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMode('spend')}
-                        className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold transition-colors ${
-                            mode === 'spend'
-                                ? 'bg-amber-500 text-black'
-                                : 'border border-white/[0.08] text-slate-400 hover:text-white'
-                        }`}
-                    >
-                        <Minus size={13} /> Use for a session
-                    </button>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-4">
-                    <input
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="Phone number"
-                        className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
+            {/* Taking money in, or putting a spend against it. One panel
+                because they are the same form with the sign flipped. */}
+            <Panel className="flex flex-col gap-3 px-4 py-4">
+                <div className="flex flex-wrap items-center gap-[9px]">
+                    <Chips
+                        items={[
+                            { id: 'topup', label: 'TAKE MONEY IN' },
+                            { id: 'spend', label: 'SPEND FROM WALLET' },
+                        ]}
+                        active={mode}
+                        onPick={(id) => setMode(id as 'topup' | 'spend')}
                     />
-                    <input
-                        type="number"
-                        min={1}
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="Amount ₹"
-                        className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                    />
-
-                    {mode === 'topup' ? (
-                        <select
-                            value={paymentMode}
-                            onChange={(e) => setPaymentMode(e.target.value)}
-                            className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                        >
-                            <option value="cash">Paid cash</option>
-                            <option value="upi">Paid by UPI</option>
-                            <option value="card">Paid by card</option>
-                        </select>
-                    ) : (
-                        <div className="self-center text-[11px] text-slate-500">
-                            Comes off their balance
-                        </div>
+                    <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                    {lookedUpBalance !== null && (
+                        <span className="whitespace-nowrap font-mono text-[10.5px] text-[#d8ff3c]">
+                            BALANCE ₹{lookedUpBalance.toLocaleString('en-IN')}
+                        </span>
                     )}
-
-                    <button
-                        type="button"
-                        onClick={submit}
-                        disabled={!cafeId || saving || !phone || !amount}
-                        className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold text-black transition-colors disabled:opacity-40 ${
-                            mode === 'topup'
-                                ? 'bg-emerald-500 hover:bg-emerald-400'
-                                : 'bg-amber-500 hover:bg-amber-400'
-                        }`}
-                    >
-                        {saving ? <Loader2 size={13} className="animate-spin" /> : <Wallet size={13} />}
-                        {mode === 'topup' ? 'Add money' : 'Use money'}
-                    </button>
                 </div>
 
-                {/* The UPI reference makes a disputed top-up findable on the
-                    café's own statement weeks later. */}
-                {mode === 'topup' && paymentMode === 'upi' && (
-                    <input
-                        value={reference}
-                        onChange={(e) => setReference(e.target.value)}
-                        placeholder="UPI reference number (recommended)"
-                        className="mt-3 w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
+                <div className="flex flex-wrap items-center gap-2">
+                    <Field value={phone} onChange={setPhone} placeholder="10-DIGIT NUMBER" className="w-[170px]" />
+                    <Field value={amount} onChange={setAmount} placeholder="AMOUNT" type="number" className="w-[120px]" />
+                    <Chips
+                        items={[
+                            { id: 'cash', label: 'CASH' },
+                            { id: 'upi', label: 'UPI' },
+                        ]}
+                        active={paymentMode}
+                        onPick={setPaymentMode}
                     />
-                )}
-
-                {lookedUpBalance !== null && (
-                    <p className="mt-3 text-[12px] text-slate-400">
-                        This customer currently has{' '}
-                        <strong className="text-slate-100">
-                            ₹{lookedUpBalance.toLocaleString('en-IN')}
-                        </strong>{' '}
-                        in their wallet.
-                    </p>
-                )}
-            </section>
-
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                <p className="text-[11px] text-slate-500">Money you are holding for customers</p>
-                <p className="mt-1 text-xl font-bold text-amber-400">
-                    ₹{totalHeld.toLocaleString('en-IN')}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-500">
-                    Already paid to you, not yet played. You owe this in sessions.
-                </p>
-            </section>
-
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-slate-200">Who has a balance</h3>
-                    <div className="relative">
-                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search name or phone"
-                            className="rounded-lg border border-white/[0.08] bg-[#0b1018] py-2 pl-8 pr-2.5 text-[12px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                        />
-                    </div>
+                    <Field value={reference} onChange={setReference} placeholder="REFERENCE (OPTIONAL)" className="w-[190px]" />
+                    <PrimaryButton onClick={submit} disabled={saving}>
+                        {saving ? 'SAVING…' : mode === 'topup' ? 'ADD TO WALLET' : 'TAKE FROM WALLET'}
+                    </PrimaryButton>
                 </div>
+            </Panel>
 
-                {loading && (
-                    <div className="flex items-center gap-2 py-6 text-[12px] text-slate-500">
-                        <Loader2 size={14} className="animate-spin" /> Loading…
-                    </div>
-                )}
-
-                {!loading && visible.length === 0 && (
-                    <p className="py-6 text-center text-[12px] text-slate-500">
-                        {holders.length === 0
-                            ? 'Nobody has a wallet balance yet. Add money above when a customer pays up front.'
-                            : 'No customer matches that search.'}
-                    </p>
-                )}
-
-                <div className="flex flex-col gap-2">
-                    {visible.map((holder) => (
-                        <div
-                            key={holder.phone}
-                            className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
-                        >
-                            <div className="min-w-[150px] flex-1">
-                                <p className="text-[13px] font-bold text-slate-200">
-                                    {holder.name || holder.phone}
-                                </p>
-                                {holder.name && (
-                                    <p className="text-[11px] text-slate-500">{holder.phone}</p>
-                                )}
-                            </div>
-
-                            <p className="text-[15px] font-bold text-emerald-300">
-                                ₹{holder.balance.toLocaleString('en-IN')}
-                            </p>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setPhone(holder.phone);
-                                    setMode('spend');
-                                }}
-                                className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white"
-                            >
-                                Use
-                            </button>
-                        </div>
-                    ))}
+            {notice && (
+                <div className="border border-[#d8ff3c]/[0.28] bg-[#d8ff3c]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#d8ff3c]">
+                    {notice}
                 </div>
-            </section>
-
-            {recent.length > 0 && (
-                <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                    <h3 className="mb-4 text-sm font-bold text-slate-200">Recent activity</h3>
-                    <div className="flex flex-col gap-1.5">
-                        {recent.map((entry) => (
-                            <div
-                                key={entry.id}
-                                className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
-                                style={{ background: 'rgba(255,255,255,0.02)' }}
-                            >
-                                <span className="text-[12px] text-slate-300">{entry.phone}</span>
-                                <span className="text-[11px] text-slate-500">
-                                    {REASON_LABELS[entry.reason] || entry.reason}
-                                    {entry.paymentMode ? ` · ${entry.paymentMode}` : ''} ·{' '}
-                                    {formatWhen(entry.createdAt)}
-                                </span>
-                                <span
-                                    className="text-[13px] font-bold"
-                                    style={{ color: entry.amount >= 0 ? '#4ade80' : '#f59e0b' }}
-                                >
-                                    {entry.amount >= 0 ? '+' : '−'}₹{Math.abs(entry.amount)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </section>
             )}
+            {error && (
+                <div className="border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#ff5c2b]">
+                    {error}
+                </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-[9px]">
+                <SectionBar
+                    title="WALLETS"
+                    action={
+                        <Field
+                            value={search}
+                            onChange={setSearch}
+                            placeholder="FIND BY NAME OR NUMBER"
+                            className="w-[220px]"
+                        />
+                    }
+                />
+            </div>
+
+            <Panel>
+                <TableHead columns={COLUMNS}>
+                    <span>CUSTOMER</span>
+                    <span>BALANCE</span>
+                    <span className="text-right">LAST MOVE</span>
+                    <span className="text-right">ACTIONS</span>
+                </TableHead>
+
+                {visible.length === 0 ? (
+                    <EmptyRow>
+                        {holders.length === 0
+                            ? 'No wallets yet. Take money in above and one is created against that number.'
+                            : 'Nobody matches that search.'}
+                    </EmptyRow>
+                ) : (
+                    visible.map((holder) => {
+                        const last = recent.find((entry) => entry.phone === holder.phone);
+
+                        return (
+                            <TableRow
+                                key={holder.phone}
+                                columns={COLUMNS}
+                                edge={holder.balance > 0 ? 'rgba(216,255,60,.4)' : 'transparent'}
+                            >
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
+                                        {holder.name || 'No name'}
+                                    </span>
+                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                        {holder.phone}
+                                    </span>
+                                </div>
+
+                                <span
+                                    className="whitespace-nowrap text-[15px] font-extrabold"
+                                    style={{ color: holder.balance > 0 ? '#d8ff3c' : 'rgba(242,240,234,.35)' }}
+                                >
+                                    ₹{holder.balance.toLocaleString('en-IN')}
+                                </span>
+
+                                <div className="flex flex-col gap-[3px] text-right">
+                                    {last ? (
+                                        <>
+                                            <span className="whitespace-nowrap font-mono text-[11px] text-[#f2f0ea]/70">
+                                                {last.amount >= 0 ? '+' : '−'}₹{Math.abs(last.amount).toLocaleString('en-IN')}
+                                            </span>
+                                            <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                                {(REASON_LABELS[last.reason] || last.reason).toUpperCase()} ·{' '}
+                                                {formatWhen(last.createdAt).toUpperCase()}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="font-mono text-[10.5px] text-[#f2f0ea]/30">—</span>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end gap-[5px]">
+                                    <button
+                                        type="button"
+                                        title="Take money in for this customer"
+                                        onClick={() => { setPhone(holder.phone); setMode('topup'); }}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                    >
+                                        + TOP UP
+                                    </button>
+                                    <button
+                                        type="button"
+                                        title="Put a spend against this wallet"
+                                        onClick={() => { setPhone(holder.phone); setMode('spend'); }}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                                    >
+                                        − SPEND
+                                    </button>
+                                </div>
+                            </TableRow>
+                        );
+                    })
+                )}
+
+                <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+                    <span>{visible.length} of {holders.length} wallets</span>
+                    <span className="flex-1" />
+                    <span>{loading ? 'LOADING…' : `₹${totalHeld.toLocaleString('en-IN')} HELD IN TOTAL`}</span>
+                </div>
+            </Panel>
         </div>
     );
 }
