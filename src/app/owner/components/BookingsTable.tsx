@@ -247,7 +247,7 @@ export function BookingsTable({
                         ) : (
                             paginatedBookings.map((booking) => {
                                 const normalizedStatus = (booking.status || '').toLowerCase();
-                                const rowAccent = normalizedStatus === 'completed' ? 'border-l-2 border-l-emerald-500/40' : normalizedStatus === 'in-progress' ? 'border-l-2 border-l-blue-500/40' : normalizedStatus === 'cancelled' ? 'border-l-2 border-l-red-500/30 opacity-60' : normalizedStatus === 'pending' ? 'border-l-2 border-l-amber-500/40' : normalizedStatus === 'confirmed' ? 'border-l-2 border-l-amber-500/40' : '';
+                                const rowAccent = normalizedStatus === 'in-progress' ? 'border-l-2 border-l-[#d8ff3c]' : normalizedStatus === 'pending' || normalizedStatus === 'confirmed' ? 'border-l-2 border-l-[#ff5c2b]' : normalizedStatus === 'cancelled' ? 'border-l-2 border-l-[#f2f0ea]/20 opacity-60' : normalizedStatus === 'completed' ? 'border-l-2 border-l-[#f2f0ea]/[0.14]' : '';
                                 return (
                                 <tr key={booking.id} className={`hover:bg-[#f2f0ea]/5 transition-colors ${rowAccent} ${selectedIds?.has(booking.id) ? 'bg-[#d8ff3c]/5' : ''}`}>
                                     {selectable && (

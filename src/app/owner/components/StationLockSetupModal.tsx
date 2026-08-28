@@ -38,7 +38,7 @@ export function StationLockSetupModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center text-[#f2f0ea]/50 transition-colors hover:bg-[#f2f0ea]/[0.06] hover:text-[#f2f0ea]"
           aria-label="Close"
         >
           <X size={18} />
