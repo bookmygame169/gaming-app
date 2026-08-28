@@ -98,7 +98,11 @@ const HOVER_CARD_CLASS = 'transition-colors duration-150 hover:border-[#d8ff3c]'
 const CONTROL_SURFACE_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const GAMING_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const MEMBERSHIP_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
-const CONTROL_LABEL_CLASS = 'mb-2 text-[10px] smallcaps text-[var(--dim)]';
+const CONTROL_LABEL_CLASS = 'font-mono text-[9.5px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.42]';
+
+/** The design's control row: a fixed label column, then the control. */
+const CONTROL_ROW_CLASS =
+    'grid grid-cols-1 items-start gap-2 border-b border-[#f2f0ea]/[0.07] px-4 py-3.5 last:border-b-0 sm:grid-cols-[74px_minmax(0,1fr)] sm:gap-4 sm:items-center';
 
 function getConsoleTheme(consoleType: string) {
     return CONSOLE_THEME[consoleType] || { accent: '#d8ff3c', short: consoleType.slice(0, 2).toUpperCase() };
@@ -1187,7 +1191,7 @@ export function Billing({
                                                 </div>
 
                                                 {/* Players */}
-                                                <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
+                                                <div className={CONTROL_ROW_CLASS}>
                                                         <div className={CONTROL_LABEL_CLASS}>Players</div>
                                                         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                                                             {PLAYER_OPTIONS.map((players) => {
@@ -1197,11 +1201,11 @@ export function Billing({
                                                                         key={players}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'quantity', players)}
-                                                                        className=" py-3 text-sm font-bold transition-all duration-200"
+                                                                        className="py-2.5 font-mono text-[11px] tracking-[0.1em] transition-colors"
                                                                         style={{
-                                                                            background: selected ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
-                                                                            border: selected ? '1.5px solid rgba(255,255,255,0.20)' : '1.5px solid rgba(255,255,255,0.07)',
-                                                                            color: selected ? '#fff' : '#64748b',
+                                                                            background: selected ? 'rgba(216,255,60,.12)' : 'transparent',
+                                                                            border: selected ? '1px solid #d8ff3c' : '1px solid rgba(242,240,234,.14)',
+                                                                            color: selected ? '#d8ff3c' : 'rgba(242,240,234,.5)',
                                                                         }}
                                                                     >
                                                                         {players}P
@@ -1212,7 +1216,7 @@ export function Billing({
                                                 </div>
 
                                                 {/* Duration */}
-                                                <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
+                                                <div className={CONTROL_ROW_CLASS}>
                                                     <div className={CONTROL_LABEL_CLASS}>Duration</div>
                                                     <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
                                                         {DURATION_OPTIONS.map((dur) => {
@@ -1240,7 +1244,7 @@ export function Billing({
                                                 {/* Machine — only when one is being booked. Above that,
                                                     the booking needs several and the server picks them. */}
                                                 {item.quantity === 1 && stationOptions(item.console).length > 0 && (
-                                                    <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
+                                                    <div className={CONTROL_ROW_CLASS}>
                                                         <div className={CONTROL_LABEL_CLASS}>Machine</div>
                                                         <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
                                                             {[undefined, ...stationOptions(item.console)].map((station) => {
