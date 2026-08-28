@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Button, Select } from './ui';
+import { Card, Button } from './ui';
+import { Chips, GhostButton } from './consoleUi';
 import {
     getBookingGamingTotal,
     getBookingRevenueTotal,
@@ -106,10 +107,10 @@ interface SnackTransaction {
 }
 
 const CATEGORY_COLORS: Record<InventoryCategory, { bg: string; text: string; bar: string }> = {
-    snacks:      { bg: 'bg-amber-500/10',  text: 'text-amber-500',  bar: 'bg-amber-500' },
-    cold_drinks: { bg: 'bg-cyan-500/10',   text: 'text-cyan-500',   bar: 'bg-cyan-500' },
-    hot_drinks:  { bg: 'bg-red-500/10',    text: 'text-red-500',    bar: 'bg-red-500' },
-    combo:       { bg: 'bg-purple-500/10', text: 'text-purple-500', bar: 'bg-purple-500' },
+    snacks:      { bg: 'bg-[#ff5c2b]/10',  text: 'text-[#ff5c2b]',  bar: 'bg-[#ff5c2b]' },
+    cold_drinks: { bg: 'bg-[#d8ff3c]/10',   text: 'text-[#d8ff3c]',   bar: 'bg-[#d8ff3c]' },
+    hot_drinks:  { bg: 'bg-[#ff5c2b]/10',    text: 'text-[#ff5c2b]',    bar: 'bg-[#ff5c2b]' },
+    combo:       { bg: 'bg-[#d8ff3c]/10', text: 'text-[#d8ff3c]', bar: 'bg-[#d8ff3c]' },
 };
 
 const formatLocalDate = (date: Date): string => (
@@ -758,11 +759,11 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
     // Growth indicator component
     const GrowthIndicator = ({ value, suffix = '%' }: { value: number | null; suffix?: string }) => {
-        if (value === null) return <span className="text-slate-500 text-xs">No prev. data</span>;
-        if (value === 0) return <span className="text-slate-500 text-xs">No change</span>;
+        if (value === null) return <span className="text-[#f2f0ea]/40 text-xs">No prev. data</span>;
+        if (value === 0) return <span className="text-[#f2f0ea]/40 text-xs">No change</span>;
         const isPositive = value > 0;
         return (
-            <span className={`flex items-center gap-1 text-xs font-medium ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+            <span className={`flex items-center gap-1 text-xs font-medium ${isPositive ? 'text-[#d8ff3c]' : 'text-[#ff5c2b]'}`}>
                 {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                 {isPositive ? '+' : ''}{value.toFixed(1)}{suffix}
             </span>
@@ -779,48 +780,26 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header & Controls */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Reports & Analytics</h1>
-                    <p className="text-slate-400 mt-1">
-                        {cafeName ? <span className="font-medium text-slate-300">{cafeName}</span> : 'Insights into your venue\'s performance'}
-                    </p>
-                </div>
-
-                <div className="flex w-full items-center gap-2 md:w-auto">
-                    <div className="flex w-full items-center gap-2 bg-white/[0.03] p-1 rounded-xl border border-white/[0.08] md:w-auto">
-                        <Select
-                            value={dateRange}
-                            onChange={(val) => {
-                                if (val === 'custom') {
-                                    setShowCustomPicker(true);
-                                } else {
-                                    setDateRange(val);
-                                }
-                            }}
-                            options={[
-                                { label: 'Today', value: 'today' },
-                                { label: 'Yesterday', value: 'yesterday' },
-                                { label: 'Last 7 Days', value: '7d' },
-                                { label: 'Last 30 Days', value: '30d' },
-                                { label: 'This Month', value: 'month' },
-                                { label: 'Last 12 Months', value: '12m' },
-                                { label: 'All Bookings', value: 'all' },
-                                { label: 'Custom Range', value: 'custom' },
-                            ]}
-                            className="w-full border-none bg-transparent md:w-40"
-                        />
-                        <Button
-                            variant="ghost"
-                            className="h-9 w-9 p-0 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06]"
-                            onClick={exportToCSV}
-                            title="Export to CSV"
-                        >
-                            <Download size={18} />
-                        </Button>
-                    </div>
-                </div>
+            {/* The range is the whole page's argument, so it reads as chips
+                rather than hiding in a dropdown - and the one an owner is
+                looking at is lit. */}
+            <div className="flex flex-wrap items-center gap-[9px]">
+                <Chips
+                    items={[
+                        { id: 'today', label: 'TODAY' },
+                        { id: 'yesterday', label: 'YESTERDAY' },
+                        { id: '7d', label: '7 DAYS' },
+                        { id: '30d', label: '30 DAYS' },
+                        { id: 'month', label: 'THIS MONTH' },
+                        { id: '12m', label: '12 MONTHS' },
+                        { id: 'all', label: 'ALL' },
+                    ]}
+                    active={dateRange}
+                    onPick={setDateRange}
+                />
+                <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                <GhostButton onClick={() => setShowCustomPicker(true)}>CUSTOM RANGE</GhostButton>
+                <GhostButton onClick={exportToCSV} tone="lime">EXPORT CSV →</GhostButton>
             </div>
 
             {/* Custom Date Range Picker Modal */}
@@ -828,31 +807,31 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="relative animate-in slide-in-from-top-2 duration-200">
                     <button
                         onClick={() => setShowCustomPicker(false)}
-                        className="absolute top-4 right-4 p-1 hover:bg-white/[0.06] rounded-lg transition-colors"
+                        className="absolute top-4 right-4 p-1 hover:bg-[#f2f0ea]/[0.06] transition-colors"
                     >
-                        <X size={18} className="text-slate-400" />
+                        <X size={18} className="text-[#f2f0ea]/50" />
                     </button>
                     <div className="flex items-center gap-2 mb-4">
-                        <Calendar size={20} className="text-emerald-500" />
-                        <h3 className="text-lg font-semibold text-white">Custom Date Range</h3>
+                        <Calendar size={20} className="text-[#d8ff3c]" />
+                        <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">Custom date range</h3>
                     </div>
                     <div className="flex flex-col md:flex-row gap-4">
                         <div className="flex-1">
-                            <label className="block text-sm text-slate-400 mb-2">Start Date</label>
+                            <label className="block text-sm text-[#f2f0ea]/50 mb-2">Start Date</label>
                             <input
                                 type="date"
                                 value={customStart}
                                 onChange={(e) => setCustomStart(e.target.value)}
-                                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                className="w-full px-4 py-2.5 bg-[#111113] border border-[#f2f0ea]/10 text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
                             />
                         </div>
                         <div className="flex-1">
-                            <label className="block text-sm text-slate-400 mb-2">End Date</label>
+                            <label className="block text-sm text-[#f2f0ea]/50 mb-2">End Date</label>
                             <input
                                 type="date"
                                 value={customEnd}
                                 onChange={(e) => setCustomEnd(e.target.value)}
-                                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                className="w-full px-4 py-2.5 bg-[#111113] border border-[#f2f0ea]/10 text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
                             />
                         </div>
                         <div className="flex items-end">
@@ -866,37 +845,37 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
             {/* Key Metrics Grid with Growth Indicators */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-white/[0.08]">
+                <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
-                            <p className="text-sm font-medium text-slate-400 mb-1">Total Revenue</p>
-                            <p className="text-3xl font-bold text-white">₹{stats.revenue.toLocaleString()}</p>
-                            <p className="text-xs text-slate-500 mt-1">{billableBookings.length} transactions · {snackStats.totalOrders} F&B orders</p>
+                            <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Total Revenue</p>
+                            <p className="text-3xl font-bold text-[#f2f0ea]">₹{stats.revenue.toLocaleString()}</p>
+                            <p className="text-xs text-[#f2f0ea]/40 mt-1">{billableBookings.length} transactions · {snackStats.totalOrders} F&B orders</p>
                             {/* Gaming / Standalone-snacks breakdown */}
                             <div className="flex items-center gap-3 mt-3">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                    <span className="text-xs text-slate-400">Gaming</span>
-                                    <span className="text-xs font-semibold text-emerald-400">₹{stats.gamingRevenue.toLocaleString()}</span>
+                                    <div className="w-2 h-2 bg-[#d8ff3c]" />
+                                    <span className="text-xs text-[#f2f0ea]/50">Gaming</span>
+                                    <span className="text-xs font-semibold text-[#d8ff3c]">₹{stats.gamingRevenue.toLocaleString()}</span>
                                 </div>
                                 {stats.snackRevenue > 0 && (
                                     <div className="flex items-center gap-1.5">
-                                        <div className="w-2 h-2 rounded-full bg-orange-500" />
-                                        <span className="text-xs text-slate-400">Snacks</span>
-                                        <span className="text-xs font-semibold text-orange-400">₹{stats.snackRevenue.toLocaleString()}</span>
+                                        <div className="w-2 h-2 bg-[#ff5c2b]" />
+                                        <span className="text-xs text-[#f2f0ea]/50">Snacks</span>
+                                        <span className="text-xs font-semibold text-[#ff5c2b]">₹{stats.snackRevenue.toLocaleString()}</span>
                                     </div>
                                 )}
                                 {stats.membershipRevenue > 0 && (
                                     <div className="flex items-center gap-1.5">
-                                        <div className="w-2 h-2 rounded-full bg-purple-500" />
-                                        <span className="text-xs text-slate-400">Memberships</span>
-                                        <span className="text-xs font-semibold text-purple-400">₹{stats.membershipRevenue.toLocaleString()}</span>
+                                        <div className="w-2 h-2 bg-[#d8ff3c]" />
+                                        <span className="text-xs text-[#f2f0ea]/50">Memberships</span>
+                                        <span className="text-xs font-semibold text-[#d8ff3c]">₹{stats.membershipRevenue.toLocaleString()}</span>
                                     </div>
                                 )}
                             </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
+                            <div className="p-2.5 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                                 <TrendingUp size={20} />
                             </div>
                             <GrowthIndicator value={stats.revenueChange} />
@@ -904,15 +883,15 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     </div>
                 </Card>
 
-                <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-white/[0.08]">
+                <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm font-medium text-slate-400 mb-1">Total Bookings</p>
-                            <p className="text-3xl font-bold text-white">{stats.count}</p>
-                            <p className="text-xs text-slate-500 mt-1">Confirmed sessions</p>
+                            <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Total Bookings</p>
+                            <p className="text-3xl font-bold text-[#f2f0ea]">{stats.count}</p>
+                            <p className="text-xs text-[#f2f0ea]/40 mt-1">Confirmed sessions</p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500">
+                            <div className="p-2.5 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                                 <Calendar size={20} />
                             </div>
                             <GrowthIndicator value={stats.bookingsChange} />
@@ -920,15 +899,15 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     </div>
                 </Card>
 
-                <Card padding="lg" className="bg-gradient-to-br from-slate-900 to-slate-900/50 border-white/[0.08]">
+                <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm font-medium text-slate-400 mb-1">Avg. Order Value</p>
-                            <p className="text-3xl font-bold text-white">₹{Math.round(stats.aov)}</p>
-                            <p className="text-xs text-slate-500 mt-1">Per booking</p>
+                            <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Avg. Order Value</p>
+                            <p className="text-3xl font-bold text-[#f2f0ea]">₹{Math.round(stats.aov)}</p>
+                            <p className="text-xs text-[#f2f0ea]/40 mt-1">Per booking</p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                            <div className="p-2.5 bg-[#ff5c2b]/10 text-[#ff5c2b]">
                                 <Banknote size={20} />
                             </div>
                             <GrowthIndicator value={stats.aovChange} />
@@ -944,25 +923,25 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     className={revenueTrendData.length > 7 ? "cursor-pointer" : ""}
                     onClick={() => revenueTrendData.length > 7 && setExpandedChart(true)}
                 >
-                    <Card className="min-h-[300px] flex flex-col hover:ring-1 hover:ring-emerald-500/30 transition-all">
+                    <Card className="min-h-[300px] flex flex-col hover:ring-1 hover:ring-[#d8ff3c]/30 transition-all">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                    <TrendingUp size={20} className="text-emerald-500" />
+                                <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                    <TrendingUp size={20} className="text-[#d8ff3c]" />
                                     Revenue Trend
                                 </h3>
-                                <p className="text-sm text-slate-400">Daily earnings based on service date</p>
+                                <p className="text-sm text-[#f2f0ea]/50">Daily earnings based on service date</p>
                             </div>
                             {revenueTrendData.length > 7 && (
-                                <span className="text-xs text-slate-500 bg-white/[0.06] px-2 py-1 rounded">Click to expand</span>
+                                <span className="text-xs text-[#f2f0ea]/40 bg-[#f2f0ea]/[0.06] px-2 py-1 rounded">Click to expand</span>
                             )}
                         </div>
 
                         <div className="w-full relative pt-6 pb-2">
                             {loading ? (
-                                <div className="h-[150px] flex items-center justify-center text-slate-500">Loading chart...</div>
+                                <div className="h-[150px] flex items-center justify-center text-[#f2f0ea]/40">Loading chart...</div>
                             ) : revenueTrendData.length === 0 ? (
-                                <div className="h-[150px] flex items-center justify-center text-slate-500">No data available</div>
+                                <div className="h-[150px] flex items-center justify-center text-[#f2f0ea]/40">No data available</div>
                             ) : (() => {
                                 const displayData = revenueTrendData.slice(-7);
                                 const maxInView = Math.max(...displayData.map(x => x.amount), 100);
@@ -978,16 +957,16 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                     <div className="w-full flex flex-col items-center h-full justify-end relative">
                                                         <div className="w-full max-w-[60px] relative flex items-end h-[120px]">
                                                             <div
-                                                                className="w-full bg-emerald-500/20 border-t-2 border-emerald-500 rounded-t-sm hover:bg-emerald-500/40 transition-all relative"
+                                                                className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
                                                                 style={{ height: `${barHeight}%` }}
                                                             >
-                                                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-emerald-400 font-medium whitespace-nowrap">
+                                                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-[#d8ff3c] font-medium whitespace-nowrap">
                                                                     ₹{d.amount.toLocaleString()}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <span className="text-[10px] text-slate-500 whitespace-nowrap">{shortDate}</span>
+                                                    <span className="text-[10px] text-[#f2f0ea]/40 whitespace-nowrap">{shortDate}</span>
                                                 </div>
                                             );
                                         })}
@@ -996,7 +975,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             })()}
                         </div>
                         {revenueTrendData.length > 7 && (
-                            <p className="text-center text-xs text-slate-500 mt-3">Showing last 7 days of {revenueTrendData.length} • Click to see all</p>
+                            <p className="text-center text-xs text-[#f2f0ea]/40 mt-3">Showing last 7 days of {revenueTrendData.length} • Click to see all</p>
                         )}
                     </Card>
                 </div>
@@ -1008,22 +987,22 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                         onClick={() => setExpandedChart(false)}
                     >
                         <div
-                            className="bg-white/[0.03] rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-white/[0.08]"
+                            className="bg-[#111113] max-w-6xl w-full max-h-[90vh] overflow-hidden border border-[#f2f0ea]/10"
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className="flex items-center justify-between p-6 border-b border-white/[0.08]">
+                            <div className="flex items-center justify-between p-6 border-b border-[#f2f0ea]/10">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                                        <TrendingUp size={24} className="text-emerald-500" />
+                                    <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                        <TrendingUp size={24} className="text-[#d8ff3c]" />
                                         Revenue Trend - Full View
                                     </h3>
-                                    <p className="text-sm text-slate-400">{revenueTrendData.length} days of data</p>
+                                    <p className="text-sm text-[#f2f0ea]/50">{revenueTrendData.length} days of data</p>
                                 </div>
                                 <button
                                     onClick={() => setExpandedChart(false)}
-                                    className="p-2 hover:bg-white/[0.06] rounded-lg transition-colors"
+                                    className="p-2 hover:bg-[#f2f0ea]/[0.06] transition-colors"
                                 >
-                                    <X size={24} className="text-slate-400" />
+                                    <X size={24} className="text-[#f2f0ea]/50" />
                                 </button>
                             </div>
                             <div className="p-6 overflow-x-auto">
@@ -1035,16 +1014,16 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                 <div className="flex-1 w-full flex items-end justify-center">
                                                     <div className="w-full max-w-[50px] relative h-full flex items-end">
                                                         <div
-                                                            className="w-full bg-emerald-500/20 border-t-2 border-emerald-500 rounded-t-sm hover:bg-emerald-500/40 transition-all relative"
+                                                            className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
                                                             style={{ height: `${Math.max(heightPercent, 5)}%` }}
                                                         >
-                                                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-emerald-400 font-medium whitespace-nowrap">
+                                                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-[#d8ff3c] font-medium whitespace-nowrap">
                                                                 ₹{d.amount.toLocaleString()}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <span className="text-[11px] text-slate-400 whitespace-nowrap">{d.date}</span>
+                                                <span className="text-[11px] text-[#f2f0ea]/50 whitespace-nowrap">{d.date}</span>
                                             </div>
                                         )
                                     })}
@@ -1058,17 +1037,17 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="min-h-[300px] flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Clock size={20} className="text-blue-500" />
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                <Clock size={20} className="text-[#d8ff3c]" />
                                 Peak Hours
                             </h3>
-                            <p className="text-sm text-slate-400">Based on last 30 days of bookings</p>
+                            <p className="text-sm text-[#f2f0ea]/50">Based on last 30 days of bookings</p>
                         </div>
                     </div>
 
                     <div className="flex-1 w-full relative flex items-end gap-1 px-2 pb-6">
                         {loading ? (
-                            <div className="absolute inset-0 flex items-center justify-center text-slate-500">Loading chart...</div>
+                            <div className="absolute inset-0 flex items-center justify-center text-[#f2f0ea]/40">Loading chart...</div>
                         ) : (
                             peakHoursData.map((data, idx) => {
                                 const heightPercent = (data.count / maxHourly) * 100;
@@ -1078,15 +1057,15 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 return (
                                     <div key={idx} className="flex-1 flex flex-col items-center group h-full justify-end">
                                         <div
-                                            className={`w-full rounded-t-sm transition-all relative ${isBusy ? 'bg-blue-500' : 'bg-white/[0.08]'}`}
+                                            className={`w-full rounded-t-sm transition-all relative ${isBusy ? 'bg-[#d8ff3c]' : 'bg-white/[0.08]'}`}
                                             style={{ height: `${Math.max(heightPercent, 5)}%`, opacity: isBusy ? 0.8 : 0.3 }}
                                         >
-                                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[10px] text-white opacity-0 group-hover:opacity-100">
+                                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[10px] text-[#f2f0ea] opacity-0 group-hover:opacity-100">
                                                 {data.count}
                                             </div>
                                         </div>
                                         {idx % 2 === 0 && (
-                                            <div className="absolute bottom-0 text-[9px] text-slate-500 transform translate-y-full whitespace-nowrap">
+                                            <div className="absolute bottom-0 text-[9px] text-[#f2f0ea]/40 transform translate-y-full whitespace-nowrap">
                                                 {hourLabel}
                                             </div>
                                         )}
@@ -1094,9 +1073,9 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 )
                             })
                         )}
-                        <div className="absolute bottom-0 w-full border-t border-white/[0.08]"></div>
+                        <div className="absolute bottom-0 w-full border-t border-[#f2f0ea]/10"></div>
                     </div>
-                    <p className="text-center text-xs text-slate-500 mt-4">
+                    <p className="text-center text-xs text-[#f2f0ea]/40 mt-4">
                         Operating Hours ({cafeHours.openHour > 12 ? `${cafeHours.openHour - 12}PM` : `${cafeHours.openHour}AM`} - {cafeHours.closeHour > 12 ? `${cafeHours.closeHour - 12}PM` : `${cafeHours.closeHour}AM`})
                     </p>
                 </Card>
@@ -1105,38 +1084,38 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             {/* Month-wise Revenue Analysis */}
             {monthlyData.length > 0 && (
                 <Card padding="none" className="overflow-hidden">
-                    <div className="p-5 border-b border-white/[0.08] flex items-center justify-between">
+                    <div className="p-5 border-b border-[#f2f0ea]/10 flex items-center justify-between">
                         <div>
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Calendar size={20} className="text-blue-400" />
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                <Calendar size={20} className="text-[#d8ff3c]" />
                                 Month-Wise Revenue Analysis
                             </h3>
-                            <p className="text-sm text-slate-400">Gaming, F&amp;B, and membership revenue by booking month</p>
+                            <p className="text-sm text-[#f2f0ea]/50">Gaming, F&amp;B, and membership revenue by booking month</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-slate-500">Total</p>
-                            <p className="text-base font-bold text-white">
+                            <p className="text-xs text-[#f2f0ea]/40">Total</p>
+                            <p className="text-base font-bold text-[#f2f0ea]">
                                 ₹{monthlyAnalysis.total.toLocaleString('en-IN')}
                             </p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 border-b border-white/[0.08] bg-white/[0.02]">
-                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Months</p>
-                            <p className="mt-1 text-lg font-semibold text-white">{monthlyData.length}</p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 border-b border-[#f2f0ea]/10 bg-[#111113]">
+                        <div className=" border border-[#f2f0ea]/10 bg-[#111113] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Months</p>
+                            <p className="mt-1 text-lg font-semibold text-[#f2f0ea]">{monthlyData.length}</p>
                         </div>
-                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Average / Month</p>
-                            <p className="mt-1 text-lg font-semibold text-white">₹{Math.round(monthlyAnalysis.average).toLocaleString('en-IN')}</p>
+                        <div className=" border border-[#f2f0ea]/10 bg-[#111113] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Average / Month</p>
+                            <p className="mt-1 text-lg font-semibold text-[#f2f0ea]">₹{Math.round(monthlyAnalysis.average).toLocaleString('en-IN')}</p>
                         </div>
-                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Best Month</p>
-                            <p className="mt-1 text-sm font-semibold text-white">{monthlyAnalysis.bestMonth?.label || '—'}</p>
-                            <p className="text-xs text-emerald-400">₹{Math.round(monthlyAnalysis.bestMonth?.total || 0).toLocaleString('en-IN')}</p>
+                        <div className=" border border-[#f2f0ea]/10 bg-[#111113] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Best Month</p>
+                            <p className="mt-1 text-sm font-semibold text-[#f2f0ea]">{monthlyAnalysis.bestMonth?.label || '—'}</p>
+                            <p className="text-xs text-[#d8ff3c]">₹{Math.round(monthlyAnalysis.bestMonth?.total || 0).toLocaleString('en-IN')}</p>
                         </div>
-                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Latest Month</p>
-                            <p className="mt-1 text-sm font-semibold text-white">{monthlyAnalysis.latestMonth?.label || '—'}</p>
+                        <div className=" border border-[#f2f0ea]/10 bg-[#111113] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Latest Month</p>
+                            <p className="mt-1 text-sm font-semibold text-[#f2f0ea]">{monthlyAnalysis.latestMonth?.label || '—'}</p>
                             <GrowthIndicator value={monthlyAnalysis.latestChange} />
                         </div>
                     </div>
@@ -1145,35 +1124,35 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             {(() => {
                                 const maxTotal = Math.max(...monthlyData.map(m => m.total), 1);
                                 return monthlyData.slice().reverse().map((m) => (
-                                    <div key={m.key} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                                    <div key={m.key} className=" border border-[#f2f0ea]/10 bg-[#111113] p-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
-                                                <p className="text-sm font-semibold text-white">{m.label}</p>
-                                                <p className="mt-1 text-xs text-slate-500">{m.bookings} bookings</p>
+                                                <p className="text-sm font-semibold text-[#f2f0ea]">{m.label}</p>
+                                                <p className="mt-1 text-xs text-[#f2f0ea]/40">{m.bookings} bookings</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[11px] text-slate-500">Total</p>
-                                                <p className="text-base font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</p>
+                                                <p className="text-[11px] text-[#f2f0ea]/40">Total</p>
+                                                <p className="text-base font-semibold text-[#f2f0ea]">₹{Math.round(m.total).toLocaleString('en-IN')}</p>
                                             </div>
                                         </div>
                                         <div className="mt-3 grid grid-cols-3 gap-3">
-                                            <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/8 px-3 py-2">
-                                                <p className="text-[10px] uppercase tracking-[0.12em] text-emerald-300/70">Gaming</p>
-                                                <p className="mt-1 text-sm font-semibold text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</p>
+                                            <div className=" border border-[#d8ff3c]/15 bg-[#d8ff3c]/8 px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-[#d8ff3c]/70">Gaming</p>
+                                                <p className="mt-1 text-sm font-semibold text-[#d8ff3c]">₹{Math.round(m.gaming).toLocaleString('en-IN')}</p>
                                             </div>
-                                            <div className="rounded-xl border border-orange-500/15 bg-orange-500/8 px-3 py-2">
-                                                <p className="text-[10px] uppercase tracking-[0.12em] text-orange-300/70">F&amp;B</p>
-                                                <p className="mt-1 text-sm font-semibold text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</p>
+                                            <div className=" border border-[#ff5c2b]/15 bg-[#ff5c2b]/8 px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-[#ff5c2b]/70">F&amp;B</p>
+                                                <p className="mt-1 text-sm font-semibold text-[#ff5c2b]">₹{Math.round(m.snacks).toLocaleString('en-IN')}</p>
                                             </div>
-                                            <div className="rounded-xl border border-purple-500/15 bg-purple-500/8 px-3 py-2">
-                                                <p className="text-[10px] uppercase tracking-[0.12em] text-purple-300/70">Members</p>
-                                                <p className="mt-1 text-sm font-semibold text-purple-400">₹{Math.round(m.memberships).toLocaleString('en-IN')}</p>
+                                            <div className=" border border-[#d8ff3c]/15 bg-[#d8ff3c]/8 px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-[#d8ff3c]/70">Members</p>
+                                                <p className="mt-1 text-sm font-semibold text-[#d8ff3c]">₹{Math.round(m.memberships).toLocaleString('en-IN')}</p>
                                             </div>
                                         </div>
-                                        <div className="mt-3 h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
-                                            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
-                                            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
-                                            <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
+                                        <div className="mt-3 h-2 bg-[#f2f0ea]/[0.06] overflow-hidden flex">
+                                            <div className="h-full bg-[#d8ff3c] transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
+                                            <div className="h-full bg-[#ff5c2b] transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+                                            <div className="h-full bg-[#d8ff3c] transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
                                         </div>
                                     </div>
                                 ));
@@ -1183,7 +1162,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     <div className={`${isMobile ? 'hidden' : 'block'} overflow-x-auto`}>
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="bg-white/[0.03] text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.08]">
+                                <tr className="bg-[#111113] text-[#f2f0ea]/50 text-xs uppercase tracking-wider border-b border-[#f2f0ea]/10">
                                     <th className="px-5 py-3 font-medium">Month</th>
                                     <th className="px-5 py-3 font-medium text-right">Gaming</th>
                                     <th className="px-5 py-3 font-medium text-right">F&amp;B</th>
@@ -1197,18 +1176,18 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 {(() => {
                                     const maxTotal = Math.max(...monthlyData.map(m => m.total), 1);
                                     return monthlyData.slice().reverse().map(m => (
-                                        <tr key={m.key} className="hover:bg-white/[0.02] transition-colors">
-                                            <td className="px-5 py-3 text-sm font-medium text-white">{m.label}</td>
-                                            <td className="px-5 py-3 text-sm text-right text-emerald-400">₹{Math.round(m.gaming).toLocaleString('en-IN')}</td>
-                                            <td className="px-5 py-3 text-sm text-right text-orange-400">₹{Math.round(m.snacks).toLocaleString('en-IN')}</td>
-                                            <td className="px-5 py-3 text-sm text-right text-purple-400">₹{Math.round(m.memberships).toLocaleString('en-IN')}</td>
-                                            <td className="px-5 py-3 text-sm text-right font-semibold text-white">₹{Math.round(m.total).toLocaleString('en-IN')}</td>
-                                            <td className="px-5 py-3 text-sm text-right text-slate-400">{m.bookings}</td>
+                                        <tr key={m.key} className="hover:bg-[#111113] transition-colors">
+                                            <td className="px-5 py-3 text-sm font-medium text-[#f2f0ea]">{m.label}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-[#d8ff3c]">₹{Math.round(m.gaming).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-[#ff5c2b]">₹{Math.round(m.snacks).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-[#d8ff3c]">₹{Math.round(m.memberships).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right font-semibold text-[#f2f0ea]">₹{Math.round(m.total).toLocaleString('en-IN')}</td>
+                                            <td className="px-5 py-3 text-sm text-right text-[#f2f0ea]/50">{m.bookings}</td>
                                             <td className="px-5 py-3">
-                                                <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden flex">
-                                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
-                                                    <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
-                                                    <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
+                                                <div className="h-2 bg-[#f2f0ea]/[0.06] overflow-hidden flex">
+                                                    <div className="h-full bg-[#d8ff3c] transition-all duration-500" style={{ width: `${(m.gaming / maxTotal) * 100}%` }} />
+                                                    <div className="h-full bg-[#ff5c2b] transition-all duration-500" style={{ width: `${(m.snacks / maxTotal) * 100}%` }} />
+                                                    <div className="h-full bg-[#d8ff3c] transition-all duration-500" style={{ width: `${(m.memberships / maxTotal) * 100}%` }} />
                                                 </div>
                                             </td>
                                         </tr>
@@ -1226,50 +1205,50 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="min-h-[280px]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
                                 <Gamepad2 size={20} className="text-pink-500" />
                                 Console Popularity
                             </h3>
-                            <p className="text-sm text-slate-400">Most booked gaming stations</p>
+                            <p className="text-sm text-[#f2f0ea]/50">Most booked gaming stations</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-slate-500">Gaming Revenue</p>
-                            <p className="text-base font-bold text-white">
+                            <p className="text-xs text-[#f2f0ea]/40">Gaming Revenue</p>
+                            <p className="text-base font-bold text-[#f2f0ea]">
                                 ₹{Math.round(stats.gamingRevenue).toLocaleString('en-IN')}
                             </p>
                         </div>
                     </div>
 
                     {loading ? (
-                        <div className="flex items-center justify-center h-40 text-slate-500">Loading...</div>
+                        <div className="flex items-center justify-center h-40 text-[#f2f0ea]/40">Loading...</div>
                     ) : consoleData.length === 0 ? (
-                        <div className="flex items-center justify-center h-40 text-slate-500">No console data available</div>
+                        <div className="flex items-center justify-center h-40 text-[#f2f0ea]/40">No console data available</div>
                     ) : (
                         <div className="space-y-4">
                             {consoleData.map((console, index) => {
-                                const colors = ['bg-pink-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-orange-500'];
-                                const bgColors = ['bg-pink-500/10', 'bg-blue-500/10', 'bg-emerald-500/10', 'bg-amber-500/10', 'bg-purple-500/10', 'bg-orange-500/10'];
-                                const textColors = ['text-pink-500', 'text-blue-500', 'text-emerald-500', 'text-amber-500', 'text-purple-500', 'text-orange-500'];
+                                const colors = ['bg-pink-500', 'bg-[#d8ff3c]', 'bg-[#d8ff3c]', 'bg-[#ff5c2b]', 'bg-[#d8ff3c]', 'bg-[#ff5c2b]'];
+                                const bgColors = ['bg-pink-500/10', 'bg-[#d8ff3c]/10', 'bg-[#d8ff3c]/10', 'bg-[#ff5c2b]/10', 'bg-[#d8ff3c]/10', 'bg-[#ff5c2b]/10'];
+                                const textColors = ['text-pink-500', 'text-[#d8ff3c]', 'text-[#d8ff3c]', 'text-[#ff5c2b]', 'text-[#d8ff3c]', 'text-[#ff5c2b]'];
                                 const widthPercent = (console.count / maxConsoleCount) * 100;
                                 const isSnacks = console.name === 'Snacks & F&B';
 
                                 return (
                                     <div key={console.name} className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-lg ${bgColors[index % 6]} ${textColors[index % 6]}`}>
+                                        <div className={`p-2  ${bgColors[index % 6]} ${textColors[index % 6]}`}>
                                             {isSnacks ? <Store size={18} /> : <Gamepad2 size={18} />}
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-sm font-medium text-white">{formatConsoleName(console.name)}</span>
-                                                <span className="text-sm text-slate-400">{console.count} bookings</span>
+                                                <span className="text-sm font-medium text-[#f2f0ea]">{formatConsoleName(console.name)}</span>
+                                                <span className="text-sm text-[#f2f0ea]/50">{console.count} bookings</span>
                                             </div>
-                                            <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                                            <div className="h-2 bg-[#f2f0ea]/[0.06] overflow-hidden">
                                                 <div
-                                                    className={`h-full ${colors[index % 6]} rounded-full transition-all duration-500`}
+                                                    className={`h-full ${colors[index % 6]}  transition-all duration-500`}
                                                     style={{ width: `${widthPercent}%` }}
                                                 />
                                             </div>
-                                            <p className="text-xs text-slate-500 mt-1">₹{Math.round(console.revenue).toLocaleString()} revenue</p>
+                                            <p className="text-xs text-[#f2f0ea]/40 mt-1">₹{Math.round(console.revenue).toLocaleString()} revenue</p>
                                         </div>
                                     </div>
                                 );
@@ -1284,59 +1263,59 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="min-h-[280px]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <CreditCard size={20} className="text-purple-500" />
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                <CreditCard size={20} className="text-[#d8ff3c]" />
                                 Payment Methods
                             </h3>
-                            <p className="text-sm text-slate-400">Breakdown by payment type</p>
+                            <p className="text-sm text-[#f2f0ea]/50">Breakdown by payment type</p>
                         </div>
                     </div>
 
                     {loading ? (
-                        <div className="flex items-center justify-center h-40 text-slate-500">Loading...</div>
+                        <div className="flex items-center justify-center h-40 text-[#f2f0ea]/40">Loading...</div>
                     ) : (
                         <div className="space-y-4">
                             {/* Cash */}
                             <div className="flex items-center gap-4">
-                                <div className="p-2 rounded-lg bg-green-500/10 text-green-500">
+                                <div className="p-2 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                                     <Banknote size={18} />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-medium text-white">Cash</span>
-                                        <span className="text-sm text-slate-400">
+                                        <span className="text-sm font-medium text-[#f2f0ea]">Cash</span>
+                                        <span className="text-sm text-[#f2f0ea]/50">
                                             {paymentData.cash.count} ({paymentData.cash.percent.toFixed(0)}%)
                                         </span>
                                     </div>
-                                    <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                                    <div className="h-2 bg-[#f2f0ea]/[0.06] overflow-hidden">
                                         <div
-                                            className="h-full bg-green-500 rounded-full transition-all duration-500"
+                                            className="h-full bg-[#d8ff3c] transition-all duration-500"
                                             style={{ width: `${paymentData.cash.percent}%` }}
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">₹{paymentData.cash.amount.toLocaleString()}</p>
+                                    <p className="text-xs text-[#f2f0ea]/40 mt-1">₹{paymentData.cash.amount.toLocaleString()}</p>
                                 </div>
                             </div>
 
                             {/* UPI / Online — all digital payment modes merged */}
                             <div className="flex items-center gap-4">
-                                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+                                <div className="p-2 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                                     <CreditCard size={18} />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-medium text-white">UPI / Online</span>
-                                        <span className="text-sm text-slate-400">
+                                        <span className="text-sm font-medium text-[#f2f0ea]">UPI / Online</span>
+                                        <span className="text-sm text-[#f2f0ea]/50">
                                             {paymentData.online.count} ({paymentData.online.percent.toFixed(0)}%)
                                         </span>
                                     </div>
-                                    <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                                    <div className="h-2 bg-[#f2f0ea]/[0.06] overflow-hidden">
                                         <div
-                                            className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                                            className="h-full bg-[#d8ff3c] transition-all duration-500"
                                             style={{ width: `${paymentData.online.percent}%` }}
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">₹{paymentData.online.amount.toLocaleString()}</p>
+                                    <p className="text-xs text-[#f2f0ea]/40 mt-1">₹{paymentData.online.amount.toLocaleString()}</p>
                                 </div>
                             </div>
                         </div>
@@ -1348,16 +1327,16 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="min-h-[280px]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Globe size={20} className="text-indigo-500" />
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                <Globe size={20} className="text-[#d8ff3c]" />
                                 Booking Source
                             </h3>
-                            <p className="text-sm text-slate-400">Online vs Walk-in</p>
+                            <p className="text-sm text-[#f2f0ea]/50">Online vs Walk-in</p>
                         </div>
                     </div>
 
                     {loading ? (
-                        <div className="flex items-center justify-center h-40 text-slate-500">Loading...</div>
+                        <div className="flex items-center justify-center h-40 text-[#f2f0ea]/40">Loading...</div>
                     ) : (
                         <div className="space-y-4">
                             {(() => {
@@ -1387,19 +1366,19 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                     <>
                                         {/* Online */}
                                         <div className="flex items-center gap-4">
-                                            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
+                                            <div className="p-2 bg-[#d8ff3c]/10 text-[#d8ff3c]">
                                                 <Globe size={18} />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-sm font-medium text-white">Online</span>
-                                                    <span className="text-sm text-slate-400">
+                                                    <span className="text-sm font-medium text-[#f2f0ea]">Online</span>
+                                                    <span className="text-sm text-[#f2f0ea]/50">
                                                         {sourceStats.online} ({onlinePercent.toFixed(0)}%)
                                                     </span>
                                                 </div>
-                                                <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                                                <div className="h-2 bg-[#f2f0ea]/[0.06] overflow-hidden">
                                                     <div
-                                                        className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                                                        className="h-full bg-[#d8ff3c] transition-all duration-500"
                                                         style={{ width: `${onlinePercent}%` }}
                                                     />
                                                 </div>
@@ -1408,19 +1387,19 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
                                         {/* Walk-in */}
                                         <div className="flex items-center gap-4">
-                                            <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
+                                            <div className="p-2 bg-[#ff5c2b]/10 text-[#ff5c2b]">
                                                 <Store size={18} />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-sm font-medium text-white">Walk-in</span>
-                                                    <span className="text-sm text-slate-400">
+                                                    <span className="text-sm font-medium text-[#f2f0ea]">Walk-in</span>
+                                                    <span className="text-sm text-[#f2f0ea]/50">
                                                         {sourceStats.walkIn} ({walkInPercent.toFixed(0)}%)
                                                     </span>
                                                 </div>
-                                                <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                                                <div className="h-2 bg-[#f2f0ea]/[0.06] overflow-hidden">
                                                     <div
-                                                        className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                                                        className="h-full bg-[#ff5c2b] transition-all duration-500"
                                                         style={{ width: `${walkInPercent}%` }}
                                                     />
                                                 </div>
@@ -1439,39 +1418,39 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Store className="w-5 h-5 text-orange-500" />
+                        <h2 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                            <Store className="w-5 h-5 text-[#ff5c2b]" />
                             F&B Snacks
                         </h2>
-                        <p className="text-slate-400 text-sm mt-0.5">Snack & drink sales for this period</p>
+                        <p className="text-[#f2f0ea]/50 text-sm mt-0.5">Snack & drink sales for this period</p>
                     </div>
                     {snackOrders.length > 0 && (
-                        <div className="hidden sm:flex items-center gap-4 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-2">
+                        <div className="hidden sm:flex items-center gap-4 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/[0.07] px-4 py-2">
                             <div className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                                <span className="text-xs text-slate-400">Gaming</span>
-                                <span className="text-xs font-semibold text-emerald-400 ml-1">₹{Math.round(stats.gamingRevenue).toLocaleString('en-IN')}</span>
+                                <div className="w-2.5 h-2.5 bg-[#d8ff3c]" />
+                                <span className="text-xs text-[#f2f0ea]/50">Gaming</span>
+                                <span className="text-xs font-semibold text-[#d8ff3c] ml-1">₹{Math.round(stats.gamingRevenue).toLocaleString('en-IN')}</span>
                             </div>
                             <div className="w-px h-4 bg-white/[0.08]" />
                             <div className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                                <span className="text-xs text-slate-400">F&B</span>
-                                <span className="text-xs font-semibold text-orange-400 ml-1">₹{Math.round(snackStats.totalRevenue).toLocaleString('en-IN')}</span>
+                                <div className="w-2.5 h-2.5 bg-[#ff5c2b]" />
+                                <span className="text-xs text-[#f2f0ea]/50">F&B</span>
+                                <span className="text-xs font-semibold text-[#ff5c2b] ml-1">₹{Math.round(snackStats.totalRevenue).toLocaleString('en-IN')}</span>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {snackLoading ? (
-                    <div className="flex items-center justify-center py-12 text-slate-500 text-sm gap-2">
-                        <div className="w-4 h-4 border-2 border-slate-600 border-t-orange-500 rounded-full animate-spin" />
+                    <div className="flex items-center justify-center py-12 text-[#f2f0ea]/40 text-sm gap-2">
+                        <div className="w-4 h-4 border-2 border-[#f2f0ea]/30 border-t-orange-500 animate-spin" />
                         Loading F&B data...
                     </div>
                 ) : snackOrders.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 gap-2 bg-white/[0.02] rounded-2xl border border-white/[0.08]">
-                        <Store size={32} className="text-slate-700" />
-                        <p className="text-slate-400 text-sm">No F&B sales in this period</p>
-                        <button onClick={() => setDateRange('all')} className="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 bg-[#111113] border border-[#f2f0ea]/10">
+                        <Store size={32} className="text-[#f2f0ea]/[0.14]" />
+                        <p className="text-[#f2f0ea]/50 text-sm">No F&B sales in this period</p>
+                        <button onClick={() => setDateRange('all')} className="text-xs text-[#d8ff3c] hover:text-[#d8ff3c] underline underline-offset-2 transition-colors">
                             Try All Time
                         </button>
                     </div>
@@ -1480,13 +1459,13 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     {/* Top Selling Items */}
                     <Card>
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                                <Package size={18} className="text-orange-500" />
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                <Package size={18} className="text-[#ff5c2b]" />
                                 Top Items
                             </h3>
                             <div className="text-right">
-                                <p className="text-xs text-slate-500">F&B Revenue</p>
-                                <p className="text-sm font-bold text-orange-400">₹{snackStats.totalRevenue.toLocaleString('en-IN')}</p>
+                                <p className="text-xs text-[#f2f0ea]/40">F&B Revenue</p>
+                                <p className="text-sm font-bold text-[#ff5c2b]">₹{snackStats.totalRevenue.toLocaleString('en-IN')}</p>
                             </div>
                         </div>
                         <div className="space-y-3">
@@ -1495,21 +1474,21 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 const maxQty = snackTopItems[0]?.quantitySold || 1;
                                 return (
                                     <div key={item.itemId} className="flex items-center gap-3">
-                                        <span className="text-slate-500 text-xs w-4">{index + 1}</span>
+                                        <span className="text-[#f2f0ea]/40 text-xs w-4">{index + 1}</span>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-sm font-medium text-white truncate max-w-[140px]">{item.itemName}</span>
-                                                <span className="text-xs text-slate-400">{item.quantitySold} sold · ₹{item.revenue.toLocaleString()}</span>
+                                                <span className="text-sm font-medium text-[#f2f0ea] truncate max-w-[140px]">{item.itemName}</span>
+                                                <span className="text-xs text-[#f2f0ea]/50">{item.quantitySold} sold · ₹{item.revenue.toLocaleString()}</span>
                                             </div>
-                                            <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                                                <div className={`h-full ${colors.bar} rounded-full transition-all duration-500`} style={{ width: `${(item.quantitySold / maxQty) * 100}%` }} />
+                                            <div className="h-1.5 bg-[#f2f0ea]/[0.06] overflow-hidden">
+                                                <div className={`h-full ${colors.bar}  transition-all duration-500`} style={{ width: `${(item.quantitySold / maxQty) * 100}%` }} />
                                             </div>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
-                        <div className="mt-4 pt-3 border-t border-white/[0.08] flex justify-between text-xs text-slate-500">
+                        <div className="mt-4 pt-3 border-t border-[#f2f0ea]/10 flex justify-between text-xs text-[#f2f0ea]/40">
                             <span>{snackStats.totalItemsSold} units sold</span>
                             <span>{snackStats.totalOrders} orders · avg ₹{Math.round(snackStats.avgOrderValue)}</span>
                         </div>
@@ -1517,12 +1496,12 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
                     {/* Sale Transactions */}
                     <Card padding="none" className="overflow-hidden">
-                        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                                <Receipt size={18} className="text-cyan-500" />
+                        <div className="p-4 border-b border-[#f2f0ea]/10 flex items-center justify-between">
+                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
+                                <Receipt size={18} className="text-[#d8ff3c]" />
                                 F&B Transactions
                             </h3>
-                            <span className="text-xs text-slate-500">{snackTransactions.filter(t => !t.isOwnerUse).length} sales</span>
+                            <span className="text-xs text-[#f2f0ea]/40">{snackTransactions.filter(t => !t.isOwnerUse).length} sales</span>
                         </div>
                         <div className="divide-y divide-white/[0.08]/60 max-h-[320px] overflow-y-auto">
                             {snackTransactions.map(tx => {
@@ -1531,32 +1510,32 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 const [y, m, d] = tx.date.split('-').map(Number);
                                 const dateLabel = new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
                                 return (
-                                    <div key={tx.bookingId} className={`px-4 py-3 hover:bg-white/[0.02] transition-colors ${isOwner ? 'opacity-50' : ''}`}>
+                                    <div key={tx.bookingId} className={`px-4 py-3 hover:bg-[#111113] transition-colors ${isOwner ? 'opacity-50' : ''}`}>
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                                    <span className="text-sm font-medium text-slate-200">{tx.customerName}</span>
-                                                    {tx.customerPhone && <span className="text-xs text-slate-500">{tx.customerPhone}</span>}
+                                                    <span className="text-sm font-medium text-[#f2f0ea]">{tx.customerName}</span>
+                                                    {tx.customerPhone && <span className="text-xs text-[#f2f0ea]/40">{tx.customerPhone}</span>}
                                                     {isOwner ? (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/15 text-purple-400">Owner</span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Owner</span>
                                                     ) : payMode === 'cash' ? (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-500/15 text-green-400">Cash</span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Cash</span>
                                                     ) : payMode === 'upi' ? (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-400">UPI</span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">UPI</span>
                                                     ) : (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white/[0.08] text-slate-400 capitalize">{tx.paymentMode}</span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white/[0.08] text-[#f2f0ea]/50 capitalize">{tx.paymentMode}</span>
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap gap-1">
                                                     {tx.items.map((item, idx) => (
-                                                        <span key={idx} className="text-[11px] px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400 border border-white/[0.09]/60">
+                                                        <span key={idx} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 border border-[#f2f0ea]/10/60">
                                                             {item.name} ×{item.quantity}
                                                         </span>
                                                     ))}
                                                 </div>
-                                                <p className="text-[11px] text-slate-600 mt-1">{dateLabel}{tx.time ? ` · ${tx.time}` : ''}</p>
+                                                <p className="text-[11px] text-[#f2f0ea]/30 mt-1">{dateLabel}{tx.time ? ` · ${tx.time}` : ''}</p>
                                             </div>
-                                            <p className={`text-sm font-bold shrink-0 ${isOwner ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                            <p className={`text-sm font-bold shrink-0 ${isOwner ? 'text-[#f2f0ea]/40' : 'text-[#d8ff3c]'}`}>
                                                 {isOwner ? 'Free' : `₹${tx.totalAmount.toLocaleString()}`}
                                             </p>
                                         </div>
@@ -1573,45 +1552,45 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             {topCustomers.length > 0 && (
                 <Card className="space-y-4">
                     <div className="flex items-center gap-2">
-                        <Trophy size={18} className="text-amber-400" />
-                        <h3 className="text-lg font-semibold text-white">Top Customers</h3>
-                        <span className="text-xs text-slate-500 ml-1">by spend · {dateRange === 'all' ? 'all time' : 'selected period'}</span>
+                        <Trophy size={18} className="text-[#ff5c2b]" />
+                        <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">Top customers by spend</h3>
+                        <span className="text-xs text-[#f2f0ea]/40 ml-1">by spend · {dateRange === 'all' ? 'all time' : 'selected period'}</span>
                     </div>
                     <div className="space-y-2">
                         {topCustomers.map((c, i) => {
                             const daysSince = Math.floor((nowMs - new Date(c.lastVisit).getTime()) / 86400000);
-                            const churnColor = daysSince > 30 ? 'text-red-400' : daysSince > 14 ? 'text-amber-400' : 'text-emerald-400';
-                            const rankColors = ['text-amber-400', 'text-slate-300', 'text-orange-500'];
-                            const rankBg = ['bg-amber-500/15 border-amber-500/25', 'bg-slate-500/15 border-slate-500/25', 'bg-orange-500/15 border-orange-500/25'];
+                            const churnColor = daysSince > 30 ? 'text-[#ff5c2b]' : daysSince > 14 ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]';
+                            const rankColors = ['text-[#ff5c2b]', 'text-[#f2f0ea]/70', 'text-[#ff5c2b]'];
+                            const rankBg = ['bg-[#ff5c2b]/15 border-[#ff5c2b]/25', 'bg-[#f2f0ea]/[0.07] border-[#f2f0ea]/10', 'bg-[#ff5c2b]/15 border-[#ff5c2b]/25'];
                             return (
-                                <div key={c.phone || c.name} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:bg-white/[0.05] transition-colors">
+                                <div key={c.phone || c.name} className="flex items-center gap-3 px-4 py-3 bg-[#111113] border border-white/[0.07] hover:bg-white/[0.05] transition-colors">
                                     {/* Rank */}
-                                    <div className={`w-7 h-7 rounded-lg border flex items-center justify-center text-xs font-bold shrink-0 ${i < 3 ? rankBg[i] : 'bg-white/[0.04] border-white/[0.08]'}`}>
-                                        <span className={i < 3 ? rankColors[i] : 'text-slate-500'}>#{i + 1}</span>
+                                    <div className={`w-7 h-7  border flex items-center justify-center text-xs font-bold shrink-0 ${i < 3 ? rankBg[i] : 'bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10'}`}>
+                                        <span className={i < 3 ? rankColors[i] : 'text-[#f2f0ea]/40'}>#{i + 1}</span>
                                     </div>
                                     {/* Avatar */}
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-[#d8ff3c] to-[#d8ff3c] flex items-center justify-center text-xs font-bold text-[#f2f0ea] shrink-0">
                                         {(c.name[0] || '?').toUpperCase()}
                                     </div>
                                     {/* Name + phone */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-                                        {c.phone && <p className="text-xs text-slate-500 truncate">{c.phone}</p>}
+                                        <p className="text-sm font-semibold text-[#f2f0ea] truncate">{c.name}</p>
+                                        {c.phone && <p className="text-xs text-[#f2f0ea]/40 truncate">{c.phone}</p>}
                                     </div>
                                     {/* Sessions */}
                                     <div className="text-center shrink-0 hidden sm:block">
-                                        <p className="text-sm font-semibold text-white">{c.sessions}</p>
-                                        <p className="text-[10px] text-slate-500">visits</p>
+                                        <p className="text-sm font-semibold text-[#f2f0ea]">{c.sessions}</p>
+                                        <p className="text-[10px] text-[#f2f0ea]/40">visits</p>
                                     </div>
                                     {/* Last visit */}
                                     <div className="text-center shrink-0 hidden md:block">
                                         <p className={`text-xs font-semibold ${churnColor}`}>{daysSince === 0 ? 'Today' : `${daysSince}d ago`}</p>
-                                        <p className="text-[10px] text-slate-500">last visit</p>
+                                        <p className="text-[10px] text-[#f2f0ea]/40">last visit</p>
                                     </div>
                                     {/* Spend */}
                                     <div className="text-right shrink-0">
-                                        <p className="text-sm font-bold text-emerald-400">₹{c.spent.toLocaleString('en-IN')}</p>
-                                        <p className="text-[10px] text-slate-500">spent</p>
+                                        <p className="text-sm font-bold text-[#d8ff3c]">₹{c.spent.toLocaleString('en-IN')}</p>
+                                        <p className="text-[10px] text-[#f2f0ea]/40">spent</p>
                                     </div>
                                 </div>
                             );
@@ -1622,12 +1601,12 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
             {/* Recent Transactions Table */}
             <Card padding="none" className="overflow-hidden">
-                <div className="p-6 border-b border-white/[0.06] flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-white">Recent Transactions</h3>
+                <div className="p-6 border-b border-[#f2f0ea]/[0.07] flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-[#f2f0ea]">Recent Transactions</h3>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-slate-400 hover:text-white"
+                        className="text-[#f2f0ea]/50 hover:text-[#f2f0ea]"
                         onClick={exportToCSV}
                     >
                         <Download size={16} className="mr-2" />
@@ -1638,35 +1617,35 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 {isMobile && (
                     <div className="space-y-3 p-4">
                         {billableBookings.slice(-10).reverse().map((booking) => (
-                            <div key={booking.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                            <div key={booking.id} className=" border border-[#f2f0ea]/10 bg-[#111113] p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-sm font-semibold text-white truncate">{booking.customer_name || 'Walk-in'}</p>
-                                        <p className="mt-1 text-xs text-slate-500">
+                                        <p className="text-sm font-semibold text-[#f2f0ea] truncate">{booking.customer_name || 'Walk-in'}</p>
+                                        <p className="mt-1 text-xs text-[#f2f0ea]/40">
                                             {parseLocalDate(booking.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             {' · '}
                                             {booking.start_time || 'N/A'}
                                         </p>
                                     </div>
-                                    <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium border ${booking.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                        booking.status === 'completed' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                            'bg-white/[0.04] text-slate-400 border-white/[0.09]'
+                                    <span className={`shrink-0  px-2 py-1 text-[10px] font-medium border ${booking.status === 'confirmed' ? 'bg-[#d8ff3c]/10 text-[#d8ff3c] border-[#d8ff3c]/20' :
+                                        booking.status === 'completed' ? 'bg-[#d8ff3c]/10 text-[#d8ff3c] border-[#d8ff3c]/20' :
+                                            'bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 border-[#f2f0ea]/10'
                                         }`}>
                                         {booking.status}
                                     </span>
                                 </div>
                                 <div className="mt-3 grid grid-cols-2 gap-3">
-                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-                                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Amount</p>
-                                        <p className="mt-1 font-mono text-sm font-semibold text-white">₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}</p>
+                                    <div className=" border border-[#f2f0ea]/[0.07] bg-[#111113] px-3 py-2.5">
+                                        <p className="text-[10px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Amount</p>
+                                        <p className="mt-1 font-mono text-sm font-semibold text-[#f2f0ea]">₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}</p>
                                     </div>
-                                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-                                        <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Payment</p>
-                                        <p className="mt-1 text-sm capitalize text-slate-300">{booking.payment_mode || 'Cash'}</p>
+                                    <div className=" border border-[#f2f0ea]/[0.07] bg-[#111113] px-3 py-2.5">
+                                        <p className="text-[10px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Payment</p>
+                                        <p className="mt-1 text-sm capitalize text-[#f2f0ea]/70">{booking.payment_mode || 'Cash'}</p>
                                     </div>
                                 </div>
                                 <div className="mt-3 flex justify-end">
-                                    <Button variant="ghost" size="sm" className="h-9 rounded-xl px-3 text-slate-400 hover:text-white">
+                                    <Button variant="ghost" size="sm" className="h-9 px-3 text-[#f2f0ea]/50 hover:text-[#f2f0ea]">
                                         <ArrowUpRight size={16} className="mr-1" />
                                         View
                                     </Button>
@@ -1674,7 +1653,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                             </div>
                         ))}
                         {bookings.length === 0 && (
-                            <div className="px-6 py-12 text-center text-slate-500">
+                            <div className="px-6 py-12 text-center text-[#f2f0ea]/40">
                                 No transactions found for this period.
                             </div>
                         )}
@@ -1684,7 +1663,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <div className={`${isMobile ? 'hidden' : 'block'} overflow-x-auto`}>
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-white/[0.03] text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.08]">
+                            <tr className="bg-[#111113] text-[#f2f0ea]/50 text-xs uppercase tracking-wider border-b border-[#f2f0ea]/10">
                                 <th className="px-6 py-4 font-medium">Date & Time</th>
                                 <th className="px-6 py-4 font-medium">Customer</th>
                                 <th className="px-6 py-4 font-medium">Amount</th>
@@ -1695,42 +1674,42 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                         </thead>
                         <tbody className="divide-y divide-white/[0.08]/50">
                             {billableBookings.slice(-10).reverse().map((booking) => (
-                                <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
-                                    <td className="px-6 py-4 text-white">
+                                <tr key={booking.id} className="hover:bg-[#111113] transition-colors">
+                                    <td className="px-6 py-4 text-[#f2f0ea]">
                                         <div className="font-medium">
                                             {parseLocalDate(booking.booking_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </div>
-                                        <div className="text-xs text-slate-500">
+                                        <div className="text-xs text-[#f2f0ea]/40">
                                             {booking.start_time || 'N/A'}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-300">
+                                    <td className="px-6 py-4 text-[#f2f0ea]/70">
                                         {booking.customer_name || 'Walk-in'}
                                     </td>
-                                    <td className="px-6 py-4 text-white font-mono">
+                                    <td className="px-6 py-4 text-[#f2f0ea] font-mono">
                                         ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
                                     </td>
-                                    <td className="px-6 py-4 text-slate-300 capitalize">
+                                    <td className="px-6 py-4 text-[#f2f0ea]/70 capitalize">
                                         {booking.payment_mode || 'Cash'}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${booking.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                            booking.status === 'completed' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                                'bg-white/[0.04] text-slate-400 border-white/[0.09]'
+                                        <span className={`px-2 py-1  text-xs font-medium border ${booking.status === 'confirmed' ? 'bg-[#d8ff3c]/10 text-[#d8ff3c] border-[#d8ff3c]/20' :
+                                            booking.status === 'completed' ? 'bg-[#d8ff3c]/10 text-[#d8ff3c] border-[#d8ff3c]/20' :
+                                                'bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 border-[#f2f0ea]/10'
                                             }`}>
                                             {booking.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                            <ArrowUpRight size={16} className="text-slate-500" />
+                                            <ArrowUpRight size={16} className="text-[#f2f0ea]/40" />
                                         </Button>
                                     </td>
                                 </tr>
                             ))}
                             {bookings.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-[#f2f0ea]/40">
                                         No transactions found for this period.
                                     </td>
                                 </tr>
