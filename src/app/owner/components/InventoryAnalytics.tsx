@@ -503,7 +503,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-[#111113] border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">F&B Revenue</p>
@@ -519,7 +519,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           </div>
         </Card>
 
-        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-[#111113] border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Total Profit</p>
@@ -535,7 +535,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           </div>
         </Card>
 
-        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-[#111113] border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Items Sold</p>
@@ -551,7 +551,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
           </div>
         </Card>
 
-        <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
+        <Card padding="lg" className="bg-[#111113] border-[#f2f0ea]/10">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Avg Order</p>

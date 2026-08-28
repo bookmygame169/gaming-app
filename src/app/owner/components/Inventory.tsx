@@ -537,7 +537,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
       {/* ── Add/Edit Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0b0c]/90">
-          <div className="bg-[#0d0d14] border border-white/[0.10] w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-[#0d0d14] border border-white/[0.10] w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[#f2f0ea]">{editingItem ? "Edit Item" : "Add New Item"}</h3>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-[#f2f0ea]/[0.06] transition">

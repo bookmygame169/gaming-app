@@ -1532,7 +1532,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                         <span className={i < 3 ? rankColors[i] : 'text-[#f2f0ea]/40'}>#{i + 1}</span>
                                     </div>
                                     {/* Avatar */}
-                                    <div className="w-8 h-8 bg-gradient-to-br from-[#d8ff3c] to-[#d8ff3c] flex items-center justify-center text-xs font-bold text-[#f2f0ea] shrink-0">
+                                    <div className="w-8 h-8 bg-[#111113] flex items-center justify-center text-xs font-bold text-[#f2f0ea] shrink-0">
                                         {(c.name[0] || '?').toUpperCase()}
                                     </div>
                                     {/* Name + phone */}

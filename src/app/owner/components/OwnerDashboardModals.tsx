@@ -110,7 +110,7 @@ export function OwnerDashboardModals() {
             }}
           >
             <div
-              className="w-full max-w-sm overflow-hidden rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113] shadow-2xl"
+              className="w-full max-w-sm overflow-hidden rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113]"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-5 py-4">
@@ -199,7 +199,7 @@ export function OwnerDashboardModals() {
                   type="button"
                   disabled={savingTimeAdjustment || !hasChange}
                   onClick={handleSaveTimeAdjustment}
-                  className="flex h-11 items-center justify-center gap-2 bg-[#d8ff3c] px-4 text-sm font-black text-[#f2f0ea]/40 shadow-lg shadow-[#d8ff3c]/20 transition hover:bg-[#d8ff3c] disabled:cursor-not-allowed disabled:bg-[#f2f0ea]/[0.14] disabled:text-[#f2f0ea]/50 disabled:shadow-none"
+                  className="flex h-11 items-center justify-center gap-2 bg-[#d8ff3c] px-4 text-sm font-black text-[#f2f0ea]/40/20 transition hover:bg-[#d8ff3c] disabled:cursor-not-allowed disabled:bg-[#f2f0ea]/[0.14] disabled:text-[#f2f0ea]/50 disabled:shadow-none"
                 >
                   {savingTimeAdjustment ? (
                     <Loader2 size={16} className="animate-spin" />

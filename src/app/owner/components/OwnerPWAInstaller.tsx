@@ -113,7 +113,7 @@ export default function OwnerPWAInstaller() {
 
     return (
         <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm">
-            <div className="bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 p-4 shadow-2xl">
+            <div className="bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 p-4">
                 <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-[#d8ff3c] flex items-center justify-center flex-shrink-0">
                         <svg className="w-6 h-6 text-[#f2f0ea]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

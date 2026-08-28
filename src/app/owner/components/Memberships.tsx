@@ -1059,7 +1059,7 @@ export function Memberships({
                                     className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/40 focus:outline-none focus:border-[#d8ff3c] text-sm"
                                 />
                                 {showSuggestions && suggestions.length > 0 && (
-                                    <div className="absolute z-50 w-full mt-1 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 shadow-xl overflow-hidden">
+                                    <div className="absolute z-50 w-full mt-1 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 overflow-hidden">
                                         {suggestions.map((c, i) => (
                                             <button
                                                 key={i}

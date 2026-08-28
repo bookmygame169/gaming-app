@@ -283,7 +283,7 @@ export function EditBookingModal({
       `}</style>
 
       <div
-        className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-[#111113] border border-[#f2f0ea]/[0.14] shadow-2xl flex flex-col"
+        className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-[#111113] border border-[#f2f0ea]/[0.14] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -345,7 +345,7 @@ export function EditBookingModal({
                   className="w-full px-3 py-2.5 bg-transparent border border-[#f2f0ea]/[0.14] text-[#f2f0ea] text-sm placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/60 transition-colors"
                 />
                 {showSugg && suggestions.length > 0 && (
-                  <div className="absolute z-50 w-full top-full mt-1 bg-[#111827] border border-[#f2f0ea]/[0.14] shadow-xl overflow-hidden">
+                  <div className="absolute z-50 w-full top-full mt-1 bg-[#111827] border border-[#f2f0ea]/[0.14] overflow-hidden">
                     {suggestions.map((s, i) => (
                       <button
                         key={i}
@@ -746,7 +746,7 @@ export function EditBookingModal({
           <button
             onClick={onSave}
             disabled={saving || deleting || !amount || !date || !startTime}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#d8ff3c]/20"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed/20"
           >
 	            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
 	            {saving ? 'Saving...' : isMembershipBooking ? 'Save Membership' : 'Save Changes'}

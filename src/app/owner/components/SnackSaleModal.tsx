@@ -214,7 +214,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0b0c]/90 backdrop-blur-sm">
-        <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#f2f0ea]/10 bg-[#111113]/60 shadow-2xl overflow-hidden">
+        <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#f2f0ea]/10 bg-[#111113]/60 overflow-hidden">
 
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2f0ea]/10/40">
@@ -281,7 +281,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                       className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-sm text-[#f2f0ea] placeholder-[#f2f0ea]/30 focus:outline-none focus:border-[#d8ff3c]/50"
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                      <div className="absolute z-10 left-0 right-0 mt-1 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 shadow-xl overflow-hidden">
+                      <div className="absolute z-10 left-0 right-0 mt-1 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 overflow-hidden">
                         {suggestions.map((s, i) => (
                           <button
                             key={i}
@@ -474,8 +474,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                     : cart.length === 0
                     ? "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/30 cursor-not-allowed"
                     : isOwnerUse
-                    ? "bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] shadow-lg shadow-[#d8ff3c]/20"
-                    : "bg-[#ff5c2b] hover:bg-[#ff5c2b] text-[#f2f0ea] shadow-lg shadow-[#ff5c2b]/20"
+                    ? "bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea]/20"
+                    : "bg-[#ff5c2b] hover:bg-[#ff5c2b] text-[#f2f0ea]/20"
                 }`}
               >
                 {done ? <><Check size={14} /> Saved!</>

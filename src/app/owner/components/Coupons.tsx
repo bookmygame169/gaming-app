@@ -597,7 +597,7 @@ See you soon! 🎯`;
                                 >
                                     Discard Changes
                                 </Button>
-                                <Button variant="primary" className="flex-1 h-12 text-lg shadow-lg shadow-[#d8ff3c]/20" onClick={handleSave} disabled={saving}>
+                                <Button variant="primary" className="flex-1 h-12 text-lg/20" onClick={handleSave} disabled={saving}>
                                     {saving ? 'Saving...' : selectedCoupon ? 'Update Campaign' : 'Launch Campaign'}
                                 </Button>
                             </div>
@@ -609,7 +609,7 @@ See you soon! 🎯`;
                         <div className="space-y-4">
                             <h3 className="text-sm font-medium text-[#f2f0ea]/50 uppercase tracking-widest pl-1">Live Preview</h3>
 
-                            <div className="relative bg-[#111113] border border-[#f2f0ea]/10 p-6 shadow-2xl shadow-black/50 overflow-hidden">
+                            <div className="relative bg-[#111113] border border-[#f2f0ea]/10 p-6 shadow-black/50 overflow-hidden">
                                 <div className="absolute top-0 right-0 p-4 opacity-50">
                                     <div className="w-20 h-20 bg-[#d8ff3c]/10 rounded-full blur-2xl"></div>
                                 </div>
@@ -627,7 +627,7 @@ See you soon! 🎯`;
                                     <div className="font-mono text-2xl font-bold text-[#f2f0ea] tracking-widest mb-2">
                                         {formData.code || 'CODE'}
                                     </div>
-                                    <div className="text-3xl font-bold bg-gradient-to-r from-[#d8ff3c] to-[#d8ff3c] bg-clip-text text-transparent">
+                                    <div className="text-3xl font-bold bg-[#111113] bg-clip-text text-transparent">
                                         {previewDiscountDisplay}
                                     </div>
                                     {formData.discountType === 'percentage' && formData.bonusMinutes && (

@@ -379,14 +379,14 @@ export function BookingsTable({
                                                     <div className="flex bg-[#f2f0ea]/[0.04] p-0.5 border border-white/5 mr-1">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#f2f0ea] shadow-lg shadow-[#d8ff3c]/20' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/5'}`}
+                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#f2f0ea]/20' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/5'}`}
                                                             title="Set Cash"
                                                         >
                                                             Cash
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#f2f0ea] shadow-lg shadow-[#d8ff3c]/20' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/5'}`}
+                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#f2f0ea]/20' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/5'}`}
                                                             title="Set UPI/Digital"
                                                         >
                                                             UPI
@@ -502,13 +502,13 @@ export function BookingsTable({
                                             <div className="flex border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] p-0.5">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
-                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#f2f0ea] shadow-sm shadow-[#d8ff3c]/30' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
+                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#f2f0ea]/30' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                                                 >
                                                     Cash
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
-                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#f2f0ea] shadow-sm shadow-[#d8ff3c]/30' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
+                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#f2f0ea]/30' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                                                 >
                                                     UPI
                                                 </button>

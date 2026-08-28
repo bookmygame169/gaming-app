@@ -29,7 +29,7 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
       {toasts.map(t => (
         <div
           key={t.id}
-          className={`flex items-start gap-3 px-4 py-3  border backdrop-blur-sm shadow-xl pointer-events-auto animate-in slide-in-from-bottom-2 duration-200 ${STYLES[t.type]}`}
+          className={`flex items-start gap-3 px-4 py-3  border backdrop-blur-sm pointer-events-auto animate-in slide-in-from-bottom-2 duration-200 ${STYLES[t.type]}`}
         >
           {ICONS[t.type]}
           <p className="text-sm text-[#f2f0ea] flex-1 leading-snug">{t.message}</p>
