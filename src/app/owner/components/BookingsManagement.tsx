@@ -5,7 +5,8 @@ import { parseTimeToMinutes } from "@/lib/timeUtils";
 import { BookingsTable } from './BookingsTable';
 import { ActiveSessions } from './ActiveSessions';
 import { Card, Button } from './ui';
-import { RefreshCw, Search, Check, X, IndianRupee, Timer, Clock, CheckCircle2, Zap, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
+import { Kpis } from './consoleUi';
+import { RefreshCw, Search, Check, X, Zap, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 import { getLocalDateString } from '../utils';
@@ -632,33 +633,36 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 </div>
             ) : (
                 <>
-                            {/* Summary bar — derived from fetched bookings */}
-                    {(() => {
-                        return (
-                            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-                                <div className="col-span-2 flex items-center gap-2 border border-[#d8ff3c]/20 bg-[#d8ff3c]/[0.07] px-2.5 py-2 md:col-span-1 md:gap-2.5 md:px-3 md:py-2.5">
-                                    <CheckCircle2 size={15} className="text-[#d8ff3c] shrink-0" />
-                                    <div><p className="text-[10px] text-[#f2f0ea]/40 font-medium">Completed</p><p className="mt-0.5 text-base font-bold leading-none text-[#d8ff3c] md:text-lg">{summary.completed}</p></div>
-                                </div>
-                                <div className="flex items-center gap-2 border border-[#d8ff3c]/20 bg-[#d8ff3c]/[0.07] px-2.5 py-2 md:gap-2.5 md:px-3 md:py-2.5">
-                                    <Timer size={15} className="text-[#d8ff3c] shrink-0" />
-                                    <div><p className="text-[10px] text-[#f2f0ea]/40 font-medium">Active</p><p className="mt-0.5 text-base font-bold leading-none text-[#d8ff3c] md:text-lg">{activeSessionCount}</p></div>
-                                </div>
-                                <div className="flex items-center gap-2 border border-[#ff5c2b]/20 bg-[#ff5c2b]/[0.07] px-2.5 py-2 md:gap-2.5 md:px-3 md:py-2.5">
-                                    <Clock size={15} className="text-[#ff5c2b] shrink-0" />
-                                    <div><p className="text-[10px] text-[#f2f0ea]/40 font-medium">Pending</p><p className="mt-0.5 text-base font-bold leading-none text-[#ff5c2b] md:text-lg">{summary.pending}</p></div>
-                                </div>
-                                <div className="flex items-center gap-2 border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] px-2.5 py-2 md:gap-2.5 md:px-3 md:py-2.5">
-                                    <IndianRupee size={15} className="text-[#f2f0ea]/50 shrink-0" />
-                                    <div><p className="text-[10px] text-[#f2f0ea]/40 font-medium">Cash</p><p className="mt-0.5 text-[15px] font-bold leading-none text-[#f2f0ea] md:text-base">₹{summary.cashTotal.toLocaleString('en-IN')}</p></div>
-                                </div>
-                                <div className="flex items-center gap-2 border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] px-2.5 py-2 md:gap-2.5 md:px-3 md:py-2.5">
-                                    <IndianRupee size={15} className="text-[#d8ff3c] shrink-0" />
-                                    <div><p className="text-[10px] text-[#f2f0ea]/40 font-medium">Online/UPI</p><p className="mt-0.5 text-[15px] font-bold leading-none text-[#f2f0ea] md:text-base">₹{summary.upiTotal.toLocaleString('en-IN')}</p></div>
-                                </div>
-                            </div>
-                        );
-                    })()}
+                    {/* The day in four figures, on the console's one strip.
+                        Five coloured chips with icons was the old dashboard's
+                        idea of a summary and it does not belong on a table. */}
+                    <Kpis
+                        items={[
+                            {
+                                label: 'ACTIVE NOW',
+                                value: String(activeSessionCount),
+                                tone: activeSessionCount > 0 ? 'lime' : 'ink',
+                                sub: `${summary.completed} finished today`,
+                            },
+                            {
+                                label: 'WAITING ON PAYMENT',
+                                value: String(summary.pending),
+                                tone: summary.pending > 0 ? 'orange' : 'ink',
+                                sub: summary.pending > 0 ? 'not started until paid' : 'nothing outstanding',
+                            },
+                            {
+                                label: 'CASH',
+                                value: `₹${summary.cashTotal.toLocaleString('en-IN')}`,
+                                sub: 'taken at the counter',
+                            },
+                            {
+                                label: 'ONLINE',
+                                value: `₹${summary.upiTotal.toLocaleString('en-IN')}`,
+                                tone: summary.upiTotal > 0 ? 'lime' : 'ink',
+                                sub: 'UPI and links',
+                            },
+                        ]}
+                    />
 
                     {/* Filters */}
                     <Card padding="md" className="space-y-3">

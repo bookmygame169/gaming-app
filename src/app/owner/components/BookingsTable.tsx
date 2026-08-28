@@ -191,7 +191,7 @@ export function BookingsTable({
 
             <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm text-left table-fixed">
-                    <thead className="text-xs text-[#f2f0ea]/50 uppercase bg-[#111113] border-b border-white/5">
+                    <thead className="border-b border-[#f2f0ea]/10 bg-[#111113] font-mono text-[9px] uppercase tracking-[0.14em] text-[#f2f0ea]/35">
                         <tr>
                             {selectable && (
                                 <th className="px-3 py-3 w-8">
@@ -207,15 +207,15 @@ export function BookingsTable({
                                     />
                                 </th>
                             )}
-                            <th className="px-4 py-2 font-semibold w-[18%]">Customer</th>
-                            <th className="px-4 py-2 font-semibold w-[18%]">Details</th>
-                            <th className="px-4 py-2 font-semibold w-[18%]">Date & Time</th>
-                            <th className="px-4 py-2 font-semibold w-[12%]">Amount</th>
-                            <th className="px-4 py-2 font-semibold w-[14%]">Status</th>
-                            {showActions && <th className="px-4 py-2 font-semibold text-right w-[20%]">Actions</th>}
+                            <th className="px-4 py-2.5 font-normal w-[18%]">Customer</th>
+                            <th className="px-4 py-2.5 font-normal w-[18%]">Details</th>
+                            <th className="px-4 py-2.5 font-normal w-[18%]">Date & Time</th>
+                            <th className="px-4 py-2.5 font-normal w-[12%]">Amount</th>
+                            <th className="px-4 py-2.5 font-normal w-[14%]">Status</th>
+                            {showActions && <th className="px-4 py-2.5 font-normal text-right w-[20%]">Actions</th>}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-[#f2f0ea]/[0.05]">
                         {loading ? (
                             Array.from({ length: 5 }).map((_, i) => (
                                 <tr key={i} className="animate-pulse">
@@ -431,7 +431,7 @@ export function BookingsTable({
             {/* Mobile View */}
             <div className="md:hidden">
                 {loading ? (
-                    <div className="divide-y divide-white/5 border-t border-white/5 animate-pulse">
+                    <div className="divide-y divide-[#f2f0ea]/[0.05] border-t border-white/5 animate-pulse">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="p-3 space-y-2.5">
                                 <div className="flex justify-between">
@@ -453,7 +453,7 @@ export function BookingsTable({
                         <p className="text-xs text-[#f2f0ea]/30">Try adjusting your filters</p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-white/5 border-t border-white/5">
+                    <div className="divide-y divide-[#f2f0ea]/[0.05] border-t border-white/5">
                         {paginatedBookings.map((booking) => (
                             <div key={booking.id} className="p-3 space-y-2.5">
                                 {/* Header */}
