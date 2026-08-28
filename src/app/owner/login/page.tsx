@@ -78,7 +78,7 @@ function LoginContent() {
             fontSize: 30,
             fontWeight: 800,
             margin: "0 0 8px 0",
-            background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+            background: "#111113",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             letterSpacing: "-0.5px",

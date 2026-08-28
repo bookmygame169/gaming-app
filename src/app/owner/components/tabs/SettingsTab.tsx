@@ -77,21 +77,21 @@ export default function SettingsTab({
       {/* Sticky save bar */}
       {settingsChanged && (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 border-t border-[#f2f0ea]/10 bg-[#0b0b0c]/95 px-6 py-4 backdrop-blur-md">
-          <div className="flex items-center gap-2 text-sm text-amber-400">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          <div className="flex items-center gap-2 font-mono text-[10.5px] tracking-[0.12em] text-[#ff5c2b]">
+            <span className="h-2 w-2 shrink-0 animate-pulse bg-[#ff5c2b]" />
             <span className="font-medium">Unsaved changes</span>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setSettingsChanged(false)}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors"
+              className="border border-[#f2f0ea]/[0.18] px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#f2f0ea]/[0.72] transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
             >
               Discard
             </button>
             <button
               onClick={handleSaveSettings}
               disabled={savingSettings}
-              className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="flex items-center gap-2 bg-[#d8ff3c] px-5 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] font-semibold text-[#0b0b0c] transition-[filter] hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {savingSettings ? (
                 <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
@@ -190,7 +190,7 @@ export default function SettingsTab({
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = "#d8ff3c";
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = theme.border;
@@ -234,7 +234,7 @@ export default function SettingsTab({
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "#d8ff3c";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = theme.border;
@@ -276,7 +276,7 @@ export default function SettingsTab({
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "#d8ff3c";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = theme.border;
@@ -321,7 +321,7 @@ export default function SettingsTab({
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = "#d8ff3c";
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = theme.border;
@@ -336,7 +336,7 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "#d8ff3c" : "rgba(242,240,234,0.08)",
                 border: "none",
                 color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
@@ -433,7 +433,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -475,7 +475,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -492,7 +492,7 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "#d8ff3c" : "rgba(242,240,234,0.08)",
                 border: "none",
                 color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
@@ -580,7 +580,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -622,7 +622,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -678,7 +678,7 @@ export default function SettingsTab({
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = "#d8ff3c";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = theme.border;
@@ -697,7 +697,7 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "#d8ff3c" : "rgba(242,240,234,0.08)",
                 border: "none",
                 color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
@@ -785,7 +785,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -827,7 +827,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -869,7 +869,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -911,7 +911,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -955,7 +955,7 @@ export default function SettingsTab({
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "#d8ff3c";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(216,255,60,0.10)";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = theme.border;
@@ -972,7 +972,7 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "#d8ff3c" : "rgba(242,240,234,0.08)",
                 border: "none",
                 color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
@@ -1042,7 +1042,7 @@ export default function SettingsTab({
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <label style={{
                       padding: "12px 20px",
-                      background: "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)",
+                      background: "#d8ff3c",
                       border: "none",
                       color: "#0b0b0c",
                       fontSize: 14,
@@ -1065,7 +1065,7 @@ export default function SettingsTab({
                       onClick={handleProfilePhotoDelete}
                       style={{
                         padding: "12px 20px",
-                        background: "linear-gradient(135deg, #ff5c2b 0%, #ff5c2b 100%)",
+                        background: "#111113",
                         border: "none",
                         color: "#0b0b0c",
                         fontSize: 14,
@@ -1216,7 +1216,7 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "#d8ff3c" : "rgba(242,240,234,0.08)",
                 border: "none",
                 color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,

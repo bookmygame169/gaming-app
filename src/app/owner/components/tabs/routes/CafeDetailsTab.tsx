@@ -29,7 +29,7 @@ export function CafeDetailsTab() {
               ) : (
                 <div
                   style={{
-                    background: "linear-gradient(135deg, rgba(30,41,59,0.8), rgba(15,23,42,0.9))",
+                    background: "#111113, rgba(15,23,42,0.9))",
                     borderRadius: 16,
                     border: `1px solid rgba(71, 85, 105, 0.3)`,
                     padding: "32px",
@@ -42,7 +42,7 @@ export function CafeDetailsTab() {
                     <div style={{
                       fontSize: 48,
                       marginBottom: 16,
-                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                      background: "#111113",
                       width: 80,
                       height: 80,
                       borderRadius: 20,

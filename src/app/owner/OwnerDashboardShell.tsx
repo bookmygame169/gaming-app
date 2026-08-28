@@ -75,7 +75,7 @@ function OwnerDashboardView({ railCollapsed }: { railCollapsed: boolean }) {
                 borderRadius: 12,
                 background: "rgba(239, 68, 68, 0.1)",
                 border: "1px solid rgba(239, 68, 68, 0.3)",
-                color: "#ef4444",
+                color: "#ff5c2b",
                 marginBottom: 24,
                 fontSize: 14,
               }}

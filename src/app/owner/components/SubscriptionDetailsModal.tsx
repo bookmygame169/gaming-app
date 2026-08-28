@@ -111,7 +111,7 @@ export default function SubscriptionDetailsModal({
                                     width: isMobile ? 60 : 72,
                                     height: isMobile ? 60 : 72,
                                     borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #d8ff3c, #ec4899)',
+                                    background: '#d8ff3c',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',

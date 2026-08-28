@@ -1075,7 +1075,7 @@ export function Billing({
                                                     type="button"
                                                     onClick={() => setItems([createItem(consoleType)])}
                                                     className={`relative overflow-hidden  p-4 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
-                                                    style={{ background: `linear-gradient(180deg, ${theme.accent}18, rgba(0,0,0,0)) , var(--card-2)` }}
+                                                    style={{ background: `#111113) , var(--card-2)` }}
                                                 >
                                                     <span className="absolute inset-0 grid-dots opacity-30" />
                                                     <div className="relative flex items-start justify-between gap-3">
@@ -1149,8 +1149,8 @@ export function Billing({
                                                                     className={`relative overflow-hidden  border p-3 text-left transition-all duration-200 ${selected ? '' : HOVER_CARD_CLASS}`}
                                                                     style={{
                                                                         background: selected
-                                                                            ? `linear-gradient(180deg, ${t.accent}20, rgba(255,255,255,0.025) 55%, rgba(0,0,0,0) 100%), var(--card-2)`
-                                                                            : `linear-gradient(180deg, ${t.accent}10, rgba(255,255,255,0.01) 55%, rgba(0,0,0,0) 100%), var(--card-2)`,
+                                                                            ? `#111113 55%, rgba(0,0,0,0) 100%), var(--card-2)`
+                                                                            : `#111113 55%, rgba(0,0,0,0) 100%), var(--card-2)`,
                                                                         borderColor: selected ? `${t.accent}70` : 'rgba(255,255,255,0.08)',
                                                                         boxShadow: selected
                                                                             ? `0 0 0 1px ${t.accent}55, 0 22px 38px -28px ${t.accent}88, inset 0 1px 0 rgba(255,255,255,0.04)`

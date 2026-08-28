@@ -472,7 +472,7 @@ export default function OwnerCafeEditPage() {
             padding: "12px 24px",
             borderRadius: 10,
             border: "none",
-            background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+            background: "#111113",
             color: "#fff",
             fontSize: 14,
             fontWeight: 600,
@@ -497,7 +497,7 @@ export default function OwnerCafeEditPage() {
       {/* Header */}
       <header
         style={{
-          background: "linear-gradient(180deg, #0f172a 0%, #020617 100%)",
+          background: "#111113",
           borderBottom: `1px solid ${colors.border}`,
           padding: "24px 32px",
         }}
@@ -578,7 +578,7 @@ export default function OwnerCafeEditPage() {
               borderRadius: 12,
               background: "rgba(34, 197, 94, 0.1)",
               border: "1px solid rgba(34, 197, 94, 0.3)",
-              color: "#22c55e",
+              color: "#d8ff3c",
               marginBottom: 24,
               fontSize: 14,
               display: "flex",
@@ -599,7 +599,7 @@ export default function OwnerCafeEditPage() {
               borderRadius: 12,
               background: "rgba(239, 68, 68, 0.1)",
               border: "1px solid rgba(239, 68, 68, 0.3)",
-              color: "#ef4444",
+              color: "#ff5c2b",
               marginBottom: 24,
               fontSize: 14,
             }}
@@ -943,7 +943,7 @@ export default function OwnerCafeEditPage() {
                   background:
                     saving || !formData.name || !formData.address
                       ? "rgba(34, 197, 94, 0.3)"
-                      : "linear-gradient(135deg, #22c55e, #16a34a)",
+                      : "#111113",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 600,
@@ -1121,7 +1121,7 @@ export default function OwnerCafeEditPage() {
                         padding: "12px 24px",
                         borderRadius: 8,
                         border: `2px dashed ${colors.border}`,
-                        background: uploadingImage ? "rgba(59, 130, 246, 0.1)" : "rgba(30,41,59,0.5)",
+                        background: uploadingImage ? "rgba(216,255,60,0.10)" : "rgba(30,41,59,0.5)",
                         color: uploadingImage ? colors.cyan : colors.textSecondary,
                         fontSize: 14,
                         fontWeight: 600,
@@ -1177,7 +1177,7 @@ export default function OwnerCafeEditPage() {
                         padding: "12px 24px",
                         borderRadius: 8,
                         border: "none",
-                        background: newImageUrl ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "rgba(59, 130, 246, 0.3)",
+                        background: newImageUrl ? "#111113" : "rgba(59, 130, 246, 0.3)",
                         color: "#fff",
                         fontSize: 14,
                         fontWeight: 600,
@@ -1351,7 +1351,7 @@ function FormField({
         }}
       >
         {label}
-        {required && <span style={{ color: "#ef4444", marginLeft: 4 }}>*</span>}
+        {required && <span style={{ color: "#ff5c2b", marginLeft: 4 }}>*</span>}
       </label>
       {children}
     </div>

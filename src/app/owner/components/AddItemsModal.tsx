@@ -35,10 +35,10 @@ interface AddItemsModalProps {
 }
 
 const CATEGORY_CONFIG: Record<InventoryCategory, { icon: React.ReactNode; color: string }> = {
-  snacks: { icon: <Cookie className="w-4 h-4" />, color: "#f59e0b" },
-  cold_drinks: { icon: <GlassWater className="w-4 h-4" />, color: "#06b6d4" },
-  hot_drinks: { icon: <Coffee className="w-4 h-4" />, color: "#ef4444" },
-  combo: { icon: <Gift className="w-4 h-4" />, color: "#8b5cf6" },
+  snacks: { icon: <Cookie className="w-4 h-4" />, color: "#ff5c2b" },
+  cold_drinks: { icon: <GlassWater className="w-4 h-4" />, color: "#d8ff3c" },
+  hot_drinks: { icon: <Coffee className="w-4 h-4" />, color: "#ff5c2b" },
+  combo: { icon: <Gift className="w-4 h-4" />, color: "#d8ff3c" },
 };
 
 export default function AddItemsModal({

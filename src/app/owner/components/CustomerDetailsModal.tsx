@@ -149,7 +149,7 @@ export default function CustomerDetailsModal({
                     {/* Left Sidebar - Profile & Actions */}
                     <div style={{
                         width: isMobile ? '100%' : '320px',
-                        background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%)',
+                        background: '#111113 0%, rgba(15, 23, 42, 0.5) 100%)',
                         borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.05)',
                         borderBottom: isMobile ? '1px solid rgba(255,255,255,0.05)' : 'none',
                         padding: isMobile ? 24 : 32,
@@ -164,7 +164,7 @@ export default function CustomerDetailsModal({
                                 height: 100,
                                 margin: '0 auto 16px',
                                 borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                                background: '#111113',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -220,7 +220,7 @@ export default function CustomerDetailsModal({
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
                                     <Award size={16} /> Total Spent
                                 </div>
-                                <div style={{ color: '#10b981', fontWeight: 600 }}>₹{totalSpent.toLocaleString()}</div>
+                                <div style={{ color: '#d8ff3c', fontWeight: 600 }}>₹{totalSpent.toLocaleString()}</div>
                             </div>
                             {/* Divider */}
                             <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.05)' }} />
@@ -270,7 +270,7 @@ export default function CustomerDetailsModal({
                             <button style={{
                                 width: '100%',
                                 padding: '14px',
-                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                background: '#d8ff3c',
                                 border: 'none',
                                 borderRadius: 14,
                                 color: 'white',
@@ -319,7 +319,7 @@ export default function CustomerDetailsModal({
                         {/* Active Subscription Banner */}
                         {activeSubscription ? (
                             <div style={{
-                                background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0) 100%)',
+                                background: '#111113 0%, rgba(37, 99, 235, 0) 100%)',
                                 border: '1px solid rgba(59, 130, 246, 0.2)',
                                 borderRadius: 20,
                                 padding: 24,
@@ -328,14 +328,14 @@ export default function CustomerDetailsModal({
                                 overflow: 'hidden'
                             }}>
                                 <div style={{ position: 'absolute', top: 0, right: 0, padding: 16 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 12px', borderRadius: 20 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', background: 'rgba(216,255,60,0.10)', padding: '4px 12px', borderRadius: 20 }}>
                                         ACTIVE
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
                                     <div style={{
                                         width: 48, height: 48, borderRadius: 12,
-                                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                        background: '#111113',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         color: 'white', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
                                     }}>
@@ -365,7 +365,7 @@ export default function CustomerDetailsModal({
                                         <div style={{
                                             width: `${usagePercent}%`,
                                             height: '100%',
-                                            background: '#3b82f6',
+                                            background: '#d8ff3c',
                                             borderRadius: 10
                                         }} />
                                     </div>
@@ -429,7 +429,7 @@ export default function CustomerDetailsModal({
                                                 <td style={{ padding: '16px', color: 'white', fontSize: 14 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                         <span style={{
-                                                            padding: '2px 8px', borderRadius: 6, background: 'rgba(59, 130, 246, 0.1)',
+                                                            padding: '2px 8px', borderRadius: 6, background: 'rgba(216,255,60,0.10)',
                                                             color: '#60a5fa', fontSize: 12, fontWeight: 600
                                                         }}>
                                                             {booking.source === 'membership' ? 'Membership' : stationName}
