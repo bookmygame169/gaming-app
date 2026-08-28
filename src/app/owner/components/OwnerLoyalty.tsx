@@ -1,7 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Sparkles, Loader2, AlertCircle, Gift, Save, Search, TrendingUp } from 'lucide-react';
+import {
+    Chips,
+    EmptyRow,
+    Field,
+    GhostButton,
+    Kpis,
+    Panel,
+    PrimaryButton,
+    SectionBar,
+    TableHead,
+    TableRow,
+} from './consoleUi';
 import { LoyaltyRewardsMenu, type Reward } from './LoyaltyRewardsMenu';
 
 type Settings = {
@@ -80,6 +91,7 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
     const [redeemPoints, setRedeemPoints] = useState('');
     const [redeemMode, setRedeemMode] = useState<'redeemed' | 'bonus'>('redeemed');
     const [redeeming, setRedeeming] = useState(false);
+    const [showRules, setShowRules] = useState(false);
 
     const load = useCallback(async () => {
         if (!cafeId) return;
@@ -211,341 +223,306 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
             ? Math.ceil(cheapestReward / settings.pointsPerDay)
             : 0;
 
+    const COLUMNS = 'minmax(140px,1.4fr) minmax(110px,1fr) 96px 110px 132px';
+
     return (
-        <div className="flex flex-col gap-4">
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/15">
-                            <Sparkles size={15} className="text-purple-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-200">Loyalty points</h3>
-                            <p className="text-[11px] text-slate-500">
-                                Reward regulars so they come back to you
-                            </p>
-                        </div>
-                    </div>
+        <div className="flex flex-col gap-[18px]">
+            <Kpis
+                items={[
+                    {
+                        label: 'POINTS OWED',
+                        value: outstandingPoints.toLocaleString('en-IN'),
+                        tone: outstandingPoints > 0 ? 'orange' : 'ink',
+                        sub: `worth ₹${outstandingRupees.toLocaleString('en-IN')} off future bills`,
+                    },
+                    { label: 'MEMBERS', value: String(memberCount), sub: 'collecting at this café' },
+                    {
+                        label: 'PER DAY',
+                        value: `+${settings.pointsPerDay}`,
+                        tone: 'lime',
+                        sub: settings.minDailySpend > 0 ? `on ₹${settings.minDailySpend} or more` : 'on any spend',
+                    },
+                    {
+                        label: 'CHEAPEST REWARD',
+                        value: cheapestReward > 0 ? `${cheapestReward} pts` : '—',
+                        sub: daysToCheapest > 0 ? `about ${daysToCheapest} visits to earn` : 'no rewards set up',
+                    },
+                ]}
+            />
 
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2">
-                        <input
-                            type="checkbox"
-                            checked={settings.enabled}
-                            onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
-                            className="h-4 w-4 accent-purple-500"
-                        />
-                        <span className="text-[12px] font-semibold text-slate-300">
-                            {settings.enabled ? 'Points are on' : 'Points are off'}
+            {/* The rule, as one line of chips. It is easy to misread as "per
+                visit", so it is spelled out with the owner's own numbers. */}
+            <Panel className="flex flex-wrap items-center gap-2.5 px-4 py-3.5">
+                <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+                    RULES IN FORCE
+                </span>
+                {[
+                    { k: 'EARNS', v: `+${settings.pointsPerDay}/DAY` },
+                    { k: 'NEEDS', v: settings.minDailySpend > 0 ? `₹${settings.minDailySpend} SPEND` : 'ANY SPEND' },
+                    { k: 'POINT WORTH', v: `₹${settings.rupeesPerPoint}` },
+                    { k: 'MIN REDEEM', v: `${settings.minRedeemPoints} PTS` },
+                    { k: 'SCHEME', v: settings.enabled ? 'ON' : 'OFF' },
+                ].map((rule) => (
+                    <span
+                        key={rule.k}
+                        className="flex items-center gap-2 whitespace-nowrap border border-[#f2f0ea]/[0.14] bg-[#17171a] px-[11px] py-2 font-mono text-[11px] text-[#f2f0ea]/75"
+                    >
+                        {rule.k}
+                        <span style={{ color: rule.k === 'SCHEME' && !settings.enabled ? '#ff5c2b' : '#d8ff3c' }}>
+                            {rule.v}
                         </span>
-                    </label>
-                </div>
+                    </span>
+                ))}
+                <span className="min-w-[10px] flex-1" />
+                <GhostButton onClick={() => setShowRules((open) => !open)}>
+                    {showRules ? 'CLOSE' : 'EDIT RULES →'}
+                </GhostButton>
+            </Panel>
 
-                {error && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
-                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                {notice && (
-                    <div className="mb-4 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3 text-[12px] text-emerald-300">
-                        {notice}
-                    </div>
-                )}
-
-                {loading && (
-                    <div className="flex items-center gap-2 py-6 text-[12px] text-slate-500">
-                        <Loader2 size={14} className="animate-spin" /> Loading…
-                    </div>
-                )}
-
-                <div className="grid gap-3 sm:grid-cols-4">
-                    <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Spend in a day to earn ₹
-                        </label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={settings.minDailySpend}
-                            onChange={(e) =>
-                                setSettings({ ...settings, minDailySpend: Number(e.target.value) })
-                            }
-                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Points for that day
-                        </label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={settings.pointsPerDay}
-                            onChange={(e) =>
-                                setSettings({ ...settings, pointsPerDay: Number(e.target.value) })
-                            }
-                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Each point is worth ₹
-                        </label>
-                        <input
-                            type="number"
-                            min={0}
-                            step="0.5"
-                            value={settings.rupeesPerPoint}
-                            onChange={(e) =>
-                                setSettings({ ...settings, rupeesPerPoint: Number(e.target.value) })
-                            }
-                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Least points they can use at once
-                        </label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={settings.minRedeemPoints}
-                            onChange={(e) =>
-                                setSettings({ ...settings, minRedeemPoints: Number(e.target.value) })
-                            }
-                            className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                    <p className="text-[12px] text-slate-300">
-                        Spend ₹{settings.minDailySpend} or more in one day → <strong>{settings.pointsPerDay} points</strong>.
-                    </p>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                        Once per day. Five visits in one day still earns {settings.pointsPerDay} points, and the
-                        whole day&apos;s spending counts together — three ₹100 sessions reach ₹300 just like one
-                        ₹300 session does.
-                        {daysToCheapest > 0 && (
-                            <>
-                                {' '}At this rate the cheapest reward takes {daysToCheapest}{' '}
-                                {daysToCheapest === 1 ? 'day' : 'days'} of visits.
-                            </>
-                        )}
-                    </p>
-                </div>
-
-                <button
-                    type="button"
-                    onClick={saveSettings}
-                    disabled={!cafeId || saving}
-                    className="mt-4 flex items-center gap-1.5 rounded-lg bg-purple-500 px-3 py-2 text-[12px] font-bold text-white transition-colors hover:bg-purple-400 disabled:opacity-40"
-                >
-                    {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                    Save rules
-                </button>
-            </section>
-
-            <LoyaltyRewardsMenu cafeId={cafeId} onChanged={load} />
-
-            {/* Outstanding points are money the café owes in free play, so they
-                sit at the top rather than being buried in the member list. */}
-            <section className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                    <p className="text-[11px] text-slate-500">Points not yet used</p>
-                    <p className="mt-1 text-xl font-bold text-slate-200">
-                        {outstandingPoints.toLocaleString('en-IN')}
-                    </p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                    <p className="text-[11px] text-slate-500">What that costs you</p>
-                    <p className="mt-1 text-xl font-bold text-amber-400">
-                        ₹{outstandingRupees.toLocaleString('en-IN')}
-                    </p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                    <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                        <TrendingUp size={11} /> Customers collecting
-                    </p>
-                    <p className="mt-1 text-xl font-bold text-slate-200">{memberCount}</p>
-                </div>
-            </section>
-
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15">
-                        <Gift size={15} className="text-emerald-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-200">Use points at the counter</h3>
-                        <p className="text-[11px] text-slate-500">
-                            Take points off a customer&apos;s balance and give the discount
-                        </p>
-                    </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                    <input
-                        value={redeemPhone}
-                        onChange={(e) => setRedeemPhone(e.target.value)}
-                        placeholder="Phone number"
-                        className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                    />
-
-                    {/* Picking a reward is the normal path; the free-form boxes
-                        below are the exception, not the default. */}
-                    <select
-                        value={chosenRewardId}
-                        onChange={(e) => setChosenRewardId(e.target.value)}
-                        className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                    >
-                        <option value="">Choose a reward…</option>
-                        {rewards.map((reward) => (
-                            <option key={reward.id} value={reward.id}>
-                                {reward.name} — {reward.pointsCost} pts
-                            </option>
+            {showRules && (
+                <Panel className="flex flex-col gap-4 px-4 py-4">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {[
+                            { label: 'POINTS PER DAY', key: 'pointsPerDay' as const },
+                            { label: 'MIN DAILY SPEND', key: 'minDailySpend' as const },
+                            { label: 'A POINT IS WORTH ₹', key: 'rupeesPerPoint' as const },
+                            { label: 'MIN POINTS TO REDEEM', key: 'minRedeemPoints' as const },
+                        ].map((entry) => (
+                            <div key={entry.key} className="flex flex-col gap-1.5">
+                                <span className="font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.42]">
+                                    {entry.label}
+                                </span>
+                                <Field
+                                    type="number"
+                                    value={String(settings[entry.key])}
+                                    onChange={(value) =>
+                                        setSettings({ ...settings, [entry.key]: Number(value) || 0 })
+                                    }
+                                />
+                            </div>
                         ))}
-                        {rewards.length === 0 && <option disabled>No rewards on the menu yet</option>}
-                    </select>
-
-                    <button
-                        type="button"
-                        onClick={submitPoints}
-                        disabled={
-                            !cafeId ||
-                            redeeming ||
-                            !redeemPhone ||
-                            (!chosenRewardId && !redeemPoints)
-                        }
-                        className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-[12px] font-bold text-black transition-colors hover:bg-emerald-400 disabled:opacity-40"
-                    >
-                        {redeeming ? <Loader2 size={13} className="animate-spin" /> : <Gift size={13} />}
-                        Give reward
-                    </button>
-                </div>
-
-                {!chosenRewardId && (
-                    <div className="mt-3 border-t border-white/[0.06] pt-3">
-                        <p className="mb-2 text-[11px] text-slate-500">
-                            Or move points by hand, without a reward:
-                        </p>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <input
-                                type="number"
-                                min={1}
-                                value={redeemPoints}
-                                onChange={(e) => setRedeemPoints(e.target.value)}
-                                placeholder="How many points"
-                                className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                            />
-                            <select
-                                value={redeemMode}
-                                onChange={(e) => setRedeemMode(e.target.value as 'redeemed' | 'bonus')}
-                                className="rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-emerald-500/50 focus:outline-none"
-                            >
-                                <option value="redeemed">Take points off</option>
-                                <option value="bonus">Give bonus points</option>
-                            </select>
-                            {redeemMode === 'redeemed' && Number(redeemPoints) > 0 && (
-                                <p className="self-center text-[11px] text-slate-500">
-                                    ₹{Math.floor(Number(redeemPoints) * settings.rupeesPerPoint)} off their bill
-                                </p>
-                            )}
-                        </div>
                     </div>
-                )}
-            </section>
 
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-slate-200">Who has points</h3>
-                    <div className="relative">
-                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search name or phone"
-                            className="rounded-lg border border-white/[0.08] bg-[#0b1018] py-2 pl-8 pr-2.5 text-[12px] text-slate-200 focus:border-purple-500/50 focus:outline-none"
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Chips
+                            items={[
+                                { id: 'on', label: 'SCHEME ON' },
+                                { id: 'off', label: 'SCHEME OFF' },
+                            ]}
+                            active={settings.enabled ? 'on' : 'off'}
+                            onPick={(id) => setSettings({ ...settings, enabled: id === 'on' })}
                         />
+                        <span className="min-w-[10px] flex-1" />
+                        <PrimaryButton onClick={saveSettings} disabled={saving}>
+                            {saving ? 'SAVING…' : 'SAVE RULES'}
+                        </PrimaryButton>
                     </div>
+                </Panel>
+            )}
+
+            {notice && (
+                <div className="border border-[#d8ff3c]/[0.28] bg-[#d8ff3c]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#d8ff3c]">
+                    {notice}
+                </div>
+            )}
+            {error && (
+                <div className="border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#ff5c2b]">
+                    {error}
+                </div>
+            )}
+
+            {/* Handing points over, or putting some on by hand. */}
+            <Panel className="flex flex-col gap-3 px-4 py-4">
+                <div className="flex flex-wrap items-center gap-[9px]">
+                    <Chips
+                        items={[
+                            { id: 'redeemed', label: 'REDEEM POINTS' },
+                            { id: 'bonus', label: 'GIVE POINTS' },
+                        ]}
+                        active={redeemMode}
+                        onPick={(id) => setRedeemMode(id as 'redeemed' | 'bonus')}
+                    />
+                    <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
                 </div>
 
-                {!loading && visibleMembers.length === 0 && (
-                    <p className="py-8 text-center text-[12px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Field value={redeemPhone} onChange={setRedeemPhone} placeholder="10-DIGIT NUMBER" className="w-[170px]" />
+
+                    {redeemMode === 'redeemed' && rewards.length > 0 && (
+                        <select
+                            value={chosenRewardId}
+                            onChange={(e) => setChosenRewardId(e.target.value)}
+                            className="h-[38px] border border-[#f2f0ea]/[0.14] bg-transparent px-3 font-mono text-[10.5px] tracking-[0.1em] text-[#f2f0ea] outline-none focus:border-[#d8ff3c]"
+                        >
+                            <option value="" className="bg-[#111113]">PICK A REWARD</option>
+                            {rewards.map((reward) => (
+                                <option key={reward.id} value={reward.id} className="bg-[#111113]">
+                                    {reward.name} · {reward.pointsCost} pts
+                                </option>
+                            ))}
+                        </select>
+                    )}
+
+                    <Field value={redeemPoints} onChange={setRedeemPoints} placeholder="POINTS" type="number" className="w-[120px]" />
+
+                    <PrimaryButton onClick={submitPoints} disabled={redeeming}>
+                        {redeeming ? 'SAVING…' : redeemMode === 'redeemed' ? 'TAKE POINTS OFF' : 'ADD POINTS'}
+                    </PrimaryButton>
+                </div>
+            </Panel>
+
+            <div className="flex flex-wrap items-center gap-[9px]">
+                <SectionBar
+                    title="MEMBERS"
+                    action={
+                        <Field
+                            value={search}
+                            onChange={setSearch}
+                            placeholder="FIND BY NAME OR NUMBER"
+                            className="w-[220px]"
+                        />
+                    }
+                />
+            </div>
+
+            <Panel>
+                <TableHead columns={COLUMNS}>
+                    <span>MEMBER</span>
+                    <span>BALANCE</span>
+                    <span className="text-right">WORTH</span>
+                    <span className="text-right">LAST SEEN</span>
+                    <span className="text-right">ACTIONS</span>
+                </TableHead>
+
+                {visibleMembers.length === 0 ? (
+                    <EmptyRow>
                         {members.length === 0
-                            ? 'Nobody has points yet. They start earning as soon as sessions are marked complete.'
-                            : 'No customer matches that search.'}
-                    </p>
+                            ? 'Nobody is collecting yet. Points go on automatically as people play.'
+                            : 'Nobody matches that search.'}
+                    </EmptyRow>
+                ) : (
+                    visibleMembers.map((member) => {
+                        const canRedeem = member.balance >= settings.minRedeemPoints && settings.minRedeemPoints > 0;
+                        const initials = (member.name || member.phone)
+                            .split(/\s+/)
+                            .slice(0, 2)
+                            .map((part) => part[0])
+                            .join('')
+                            .toUpperCase();
+
+                        return (
+                            <TableRow
+                                key={member.phone}
+                                columns={COLUMNS}
+                                edge={canRedeem ? '#d8ff3c' : 'transparent'}
+                            >
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    <span
+                                        className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[11.5px] font-black"
+                                        style={
+                                            canRedeem
+                                                ? { background: '#d8ff3c', color: '#0b0b0c' }
+                                                : { background: 'rgba(242,240,234,.08)', color: 'rgba(242,240,234,.6)' }
+                                        }
+                                    >
+                                        {initials}
+                                    </span>
+                                    <div className="flex min-w-0 flex-col gap-[3px]">
+                                        <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
+                                            {member.name || 'No name'}
+                                        </span>
+                                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                            {member.phone}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="whitespace-nowrap text-[15px] font-extrabold text-[#f2f0ea]">
+                                        {member.balance.toLocaleString('en-IN')}
+                                        <span className="font-mono text-[10px] font-medium text-[#f2f0ea]/35"> pts</span>
+                                    </span>
+                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                        {member.earned} earned · {member.redeemed} spent
+                                    </span>
+                                </div>
+
+                                <span
+                                    className="whitespace-nowrap text-right text-[13.5px] font-extrabold"
+                                    style={{ color: canRedeem ? '#d8ff3c' : 'rgba(242,240,234,.5)' }}
+                                >
+                                    ₹{member.worthRupees.toLocaleString('en-IN')}
+                                </span>
+
+                                <span className="whitespace-nowrap text-right font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {member.lastActivity ? formatDate(member.lastActivity).toUpperCase() : '—'}
+                                </span>
+
+                                <div className="flex justify-end gap-[5px]">
+                                    <button
+                                        type="button"
+                                        title="Take points off this member"
+                                        onClick={() => { setRedeemPhone(member.phone); setRedeemMode('redeemed'); }}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                    >
+                                        REDEEM
+                                    </button>
+                                    <button
+                                        type="button"
+                                        title="Put points on by hand"
+                                        onClick={() => { setRedeemPhone(member.phone); setRedeemMode('bonus'); }}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                                    >
+                                        + PTS
+                                    </button>
+                                </div>
+                            </TableRow>
+                        );
+                    })
                 )}
 
-                <div className="flex flex-col gap-2">
-                    {visibleMembers.map((member) => (
-                        <div
-                            key={member.phone}
-                            className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
-                        >
-                            <div className="min-w-[150px] flex-1">
-                                <p className="text-[13px] font-bold text-slate-200">
-                                    {member.name || member.phone}
-                                </p>
-                                <p className="text-[11px] text-slate-500">
-                                    {member.name ? `${member.phone} · ` : ''}last visit{' '}
-                                    {formatDate(member.lastActivity)}
-                                </p>
-                            </div>
-
-                            <span className="text-[11px] text-slate-500">
-                                earned {member.earned} · used {member.redeemed}
-                            </span>
-
-                            <div className="text-right">
-                                <p className="text-[15px] font-bold text-purple-300">{member.balance}</p>
-                                <p className="text-[10px] text-slate-500">₹{member.worthRupees} off</p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setRedeemPhone(member.phone);
-                                    setRedeemMode('redeemed');
-                                    setRedeemPoints(String(member.balance));
-                                }}
-                                className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white"
-                            >
-                                Use
-                            </button>
-                        </div>
-                    ))}
+                <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+                    <span>{visibleMembers.length} of {members.length} members</span>
+                    <span className="flex-1" />
+                    <span>{loading ? 'LOADING…' : `${outstandingPoints.toLocaleString('en-IN')} POINTS OWED`}</span>
                 </div>
-            </section>
+            </Panel>
 
             {recent.length > 0 && (
-                <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                    <h3 className="mb-4 text-sm font-bold text-slate-200">Recent activity</h3>
-                    <div className="flex flex-col gap-1.5">
-                        {recent.map((entry) => (
+                <>
+                    <SectionBar title="RECENT POINTS ACTIVITY" />
+                    <Panel>
+                        {recent.slice(0, 8).map((entry) => (
                             <div
                                 key={entry.id}
-                                className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
-                                style={{ background: 'rgba(255,255,255,0.02)' }}
+                                className="flex items-center gap-3 border-b border-[#f2f0ea]/[0.05] px-4 py-2.5 last:border-b-0"
                             >
-                                <span className="text-[12px] text-slate-300">{entry.phone}</span>
-                                <span className="text-[11px] text-slate-500">
-                                    {REASON_LABELS[entry.reason] || entry.reason} · {formatDate(entry.createdAt)}
+                                <span className="whitespace-nowrap font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {formatDate(entry.createdAt).toUpperCase()}
                                 </span>
+                                <span className="truncate font-mono text-[11px] text-[#f2f0ea]/75">
+                                    {entry.phone}
+                                </span>
+                                <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {(REASON_LABELS[entry.reason] || entry.reason).toUpperCase()}
+                                    {entry.note ? ` · ${entry.note}` : ''}
+                                </span>
+                                <span className="flex-1" />
                                 <span
-                                    className="text-[13px] font-bold"
-                                    style={{ color: entry.points >= 0 ? '#4ade80' : '#f59e0b' }}
+                                    className="whitespace-nowrap font-mono text-[11.5px] font-semibold"
+                                    style={{ color: entry.points >= 0 ? '#d8ff3c' : '#ff5c2b' }}
                                 >
-                                    {entry.points >= 0 ? '+' : ''}
-                                    {entry.points}
+                                    {entry.points >= 0 ? '+' : '−'}{Math.abs(entry.points)}
                                 </span>
                             </div>
                         ))}
-                    </div>
-                </section>
+                    </Panel>
+                </>
             )}
+
+            {/* What the points actually buy. Its own component, and the only
+                place a reward is created. */}
+            <LoyaltyRewardsMenu cafeId={cafeId} onChanged={load} />
         </div>
     );
 }
