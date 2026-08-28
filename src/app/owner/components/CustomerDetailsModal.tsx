@@ -149,7 +149,7 @@ export default function CustomerDetailsModal({
                     {/* Left Sidebar - Profile & Actions */}
                     <div style={{
                         width: isMobile ? '100%' : '320px',
-                        background: '#111113 0%, rgba(15, 23, 42, 0.5) 100%)',
+                        background: '#111113',
                         borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.05)',
                         borderBottom: isMobile ? '1px solid rgba(255,255,255,0.05)' : 'none',
                         padding: isMobile ? 24 : 32,
@@ -319,7 +319,7 @@ export default function CustomerDetailsModal({
                         {/* Active Subscription Banner */}
                         {activeSubscription ? (
                             <div style={{
-                                background: '#111113 0%, rgba(37, 99, 235, 0) 100%)',
+                                background: '#111113',
                                 border: '1px solid rgba(59, 130, 246, 0.2)',
                                 borderRadius: 20,
                                 padding: 24,

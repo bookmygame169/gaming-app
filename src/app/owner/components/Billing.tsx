@@ -524,23 +524,6 @@ export function Billing({
         setSuggestionField(null);
     };
 
-    const modeIntro = mode === 'gaming'
-        ? {
-            eyebrow: 'Counter Billing',
-            title: 'Quick walk-in booking',
-            description: 'Single customer, multiple console lines, one shared start time, one checkout.',
-        }
-        : mode === 'advance'
-        ? {
-            eyebrow: 'Advance Booking',
-            title: 'Create payment link',
-            description: 'Hold a slot, send the payment link on WhatsApp, then confirm after Paytm Business verification.',
-        }
-        : {
-            eyebrow: 'Membership Checkout',
-            title: 'Fast plan billing',
-            description: 'Pick the customer, choose the plan, and complete membership checkout without leaving the tab.',
-        };
 
     const handleSubmit = async () => {
         const isAdvanceBooking = mode === 'advance';
@@ -872,47 +855,46 @@ export function Billing({
 
     return (
         <div className={`space-y-6 ${isMobile && isGamingFlow && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
-            <div className="border border-[#f2f0ea]/10 bg-[#111113] px-4 py-4 sm:px-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-1">
-                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">{modeIntro.eyebrow}</div>
-                        <h2 className="text-lg font-extrabold tracking-[-0.01em] text-[#f2f0ea]">{modeIntro.title}</h2>
-                    </div>
+            {/* The design's header: a label, a rule that eats the middle, and
+                the four modes as one segmented control on hairlines. */}
+            <div className="flex flex-wrap items-center gap-2.5">
+                <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                    COUNTER BILLING
+                </span>
+                <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        {onSnackOnlySale && mode === 'gaming' && (
+                <div className="flex gap-px border border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.12]">
+                    {([
+                        { id: 'gaming', label: 'WALK-IN' },
+                        { id: 'advance', label: 'ADVANCE' },
+                        { id: 'membership', label: 'MEMBERSHIP' },
+                    ] as const).map((option) => {
+                        const on = mode === option.id;
+                        return (
                             <button
+                                key={option.id}
                                 type="button"
-                                onClick={onSnackOnlySale}
-                                className="border border-[#ff5c2b]/15 px-3.5 py-2.5 text-sm font-medium text-[#ff5c2b] transition-all duration-200 hover:border-[#ff5c2b]/30 hover:bg-[#ff5c2b]/10"
+                                onClick={() => setMode(option.id)}
+                                className="whitespace-nowrap px-3.5 py-2.5 font-mono text-[10.5px] tracking-[0.12em] transition-colors"
+                                style={
+                                    on
+                                        ? { background: 'rgba(216,255,60,.14)', color: '#d8ff3c' }
+                                        : { background: '#111113', color: 'rgba(242,240,234,.5)' }
+                                }
                             >
-                                Snack-only sale
+                                {option.label}
                             </button>
-                        )}
-                        <div className="inline-flex border border-[#f2f0ea]/10 p-1.5">
-                            <button
-                                type="button"
-                                onClick={() => setMode('gaming')}
-                                className={` px-4 py-2.5 text-sm font-medium transition-all ${mode === 'gaming' ? 'bg-[#d8ff3c]/15 text-[#f2f0ea]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
-                            >
-                                Walk-in
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMode('advance')}
-                                className={` px-4 py-2.5 text-sm font-medium transition-all ${mode === 'advance' ? 'bg-[#ff5c2b]/15 text-[#f2f0ea]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
-                            >
-                                Advance
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMode('membership')}
-                                className={` px-4 py-2.5 text-sm font-medium transition-all ${mode === 'membership' ? 'bg-[#d8ff3c]/15 text-[#f2f0ea]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
-                            >
-                                Membership
-                            </button>
-                        </div>
-                    </div>
+                        );
+                    })}
+                    {onSnackOnlySale && (
+                        <button
+                            type="button"
+                            onClick={onSnackOnlySale}
+                            className="whitespace-nowrap bg-[#111113] px-3.5 py-2.5 font-mono text-[10.5px] tracking-[0.12em] text-[#f2f0ea]/50 transition-colors hover:text-[#f2f0ea]"
+                        >
+                            SNACK ONLY
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1048,9 +1030,13 @@ export function Billing({
                                     </div>
                                 </div>
                                 {items.length > 0 && (
-                                    <Button size="sm" variant="secondary" onClick={addItem} className="">
-                                        <Plus size={14} /> Add Console
-                                    </Button>
+                                    <button
+                                        type="button"
+                                        onClick={addItem}
+                                        className="whitespace-nowrap border border-dashed border-[#f2f0ea]/[0.22] px-4 py-3 font-mono text-[11px] tracking-[0.14em] text-[#f2f0ea]/70 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                    >
+                                        + ADD CONSOLE LINE
+                                    </button>
                                 )}
                             </div>
 
@@ -1134,55 +1120,37 @@ export function Billing({
 
                                                 {/* Console — card grid */}
                                                 <div>
-                                                    <div className={CONTROL_LABEL_CLASS}>Choose console</div>
+                                                    <div className={CONTROL_LABEL_CLASS}>CONSOLE</div>
                                                     <div className={`${CONTROL_SURFACE_CLASS} p-3`}>
                                                         <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
                                                         {availableConsoles.map((consoleType) => {
-                                                            const t = getConsoleTheme(consoleType);
                                                             const selected = item.console === consoleType;
-                                                            const stationCount = stationOptions(consoleType).length;
+                                                            // How many of this kind are free right now. The
+                                                            // design puts it on the chip because picking a
+                                                            // console nobody can sit at is the mistake this
+                                                            // screen makes most.
+                                                            const freeCount = stationOptions(consoleType).length;
+                                                            const busy = freeCount === 0;
+
                                                             return (
                                                                 <button
                                                                     key={consoleType}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'console', consoleType)}
-                                                                    className={`relative overflow-hidden  border p-3 text-left transition-all duration-200 ${selected ? '' : HOVER_CARD_CLASS}`}
-                                                                    style={{
-                                                                        background: selected
-                                                                            ? `#111113 55%, rgba(0,0,0,0) 100%), var(--card-2)`
-                                                                            : `#111113 55%, rgba(0,0,0,0) 100%), var(--card-2)`,
-                                                                        borderColor: selected ? `${t.accent}70` : 'rgba(255,255,255,0.08)',
-                                                                        boxShadow: selected
-                                                                            ? `0 0 0 1px ${t.accent}55, 0 22px 38px -28px ${t.accent}88, inset 0 1px 0 rgba(255,255,255,0.04)`
-                                                                            : 'inset 0 1px 0 rgba(255,255,255,0.03), 0 20px 30px -28px rgba(0,0,0,0.9)',
-                                                                    }}
+                                                                    className="flex items-center gap-[7px] border px-[11px] py-2 font-mono text-[11px] transition-colors"
+                                                                    style={
+                                                                        selected
+                                                                            ? { borderColor: '#d8ff3c', background: 'rgba(216,255,60,.12)', color: '#d8ff3c' }
+                                                                            : { borderColor: 'rgba(242,240,234,.14)', background: 'transparent', color: 'rgba(242,240,234,.6)' }
+                                                                    }
                                                                 >
-                                                                    <span className="absolute inset-0 grid-dots opacity-20" />
-                                                                    <div className="relative flex flex-col gap-2">
-                                                                        <div className="flex items-center justify-between gap-2">
-                                                                            <span className="flex h-9 w-9 items-center justify-center text-xs font-bold" style={{ background: `${t.accent}22`, color: t.accent }}>
-                                                                                {t.short}
-                                                                            </span>
-                                                                            <span
-                                                                                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                                                                                style={{
-                                                                                    background: selected ? `${t.accent}18` : 'rgba(255,255,255,0.05)',
-                                                                                    color: selected ? '#e8f7ff' : '#94a3b8',
-                                                                                    border: selected ? `1px solid ${t.accent}28` : '1px solid rgba(255,255,255,0.05)',
-                                                                                }}
-                                                                            >
-                                                                                {stationCount}
-                                                                            </span>
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="text-sm font-semibold text-[#f2f0ea]">
-                                                                                {CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}
-                                                                            </div>
-                                                                            <div className="text-[11px]" style={{ color: selected ? t.accent : 'var(--muted)' }}>
-                                                                                {selected ? '✓ Selected' : 'Tap to switch'}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
+                                                                    {CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}
+                                                                    <span
+                                                                        className="text-[9.5px]"
+                                                                        style={{ color: busy ? '#ff5c2b' : 'inherit', opacity: busy ? 1 : 0.5 }}
+                                                                    >
+                                                                        {busy ? 'busy' : `${freeCount} free`}
+                                                                    </span>
                                                                 </button>
                                                             );
                                                         })}
@@ -1192,7 +1160,7 @@ export function Billing({
 
                                                 {/* Players */}
                                                 <div className={CONTROL_ROW_CLASS}>
-                                                        <div className={CONTROL_LABEL_CLASS}>Players</div>
+                                                        <div className={CONTROL_LABEL_CLASS}>PLAYERS</div>
                                                         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                                                             {PLAYER_OPTIONS.map((players) => {
                                                                 const selected = item.quantity === players;
@@ -1217,7 +1185,7 @@ export function Billing({
 
                                                 {/* Duration */}
                                                 <div className={CONTROL_ROW_CLASS}>
-                                                    <div className={CONTROL_LABEL_CLASS}>Duration</div>
+                                                    <div className={CONTROL_LABEL_CLASS}>DURATION</div>
                                                     <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
                                                         {DURATION_OPTIONS.map((dur) => {
                                                             const selected = item.duration === dur;
@@ -1245,7 +1213,7 @@ export function Billing({
                                                     the booking needs several and the server picks them. */}
                                                 {item.quantity === 1 && stationOptions(item.console).length > 0 && (
                                                     <div className={CONTROL_ROW_CLASS}>
-                                                        <div className={CONTROL_LABEL_CLASS}>Machine</div>
+                                                        <div className={CONTROL_LABEL_CLASS}>STATION</div>
                                                         <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
                                                             {[undefined, ...stationOptions(item.console)].map((station) => {
                                                                 const selected = item.station === station;
