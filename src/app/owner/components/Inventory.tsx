@@ -3,11 +3,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Package,
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
   X,
   Check,
   AlertCircle,
@@ -16,12 +11,19 @@ import {
   Cookie,
   Gift,
   GlassWater,
-  BarChart3,
-  RefreshCw,
-  TrendingUp,
-  ShoppingCart,
 } from "lucide-react";
 import InventoryAnalytics from "./InventoryAnalytics";
+import {
+  Chips,
+  EmptyRow,
+  Field,
+  GhostButton,
+  Kpis,
+  Panel,
+  PrimaryButton,
+  TableHead,
+  TableRow,
+} from "./consoleUi";
 import { fetchInventory } from "@/app/owner/ownerLookup";
 import {
   InventoryItem,
@@ -51,11 +53,6 @@ function parseNonNegativeInteger(value: string, fallback = 0): number {
   return Math.floor(parseNonNegativeNumber(value, fallback));
 }
 
-function StockBadge({ qty }: { qty: number }) {
-  if (qty === 0)  return <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 font-bold text-sm border border-red-500/20">0 left</span>;
-  if (qty <= LOW_STOCK_THRESHOLD) return <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 font-bold text-sm border border-amber-500/20">{qty} left</span>;
-  return <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 font-bold text-sm border border-emerald-500/20">{qty} left</span>;
-}
 
 export default function Inventory({ cafeId }: InventoryProps) {
   const [activeTab, setActiveTab] = useState<"items" | "analytics">("items");
@@ -115,11 +112,6 @@ export default function Inventory({ cafeId }: InventoryProps) {
     return matchesSearch && matchesCategory;
   });
 
-  const groupedItems = filteredItems.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<InventoryCategory, InventoryItem[]>);
 
   const urgentItems = items.filter(i => i.stock_quantity <= LOW_STOCK_THRESHOLD && i.is_available);
 
@@ -287,308 +279,259 @@ export default function Inventory({ cafeId }: InventoryProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#d8ff3c]" />
       </div>
     );
   }
 
+  const COLUMNS = 'minmax(148px,1.6fr) 92px 116px 96px 150px';
+  const stockValue = items.reduce((sum, item) => sum + item.price * item.stock_quantity, 0);
+  const outOfStock = items.filter((item) => item.stock_quantity <= 0);
+
+  const categories: { id: InventoryCategory | 'all'; label: string }[] = [
+    { id: 'all', label: 'ALL' },
+    { id: 'snacks', label: 'SNACKS' },
+    { id: 'cold_drinks', label: 'COLD' },
+    { id: 'hot_drinks', label: 'HOT' },
+    { id: 'combo', label: 'COMBOS' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Package className="w-6 h-6 text-cyan-500" />
-            Stock & Inventory
-          </h2>
-          <p className="text-slate-400 text-sm mt-1">Snacks, drinks, and combos</p>
+    <div className="flex flex-col gap-[18px]">
+      <Kpis
+        items={[
+          { label: 'ITEMS ON SALE', value: String(items.filter((i) => i.is_available).length), sub: `${items.length} in the list` },
+          {
+            label: 'RUNNING LOW',
+            value: String(urgentItems.length),
+            tone: urgentItems.length > 0 ? 'orange' : 'ink',
+            sub: `at or under ${LOW_STOCK_THRESHOLD} left`,
+          },
+          {
+            label: 'OUT OF STOCK',
+            value: String(outOfStock.length),
+            tone: outOfStock.length > 0 ? 'orange' : 'ink',
+            sub: outOfStock.length > 0 ? 'cannot be sold' : 'everything in stock',
+          },
+          { label: 'STOCK VALUE', value: `₹${Math.round(stockValue).toLocaleString('en-IN')}`, sub: 'at selling price' },
+        ]}
+      />
+
+      {/* The shelf that is about to embarrass somebody at the counter. */}
+      {urgentItems.length > 0 && (
+        <div className="flex flex-wrap items-center gap-[9px] border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-[13px]">
+          <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#ff5c2b]">
+            REORDER · {urgentItems.length}
+          </span>
+          {urgentItems.slice(0, 6).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => { setRestockingId(item.id); setRestockQty('10'); }}
+              className="flex items-center gap-2 border border-[#f2f0ea]/[0.14] bg-[#111113] px-2.5 py-[7px] transition-colors hover:border-[#d8ff3c]"
+            >
+              <span className="whitespace-nowrap font-mono text-xs font-semibold text-[#f2f0ea]">
+                {item.name}
+              </span>
+              <span
+                className="whitespace-nowrap font-mono text-[10px]"
+                style={{ color: item.stock_quantity <= 0 ? '#ff5c2b' : 'rgba(242,240,234,.45)' }}
+              >
+                {item.stock_quantity} LEFT
+              </span>
+              <span className="font-mono text-[9.5px] tracking-[0.1em] text-[#d8ff3c]">RESTOCK</span>
+            </button>
+          ))}
         </div>
-        {activeTab === "items" && (
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-semibold transition"
-          >
-            <Plus className="w-5 h-5" /> Add Item
-          </button>
-        )}
+      )}
+
+      {/* Adding a line without opening anything, for the common case: a name,
+          a price, how many arrived. */}
+      <Panel className="flex flex-wrap items-center gap-2 px-4 py-3.5">
+        <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+          QUICK ADD
+        </span>
+        <Field value={quickName} onChange={setQuickName} placeholder="ITEM NAME" className="w-[190px]" />
+        <Field value={quickPrice} onChange={setQuickPrice} placeholder="PRICE" type="number" className="w-[110px]" />
+        <Field value={quickQty} onChange={setQuickQty} placeholder="QTY" type="number" className="w-[100px]" />
+        <PrimaryButton onClick={handleQuickAdd} disabled={quickSaving}>
+          {quickSaving ? 'SAVING…' : '+ ADD ITEM'}
+        </PrimaryButton>
+        <span className="min-w-[10px] flex-1" />
+        <GhostButton onClick={openAddModal}>FULL FORM →</GhostButton>
+      </Panel>
+
+      {error && (
+        <div className="border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#ff5c2b]">
+          {error}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-[9px]">
+        <Chips
+          items={categories.map((category) => ({
+            id: category.id,
+            label: category.label,
+            count:
+              category.id === 'all'
+                ? items.length
+                : items.filter((item) => item.category === category.id).length,
+          }))}
+          active={filterCategory}
+          onPick={(id) => setFilterCategory(id as InventoryCategory | 'all')}
+        />
+        <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+        <Field value={searchQuery} onChange={setSearchQuery} placeholder="FIND AN ITEM" className="w-[200px]" />
+        <Chips
+          items={[
+            { id: 'items', label: 'STOCK' },
+            { id: 'analytics', label: 'WHAT SELLS' },
+          ]}
+          active={activeTab}
+          onPick={(id) => setActiveTab(id as 'items' | 'analytics')}
+        />
       </div>
 
-      {/* Tab Navigation */}
-      <div className="overflow-x-auto no-scrollbar">
-        <div className="flex w-max min-w-full gap-2 border-b border-white/[0.09] pb-2">
-        {(["items", "analytics"] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 rounded-t-lg px-3 py-1.5 text-sm font-medium transition md:px-4 md:py-2 ${
-              activeTab === tab
-                ? "bg-cyan-500/20 text-cyan-400 border-b-2 border-cyan-500"
-                : "text-slate-400 hover:text-white hover:bg-white/[0.04]"
-            }`}
-          >
-            {tab === "items" ? <Package className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
-            {tab === "items" ? "Items" : "Analytics"}
-          </button>
-        ))}
-        </div>
-      </div>
+      {activeTab === 'analytics' ? (
+        <InventoryAnalytics cafeId={cafeId} />
+      ) : (
+        <Panel>
+          <TableHead columns={COLUMNS}>
+            <span>ITEM</span>
+            <span className="text-right">PRICE</span>
+            <span className="text-center">IN STOCK</span>
+            <span className="text-right">MARGIN</span>
+            <span className="text-right">ACTIONS</span>
+          </TableHead>
 
-      {activeTab === "analytics" && <InventoryAnalytics cafeId={cafeId} />}
+          {filteredItems.length === 0 ? (
+            <EmptyRow>
+              {items.length === 0
+                ? 'Nothing on the shelf yet. Add an item above and it can be sold against a session.'
+                : 'No item matches that filter.'}
+            </EmptyRow>
+          ) : (
+            filteredItems.map((item) => {
+              const low = item.stock_quantity <= LOW_STOCK_THRESHOLD;
+              const out = item.stock_quantity <= 0;
+              const margin = item.cost_price ? item.price - item.cost_price : null;
+              const marginPct = item.cost_price && item.price > 0
+                ? Math.round(((item.price - item.cost_price) / item.price) * 100)
+                : null;
 
-      {activeTab === "items" && (
-        <div className="space-y-4 md:space-y-5">
-
-          {/* ── Stats row ── */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            {[
-              { label: "Total Items",   value: items.length,                                               color: "text-white",        bg: "bg-white/[0.04]",      icon: <ShoppingCart className="w-4 h-4" /> },
-              { label: "Available",     value: items.filter(i => i.is_available).length,                   color: "text-emerald-400",  bg: "bg-emerald-500/[0.07]",icon: <Check className="w-4 h-4" /> },
-              { label: "Low Stock",     value: items.filter(i => i.stock_quantity > 0 && i.stock_quantity <= LOW_STOCK_THRESHOLD).length, color: "text-amber-400", bg: "bg-amber-500/[0.07]", icon: <TrendingUp className="w-4 h-4" /> },
-              { label: "Out of Stock",  value: items.filter(i => i.stock_quantity === 0).length,            color: "text-red-400",      bg: "bg-red-500/[0.07]",    icon: <AlertCircle className="w-4 h-4" /> },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} flex items-center gap-2 rounded-xl border border-white/[0.09] p-3 md:gap-3 md:p-4`}>
-                <div className={`${s.color} opacity-70`}>{s.icon}</div>
-                <div>
-                  <div className={`text-xl font-bold ${s.color} md:text-2xl`}>{s.value}</div>
-                  <div className="text-xs text-slate-500">{s.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Urgent: needs restocking ── */}
-          {urgentItems.length > 0 && (
-            <div className="space-y-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-3 md:p-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-semibold text-amber-400">Needs Restocking ({urgentItems.length})</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {urgentItems.map(item => (
-                  <div key={item.id} className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5">
-                    <span className="text-sm text-white">{item.name}</span>
-                    <StockBadge qty={item.stock_quantity} />
-                    <button
-                      onClick={() => { setRestockingId(item.id); setRestockQty("10"); }}
-                      className="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition font-semibold"
+              return (
+                <TableRow
+                  key={item.id}
+                  columns={COLUMNS}
+                  edge={out ? '#ff5c2b' : low ? 'rgba(255,92,43,.5)' : 'transparent'}
+                >
+                  <div className="flex min-w-0 flex-col gap-[3px]">
+                    <span
+                      className="truncate text-[13.5px] font-bold"
+                      style={{ color: item.is_available ? '#f2f0ea' : 'rgba(242,240,234,.4)' }}
                     >
-                      Restock
+                      {item.name}
+                    </span>
+                    <span className="truncate font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/35">
+                      {item.category.replace('_', ' ').toUpperCase()}
+                      {!item.is_available ? ' · OFF SALE' : ''}
+                    </span>
+                  </div>
+
+                  <span className="whitespace-nowrap text-right text-[13px] font-extrabold text-[#f2f0ea]">
+                    ₹{item.price}
+                  </span>
+
+                  {restockingId === item.id ? (
+                    <div className="flex items-center justify-center gap-1.5">
+                      <input
+                        ref={restockInputRef}
+                        value={restockQty}
+                        onChange={(e) => setRestockQty(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRestock(item);
+                          if (e.key === 'Escape') setRestockingId(null);
+                        }}
+                        className="h-[26px] w-[60px] border border-[#d8ff3c] bg-transparent px-2 text-center font-mono text-[11px] text-[#f2f0ea] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRestock(item)}
+                        disabled={restockSaving}
+                        className="h-[26px] border border-[#d8ff3c] bg-[#d8ff3c]/[0.12] px-2 font-mono text-[9.5px] tracking-[0.1em] text-[#d8ff3c] disabled:opacity-40"
+                      >
+                        {restockSaving ? '…' : 'ADD'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setRestockingId(item.id); setRestockQty('10'); }}
+                      title="Add stock"
+                      className="mx-auto flex items-center gap-1.5"
+                    >
+                      <span
+                        className="text-[15px] font-extrabold"
+                        style={{ color: out ? '#ff5c2b' : low ? '#ffa53c' : '#f2f0ea' }}
+                      >
+                        {item.stock_quantity}
+                      </span>
+                      <span className="font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/35">+</span>
+                    </button>
+                  )}
+
+                  <div className="flex flex-col items-end gap-[3px]">
+                    {margin !== null ? (
+                      <>
+                        <span className="whitespace-nowrap font-mono text-[11.5px] text-[#d8ff3c]">
+                          +₹{margin}
+                        </span>
+                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                          {marginPct}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="font-mono text-[10px] text-[#f2f0ea]/30">NO COST SET</span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-[5px]">
+                    <button
+                      type="button"
+                      title="Edit this item"
+                      onClick={() => openEditModal(item)}
+                      className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                    >
+                      EDIT
+                    </button>
+                    <button
+                      type="button"
+                      title={item.is_available ? 'Take off sale' : 'Put back on sale'}
+                      onClick={() => toggleAvailability(item)}
+                      className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                    >
+                      {item.is_available ? 'OFF SALE' : 'ON SALE'}
+                    </button>
+                    <button
+                      type="button"
+                      title="Remove this item"
+                      onClick={() => handleDelete(item)}
+                      className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#ff5c2b] hover:text-[#ff5c2b]"
+                    >
+                      DELETE
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
+                </TableRow>
+              );
+            })
           )}
 
-          {/* ── Quick add bar ── */}
-          <div className="grid grid-cols-1 gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5 sm:grid-cols-[minmax(0,1fr)_96px_88px_auto] sm:items-center sm:p-3">
-            <input
-              type="text" placeholder="Item name" value={quickName}
-              onChange={e => setQuickName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleQuickAdd()}
-                className="w-full min-w-0 rounded-lg border border-white/[0.09] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/60 md:py-2.5"
-            />
-            <input
-              type="number" placeholder="₹ Price" value={quickPrice}
-              onChange={e => setQuickPrice(e.target.value)}
-                className="w-full rounded-lg border border-white/[0.09] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/60 md:py-2.5"
-            />
-            <input
-              type="number" placeholder="Qty" value={quickQty}
-              onChange={e => setQuickQty(e.target.value)}
-                className="w-full rounded-lg border border-white/[0.09] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/60 md:py-2.5"
-            />
-            <button
-              onClick={handleQuickAdd}
-              disabled={!quickName || !quickPrice || quickSaving}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto md:py-2.5"
-            >
-              {quickSaving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-              Add
-            </button>
+          <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+            <span>{filteredItems.length} of {items.length} items</span>
+            <span className="flex-1" />
+            <span>₹{Math.round(stockValue).toLocaleString('en-IN')} ON THE SHELF</span>
           </div>
-
-          {/* ── Filters ── */}
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text" placeholder="Search items..." value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/[0.09] bg-white/[0.04] py-2 pl-9 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 md:py-2.5 md:pl-10"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {(["all", ...Object.keys(CATEGORY_LABELS)] as (InventoryCategory | "all")[]).map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCategory(cat)}
-                  className={`rounded-xl px-3 py-1.5 text-[13px] font-medium transition md:py-2 md:text-sm ${
-                    filterCategory === cat
-                      ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
-                      : "bg-white/[0.04] text-slate-400 border border-white/[0.09] hover:text-white"
-                  }`}
-                >
-                  {cat === "all" ? "All" : `${CATEGORY_CONFIG[cat as InventoryCategory].emoji} ${CATEGORY_LABELS[cat as InventoryCategory]}`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Items ── */}
-          {filteredItems.length === 0 ? (
-            <div className="text-center py-16 bg-white/[0.03] rounded-2xl border border-white/[0.09]">
-              <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">
-                {items.length === 0 ? "No items yet. Add your first item!" : "No items match your search."}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {Object.entries(groupedItems).map(([category, categoryItems]) => {
-                const config = CATEGORY_CONFIG[category as InventoryCategory];
-                return (
-                  <div key={category}>
-                    {/* Category header */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${config.color}20` }}>
-                        <div style={{ color: config.color }}>{config.icon}</div>
-                      </div>
-                      <h3 className="font-semibold text-white">{CATEGORY_LABELS[category as InventoryCategory]}</h3>
-                      <span className="text-sm text-slate-500">({categoryItems.length})</span>
-                    </div>
-
-                    {/* Cards grid */}
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 sm:gap-3">
-                      {categoryItems.map(item => {
-                        const margin = item.cost_price && item.cost_price > 0
-                          ? Math.round(((item.price - item.cost_price) / item.price) * 100)
-                          : null;
-                        const isRestocking = restockingId === item.id;
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`flex flex-col gap-2.5 rounded-2xl border p-3 transition-all md:gap-3 md:p-4 ${
-                              !item.is_available
-                                ? "border-white/[0.06] bg-white/[0.02] opacity-50"
-                                : item.stock_quantity === 0
-                                  ? "border-red-500/20 bg-red-500/[0.03]"
-                                  : item.stock_quantity <= LOW_STOCK_THRESHOLD
-                                    ? "border-amber-500/20 bg-amber-500/[0.03]"
-                                    : "border-white/[0.09] bg-white/[0.04]"
-                            }`}
-                          >
-                            {/* Top row: name + actions */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-semibold text-white truncate">{item.name}</span>
-                                  {!item.is_available && (
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-500/20 text-slate-400 rounded-full">Off</span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <span className="text-lg font-bold text-white">₹{item.price}</span>
-                                  {item.cost_price ? (
-                                    <span className="text-xs text-slate-500">cost ₹{item.cost_price}</span>
-                                  ) : null}
-                                  {margin !== null && (
-                                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-lg ${margin >= 40 ? "bg-emerald-500/15 text-emerald-400" : margin >= 20 ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
-                                      {margin}% margin
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {/* Item action buttons */}
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  onClick={() => toggleAvailability(item)}
-                                  title={item.is_available ? "Mark unavailable" : "Mark available"}
-                                  className={`h-9 w-9 flex items-center justify-center rounded-lg transition ${item.is_available ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" : "bg-white/[0.08] text-slate-400 hover:bg-white/[0.10]"}`}
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => openEditModal(item)} className="h-9 w-9 flex items-center justify-center bg-white/[0.08] hover:bg-white/[0.12] text-slate-300 rounded-lg transition">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleDelete(item)} className="h-9 w-9 flex items-center justify-center bg-red-500/15 hover:bg-red-500/25 text-red-400 rounded-lg transition">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Stock row */}
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="flex items-center justify-between gap-2 sm:justify-start">
-                                <StockBadge qty={item.stock_quantity} />
-                                {/* Fine +/- controls */}
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => updateStock(item, -1)}
-                                    disabled={item.stock_quantity === 0}
-                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.12] text-white rounded-lg disabled:opacity-30 text-sm font-bold transition"
-                                  >−</button>
-                                  <button
-                                    onClick={() => updateStock(item, 1)}
-                                    className="w-8 h-8 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.12] text-white rounded-lg text-sm font-bold transition"
-                                  >+</button>
-                                </div>
-                              </div>
-
-                              {/* Restock button */}
-                              <button
-                                onClick={() => {
-                                  setRestockingId(isRestocking ? null : item.id);
-                                  setRestockQty("10");
-                                }}
-                                className={`flex w-full items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold border transition sm:w-auto ${
-                                  isRestocking
-                                    ? "bg-cyan-500/25 text-cyan-300 border-cyan-500/40"
-                                    : "bg-white/[0.05] text-slate-400 border-white/[0.09] hover:text-cyan-400 hover:border-cyan-500/30"
-                                }`}
-                              >
-                                <RefreshCw className="w-3 h-3" />
-                                Restock
-                              </button>
-                            </div>
-
-                            {/* Inline restock panel */}
-                            {isRestocking && (
-                              <div className="flex flex-col gap-2 pt-3 border-t border-white/[0.08] sm:flex-row sm:items-center">
-                                <span className="text-xs text-slate-400 shrink-0">Add qty:</span>
-                                <input
-                                  ref={restockInputRef}
-                                  type="number"
-                                  min="1"
-                                  value={restockQty}
-                                  onChange={e => setRestockQty(e.target.value)}
-                                  onKeyDown={e => { if (e.key === "Enter") handleRestock(item); if (e.key === "Escape") setRestockingId(null); }}
-                                  className="w-full px-2 py-2 bg-white/[0.07] border border-white/[0.10] rounded-lg text-white text-sm text-center focus:outline-none focus:border-cyan-500 sm:w-20"
-                                />
-                                <button
-                                  onClick={() => handleRestock(item)}
-                                  disabled={restockSaving || !restockQty || parseInt(restockQty) <= 0}
-                                  className="flex w-full items-center justify-center gap-1 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition sm:w-auto"
-                                >
-                                  {restockSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                  Confirm
-                                </button>
-                                <button onClick={() => setRestockingId(null)} className="flex w-full items-center justify-center rounded-lg border border-white/[0.08] px-3 py-2 text-slate-500 hover:text-white transition sm:w-auto sm:border-0 sm:p-1">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        </Panel>
       )}
 
       {/* ── Add/Edit Modal ── */}
