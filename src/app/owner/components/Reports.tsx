@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Button } from './ui';
-import { Chips, GhostButton } from './consoleUi';
+import { Chips, GhostButton, Kpis } from './consoleUi';
 import {
     getBookingGamingTotal,
     getBookingRevenueTotal,
@@ -843,78 +843,41 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 </Card>
             )}
 
-            {/* Key Metrics Grid with Growth Indicators */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Total Revenue</p>
-                            <p className="text-3xl font-bold text-[#f2f0ea]">₹{stats.revenue.toLocaleString()}</p>
-                            <p className="text-xs text-[#f2f0ea]/40 mt-1">{billableBookings.length} transactions · {snackStats.totalOrders} F&B orders</p>
-                            {/* Gaming / Standalone-snacks breakdown */}
-                            <div className="flex items-center gap-3 mt-3">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 bg-[#d8ff3c]" />
-                                    <span className="text-xs text-[#f2f0ea]/50">Gaming</span>
-                                    <span className="text-xs font-semibold text-[#d8ff3c]">₹{stats.gamingRevenue.toLocaleString()}</span>
-                                </div>
-                                {stats.snackRevenue > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-2 h-2 bg-[#ff5c2b]" />
-                                        <span className="text-xs text-[#f2f0ea]/50">Snacks</span>
-                                        <span className="text-xs font-semibold text-[#ff5c2b]">₹{stats.snackRevenue.toLocaleString()}</span>
-                                    </div>
-                                )}
-                                {stats.membershipRevenue > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-2 h-2 bg-[#d8ff3c]" />
-                                        <span className="text-xs text-[#f2f0ea]/50">Memberships</span>
-                                        <span className="text-xs font-semibold text-[#d8ff3c]">₹{stats.membershipRevenue.toLocaleString()}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <div className="p-2.5 bg-[#d8ff3c]/10 text-[#d8ff3c]">
-                                <TrendingUp size={20} />
-                            </div>
-                            <GrowthIndicator value={stats.revenueChange} />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Total Bookings</p>
-                            <p className="text-3xl font-bold text-[#f2f0ea]">{stats.count}</p>
-                            <p className="text-xs text-[#f2f0ea]/40 mt-1">Confirmed sessions</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <div className="p-2.5 bg-[#d8ff3c]/10 text-[#d8ff3c]">
-                                <Calendar size={20} />
-                            </div>
-                            <GrowthIndicator value={stats.bookingsChange} />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card padding="lg" className="bg-gradient-to-br from-[#f2f0ea]/[0.06] to-[#f2f0ea]/10 border-[#f2f0ea]/10">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-[#f2f0ea]/50 mb-1">Avg. Order Value</p>
-                            <p className="text-3xl font-bold text-[#f2f0ea]">₹{Math.round(stats.aov)}</p>
-                            <p className="text-xs text-[#f2f0ea]/40 mt-1">Per booking</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <div className="p-2.5 bg-[#ff5c2b]/10 text-[#ff5c2b]">
-                                <Banknote size={20} />
-                            </div>
-                            <GrowthIndicator value={stats.aovChange} />
-                        </div>
-                    </div>
-                </Card>
-            </div>
+            {/* The design's four across the top. Three gradient cards with a
+                growth pill each was the old layout; the figures are the same
+                ones, and the comparison rides on the sub-line instead. */}
+            <Kpis
+                items={[
+                    {
+                        label: 'REVENUE',
+                        value: `₹${stats.revenue.toLocaleString('en-IN')}`,
+                        tone: 'lime',
+                        sub: `${billableBookings.length} bookings · ${snackStats.totalOrders} F&B orders`,
+                    },
+                    {
+                        label: 'BOOKINGS',
+                        value: String(stats.count),
+                        sub:
+                            stats.bookingsChange == null
+                                ? 'no earlier period to compare'
+                                : `${stats.bookingsChange > 0 ? '+' : ''}${Math.round(stats.bookingsChange)}% on the period before`,
+                    },
+                    {
+                        label: 'AVERAGE CHECKOUT',
+                        value: `₹${Math.round(stats.aov).toLocaleString('en-IN')}`,
+                        sub:
+                            stats.aovChange == null
+                                ? 'per booking'
+                                : `${stats.aovChange > 0 ? '+' : ''}${Math.round(stats.aovChange)}% per booking`,
+                    },
+                    {
+                        label: 'SNACKS',
+                        value: `₹${Math.round(snackStats.totalRevenue).toLocaleString('en-IN')}`,
+                        tone: snackStats.totalRevenue > 0 ? 'lime' : 'ink',
+                        sub: `${snackStats.totalOrders} order${snackStats.totalOrders === 1 ? '' : 's'} alongside play`,
+                    },
+                ]}
+            />
 
             {/* Charts Section - Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
