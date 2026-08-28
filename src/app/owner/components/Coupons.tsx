@@ -3,7 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Button } from './ui';
 import {
-    Search, Plus, Edit2, Trash2, Copy, Check,
+    Chips,
+    EmptyRow,
+    Field,
+    Kpis,
+    Panel,
+    PrimaryButton,
+    TableHead,
+    TableRow,
+    Tag,
+} from './consoleUi';
+import {
+    Edit2, Trash2, Copy, Check,
     Ticket, Clock, Calendar, Users,
     AlertCircle, ChevronLeft, Send,
     Info, UserCheck, Filter
@@ -1031,232 +1042,195 @@ See you soon! 🎯`;
         return daysUntil > 0 && daysUntil <= 7;
     }).length;
 
+    const COLUMNS = 'minmax(150px,1.25fr) minmax(0,1fr) 132px 110px 132px';
+
     return (
-        <div className="space-y-8">
-            {/* Header & Stats */}
-            <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Coupons</h1>
-                        <p className="text-slate-400 mt-1">Manage your discount campaigns and offers</p>
-                    </div>
-                    <Button
-                        variant="primary"
-                        onClick={() => { resetForm(); setView('create'); setSelectedCoupon(null); }}
-                        className="shadow-lg shadow-emerald-500/20"
-                    >
-                        <Plus size={18} className="mr-2" /> Create New Coupon
-                    </Button>
-                </div>
+        <div className="flex flex-col gap-[18px]">
+            <Kpis
+                items={[
+                    { label: 'RUNNING', value: String(activeCount), tone: 'lime', sub: `${coupons.length} made in total` },
+                    { label: 'REDEEMED', value: String(totalRedemptions), sub: 'times a code has been used' },
+                    {
+                        label: 'ENDING THIS WEEK',
+                        value: String(expiringSoonCount),
+                        tone: expiringSoonCount > 0 ? 'orange' : 'ink',
+                        sub: expiringSoonCount > 0 ? 'about to stop working' : 'none about to lapse',
+                    },
+                    {
+                        label: 'USED UP',
+                        value: String(
+                            coupons.filter((c) => c.max_uses && c.uses_count >= c.max_uses).length
+                        ),
+                        sub: 'hit their usage cap',
+                    },
+                ]}
+            />
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card padding="md" className="bg-gradient-to-br from-slate-900 to-slate-900 border-white/[0.08]">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500">
-                                <Ticket size={24} />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-white">{activeCount}</div>
-                                <div className="text-sm text-slate-400 font-medium">Active Campaigns</div>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card padding="md" className="bg-gradient-to-br from-slate-900 to-slate-900 border-white/[0.08]">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
-                                <Users size={24} />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-white">{totalRedemptions}</div>
-                                <div className="text-sm text-slate-400 font-medium">Total Redemptions</div>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card padding="md" className="bg-gradient-to-br from-slate-900 to-slate-900 border-white/[0.08]">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-xl bg-amber-500/10 text-amber-500">
-                                <Clock size={24} />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-white">{expiringSoonCount}</div>
-                                <div className="text-sm text-slate-400 font-medium">Expiring Soon</div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
+            <div className="flex flex-wrap items-center gap-[9px]">
+                <Chips
+                    items={['all', 'active', 'inactive', 'expired'].map((status) => ({
+                        id: status,
+                        label: status.toUpperCase(),
+                        count:
+                            status === 'all'
+                                ? coupons.length
+                                : coupons.filter((c) => getCouponStatus(c) === status).length,
+                    }))}
+                    active={statusFilter}
+                    onPick={setStatusFilter}
+                />
+                {/* Percentage off and free minutes are different offers and
+                    an owner usually wants one or the other; the filter existed
+                    before and would have been lost with the old toolbar. */}
+                <Chips
+                    items={[
+                        { id: 'all', label: 'ANY TYPE' },
+                        { id: 'percentage', label: '% OFF' },
+                        { id: 'freetime', label: 'FREE MINS' },
+                    ]}
+                    active={typeFilter}
+                    onPick={setTypeFilter}
+                />
+                <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                <Field value={search} onChange={setSearch} placeholder="FIND A CODE" className="w-[200px]" />
+                <PrimaryButton onClick={() => setView('create')}>+ NEW COUPON</PrimaryButton>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4 p-1">
-                <div className="relative flex-1">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                        type="text"
-                        placeholder="Search coupons..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm"
-                    />
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                    {([
-                        { v: 'all', l: 'All' },
-                        { v: 'active', l: '🟢 Active' },
-                        { v: 'expired', l: '🔴 Expired' },
-                        { v: 'inactive', l: 'Inactive' },
-                    ] as const).map(({ v, l }) => (
-                        <button key={v} onClick={() => setStatusFilter(v)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${statusFilter === v ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}>
-                            {l}
-                        </button>
-                    ))}
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                    {([
-                        { v: 'all', l: 'All Types' },
-                        { v: 'percentage', l: '% Discount' },
-                        { v: 'freetime', l: '⏱ Free Time' },
-                    ] as const).map(({ v, l }) => (
-                        <button key={v} onClick={() => setTypeFilter(v)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${typeFilter === v ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}>
-                            {l}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <Panel>
+                <TableHead columns={COLUMNS}>
+                    <span>CODE</span>
+                    <span>GIVES</span>
+                    <span>USED</span>
+                    <span className="text-right">WINDOW</span>
+                    <span className="text-right">ACTIONS</span>
+                </TableHead>
 
-            {/* Grid Content */}
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="h-48 rounded-2xl bg-white/[0.03] animate-pulse border border-white/[0.08]" />
-                    ))}
-                </div>
-            ) : filteredCoupons.length === 0 ? (
-                <div className="text-center py-20 bg-white/[0.03]/30 rounded-3xl border border-dashed border-white/[0.08]">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/[0.06] flex items-center justify-center">
-                        <Ticket className="w-8 h-8 text-slate-600" />
-                    </div>
-                    <h3 className="text-lg font-medium text-white mb-1">No coupons found</h3>
-                    <p className="text-slate-500 max-w-sm mx-auto mb-6">
-                        {search || statusFilter !== 'all' ? 'Try adjusting your filters to find what you looking for.' : 'Get started by creating your first discount coupon.'}
-                    </p>
-                    {(search || statusFilter !== 'all') ? (
-                        <Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter('all'); setTypeFilter('all'); }}>
-                            Clear Filters
-                        </Button>
-                    ) : (
-                        <Button variant="primary" onClick={() => { resetForm(); setView('create'); setSelectedCoupon(null); }}>
-                            Create Coupon
-                        </Button>
-                    )}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredCoupons.map(coupon => {
+                {loading ? (
+                    <EmptyRow>Loading…</EmptyRow>
+                ) : filteredCoupons.length === 0 ? (
+                    <EmptyRow>
+                        {search || statusFilter !== 'all'
+                            ? 'No code matches that filter.'
+                            : 'No coupons yet. Make one and customers can type it at checkout.'}
+                    </EmptyRow>
+                ) : (
+                    filteredCoupons.map((coupon) => {
                         const status = getCouponStatus(coupon);
-                        const isExpired = status === 'expired';
+                        const usedUp = coupon.max_uses ? coupon.uses_count >= coupon.max_uses : false;
+                        const pct = coupon.max_uses
+                            ? Math.min(100, (coupon.uses_count / coupon.max_uses) * 100)
+                            : 0;
+                        const edge =
+                            usedUp || status === 'expired' ? 'rgba(242,240,234,.2)'
+                            : status === 'active' ? '#d8ff3c'
+                            : 'transparent';
 
                         return (
-                            <div
+                            <TableRow
                                 key={coupon.id}
+                                columns={COLUMNS}
+                                edge={edge}
                                 onClick={() => viewCouponDetails(coupon)}
-                                className="group relative bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5 hover:border-white/[0.09] transition-all cursor-pointer hover:shadow-xl hover:shadow-black/20 hover:-translate-y-1"
                             >
-                                <div className="absolute top-5 right-5 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={(e) => copyCode(coupon.code, e)}
-                                        className="p-2 bg-white/[0.06] text-slate-300 rounded-lg hover:bg-white/[0.08] hover:text-white"
-                                        title="Copy Code"
-                                    >
-                                        {copiedCode === coupon.code ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                    </button>
-                                    <a
-                                        href={`https://wa.me/?text=${encodeURIComponent(`🎮 Use code *${coupon.code}* for ${coupon.discount_type === 'percentage' ? coupon.discount_value + '% OFF' : coupon.bonus_minutes + ' mins FREE'} on your next gaming session! Book now 🎯`)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500/20"
-                                        title="Share on WhatsApp"
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                    </a>
-                                    <button
-                                        onClick={(e) => handleEdit(coupon, e)}
-                                        className="p-2 bg-white/[0.06] text-slate-300 rounded-lg hover:bg-white/[0.08] hover:text-white"
-                                        title="Edit"
-                                    >
-                                        <Edit2 size={14} />
-                                    </button>
-                                </div>
-
-                                <div className="flex justify-between items-start mb-4">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${status === 'active'
-                                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                        : status === 'expired'
-                                            ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                            : 'bg-white/[0.04] text-slate-400 border-white/[0.09]'
-                                        }`}>
-                                        {status === 'active' ? 'Active' : status === 'expired' ? 'Expired' : 'Inactive'}
-                                    </span>
-                                </div>
-
-                                <div className="mb-6">
-                                    <div className="font-mono text-xl font-bold text-white tracking-wider mb-1 group-hover:text-emerald-400 transition-colors">
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate font-mono text-[13px] font-semibold tracking-[0.08em] text-[#f2f0ea]">
                                         {coupon.code}
-                                    </div>
-                                    <div className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                                    </span>
+                                    <Tag tone={status === 'active' ? 'lime' : 'muted'}>{status.toUpperCase()}</Tag>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
                                         {coupon.discount_type === 'percentage'
-                                            ? `${coupon.discount_value}% OFF`
-                                            : `${coupon.bonus_minutes} MINS FREE`}
-                                    </div>
+                                            ? `${coupon.discount_value}% off`
+                                            : `${coupon.bonus_minutes} mins free`}
+                                    </span>
                                     {coupon.discount_type === 'percentage' && coupon.bonus_minutes > 0 && (
-                                        <div className="text-sm text-emerald-500 font-medium mt-1">
-                                            + {coupon.bonus_minutes} mins bonus
-                                        </div>
+                                        <span className="truncate font-mono text-[10px] text-[#d8ff3c]">
+                                            + {coupon.bonus_minutes} MINS BONUS
+                                        </span>
                                     )}
                                 </div>
 
-                                {/* Progress Bar for Usage */}
-                                <div className="mb-4">
-                                    <div className="flex justify-between text-xs text-slate-400 mb-2">
-                                        <span>Redemptions</span>
-                                        <span>
-                                            <span className="text-white font-medium">{coupon.uses_count}</span>
-                                            {coupon.max_uses ? ` / ${coupon.max_uses}` : ''}
-                                        </span>
-                                    </div>
-                                    <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-emerald-500 rounded-full"
-                                            style={{
-                                                width: coupon.max_uses
-                                                    ? `${Math.min((coupon.uses_count / coupon.max_uses) * 100, 100)}%`
-                                                    : '5%' // Small indicator for unlimited
-                                            }}
-                                        />
-                                    </div>
+                                <div className="flex min-w-0 flex-col gap-1.5">
+                                    <span
+                                        className="whitespace-nowrap font-mono text-[11.5px]"
+                                        style={{ color: usedUp ? '#ff5c2b' : '#f2f0ea' }}
+                                    >
+                                        {coupon.uses_count}
+                                        {coupon.max_uses ? ` / ${coupon.max_uses}` : ' · no cap'}
+                                    </span>
+                                    {coupon.max_uses ? (
+                                        <div className="h-[5px] bg-[#f2f0ea]/[0.08]">
+                                            <div
+                                                className="h-[5px]"
+                                                style={{ width: `${pct}%`, background: usedUp ? '#ff5c2b' : '#d8ff3c' }}
+                                            />
+                                        </div>
+                                    ) : null}
                                 </div>
 
-                                <div className="flex items-center justify-between text-xs text-slate-500 pt-4 border-t border-white/[0.06]">
-                                    <div className="flex items-center gap-1.5">
-                                        <Calendar size={12} />
-                                        {isExpired
-                                            ? <span className="text-red-400">Expired {formatDate(coupon.valid_until!)}</span>
-                                            : <span>Valid until {coupon.valid_until ? formatDate(coupon.valid_until) : 'Forever'}</span>
-                                        }
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Users size={12} />
-                                        {coupon.new_customer_only ? 'New Users' : 'Everyone'}
-                                    </div>
+                                <span className="whitespace-nowrap text-right font-mono text-[10.5px] text-[#f2f0ea]/60">
+                                    {coupon.valid_until
+                                        ? `TILL ${new Date(coupon.valid_until)
+                                              .toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                                              .toUpperCase()}`
+                                        : 'NO END DATE'}
+                                </span>
+
+                                <div className="flex justify-end gap-[5px]">
+                                    <button
+                                        type="button"
+                                        title="Copy the code"
+                                        onClick={(e) => copyCode(coupon.code, e)}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                    >
+                                        {copiedCode === coupon.code ? 'COPIED' : 'COPY'}
+                                    </button>
+                                    <a
+                                        href={`https://wa.me/?text=${encodeURIComponent(
+                                            `🎮 Use code *${coupon.code}* for ${
+                                                coupon.discount_type === 'percentage'
+                                                    ? coupon.discount_value + '% OFF'
+                                                    : coupon.bonus_minutes + ' mins FREE'
+                                            } on your next gaming session! Book now 🎯`
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title="Share on WhatsApp"
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                    >
+                                        SHARE
+                                    </a>
+                                    <button
+                                        type="button"
+                                        title="Edit this coupon"
+                                        onClick={(e) => handleEdit(coupon, e)}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                                    >
+                                        EDIT
+                                    </button>
+                                    <button
+                                        type="button"
+                                        title="Delete this coupon"
+                                        onClick={(e) => handleDelete(coupon.id, e)}
+                                        className="flex h-[26px] items-center border border-[#f2f0ea]/[0.14] px-[9px] font-mono text-[9.5px] tracking-[0.1em] text-[#f2f0ea]/55 transition-colors hover:border-[#ff5c2b] hover:text-[#ff5c2b]"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
-                            </div>
+                            </TableRow>
                         );
-                    })}
+                    })
+                )}
+
+                <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+                    <span>{filteredCoupons.length} of {coupons.length} coupons</span>
+                    <span className="flex-1" />
+                    <span>A ROW OPENS ITS FULL REPORT</span>
                 </div>
-            )}
+            </Panel>
         </div>
     );
 }
