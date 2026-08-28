@@ -786,12 +786,12 @@ export function Memberships({
             {/* Add/Edit Plan Modal */}
             {showPlanModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-lg bg-white/[0.03] border-white/[0.09]" padding="md">
+                    <Card className="w-full max-w-lg bg-[#111113] border-[#f2f0ea]/10" padding="md">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-white">
+                            <h3 className="text-lg font-bold text-[#f2f0ea]">
                                 {editingPlan ? 'Edit Plan' : 'Create New Plan'}
                             </h3>
-                            <button onClick={() => setShowPlanModal(false)} className="text-slate-400 hover:text-white">
+                            <button onClick={() => setShowPlanModal(false)} className="text-[#f2f0ea]/50 hover:text-[#f2f0ea]">
                                 <XCircle size={24} />
                             </button>
                         </div>
@@ -806,19 +806,19 @@ export function Memberships({
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Price (₹)</label>
+                                    <label className="block text-xs font-semibold text-[#f2f0ea]/50 mb-1.5 uppercase">Price (₹)</label>
                                     <input
                                         type="number"
-                                        className="w-full bg-white/[0.06] border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                                        className="w-full bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 px-3 py-2 text-[#f2f0ea] focus:outline-none focus:border-[#d8ff3c]"
                                         value={newPlanPrice}
                                         onChange={e => setNewPlanPrice(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Validity (Days)</label>
+                                    <label className="block text-xs font-semibold text-[#f2f0ea]/50 mb-1.5 uppercase">Validity (Days)</label>
                                     <input
                                         type="number"
-                                        className={`w-full bg-white/[0.06] border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 ${newPlanType === 'day_pass' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        className={`w-full bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10  px-3 py-2 text-[#f2f0ea] focus:outline-none focus:border-[#d8ff3c] ${newPlanType === 'day_pass' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         value={newPlanType === 'day_pass' ? '1' : newPlanValidity}
                                         disabled={newPlanType === 'day_pass'}
                                         onChange={e => setNewPlanValidity(e.target.value)}
@@ -842,12 +842,12 @@ export function Memberships({
                                 />
                                 {isHourlyPlan(newPlanType) && (
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Hours</label>
+                                        <label className="block text-xs font-semibold text-[#f2f0ea]/50 mb-1.5 uppercase">Hours</label>
                                         <input
                                             type="number"
                                             disabled={newPlanUnlimited}
                                             placeholder={newPlanUnlimited ? 'No limit' : ''}
-                                            className="w-full bg-white/[0.06] border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                                            className="w-full bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 px-3 py-2 text-[#f2f0ea] focus:outline-none focus:border-[#d8ff3c] disabled:opacity-40"
                                             value={newPlanUnlimited ? '' : newPlanHours}
                                             onChange={e => setNewPlanHours(e.target.value)}
                                         />
@@ -856,16 +856,16 @@ export function Memberships({
                             </div>
 
                             {isHourlyPlan(newPlanType) && (
-                                <label className="flex items-start gap-2.5 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 py-2.5 cursor-pointer">
+                                <label className="flex items-start gap-2.5 border border-[#f2f0ea]/10 bg-[#111113] px-3 py-2.5 cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={newPlanUnlimited}
                                         onChange={e => setNewPlanUnlimited(e.target.checked)}
-                                        className="mt-0.5 accent-emerald-500"
+                                        className="mt-0.5 accent-[#d8ff3c]"
                                     />
                                     <span>
-                                        <span className="block text-sm font-medium text-white">Unlimited play</span>
-                                        <span className="block text-[11px] text-slate-400 leading-relaxed">
+                                        <span className="block text-sm font-medium text-[#f2f0ea]">Unlimited play</span>
+                                        <span className="block text-[11px] text-[#f2f0ea]/50 leading-relaxed">
                                             No hours are deducted and the PC shows no countdown. Members on this
                                             plan play until they end the session themselves.
                                         </span>
@@ -903,9 +903,9 @@ export function Memberships({
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Description</label>
+                                <label className="block text-xs font-semibold text-[#f2f0ea]/50 mb-1.5 uppercase">Description</label>
                                 <textarea
-                                    className="w-full bg-white/[0.06] border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 h-20 text-sm resize-none"
+                                    className="w-full bg-[#f2f0ea]/[0.06] border-[#f2f0ea]/10 px-3 py-2 text-[#f2f0ea] focus:outline-none focus:border-[#d8ff3c] h-20 text-sm resize-none"
                                     placeholder="Optional details..."
                                     value={newPlanDescription}
                                     onChange={e => setNewPlanDescription(e.target.value)}
@@ -913,7 +913,7 @@ export function Memberships({
                             </div>
                         </div>
 
-                        <div className="flex gap-3 mt-8 pt-4 border-t border-white/[0.08]">
+                        <div className="flex gap-3 mt-8 pt-4 border-t border-[#f2f0ea]/10">
                             <Button
                                 variant="secondary"
                                 onClick={() => setShowPlanModal(false)}
@@ -937,35 +937,35 @@ export function Memberships({
             {/* Adjust Hours Modal */}
             {editWho && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-sm bg-white/[0.03] border-white/[0.09]" padding="md">
-                        <h3 className="text-base font-semibold text-white mb-1">Correct the details</h3>
-                        <p className="text-xs text-slate-400 mb-4">
+                    <Card className="w-full max-w-sm bg-[#111113] border-[#f2f0ea]/10" padding="md">
+                        <h3 className="text-base font-semibold text-[#f2f0ea] mb-1">Correct the details</h3>
+                        <p className="text-xs text-[#f2f0ea]/50 mb-4">
                             The number is how a member is found when they scan a PC — a wrong digit and
                             their plan cannot be used at the machine.
                         </p>
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1">Name</label>
+                                <label className="block text-xs font-medium text-[#f2f0ea]/50 mb-1">Name</label>
                                 <input
                                     type="text"
                                     value={editName}
                                     onChange={e => setEditName(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.09] text-white text-sm focus:outline-none focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]"
                                     autoFocus
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1">Mobile number</label>
+                                <label className="block text-xs font-medium text-[#f2f0ea]/50 mb-1">Mobile number</label>
                                 <input
                                     type="tel"
                                     inputMode="numeric"
                                     maxLength={10}
                                     value={editPhone}
                                     onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))}
-                                    className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.09] text-white text-sm font-mono focus:outline-none focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] text-sm font-mono focus:outline-none focus:border-[#d8ff3c]"
                                 />
                                 {editPhone.length > 0 && editPhone.length !== 10 && (
-                                    <p className="text-[11px] text-amber-400 mt-1">{editPhone.length} of 10 digits</p>
+                                    <p className="text-[11px] text-[#ff5c2b] mt-1">{editPhone.length} of 10 digits</p>
                                 )}
                             </div>
                             <div className="flex gap-2 pt-2">
@@ -986,24 +986,24 @@ export function Memberships({
 
             {adjustHoursSub && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-sm bg-white/[0.03] border-white/[0.09]" padding="md">
-                        <h3 className="text-base font-semibold text-white mb-1">Adjust Hours</h3>
-                        <p className="text-xs text-slate-400 mb-4">{adjustHoursSub.name} · Current: <span className="text-white font-medium">{adjustHoursSub.current.toFixed(2)}h</span></p>
+                    <Card className="w-full max-w-sm bg-[#111113] border-[#f2f0ea]/10" padding="md">
+                        <h3 className="text-base font-semibold text-[#f2f0ea] mb-1">Adjust Hours</h3>
+                        <p className="text-xs text-[#f2f0ea]/50 mb-4">{adjustHoursSub.name} · Current: <span className="text-[#f2f0ea] font-medium">{adjustHoursSub.current.toFixed(2)}h</span></p>
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1">Add (+) or Remove (−) hours</label>
+                                <label className="block text-xs font-medium text-[#f2f0ea]/50 mb-1">Add (+) or Remove (−) hours</label>
                                 <input
                                     type="number"
                                     step="0.25"
                                     placeholder="e.g. 2 or -1.5"
                                     value={adjustHoursDelta}
                                     onChange={e => setAdjustHoursDelta(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.09] text-white text-sm focus:outline-none focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]"
                                     autoFocus
                                 />
                                 {adjustHoursDelta && !isNaN(parseFloat(adjustHoursDelta)) && (
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        New balance: <span className="text-white font-medium">{Math.max(0, adjustHoursSub.current + parseFloat(adjustHoursDelta)).toFixed(2)}h</span>
+                                    <p className="text-xs text-[#f2f0ea]/50 mt-1">
+                                        New balance: <span className="text-[#f2f0ea] font-medium">{Math.max(0, adjustHoursSub.current + parseFloat(adjustHoursDelta)).toFixed(2)}h</span>
                                     </p>
                                 )}
                             </div>
@@ -1021,10 +1021,10 @@ export function Memberships({
             {/* Add Subscription Modal */}
             {showAddSubModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-lg bg-white/[0.03] border-white/[0.09]" padding="md">
+                    <Card className="w-full max-w-lg bg-[#111113] border-[#f2f0ea]/10" padding="md">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-white">Add New Subscription</h3>
-                            <button onClick={() => setShowAddSubModal(false)} className="text-slate-400 hover:text-white">
+                            <h3 className="text-lg font-bold text-[#f2f0ea]">Add New Subscription</h3>
+                            <button onClick={() => setShowAddSubModal(false)} className="text-[#f2f0ea]/50 hover:text-[#f2f0ea]">
                                 <XCircle size={24} />
                             </button>
                         </div>
@@ -1032,7 +1032,7 @@ export function Memberships({
                         <div className="space-y-4">
                             {/* Customer Name with autocomplete */}
                             <div className="relative">
-                                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Customer Name</label>
+                                <label className="block text-xs font-semibold text-[#f2f0ea]/50 mb-1.5 uppercase">Customer Name</label>
                                 <input
                                     type="text"
                                     placeholder="Enter customer name"
@@ -1056,10 +1056,10 @@ export function Memberships({
                                     onFocus={() => {
                                         if (suggestions.length > 0) setShowSuggestions(true);
                                     }}
-                                    className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.09] rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm"
+                                    className="w-full px-3 py-2 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/40 focus:outline-none focus:border-[#d8ff3c] text-sm"
                                 />
                                 {showSuggestions && suggestions.length > 0 && (
-                                    <div className="absolute z-50 w-full mt-1 bg-white/[0.06] border border-white/[0.09] rounded-lg shadow-xl overflow-hidden">
+                                    <div className="absolute z-50 w-full mt-1 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 shadow-xl overflow-hidden">
                                         {suggestions.map((c, i) => (
                                             <button
                                                 key={i}
@@ -1070,10 +1070,10 @@ export function Memberships({
                                                     setSuggestions([]);
                                                     setShowSuggestions(false);
                                                 }}
-                                                className="w-full px-3 py-2.5 text-left hover:bg-white/[0.08] flex justify-between items-center"
+                                                className="w-full px-3 py-2.5 text-left hover:bg-[#f2f0ea]/[0.08] flex justify-between items-center"
                                             >
-                                                <span className="text-white text-sm font-medium">{c.name}</span>
-                                                <span className="text-slate-400 text-xs">{c.phone}</span>
+                                                <span className="text-[#f2f0ea] text-sm font-medium">{c.name}</span>
+                                                <span className="text-[#f2f0ea]/50 text-xs">{c.phone}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -1090,15 +1090,15 @@ export function Memberships({
                                 />
 
                                 {accountState === 'yes' && (
-                                    <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
+                                    <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-[#d8ff3c]">
                                         <CheckCircle2 size={13} />
                                         Has a BookMyGame account — the hours will show in their app.
                                     </div>
                                 )}
 
                                 {accountState === 'no' && (
-                                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-300/90">
-                                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-400" />
+                                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-[#ff5c2b]/90">
+                                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-[#ff5c2b]" />
                                         <span>
                                             No account on this number yet. The membership still works at the
                                             counter — ask them to sign up with <span className="font-semibold">this same number</span> to
@@ -1108,7 +1108,7 @@ export function Memberships({
                                 )}
 
                                 {accountState === 'checking' && (
-                                    <div className="mt-1.5 text-[11px] text-slate-500">Checking…</div>
+                                    <div className="mt-1.5 text-[11px] text-[#f2f0ea]/40">Checking…</div>
                                 )}
                             </div>
 
@@ -1128,10 +1128,10 @@ export function Memberships({
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Amount Paid (₹)</label>
+                                    <label className="block text-xs font-semibold text-[#f2f0ea]/50 mb-1.5 uppercase">Amount Paid (₹)</label>
                                     <input
                                         type="number"
-                                        className="w-full bg-white/[0.06] border border-white/[0.09] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                                        className="w-full bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 px-3 py-2 text-[#f2f0ea] focus:outline-none focus:border-[#d8ff3c]"
                                         value={subAmountPaid}
                                         onChange={e => setSubAmountPaid(e.target.value)}
                                     />
@@ -1151,20 +1151,20 @@ export function Memberships({
                                 const plan = hourlyMembershipPlans.find(p => p.id === subSelectedPlanId);
                                 if (!plan) return null;
                                 return (
-                                    <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
-                                        <div className="text-xs text-slate-400 mb-2 font-semibold uppercase">Plan Summary</div>
+                                    <div className="bg-[#f2f0ea]/[0.04] p-3 border border-[#f2f0ea]/[0.07]">
+                                        <div className="text-xs text-[#f2f0ea]/50 mb-2 font-semibold uppercase">Plan Summary</div>
                                         <div className="grid grid-cols-3 gap-2 text-sm">
                                             <div>
-                                                <span className="text-slate-500">Hours:</span>{' '}
-                                                <span className="text-white font-medium">{plan.hours || 'Day Pass'}</span>
+                                                <span className="text-[#f2f0ea]/40">Hours:</span>{' '}
+                                                <span className="text-[#f2f0ea] font-medium">{plan.hours || 'Day Pass'}</span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-500">Valid:</span>{' '}
-                                                <span className="text-white font-medium">{plan.validity_days} days</span>
+                                                <span className="text-[#f2f0ea]/40">Valid:</span>{' '}
+                                                <span className="text-[#f2f0ea] font-medium">{plan.validity_days} days</span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-500">Console:</span>{' '}
-                                                <span className="text-white font-medium">{plan.console_type}</span>
+                                                <span className="text-[#f2f0ea]/40">Console:</span>{' '}
+                                                <span className="text-[#f2f0ea] font-medium">{plan.console_type}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1172,7 +1172,7 @@ export function Memberships({
                             })()}
                         </div>
 
-                        <div className="flex gap-3 mt-8 pt-4 border-t border-white/[0.08]">
+                        <div className="flex gap-3 mt-8 pt-4 border-t border-[#f2f0ea]/10">
                             <Button
                                 variant="secondary"
                                 onClick={() => setShowAddSubModal(false)}

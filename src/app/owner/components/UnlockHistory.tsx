@@ -73,15 +73,15 @@ export function UnlockHistory({ cafeId }: UnlockHistoryProps) {
     };
 
     return (
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
+        <section className=" border border-[#f2f0ea]/10 bg-[#111113] p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/15">
-                        <History size={15} className="text-purple-400" />
+                    <div className="flex h-8 w-8 items-center justify-center bg-[#d8ff3c]/15">
+                        <History size={15} className="text-[#d8ff3c]" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-200">Unlock history</h3>
-                        <p className="text-[11px] text-slate-500">
+                        <h3 className="text-sm font-bold text-[#f2f0ea]">Unlock history</h3>
+                        <p className="text-[11px] text-[#f2f0ea]/40">
                             Every time a station was started or stopped, and by whom
                         </p>
                     </div>
@@ -90,7 +90,7 @@ export function UnlockHistory({ cafeId }: UnlockHistoryProps) {
                     type="button"
                     onClick={load}
                     disabled={loading}
-                    className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white disabled:opacity-40"
+                    className="flex items-center gap-1.5 border border-[#f2f0ea]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#f2f0ea]/70 transition-colors hover:text-[#f2f0ea] disabled:opacity-40"
                 >
                     <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                     Refresh
@@ -98,14 +98,14 @@ export function UnlockHistory({ cafeId }: UnlockHistoryProps) {
             </div>
 
             {error && (
-                <div className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
+                <div className="flex items-start gap-2 border border-[#ff5c2b]/25 bg-[#ff5c2b]/[0.06] p-3 text-[12px] text-[#ff5c2b]">
                     <AlertCircle size={14} className="mt-0.5 shrink-0" />
                     <span>{error}</span>
                 </div>
             )}
 
             {!error && entries.length === 0 && !loading && (
-                <p className="py-6 text-center text-[12px] text-slate-500">
+                <p className="py-6 text-center text-[12px] text-[#f2f0ea]/40">
                     No unlocks recorded yet.
                 </p>
             )}
@@ -114,7 +114,7 @@ export function UnlockHistory({ cafeId }: UnlockHistoryProps) {
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[640px] text-left text-[12px]">
                         <thead>
-                            <tr className="text-[10px] uppercase tracking-wide text-slate-500">
+                            <tr className="text-[10px] uppercase tracking-wide text-[#f2f0ea]/40">
                                 <th className="pb-2 pr-3 font-semibold">When</th>
                                 <th className="pb-2 pr-3 font-semibold">Station</th>
                                 <th className="pb-2 pr-3 font-semibold">Action</th>
@@ -126,33 +126,33 @@ export function UnlockHistory({ cafeId }: UnlockHistoryProps) {
                         <tbody>
                             {entries.map((entry) => (
                                 <tr key={entry.id} className="border-t border-white/[0.05]">
-                                    <td className="py-2 pr-3 text-slate-400 whitespace-nowrap">
+                                    <td className="py-2 pr-3 text-[#f2f0ea]/50 whitespace-nowrap">
                                         {formatTime(entry.created_at)}
                                     </td>
-                                    <td className="py-2 pr-3 font-semibold text-slate-200 uppercase">
+                                    <td className="py-2 pr-3 font-semibold text-[#f2f0ea] uppercase">
                                         {entry.station_name}
                                     </td>
                                     <td className="py-2 pr-3">
                                         <span
-                                            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                                            className={`inline-flex items-center gap-1  px-1.5 py-0.5 text-[10px] font-bold ${
                                                 entry.action === 'unlock'
-                                                    ? 'bg-emerald-500/12 text-emerald-400'
-                                                    : 'bg-slate-500/12 text-slate-400'
+                                                    ? 'bg-[#d8ff3c]/12 text-[#d8ff3c]'
+                                                    : 'bg-[#f2f0ea]/[0.07] text-[#f2f0ea]/50'
                                             }`}
                                         >
                                             {entry.action === 'unlock' ? <Unlock size={9} /> : <Lock size={9} />}
                                             {entry.action === 'unlock' ? 'Unlocked' : 'Locked'}
                                         </span>
                                     </td>
-                                    <td className="py-2 pr-3 text-slate-400">
+                                    <td className="py-2 pr-3 text-[#f2f0ea]/50">
                                         {entry.staff_name || (entry.staff_id ? entry.staff_id.slice(0, 8) : '—')}
                                     </td>
-                                    <td className="py-2 pr-3 text-slate-300">
+                                    <td className="py-2 pr-3 text-[#f2f0ea]/70">
                                         {entry.action === 'unlock' && entry.booking_amount != null
                                             ? `₹${Number(entry.booking_amount).toLocaleString('en-IN')}`
                                             : '—'}
                                     </td>
-                                    <td className="py-2 pr-3 uppercase text-slate-400">
+                                    <td className="py-2 pr-3 uppercase text-[#f2f0ea]/50">
                                         {entry.action === 'unlock' ? entry.payment_mode || '—' : '—'}
                                     </td>
                                 </tr>

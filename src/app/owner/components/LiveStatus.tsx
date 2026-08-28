@@ -322,7 +322,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             {/* Active Sessions — shown first */}
             {activeSessions.length > 0 && (
                 <div>
-                    <h3 className="text-base font-semibold text-white mb-3 px-1">Active Sessions ({activeSessions.length})</h3>
+                    <h3 className="text-base font-semibold text-[#f2f0ea] mb-3 px-1">Active Sessions ({activeSessions.length})</h3>
                     <div className={`grid grid-cols-1 ${isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-4`}>
                         {activeSessions.map(session => {
                             const isEnding = session.status === 'ending_soon';
@@ -331,17 +331,17 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                             const duration = session.booking?.duration || 60;
                             const progressPct = isOngoing ? 100 : Math.min(100, (timeRemaining / duration) * 100);
 
-                            const bgColor = isEnding ? 'bg-amber-500/5' : 'bg-red-500/5';
-                            const borderColor = isEnding ? 'border-amber-500/40' : 'border-red-500/40';
-                            const timerColor = isEnding ? 'text-amber-500' : 'text-red-400';
-                            const barColor = isEnding ? 'bg-amber-500' : 'bg-red-500';
-                            const badgeBg = isEnding ? 'bg-amber-500/20' : 'bg-red-500/20';
-                            const badgeText = isEnding ? 'text-amber-500' : 'text-red-500';
-                            const badgeBorder = isEnding ? 'border-amber-500' : 'border-red-500';
+                            const bgColor = isEnding ? 'bg-[#ff5c2b]/5' : 'bg-[#ff5c2b]/5';
+                            const borderColor = isEnding ? 'border-[#ff5c2b]/40' : 'border-[#ff5c2b]/40';
+                            const timerColor = isEnding ? 'text-[#ff5c2b]' : 'text-[#ff5c2b]';
+                            const barColor = isEnding ? 'bg-[#ff5c2b]' : 'bg-[#ff5c2b]';
+                            const badgeBg = isEnding ? 'bg-[#ff5c2b]/20' : 'bg-[#ff5c2b]/20';
+                            const badgeText = isEnding ? 'text-[#ff5c2b]' : 'text-[#ff5c2b]';
+                            const badgeBorder = isEnding ? 'border-[#ff5c2b]' : 'border-[#ff5c2b]';
                             const badgeLabel = isEnding ? 'ENDING SOON' : 'BUSY';
 
                             return (
-                                <div key={session.id} className={`group relative flex flex-col justify-between ${bgColor} border-2 ${borderColor} rounded-2xl p-5 min-h-[160px] overflow-hidden`}>
+                                <div key={session.id} className={`group relative flex flex-col justify-between ${bgColor} border-2 ${borderColor}  p-5 min-h-[160px] overflow-hidden`}>
                                     {/* Badge */}
                                     <div className={`absolute top-3 right-3 ${badgeBg} border ${badgeBorder} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeText}`}>
                                         {badgeLabel}
@@ -349,14 +349,14 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
 
                                     {/* Header */}
                                     <div className="flex items-center gap-2.5 mb-4">
-                                        <div className="w-9 h-9 rounded-xl bg-white/[0.08] flex items-center justify-center shrink-0">
-                                            <Gamepad2 size={18} className="text-slate-300" />
+                                        <div className="w-9 h-9 bg-[#f2f0ea]/[0.08] flex items-center justify-center shrink-0">
+                                            <Gamepad2 size={18} className="text-[#f2f0ea]/70" />
                                         </div>
                                         <div>
-                                            <div className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                                            <div className="text-xs text-[#f2f0ea]/40 font-semibold uppercase tracking-wide">
                                                 {session.groupLabel}-{String(session.consoleNumber).padStart(2, '0')}
                                             </div>
-                                            <div className="text-base font-bold text-white">
+                                            <div className="text-base font-bold text-[#f2f0ea]">
                                                 {session.booking?.customerName || '—'}
                                             </div>
                                         </div>
@@ -375,7 +375,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                                         {!isOngoing && (
                                             <div className="text-right">
                                                 <p className="text-xs text-[#6b7280] mb-0.5">Ends At</p>
-                                                <p className="text-sm font-semibold text-white">{session.booking?.endTime}</p>
+                                                <p className="text-sm font-semibold text-[#f2f0ea]">{session.booking?.endTime}</p>
                                             </div>
                                         )}
                                     </div>
@@ -392,36 +392,36 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
             )}
 
             {/* Header — stat chips */}
-            <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-5">
+            <div className="bg-[#111113] border border-[#f2f0ea]/10 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
                         <div className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#d8ff3c] opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#d8ff3c]"></span>
                         </div>
-                        <h2 className="text-lg font-bold text-white">Live Status</h2>
-                        <span className="text-slate-500 text-sm">· updates every 5s</span>
+                        <h2 className="text-lg font-bold text-[#f2f0ea]">Live Status</h2>
+                        <span className="text-[#f2f0ea]/40 text-sm">· updates every 5s</span>
                     </div>
-                    <span className="text-slate-400 text-sm">
+                    <span className="text-[#f2f0ea]/50 text-sm">
                         Last updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-emerald-400">{totalFree}</div>
-                        <div className="text-xs text-emerald-600 font-semibold uppercase tracking-wide mt-0.5">Free</div>
+                    <div className="bg-[#d8ff3c]/10 border border-[#d8ff3c]/20 p-3 text-center">
+                        <div className="text-2xl font-bold text-[#d8ff3c]">{totalFree}</div>
+                        <div className="text-xs text-[#d8ff3c] font-semibold uppercase tracking-wide mt-0.5">Free</div>
                     </div>
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-red-400">{totalBusy}</div>
-                        <div className="text-xs text-red-600 font-semibold uppercase tracking-wide mt-0.5">Busy</div>
+                    <div className="bg-[#ff5c2b]/10 border border-[#ff5c2b]/20 p-3 text-center">
+                        <div className="text-2xl font-bold text-[#ff5c2b]">{totalBusy}</div>
+                        <div className="text-xs text-[#ff5c2b] font-semibold uppercase tracking-wide mt-0.5">Busy</div>
                     </div>
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-amber-400">{totalEndingSoon}</div>
-                        <div className="text-xs text-amber-600 font-semibold uppercase tracking-wide mt-0.5">Ending Soon</div>
+                    <div className="bg-[#ff5c2b]/10 border border-[#ff5c2b]/20 p-3 text-center">
+                        <div className="text-2xl font-bold text-[#ff5c2b]">{totalEndingSoon}</div>
+                        <div className="text-xs text-[#ff5c2b] font-semibold uppercase tracking-wide mt-0.5">Ending Soon</div>
                     </div>
-                    <div className="bg-white/[0.05] border border-white/[0.09]/50 rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-slate-400">{totalOff}</div>
-                        <div className="text-xs text-slate-600 font-semibold uppercase tracking-wide mt-0.5">Powered Off</div>
+                    <div className="bg-[#f2f0ea]/[0.05] border border-[#f2f0ea]/10/50 p-3 text-center">
+                        <div className="text-2xl font-bold text-[#f2f0ea]/50">{totalOff}</div>
+                        <div className="text-xs text-[#f2f0ea]/30 font-semibold uppercase tracking-wide mt-0.5">Powered Off</div>
                     </div>
                 </div>
             </div>
@@ -431,19 +431,19 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                 <div key={group.type}>
                     <div className="flex items-center justify-between mb-3 px-1">
                         <div className="flex items-center gap-2">
-                            <Gamepad2 size={16} className="text-slate-500 shrink-0" />
-                            <span className="text-base font-bold text-white">{group.label}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-white/[0.06] text-xs text-slate-400 font-medium">{group.total}</span>
+                            <Gamepad2 size={16} className="text-[#f2f0ea]/40 shrink-0" />
+                            <span className="text-base font-bold text-[#f2f0ea]">{group.label}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-[#f2f0ea]/[0.06] text-xs text-[#f2f0ea]/50 font-medium">{group.total}</span>
                         </div>
                         <div className="flex items-center gap-3 text-sm font-medium">
                             <span className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <span className="text-emerald-400">{group.free} Free</span>
+                                <span className="w-2 h-2 rounded-full bg-[#d8ff3c]"></span>
+                                <span className="text-[#d8ff3c]">{group.free} Free</span>
                             </span>
                             {group.busy > 0 && (
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                    <span className="text-red-400">{group.busy} Busy</span>
+                                    <span className="w-2 h-2 rounded-full bg-[#ff5c2b]"></span>
+                                    <span className="text-[#ff5c2b]">{group.busy} Busy</span>
                                 </span>
                             )}
                         </div>
@@ -460,17 +460,17 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                             const duration = station.booking?.duration || 60;
                             const progressPct = isOngoing ? 100 : Math.min(100, (timeRemaining / duration) * 100);
 
-                            const bgColor = isFree ? 'bg-emerald-500/5' : isEnding ? 'bg-amber-500/5' : isBusy ? 'bg-red-500/5' : 'bg-white/[0.06]/20';
-                            const borderColor = isFree ? 'border-emerald-500/40' : isEnding ? 'border-amber-500/40' : isBusy ? 'border-red-500/40' : 'border-white/[0.09]/40';
-                            const timerColor = isEnding ? 'text-amber-500' : isBusy ? 'text-red-400' : 'text-emerald-500';
-                            const barColor = isFree ? 'bg-emerald-500' : isEnding ? 'bg-amber-500' : 'bg-red-500';
-                            const badgeBg = isFree ? 'bg-emerald-500/20' : isEnding ? 'bg-amber-500/20' : isBusy ? 'bg-red-500/20' : 'bg-white/[0.06]';
-                            const badgeText = isFree ? 'text-emerald-500' : isEnding ? 'text-amber-500' : isBusy ? 'text-red-500' : 'text-slate-500';
-                            const badgeBorder = isFree ? 'border-emerald-500' : isEnding ? 'border-amber-500' : isBusy ? 'border-red-500' : 'border-slate-600';
+                            const bgColor = isFree ? 'bg-[#d8ff3c]/5' : isEnding ? 'bg-[#ff5c2b]/5' : isBusy ? 'bg-[#ff5c2b]/5' : 'bg-[#f2f0ea]/[0.06]/20';
+                            const borderColor = isFree ? 'border-[#d8ff3c]/40' : isEnding ? 'border-[#ff5c2b]/40' : isBusy ? 'border-[#ff5c2b]/40' : 'border-[#f2f0ea]/10/40';
+                            const timerColor = isEnding ? 'text-[#ff5c2b]' : isBusy ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]';
+                            const barColor = isFree ? 'bg-[#d8ff3c]' : isEnding ? 'bg-[#ff5c2b]' : 'bg-[#ff5c2b]';
+                            const badgeBg = isFree ? 'bg-[#d8ff3c]/20' : isEnding ? 'bg-[#ff5c2b]/20' : isBusy ? 'bg-[#ff5c2b]/20' : 'bg-[#f2f0ea]/[0.06]';
+                            const badgeText = isFree ? 'text-[#d8ff3c]' : isEnding ? 'text-[#ff5c2b]' : isBusy ? 'text-[#ff5c2b]' : 'text-[#f2f0ea]/40';
+                            const badgeBorder = isFree ? 'border-[#d8ff3c]' : isEnding ? 'border-[#ff5c2b]' : isBusy ? 'border-[#ff5c2b]' : 'border-[#f2f0ea]/30';
                             const badgeLabel = isFree ? 'FREE' : isEnding ? 'ENDING SOON' : isBusy ? 'BUSY' : 'OFF';
 
                             return (
-                                <div key={station.id} className={`relative flex flex-col justify-between ${bgColor} border-2 ${borderColor} rounded-2xl p-5 min-h-[140px] overflow-hidden ${isOff ? 'opacity-50' : ''}`}>
+                                <div key={station.id} className={`relative flex flex-col justify-between ${bgColor} border-2 ${borderColor}  p-5 min-h-[140px] overflow-hidden ${isOff ? 'opacity-50' : ''}`}>
                                     {/* Badge */}
                                     <div className={`absolute top-3 right-3 ${badgeBg} border ${badgeBorder} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeText}`}>
                                         {badgeLabel}
@@ -478,12 +478,12 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
 
                                     {/* Header */}
                                     <div className="flex items-center gap-2.5 mb-3">
-                                        <div className="w-8 h-8 rounded-lg bg-white/[0.08] flex items-center justify-center shrink-0">
-                                            <Gamepad2 size={15} className="text-slate-400" />
+                                        <div className="w-8 h-8 bg-[#f2f0ea]/[0.08] flex items-center justify-center shrink-0">
+                                            <Gamepad2 size={15} className="text-[#f2f0ea]/50" />
                                         </div>
                                         <div>
-                                            <div className="text-xs text-slate-500 font-semibold uppercase tracking-wide">{group.label}</div>
-                                            <div className="text-base font-bold text-white">#{String(station.consoleNumber).padStart(2, '0')}</div>
+                                            <div className="text-xs text-[#f2f0ea]/40 font-semibold uppercase tracking-wide">{group.label}</div>
+                                            <div className="text-base font-bold text-[#f2f0ea]">#{String(station.consoleNumber).padStart(2, '0')}</div>
                                         </div>
                                     </div>
 
@@ -502,17 +502,17 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                                             {!isOngoing && (
                                                 <div className="text-right">
                                                     <p className="text-xs text-[#6b7280] mb-0.5">Ends At</p>
-                                                    <p className="text-sm font-semibold text-white">{station.booking.endTime}</p>
+                                                    <p className="text-sm font-semibold text-[#f2f0ea]">{station.booking.endTime}</p>
                                                 </div>
                                             )}
                                         </div>
                                     ) : isOff ? (
-                                        <div className="flex items-center gap-1.5 text-slate-500 text-sm">
+                                        <div className="flex items-center gap-1.5 text-[#f2f0ea]/40 text-sm">
                                             <AlertCircle size={15} />
                                             <span>Powered Off</span>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-1.5 text-emerald-500 text-sm">
+                                        <div className="flex items-center gap-1.5 text-[#d8ff3c] text-sm">
                                             <MonitorPlay size={15} />
                                             <span>Available</span>
                                         </div>

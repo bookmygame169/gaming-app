@@ -154,33 +154,33 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
           {orders.map((order, idx) => (
             <div
               key={order.id}
-              className="flex items-center justify-between px-3 py-2.5 rounded-lg"
+              className="flex items-center justify-between px-3 py-2.5 "
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
             >
               <div className="flex items-center gap-2.5">
                 <div
-                  className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
-                  style={{ background: 'rgba(251,146,60,0.12)', color: '#f59e0b' }}
+                  className="w-6 h-6 flex items-center justify-center text-[10px] font-bold shrink-0"
+                  style={{ background: 'rgba(251,146,60,0.12)', color: '#ff5c2b' }}
                 >
                   {idx + 1}
                 </div>
                 <div>
-                  <p className="text-[12px] text-slate-300 font-medium">
+                  <p className="text-[12px] text-[#f2f0ea]/70 font-medium">
                     {order.item_name || `Order #${order.id.slice(0, 8).toUpperCase()}`}
                   </p>
-                  <p className="text-[10px] text-slate-600 mt-0.5">
+                  <p className="text-[10px] text-[#f2f0ea]/30 mt-0.5">
                     {order.quantity} × ₹{order.unit_price}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-amber-400">
+                <span className="text-sm font-bold text-[#ff5c2b]">
                   ₹{(order.total_price ?? 0).toLocaleString('en-IN')}
                 </span>
                 <button
                   onClick={() => handleRemove(order)}
                   disabled={deletingId === order.id}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-red-500/15 text-slate-600 hover:text-red-400 disabled:opacity-40"
+                  className="w-7 h-7 flex items-center justify-center transition-colors hover:bg-[#ff5c2b]/15 text-[#f2f0ea]/30 hover:text-[#ff5c2b] disabled:opacity-40"
                   title="Remove"
                 >
                   {deletingId === order.id
@@ -196,29 +196,29 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
 
       {/* ---- Add items section ---- */}
       <div
-        className="rounded-xl overflow-hidden"
+        className=" overflow-hidden"
         style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
       >
         <button
           type="button"
           onClick={() => setShowAddItems(v => !v)}
-          className="w-full px-3 py-2 flex items-center gap-2 hover:bg-white/[0.03] transition-colors"
+          className="w-full px-3 py-2 flex items-center gap-2 hover:bg-[#111113] transition-colors"
           style={{ borderBottom: showAddItems ? '1px solid rgba(255,255,255,0.05)' : 'none' }}
         >
-          <ShoppingCart size={12} className="text-slate-500" />
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Add Items</span>
-          <span className="ml-auto text-[11px] text-slate-600">{showAddItems ? '▲' : '▼'}</span>
+          <ShoppingCart size={12} className="text-[#f2f0ea]/40" />
+          <span className="text-[11px] font-bold text-[#f2f0ea]/40 uppercase tracking-wider">Add Items</span>
+          <span className="ml-auto text-[11px] text-[#f2f0ea]/30">{showAddItems ? '▲' : '▼'}</span>
         </button>
 
         {showAddItems && (
           loading ? (
             <div className="flex justify-center py-6">
-              <Loader2 size={18} className="animate-spin text-slate-600" />
+              <Loader2 size={18} className="animate-spin text-[#f2f0ea]/30" />
             </div>
           ) : inventory.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6">
-              <Package size={22} className="text-slate-700" />
-              <p className="text-xs text-slate-600">No inventory items available</p>
+              <Package size={22} className="text-[#f2f0ea]/[0.14]" />
+              <p className="text-xs text-[#f2f0ea]/30">No inventory items available</p>
             </div>
           ) : (
             <div className="p-2.5 grid grid-cols-2 gap-2">
@@ -227,34 +227,34 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
                 return (
                   <div
                     key={item.id}
-                    className="rounded-lg p-2.5 transition-all"
+                    className=" p-2.5 transition-all"
                     style={{
                       background: qty > 0 ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.03)',
                       border: qty > 0 ? '1px solid rgba(251,146,60,0.25)' : '1px solid rgba(255,255,255,0.05)',
                     }}
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <span className="text-[12px] font-medium text-slate-200 leading-tight pr-1">{item.name}</span>
+                      <span className="text-[12px] font-medium text-[#f2f0ea] leading-tight pr-1">{item.name}</span>
                       {qty > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white shrink-0">{qty}</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#ff5c2b] text-[#f2f0ea] shrink-0">{qty}</span>
                       )}
                     </div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-bold text-emerald-400">₹{item.price}</span>
-                      <span className="text-[10px] text-slate-600">{item.stock_quantity} left</span>
+                      <span className="text-[11px] font-bold text-[#d8ff3c]">₹{item.price}</span>
+                      <span className="text-[10px] text-[#f2f0ea]/30">{item.stock_quantity} left</span>
                     </div>
                     <div className="flex items-center gap-1">
                       {qty > 0 ? (
                         <>
-                          <button onClick={() => removeFromCart(item.id)} className="flex-1 h-6 flex items-center justify-center rounded-md bg-white/[0.07] hover:bg-white/[0.11] text-slate-300 transition-colors">
+                          <button onClick={() => removeFromCart(item.id)} className="flex-1 h-6 flex items-center justify-center bg-white/[0.07] hover:bg-white/[0.11] text-[#f2f0ea]/70 transition-colors">
                             <Minus size={11} />
                           </button>
-                          <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className="flex-1 h-6 flex items-center justify-center rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors disabled:opacity-40">
+                          <button onClick={() => addToCart(item)} disabled={qty >= item.stock_quantity} className="flex-1 h-6 flex items-center justify-center bg-[#ff5c2b]/20 hover:bg-[#ff5c2b]/30 text-[#ff5c2b] transition-colors disabled:opacity-40">
                             <Plus size={11} />
                           </button>
                         </>
                       ) : (
-                        <button onClick={() => addToCart(item)} className="w-full h-6 flex items-center justify-center gap-1 rounded-md bg-white/[0.07] hover:bg-amber-500/15 text-slate-400 hover:text-amber-400 text-[11px] font-medium transition-all">
+                        <button onClick={() => addToCart(item)} className="w-full h-6 flex items-center justify-center gap-1 bg-white/[0.07] hover:bg-[#ff5c2b]/15 text-[#f2f0ea]/50 hover:text-[#ff5c2b] text-[11px] font-medium transition-all">
                           <Plus size={10} /> Add
                         </button>
                       )}
@@ -270,14 +270,14 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
         {cart.length > 0 && (
           <div className="px-3 py-2.5 border-t flex items-center justify-between gap-3" style={{ borderColor: 'rgba(251,146,60,0.15)', background: 'rgba(251,146,60,0.05)' }}>
             <div>
-              <p className="text-[11px] text-slate-500">{cartCount} item{cartCount !== 1 ? 's' : ''} in cart</p>
-              <p className="text-sm font-bold text-amber-400">₹{cartTotal.toLocaleString('en-IN')}</p>
+              <p className="text-[11px] text-[#f2f0ea]/40">{cartCount} item{cartCount !== 1 ? 's' : ''} in cart</p>
+              <p className="text-sm font-bold text-[#ff5c2b]">₹{cartTotal.toLocaleString('en-IN')}</p>
             </div>
             <button
               onClick={handleAddToBooking}
               disabled={adding || addedAnim}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12px] font-bold transition-all disabled:opacity-60"
-              style={{ background: addedAnim ? 'rgba(16,185,129,0.18)' : 'rgba(251,146,60,0.20)', color: addedAnim ? '#34d399' : '#fbbf24', border: addedAnim ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(251,146,60,0.35)' }}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-bold transition-all disabled:opacity-60"
+              style={{ background: addedAnim ? 'rgba(16,185,129,0.18)' : 'rgba(251,146,60,0.20)', color: addedAnim ? '#d8ff3c' : '#ff5c2b', border: addedAnim ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(251,146,60,0.35)' }}
             >
               {adding     ? <Loader2 size={13} className="animate-spin" /> :
                addedAnim  ? <><Check size={13} /> Added!</> :

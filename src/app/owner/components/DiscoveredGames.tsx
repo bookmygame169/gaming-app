@@ -112,9 +112,9 @@ export function DiscoveredGames({ cafeId }: Props) {
 
     if (migrationMissing) {
         return (
-            <div className="flex items-start gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-                <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-400" />
-                <p className="text-[11px] leading-relaxed text-amber-300/90">
+            <div className="flex items-start gap-2 border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 p-4">
+                <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[#ff5c2b]" />
+                <p className="text-[11px] leading-relaxed text-[#ff5c2b]/90">
                     Your PCs cannot report what they have installed yet — run migration{' '}
                     <span className="font-mono">20260822100000_station_discovered_games.sql</span> in Supabase.
                 </p>
@@ -128,60 +128,60 @@ export function DiscoveredGames({ cafeId }: Props) {
     if (games.length === 0) return null;
 
     return (
-        <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.04] p-5">
+        <div className=" border border-[#d8ff3c]/25 bg-[#d8ff3c]/[0.04] p-5">
             <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15">
-                    <Gamepad2 size={15} className="text-cyan-400" />
+                <div className="flex h-8 w-8 items-center justify-center bg-[#d8ff3c]/15">
+                    <Gamepad2 size={15} className="text-[#d8ff3c]" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-bold text-slate-100">
+                    <h3 className="text-sm font-bold text-[#f2f0ea]">
                         {games.length} game{games.length > 1 ? 's' : ''} found on your PCs
                     </h3>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[#f2f0ea]/40">
                         Not on the lock screen yet. Add the ones you want customers to see.
                     </p>
                 </div>
             </div>
 
             {error && (
-                <p className="mt-3 rounded-xl border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300">
+                <p className="mt-3 border border-[#ff5c2b]/25 bg-[#ff5c2b]/10 px-3 py-2 text-[11px] font-semibold text-[#ff5c2b]">
                     {error}
                 </p>
             )}
 
             <div className="mt-4 space-y-2.5">
                 {games.map((game) => (
-                    <div key={game.key} className="rounded-xl border border-white/[0.08] bg-[#0d0d14] p-4">
+                    <div key={game.key} className=" border border-[#f2f0ea]/10 bg-[#0d0d14] p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-sm font-bold text-slate-100">{game.name}</span>
-                                    <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                    <span className="text-sm font-bold text-[#f2f0ea]">{game.name}</span>
+                                    <span className=" bg-[#f2f0ea]/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#f2f0ea]/50">
                                         {SOURCE_LABEL[game.source] ?? game.source}
                                     </span>
                                 </div>
 
                                 <p
-                                    className="mt-1.5 truncate font-mono text-[10.5px] text-slate-500"
+                                    className="mt-1.5 truncate font-mono text-[10.5px] text-[#f2f0ea]/40"
                                     title={`${game.exePath}${game.arguments ? ` ${game.arguments}` : ''}`}
                                 >
                                     {describeLaunch(game)}
                                 </p>
 
                                 {(game.otherPaths?.length ?? 0) > 0 && (
-                                    <p className="mt-1.5 text-[11px] text-slate-400">
+                                    <p className="mt-1.5 text-[11px] text-[#f2f0ea]/50">
                                         In a different folder on some PCs — add it once, each PC finds its own copy.
                                     </p>
                                 )}
 
                                 {game.sameNameOnMenu && (
-                                    <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-amber-400/90">
+                                    <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[#ff5c2b]/90">
                                         <AlertTriangle size={11} />
                                         A game with this name is already on your menu — adding this makes a second tile.
                                     </p>
                                 )}
 
-                                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#f2f0ea]/40">
                                     <Monitor size={11} />
                                     {/* Which machines have it. A game on one PC of four is
                                         usually worth a second look before it goes on every
@@ -197,7 +197,7 @@ export function DiscoveredGames({ cafeId }: Props) {
                                     type="button"
                                     onClick={() => answer(game, 'ignore')}
                                     disabled={busy === game.key}
-                                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.06] px-3 py-2 text-xs font-bold text-slate-400 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
+                                    className="inline-flex items-center gap-1.5 bg-[#f2f0ea]/[0.06] px-3 py-2 text-xs font-bold text-[#f2f0ea]/50 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
                                 >
                                     <X size={13} />
                                     Not a game
@@ -206,7 +206,7 @@ export function DiscoveredGames({ cafeId }: Props) {
                                     type="button"
                                     onClick={() => answer(game, 'add')}
                                     disabled={busy === game.key}
-                                    className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/15 px-4 py-2 text-xs font-bold text-cyan-300 transition-colors hover:bg-cyan-500/25 disabled:opacity-40"
+                                    className="inline-flex items-center gap-1.5 bg-[#d8ff3c]/15 px-4 py-2 text-xs font-bold text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c]/25 disabled:opacity-40"
                                 >
                                     <Check size={13} />
                                     {busy === game.key ? 'Adding…' : 'Add to menu'}

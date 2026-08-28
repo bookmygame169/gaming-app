@@ -31,7 +31,7 @@ export default function SubscriptionDetailsModal({
     const expiryDate = sub.expiry_date ? new Date(sub.expiry_date) : null;
     const purchaseDate = sub.purchase_date ? new Date(sub.purchase_date) : null;
     const daysRemaining = expiryDate ? Math.max(0, Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
-    const statusColor = sub.status === 'active' ? '#10b981' : sub.status === 'expired' ? '#ef4444' : '#6b7280';
+    const statusColor = sub.status === 'active' ? '#d8ff3c' : sub.status === 'expired' ? '#ff5c2b' : '#6b7280';
 
     // Get initials for avatar
     const nameParts = sub.customer_name?.split(' ') || [];
@@ -111,7 +111,7 @@ export default function SubscriptionDetailsModal({
                                     width: isMobile ? 60 : 72,
                                     height: isMobile ? 60 : 72,
                                     borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                                    background: 'linear-gradient(135deg, #d8ff3c, #ec4899)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -184,7 +184,7 @@ export default function SubscriptionDetailsModal({
                                 <p style={{ fontSize: isMobile ? 11 : 12, color: theme.textMuted, margin: '0 0 6px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     Amount Paid
                                 </p>
-                                <p style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: '#10b981', margin: 0 }}>
+                                <p style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: '#d8ff3c', margin: 0 }}>
                                     ₹{sub.amount_paid}
                                 </p>
                             </div>
@@ -206,7 +206,7 @@ export default function SubscriptionDetailsModal({
                             <button
                                 style={{
                                     padding: isMobile ? '8px 16px' : '10px 20px',
-                                    background: '#10b981',
+                                    background: '#d8ff3c',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: 10,
@@ -253,14 +253,14 @@ export default function SubscriptionDetailsModal({
                             <div style={{
                                 width: `${progressPercent}%`,
                                 height: '100%',
-                                background: progressPercent > 50 ? '#10b981' : progressPercent > 20 ? '#f59e0b' : '#ef4444',
+                                background: progressPercent > 50 ? '#d8ff3c' : progressPercent > 20 ? '#ff5c2b' : '#ff5c2b',
                                 transition: 'width 0.3s',
                             }} />
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: isMobile ? 12 : 13, color: theme.textMuted }}>
                             <span>Used: {Math.floor(hoursUsed)}h {Math.round((hoursUsed % 1) * 60)}m ({Math.round((hoursUsed / hoursPurchased) * 100)}%)</span>
-                            <span style={{ color: progressPercent > 50 ? '#10b981' : progressPercent > 20 ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                            <span style={{ color: progressPercent > 50 ? '#d8ff3c' : progressPercent > 20 ? '#ff5c2b' : '#ff5c2b', fontWeight: 600 }}>
                                 {Math.round(progressPercent)}% remaining
                             </span>
                         </div>
@@ -316,10 +316,10 @@ export default function SubscriptionDetailsModal({
                                                             {startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - {endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                                                         </div>
                                                     </td>
-                                                    <td style={{ padding: '16px', fontSize: isMobile ? 13 : 14, color: '#3b82f6', fontWeight: 600 }}>
+                                                    <td style={{ padding: '16px', fontSize: isMobile ? 13 : 14, color: '#d8ff3c', fontWeight: 600 }}>
                                                         #{usageHistory.length - index}
                                                     </td>
-                                                    <td style={{ padding: '16px', fontSize: isMobile ? 13 : 14, color: '#3b82f6', fontWeight: 600 }}>
+                                                    <td style={{ padding: '16px', fontSize: isMobile ? 13 : 14, color: '#d8ff3c', fontWeight: 600 }}>
                                                         {hours}h {minutes}m
                                                     </td>
                                                 </tr>
@@ -367,7 +367,7 @@ export default function SubscriptionDetailsModal({
                                 background: 'transparent',
                                 border: `2px solid rgba(251, 191, 36, 0.4)`,
                                 borderRadius: 10,
-                                color: '#fbbf24',
+                                color: '#ff5c2b',
                                 fontSize: isMobile ? 14 : 15,
                                 fontWeight: 600,
                                 cursor: 'pointer',
@@ -391,7 +391,7 @@ export default function SubscriptionDetailsModal({
                                 background: 'rgba(239, 68, 68, 0.1)',
                                 border: `2px solid rgba(239, 68, 68, 0.4)`,
                                 borderRadius: 10,
-                                color: '#ef4444',
+                                color: '#ff5c2b',
                                 fontSize: isMobile ? 14 : 15,
                                 fontWeight: 600,
                                 cursor: 'pointer',

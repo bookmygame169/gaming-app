@@ -121,11 +121,11 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-4 py-3 sm:px-5 sm:py-4">
                 <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-lg sm:h-7 sm:w-7" style={{ background: 'rgba(6,182,212,0.12)', color: '#06b6d4' }}>
+                    <div className="flex h-6 w-6 items-center justify-center sm:h-7 sm:w-7" style={{ background: 'rgba(6,182,212,0.12)', color: '#d8ff3c' }}>
                         <CalendarX size={13} />
                     </div>
                     <h2 className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">TODAY&apos;S BOOKINGS</h2>
-                    <span className="mono text-[11px] text-slate-500">({bookings.filter(b => !b.deleted_at && b.status !== 'cancelled' && isSessionBooking(b)).length})</span>
+                    <span className="mono text-[11px] text-[#f2f0ea]/40">({bookings.filter(b => !b.deleted_at && b.status !== 'cancelled' && isSessionBooking(b)).length})</span>
                 </div>
                 {onViewAll && (
                     <button onClick={onViewAll} className="flex items-center gap-1 font-mono text-[10.5px] tracking-[0.14em] transition-colors hover:opacity-80" style={{ color: '#d8ff3c' }}>
@@ -138,7 +138,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
             <div className="md:hidden divide-y divide-white/[0.05]">
                 {displayed.length === 0 ? (
                     <div className="px-5 py-12 text-center">
-                        <p className="text-sm text-slate-500">No bookings today</p>
+                        <p className="text-sm text-[#f2f0ea]/40">No bookings today</p>
                     </div>
                 ) : displayed.map((b) => {
                     const isWalkIn = b.source === 'walk-in';
@@ -164,8 +164,8 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                         <div key={b.id} className="space-y-2.5 px-3 py-3">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="truncate text-[15px] font-semibold text-white">{name || '—'}</p>
-                                    {phone && <p className="mono mt-0.5 text-[10px] text-slate-500">+91 {phone.replace(/^\+?91/, '')}</p>}
+                                    <p className="truncate text-[15px] font-semibold text-[#f2f0ea]">{name || '—'}</p>
+                                    {phone && <p className="mono mt-0.5 text-[10px] text-[#f2f0ea]/40">+91 {phone.replace(/^\+?91/, '')}</p>}
                                 </div>
                                 <span className="inline-flex items-center gap-1.5 px-2 py-1 font-mono text-[9.5px] tracking-[0.12em]"
                                     style={{ background: status.bg, color: status.fg }}>
@@ -174,25 +174,25 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                 </span>
                             </div>
 
-                            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                            <div className="flex items-center justify-between gap-3 border border-[#f2f0ea]/[0.07] bg-[#111113] px-3 py-2.5">
                                 <div className="min-w-0 flex-1">
-                                    <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Station</div>
+                                    <div className="text-[9px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Station</div>
                                     <div className="mt-1 flex items-center gap-2">
-                                        <span className="flex h-5 w-5 items-center justify-center rounded-md text-[10px]"
+                                        <span className="flex h-5 w-5 items-center justify-center text-[10px]"
                                             style={{ background: `${consoleColor}22`, color: consoleColor }}>
                                             {consoleIcon}
                                         </span>
-                                        <span className="mono truncate text-[11px] font-semibold text-white">{stationLabel}</span>
+                                        <span className="mono truncate text-[11px] font-semibold text-[#f2f0ea]">{stationLabel}</span>
                                     </div>
-                                    {duration && <p className="mono mt-0.5 text-[10px] text-slate-500">{formatDurationLabel(duration)}</p>}
+                                    {duration && <p className="mono mt-0.5 text-[10px] text-[#f2f0ea]/40">{formatDurationLabel(duration)}</p>}
                                 </div>
                                 <div className="shrink-0 text-right">
-                                    <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Session</div>
-                                    <div className="mono mt-1 text-[14px] font-semibold text-white">₹{sessionAmount.toLocaleString('en-IN')}</div>
+                                    <div className="text-[9px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Session</div>
+                                    <div className="mono mt-1 text-[14px] font-semibold text-[#f2f0ea]">₹{sessionAmount.toLocaleString('en-IN')}</div>
                                     {snackTotal > 0 && (
-                                        <p className="mt-0.5 text-[10px] font-medium text-amber-400">+₹{snackTotal.toLocaleString('en-IN')} snacks</p>
+                                        <p className="mt-0.5 text-[10px] font-medium text-[#ff5c2b]">+₹{snackTotal.toLocaleString('en-IN')} snacks</p>
                                     )}
-                                    <p className="mt-0.5 text-[10px] text-slate-500">{b.start_time || '—'}</p>
+                                    <p className="mt-0.5 text-[10px] text-[#f2f0ea]/40">{b.start_time || '—'}</p>
                                 </div>
                             </div>
 
@@ -201,7 +201,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                     {onStatusChange && statusKey === 'pending' && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onStatusChange(b.id, 'confirmed'); }}
-                                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                                            className="inline-flex items-center gap-1 bg-[#d8ff3c]/10 px-2.5 py-1.5 text-[10px] font-semibold text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c]/20"
                                         >
                                             <CheckCircle size={11} />
                                             Confirm
@@ -226,7 +226,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                     {onEdit && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onEdit(b); }}
-                                            className="inline-flex items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                                            className="inline-flex items-center gap-1 border border-white/[0.07] bg-[#f2f0ea]/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-[#f2f0ea]/70 transition-colors hover:bg-[#f2f0ea]/[0.06] hover:text-[#f2f0ea]"
                                         >
                                             <Pencil size={11} />
                                             Edit
@@ -238,7 +238,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
-                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
+                                            className="inline-flex h-8 w-8 items-center justify-center bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
                                             title="Send ticket on WhatsApp"
                                         >
                                             <WhatsAppIcon />
@@ -272,7 +272,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                         {displayed.length === 0 ? (
                             <tr>
                                 <td colSpan={(onEdit || onPaymentModeChange || onStatusChange) ? 6 : 5} className="px-5 py-14 text-center">
-                                    <p className="text-sm text-slate-500">No bookings today</p>
+                                    <p className="text-sm text-[#f2f0ea]/40">No bookings today</p>
                                 </td>
                             </tr>
                         ) : displayed.map((b) => {
@@ -300,8 +300,8 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                 <tr key={b.id} className="border-t border-[#f2f0ea]/[0.07] transition-colors hover:bg-[#f2f0ea]/[0.03]">
                                     {/* Customer */}
                                     <td className="px-5 py-3">
-                                        <p className="text-[13px] font-medium text-white">{name || '—'}</p>
-                                        {phone && <p className="mono text-[11px] text-slate-500 mt-0.5">+91 {phone.replace(/^\+?91/, '')}</p>}
+                                        <p className="text-[13px] font-medium text-[#f2f0ea]">{name || '—'}</p>
+                                        {phone && <p className="mono text-[11px] text-[#f2f0ea]/40 mt-0.5">+91 {phone.replace(/^\+?91/, '')}</p>}
                                     </td>
 
                                     {/* Station */}
@@ -311,27 +311,27 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                                 style={{ background: `${consoleColor}22`, color: consoleColor }}>
                                                 {consoleIcon}
                                             </span>
-                                            <span className="mono text-[12px] font-semibold text-white">{stationLabel}</span>
+                                            <span className="mono text-[12px] font-semibold text-[#f2f0ea]">{stationLabel}</span>
                                         </div>
-                                        {duration && <p className="mono text-[10px] text-slate-500 mt-0.5 ml-6.5">{formatDurationLabel(duration)}</p>}
+                                        {duration && <p className="mono text-[10px] text-[#f2f0ea]/40 mt-0.5 ml-6.5">{formatDurationLabel(duration)}</p>}
                                     </td>
 
                                     {/* Start time */}
-                                    <td className="px-3 py-3 mono text-[12px] text-slate-400">
+                                    <td className="px-3 py-3 mono text-[12px] text-[#f2f0ea]/50">
                                         {b.start_time || '—'}
                                     </td>
 
                                     {/* Amount */}
                                     <td className="px-3 py-3 text-right">
-                                        <span className="mono text-[13px] font-semibold text-white">₹{sessionAmount.toLocaleString('en-IN')}</span>
+                                        <span className="mono text-[13px] font-semibold text-[#f2f0ea]">₹{sessionAmount.toLocaleString('en-IN')}</span>
                                         {snackTotal > 0 && (
-                                            <p className="mt-0.5 text-[10px] font-medium text-amber-400">+₹{snackTotal.toLocaleString('en-IN')} snacks</p>
+                                            <p className="mt-0.5 text-[10px] font-medium text-[#ff5c2b]">+₹{snackTotal.toLocaleString('en-IN')} snacks</p>
                                         )}
                                     </td>
 
                                     {/* Status */}
                                     <td className="px-3 py-3">
-                                        <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md"
+                                        <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 "
                                             style={{ background: status.bg, color: status.fg }}>
                                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: status.dot }} />
                                             {status.label}
@@ -345,7 +345,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                                 {onStatusChange && statusKey === 'pending' && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onStatusChange(b.id, 'confirmed'); }}
-                                                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                                                        className="inline-flex items-center gap-1 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] font-semibold text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c]/20"
                                                         title="Confirm payment"
                                                     >
                                                         <CheckCircle size={11} />
@@ -374,7 +374,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                                 {onEdit && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onEdit(b); }}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors hover:bg-white/[0.06]"
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-[#f2f0ea]/[0.06]"
                                                         style={{ color: '#94a3b8' }}
                                                         title="Edit booking"
                                                     >
@@ -389,7 +389,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         onClick={(e) => e.stopPropagation()}
-                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
+                                                        className="inline-flex h-8 w-8 items-center justify-center bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
                                                         title="Send ticket on WhatsApp"
                                                     >
                                                         <WhatsAppIcon />

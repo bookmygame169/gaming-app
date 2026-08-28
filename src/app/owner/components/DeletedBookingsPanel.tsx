@@ -137,26 +137,26 @@ export function DeletedBookingsPanel() {
         {/* Toggle header */}
         <button
           onClick={handleToggle}
-          className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.06] transition-colors group"
+          className="w-full flex items-center justify-between px-5 py-3.5 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/[0.07] hover:bg-[#f2f0ea]/[0.06] transition-colors group"
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-              <Trash2 size={16} className="text-red-400" />
+            <div className="w-8 h-8 bg-[#ff5c2b]/10 flex items-center justify-center">
+              <Trash2 size={16} className="text-[#ff5c2b]" />
             </div>
             <div className="text-left">
-              <div className="text-sm font-semibold text-slate-200">Deleted Bookings</div>
-              <div className="text-xs text-slate-500">Bookings removed by you — restore anytime from here</div>
+              <div className="text-sm font-semibold text-[#f2f0ea]">Deleted Bookings</div>
+              <div className="text-xs text-[#f2f0ea]/40">Bookings removed by you — restore anytime from here</div>
             </div>
             {bookings.length > 0 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">
+              <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ff5c2b]/15 text-[#ff5c2b]">
                 {bookings.length}
               </span>
             )}
           </div>
           {open ? (
-            <ChevronUp size={18} className="text-slate-400 group-hover:text-white transition-colors" />
+            <ChevronUp size={18} className="text-[#f2f0ea]/50 group-hover:text-[#f2f0ea] transition-colors" />
           ) : (
-            <ChevronDown size={18} className="text-slate-400 group-hover:text-white transition-colors" />
+            <ChevronDown size={18} className="text-[#f2f0ea]/50 group-hover:text-[#f2f0ea] transition-colors" />
           )}
         </button>
 
@@ -164,31 +164,31 @@ export function DeletedBookingsPanel() {
         {open && (
           <div className="mt-3">
             <Card padding="none">
-              <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <AlertTriangle size={14} className="text-amber-400" />
+              <div className="p-4 border-b border-[#f2f0ea]/10 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-[#f2f0ea]/50">
+                  <AlertTriangle size={14} className="text-[#ff5c2b]" />
                   <span>Deleted bookings stay hidden from the main list until you restore or permanently remove them.</span>
                 </div>
                 <button
                   onClick={() => fetchDeleted()}
                   disabled={loading}
-                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+                  className="text-xs text-[#d8ff3c] hover:text-[#d8ff3c] transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Loading...' : 'Refresh'}
                 </button>
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center py-12 gap-3 text-slate-400">
+                <div className="flex items-center justify-center py-12 gap-3 text-[#f2f0ea]/50">
                   <Loader2 size={20} className="animate-spin" />
                   <span className="text-sm">Loading deleted bookings...</span>
                 </div>
               ) : error ? (
-                <div className="py-8 text-center text-red-400 text-sm">{error}</div>
+                <div className="py-8 text-center text-[#ff5c2b] text-sm">{error}</div>
               ) : bookings.length === 0 ? (
                 <div className="py-12 text-center">
-                  <Trash2 size={32} className="text-slate-700 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">No deleted bookings</p>
+                  <Trash2 size={32} className="text-[#f2f0ea]/[0.14] mx-auto mb-3" />
+                  <p className="text-[#f2f0ea]/40 text-sm">No deleted bookings</p>
                 </div>
               ) : (
                 <div className="divide-y divide-white/[0.08]">
@@ -200,32 +200,32 @@ export function DeletedBookingsPanel() {
                     return (
                       <div
                         key={b.id}
-                        className="flex items-start justify-between gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors"
+                        className="flex items-start justify-between gap-4 px-5 py-4 hover:bg-[#111113] transition-colors"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="font-medium text-sm text-slate-200">{customerLabel}</span>
+                            <span className="font-medium text-sm text-[#f2f0ea]">{customerLabel}</span>
                             {b.user_phone && (
-                              <span className="text-xs text-slate-400">{b.user_phone}</span>
+                              <span className="text-xs text-[#f2f0ea]/50">{b.user_phone}</span>
                             )}
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.08] text-slate-400">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#f2f0ea]/[0.08] text-[#f2f0ea]/50">
                               {b.cafe_name}
                             </span>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              b.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400' :
-                              b.status === 'confirmed' ? 'bg-blue-500/15 text-blue-400' :
-                              b.status === 'cancelled' ? 'bg-red-500/15 text-red-400' :
-                              'bg-white/[0.08] text-slate-400'
+                              b.status === 'completed' ? 'bg-[#d8ff3c]/15 text-[#d8ff3c]' :
+                              b.status === 'confirmed' ? 'bg-[#d8ff3c]/15 text-[#d8ff3c]' :
+                              b.status === 'cancelled' ? 'bg-[#ff5c2b]/15 text-[#ff5c2b]' :
+                              'bg-[#f2f0ea]/[0.08] text-[#f2f0ea]/50'
                             }`}>
                               {b.status}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mb-1.5">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#f2f0ea]/40 mb-1.5">
                             <span>{formatDate(b.booking_date)} · {b.start_time} · {formatDurationLabel(b.duration, { long: true })}</span>
-                            <span className="text-emerald-400 font-semibold">{formatCurrency(b.total_amount)}</span>
-                            <span className="text-slate-600">ID: #{b.id.slice(0, 8).toUpperCase()}</span>
+                            <span className="text-[#d8ff3c] font-semibold">{formatCurrency(b.total_amount)}</span>
+                            <span className="text-[#f2f0ea]/30">ID: #{b.id.slice(0, 8).toUpperCase()}</span>
                           </div>
-                          <div className="text-xs text-red-400/70 mb-1.5">
+                          <div className="text-xs text-[#ff5c2b]/70 mb-1.5">
                             Deleted {formatDateTime(b.deleted_at)}
                           </div>
                           {b.booking_items && b.booking_items.length > 0 && (
@@ -233,7 +233,7 @@ export function DeletedBookingsPanel() {
                               {b.booking_items.map((item) => (
                                 <span
                                   key={item.id}
-                                  className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] text-slate-400 border border-white/[0.09]"
+                                  className="text-[11px] px-2 py-0.5 bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 border border-[#f2f0ea]/10"
                                 >
                                   {item.console} ×{item.quantity} · {formatCurrency(item.price)}
                                 </span>
@@ -241,9 +241,9 @@ export function DeletedBookingsPanel() {
                             </div>
                           )}
                           {b.deleted_remark && (
-                            <div className="flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2">
-                              <AlertTriangle size={11} className="mt-0.5 shrink-0 text-amber-400" />
-                              <span><span className="font-medium text-amber-400">Remark:</span> {b.deleted_remark}</span>
+                            <div className="flex items-start gap-1.5 text-xs text-[#ff5c2b]/80 bg-[#ff5c2b]/5 border border-[#ff5c2b]/15 px-3 py-2">
+                              <AlertTriangle size={11} className="mt-0.5 shrink-0 text-[#ff5c2b]" />
+                              <span><span className="font-medium text-[#ff5c2b]">Remark:</span> {b.deleted_remark}</span>
                             </div>
                           )}
                         </div>
@@ -252,7 +252,7 @@ export function DeletedBookingsPanel() {
                             onClick={() => restore(b.id)}
                             disabled={isProcessing}
                             title="Restore booking"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#d8ff3c]/10 text-[#d8ff3c] hover:bg-[#d8ff3c]/20 transition-colors disabled:opacity-50"
                           >
                             {isRestoring ? (
                               <Loader2 size={13} className="animate-spin" />
@@ -265,7 +265,7 @@ export function DeletedBookingsPanel() {
                             onClick={() => permanentlyDelete(b.id)}
                             disabled={isProcessing}
                             title="Permanently delete booking"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#ff5c2b]/10 text-[#ff5c2b] hover:bg-[#ff5c2b]/20 transition-colors disabled:opacity-50"
                           >
                             {isDeleting ? (
                               <Loader2 size={13} className="animate-spin" />
@@ -279,11 +279,11 @@ export function DeletedBookingsPanel() {
                     );
                   })}
                   {hasMore && (
-                    <div className="py-4 text-center border-t border-white/[0.08]">
+                    <div className="py-4 text-center border-t border-[#f2f0ea]/10">
                       <button
                         onClick={() => fetchDeleted(bookings.length)}
                         disabled={loadingMore}
-                        className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg text-xs font-medium bg-white/[0.06] text-slate-400 hover:bg-white/[0.08] hover:text-slate-300 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 mx-auto px-4 py-2 text-xs font-medium bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 hover:bg-[#f2f0ea]/[0.08] hover:text-[#f2f0ea]/70 transition-colors disabled:opacity-50"
                       >
                         {loadingMore ? <Loader2 size={13} className="animate-spin" /> : null}
                         Load more

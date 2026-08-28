@@ -102,21 +102,21 @@ export function StationExitPassword({ cafeId }: Props) {
     };
 
     return (
-        <div className="rounded-2xl border border-white/[0.08] bg-[#0d0d14] p-5">
+        <div className=" border border-[#f2f0ea]/10 bg-[#0d0d14] p-5">
             <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/15">
-                    <KeyRound size={16} className="text-amber-400" />
+                <div className="flex h-9 w-9 items-center justify-center bg-[#ff5c2b]/15">
+                    <KeyRound size={16} className="text-[#ff5c2b]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-slate-100">Staff exit password</h3>
-                    <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
-                        At a locked PC, press <span className="font-mono text-slate-400">Ctrl+Alt+Shift+Q</span> and
+                    <h3 className="text-sm font-bold text-[#f2f0ea]">Staff exit password</h3>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-[#f2f0ea]/40">
+                        At a locked PC, press <span className="font-mono text-[#f2f0ea]/50">Ctrl+Alt+Shift+Q</span> and
                         type this to close the lock screen — for fixing a machine without signing the customer out.
                         Their remaining time is not lost.
                     </p>
 
                     {isSet !== null && !migrationNeeded && (
-                        <p className="mt-2 text-[11px] font-semibold" style={{ color: isSet ? '#34d399' : '#94a3b8' }}>
+                        <p className="mt-2 text-[11px] font-semibold" style={{ color: isSet ? '#d8ff3c' : '#94a3b8' }}>
                             {isSet
                                 ? 'A password is set. Typing a new one replaces it everywhere.'
                                 : 'No password set — the shortcut currently does nothing.'}
@@ -124,9 +124,9 @@ export function StationExitPassword({ cafeId }: Props) {
                     )}
 
                     {migrationNeeded && (
-                        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-                            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
-                            <p className="text-[11px] leading-relaxed text-amber-300/90">
+                        <div className="mt-3 flex items-start gap-2 border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 p-3">
+                            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#ff5c2b]" />
+                            <p className="text-[11px] leading-relaxed text-[#ff5c2b]/90">
                                 Run migration 20260819000000_add_station_exit_password.sql before using this.
                             </p>
                         </div>
@@ -139,7 +139,7 @@ export function StationExitPassword({ cafeId }: Props) {
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder={isSet ? 'New password' : 'Password'}
                             autoComplete="new-password"
-                            className="w-full rounded-xl border border-white/[0.09] bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-500/50"
+                            className="w-full border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.06] px-3 py-2.5 text-sm text-[#f2f0ea] outline-none placeholder:text-[#f2f0ea]/40 focus:border-[#ff5c2b]/50"
                         />
                         <input
                             type="password"
@@ -147,7 +147,7 @@ export function StationExitPassword({ cafeId }: Props) {
                             onChange={(e) => setConfirmation(e.target.value)}
                             placeholder="Type it again"
                             autoComplete="new-password"
-                            className="w-full rounded-xl border border-white/[0.09] bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-500/50"
+                            className="w-full border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.06] px-3 py-2.5 text-sm text-[#f2f0ea] outline-none placeholder:text-[#f2f0ea]/40 focus:border-[#ff5c2b]/50"
                         />
                     </div>
 
@@ -156,7 +156,7 @@ export function StationExitPassword({ cafeId }: Props) {
                             type="button"
                             onClick={save}
                             disabled={saving || password.length === 0 || migrationNeeded}
-                            className="rounded-xl bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-500/25 disabled:opacity-40"
+                            className=" bg-[#ff5c2b]/15 px-4 py-2 text-xs font-bold text-[#ff5c2b] transition-colors hover:bg-[#ff5c2b]/25 disabled:opacity-40"
                         >
                             {saving ? 'Saving…' : isSet ? 'Replace password' : 'Set password'}
                         </button>
@@ -166,7 +166,7 @@ export function StationExitPassword({ cafeId }: Props) {
                                 type="button"
                                 onClick={remove}
                                 disabled={saving}
-                                className="rounded-xl bg-white/[0.06] px-4 py-2 text-xs font-bold text-slate-400 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
+                                className=" bg-[#f2f0ea]/[0.06] px-4 py-2 text-xs font-bold text-[#f2f0ea]/50 transition-colors hover:bg-white/[0.09] disabled:opacity-40"
                             >
                                 Remove
                             </button>
@@ -176,14 +176,14 @@ export function StationExitPassword({ cafeId }: Props) {
                     {message && (
                         <p
                             className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
-                            style={{ color: message.tone === 'ok' ? '#34d399' : '#f87171' }}
+                            style={{ color: message.tone === 'ok' ? '#d8ff3c' : '#f87171' }}
                         >
                             {message.tone === 'ok' && <Check size={12} />}
                             {message.text}
                         </p>
                     )}
 
-                    <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
+                    <p className="mt-3 text-[11px] leading-relaxed text-[#f2f0ea]/30">
                         Stored scrambled, never as text — nobody can read it back, here or on the PCs.
                         Write it down somewhere safe; the only way to recover it is to set a new one.
                     </p>

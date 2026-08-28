@@ -36,10 +36,10 @@ interface InventoryProps {
 }
 
 const CATEGORY_CONFIG: Record<InventoryCategory, { icon: React.ReactNode; color: string; emoji: string }> = {
-  snacks:      { icon: <Cookie className="w-4 h-4" />,     color: "#f59e0b", emoji: "🍿" },
-  cold_drinks: { icon: <GlassWater className="w-4 h-4" />, color: "#06b6d4", emoji: "🥤" },
-  hot_drinks:  { icon: <Coffee className="w-4 h-4" />,     color: "#ef4444", emoji: "☕" },
-  combo:       { icon: <Gift className="w-4 h-4" />,       color: "#8b5cf6", emoji: "🎁" },
+  snacks:      { icon: <Cookie className="w-4 h-4" />,     color: "#ff5c2b", emoji: "🍿" },
+  cold_drinks: { icon: <GlassWater className="w-4 h-4" />, color: "#d8ff3c", emoji: "🥤" },
+  hot_drinks:  { icon: <Coffee className="w-4 h-4" />,     color: "#ff5c2b", emoji: "☕" },
+  combo:       { icon: <Gift className="w-4 h-4" />,       color: "#d8ff3c", emoji: "🎁" },
 };
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -536,17 +536,17 @@ export default function Inventory({ cafeId }: InventoryProps) {
 
       {/* ── Add/Edit Modal ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-[#0d0d14] border border-white/[0.10] rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0b0c]/90">
+          <div className="bg-[#0d0d14] border border-white/[0.10] w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">{editingItem ? "Edit Item" : "Add New Item"}</h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/[0.06] rounded-lg transition">
-                <X className="w-5 h-5 text-slate-400" />
+              <h3 className="text-xl font-bold text-[#f2f0ea]">{editingItem ? "Edit Item" : "Add New Item"}</h3>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-[#f2f0ea]/[0.06] transition">
+                <X className="w-5 h-5 text-[#f2f0ea]/50" />
               </button>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-2 text-red-400">
+              <div className="mb-4 p-3 bg-[#ff5c2b]/20 border border-[#ff5c2b]/30 flex items-center gap-2 text-[#ff5c2b]">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
@@ -554,27 +554,27 @@ export default function Inventory({ cafeId }: InventoryProps) {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Item Name</label>
+                <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-1">Item Name</label>
                 <input
                   type="text" value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Coca Cola"
-                  className="w-full px-4 py-2.5 bg-white/[0.06] border border-white/[0.09] rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                  className="w-full px-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/50 focus:outline-none focus:border-[#d8ff3c]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+                <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-2">Category</label>
                 <div className="grid grid-cols-2 gap-2">
                   {(Object.keys(CATEGORY_LABELS) as InventoryCategory[]).map(cat => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setFormData({ ...formData, category: cat })}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition ${
+                      className={`flex items-center gap-2 px-3 py-2.5  border text-sm font-medium transition ${
                         formData.category === cat
-                          ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-400"
-                          : "border-white/[0.09] bg-white/[0.04] text-slate-400 hover:text-white"
+                          ? "border-[#d8ff3c]/60 bg-[#d8ff3c]/15 text-[#d8ff3c]"
+                          : "border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 hover:text-[#f2f0ea]"
                       }`}
                     >
                       <span>{CATEGORY_CONFIG[cat].emoji}</span>
@@ -586,32 +586,32 @@ export default function Inventory({ cafeId }: InventoryProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Selling Price (₹)</label>
+                  <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-1">Selling Price (₹)</label>
                   <input
                     type="number" value={formData.price}
                     onChange={e => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0" min="0"
-                    className="w-full px-4 py-2.5 bg-white/[0.06] border border-white/[0.09] rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                    className="w-full px-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/50 focus:outline-none focus:border-[#d8ff3c]"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Cost Price (₹)</label>
+                  <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-1">Cost Price (₹)</label>
                   <input
                     type="number" value={formData.cost_price}
                     onChange={e => setFormData({ ...formData, cost_price: e.target.value })}
                     placeholder="Optional" min="0"
-                    className="w-full px-4 py-2.5 bg-white/[0.06] border border-white/[0.09] rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                    className="w-full px-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/50 focus:outline-none focus:border-[#d8ff3c]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Stock Quantity</label>
+                <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-1">Stock Quantity</label>
                 <input
                   type="number" value={formData.stock_quantity}
                   onChange={e => setFormData({ ...formData, stock_quantity: e.target.value })}
                   placeholder="0" min="0"
-                  className="w-full px-4 py-2.5 bg-white/[0.06] border border-white/[0.09] rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                  className="w-full px-4 py-2.5 bg-[#f2f0ea]/[0.06] border border-[#f2f0ea]/10 text-[#f2f0ea] placeholder-[#f2f0ea]/50 focus:outline-none focus:border-[#d8ff3c]"
                 />
               </div>
 
@@ -619,21 +619,21 @@ export default function Inventory({ cafeId }: InventoryProps) {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, is_available: !formData.is_available })}
-                  className={`relative w-12 h-6 rounded-full transition ${formData.is_available ? "bg-cyan-500" : "bg-white/[0.08]"}`}
+                  className={`relative w-12 h-6 rounded-full transition ${formData.is_available ? "bg-[#d8ff3c]" : "bg-[#f2f0ea]/[0.08]"}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${formData.is_available ? "translate-x-7" : "translate-x-1"}`} />
                 </button>
-                <span className="text-slate-300">Available for sale</span>
+                <span className="text-[#f2f0ea]/70">Available for sale</span>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 bg-white/[0.06] hover:bg-white/[0.08] text-white rounded-xl font-medium transition">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 bg-[#f2f0ea]/[0.06] hover:bg-[#f2f0ea]/[0.08] text-[#f2f0ea] font-medium transition">
                 Cancel
               </button>
               <button
                 onClick={handleSave} disabled={saving}
-                className="flex-1 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : <><Check className="w-4 h-4" />{editingItem ? "Update" : "Add Item"}</>}
               </button>

@@ -129,15 +129,15 @@ export function StationLockSetup({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/15">
-            <MonitorSmartphone size={16} className="text-blue-400" />
+          <div className="flex h-9 w-9 items-center justify-center bg-[#d8ff3c]/15">
+            <MonitorSmartphone size={16} className="text-[#d8ff3c]" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-100">
+            <h3 className="text-sm font-bold text-[#f2f0ea]">
               Lock app for {displayName}
             </h3>
-            <p className="text-[11px] text-slate-500">
-              Station id <span className="font-mono font-semibold text-slate-400">{stationName}</span>
+            <p className="text-[11px] text-[#f2f0ea]/40">
+              Station id <span className="font-mono font-semibold text-[#f2f0ea]/50">{stationName}</span>
               — install on this physical PC, manage from anywhere after setup
             </p>
           </div>
@@ -148,7 +148,7 @@ export function StationLockSetup({
             <button
               type="button"
               onClick={onLiveRefresh}
-              className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:text-slate-200"
+              className="flex items-center gap-1.5 border border-[#f2f0ea]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#f2f0ea]/50 transition-colors hover:text-[#f2f0ea]"
             >
               <RefreshCw size={12} />
               Refresh status
@@ -159,9 +159,9 @@ export function StationLockSetup({
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                 isLinked
                   ? agentStatus === 'unlocked'
-                    ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'bg-cyan-500/15 text-cyan-400'
-                  : 'bg-amber-500/15 text-amber-400'
+                    ? 'bg-[#d8ff3c]/15 text-[#d8ff3c]'
+                    : 'bg-[#d8ff3c]/15 text-[#d8ff3c]'
+                  : 'bg-[#ff5c2b]/15 text-[#ff5c2b]'
               }`}
             >
               {isLinked ? <Wifi size={11} /> : <WifiOff size={11} />}
@@ -172,7 +172,7 @@ export function StationLockSetup({
                 : 'Not linked yet'}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f2f0ea]/[0.06] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#f2f0ea]/40">
               <Lock size={11} />
               Awaiting setup
             </span>
@@ -180,77 +180,77 @@ export function StationLockSetup({
         </div>
       </div>
 
-      <p className="rounded-xl border border-blue-500/20 bg-blue-500/[0.06] px-3 py-2.5 text-[12px] text-blue-200/90">
+      <p className=" border border-[#d8ff3c]/20 bg-[#d8ff3c]/[0.06] px-3 py-2.5 text-[12px] text-[#d8ff3c]/90">
         Open this screen <strong>on the gaming PC</strong> you are setting up ({displayName}).
         Download and install here, then enter the code below in the lock app.
       </p>
 
-      <ol className="flex flex-col gap-3 text-[12px] text-slate-400">
+      <ol className="flex flex-col gap-3 text-[12px] text-[#f2f0ea]/50">
         <li className="flex gap-2.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-bold text-slate-300">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f2f0ea]/[0.06] text-[10px] font-bold text-[#f2f0ea]/70">
             1
           </span>
           <div className="min-w-0 flex-1">
-            <span className="text-slate-300">Download the lock app for {displayName}.</span>
+            <span className="text-[#f2f0ea]/70">Download the lock app for {displayName}.</span>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {downloadUrl ? (
                 <a
                   href={downloadUrl}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-[12px] font-bold text-blue-300 transition-colors hover:bg-blue-500/20"
+                  className="inline-flex items-center gap-1.5 border border-[#d8ff3c]/30 bg-[#d8ff3c]/10 px-3 py-2 text-[12px] font-bold text-[#d8ff3c] transition-colors hover:bg-[#d8ff3c]/20"
                 >
                   <Download size={14} />
                   Download for {displayName}
                 </a>
               ) : (
-                <div className="text-[11px] text-amber-400/90 space-y-1.5">
+                <div className="text-[11px] text-[#ff5c2b]/90 space-y-1.5">
                   <p>{downloadError || 'Download is not available yet.'}</p>
                   {publishHelp && (
-                    <p className="text-amber-300/80 leading-relaxed">{publishHelp}</p>
+                    <p className="text-[#ff5c2b]/80 leading-relaxed">{publishHelp}</p>
                   )}
                 </div>
               )}
             </div>
-            <p className="mt-1.5 text-[11px] text-slate-500">
+            <p className="mt-1.5 text-[11px] text-[#f2f0ea]/40">
               Same installer for every PC — this download is for{' '}
-              <span className="font-semibold text-slate-400">{displayName}</span>; the setup code
+              <span className="font-semibold text-[#f2f0ea]/50">{displayName}</span>; the setup code
               links it to this station.
             </p>
           </div>
         </li>
         <li className="flex gap-2.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-bold text-slate-300">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f2f0ea]/[0.06] text-[10px] font-bold text-[#f2f0ea]/70">
             2
           </span>
           <span>Run the installer on this PC and finish setup.</span>
         </li>
         <li className="flex gap-2.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-bold text-slate-300">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f2f0ea]/[0.06] text-[10px] font-bold text-[#f2f0ea]/70">
             3
           </span>
           <span>
             When the app asks for a code, type the one for{' '}
-            <span className="font-mono font-semibold text-slate-300">{stationName}</span> below.
+            <span className="font-mono font-semibold text-[#f2f0ea]/70">{stationName}</span> below.
           </span>
         </li>
       </ol>
 
-      <div className="rounded-xl border border-white/[0.08] bg-transparent p-4">
+      <div className=" border border-[#f2f0ea]/10 bg-transparent p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#f2f0ea]/40">
             Setup code for {displayName}
           </p>
           <button
             type="button"
             onClick={generateCode}
             disabled={codeLoading}
-            className="text-[11px] font-semibold text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-40"
+            className="text-[11px] font-semibold text-[#d8ff3c] transition-colors hover:text-[#d8ff3c] disabled:opacity-40"
           >
             {codeLoading ? 'Creating…' : 'New code'}
           </button>
         </div>
 
         {codeError && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
+          <div className="mt-3 flex items-start gap-2 border border-[#ff5c2b]/25 bg-[#ff5c2b]/[0.06] p-3 text-[12px] text-[#ff5c2b]">
             <AlertCircle size={14} className="mt-0.5 shrink-0" />
             <span>{codeError}</span>
           </div>
@@ -259,19 +259,19 @@ export function StationLockSetup({
         {code && !codeError && (
           <div className="mt-3">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="font-mono text-3xl font-bold tracking-widest text-slate-100">
+              <span className="font-mono text-3xl font-bold tracking-widest text-[#f2f0ea]">
                 {code}
               </span>
               <button
                 type="button"
                 onClick={copyCode}
-                className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white"
+                className="flex items-center gap-1.5 border border-[#f2f0ea]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#f2f0ea]/70 transition-colors hover:text-[#f2f0ea]"
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-[#f2f0ea]/40">
               Works once until {expiryText ?? 'it expires'}. After linking, manage {displayName} from
               this dashboard on any device.
             </p>
@@ -279,12 +279,12 @@ export function StationLockSetup({
         )}
 
         {!code && !codeError && codeLoading && (
-          <p className="mt-3 text-[12px] text-slate-500">Creating setup code…</p>
+          <p className="mt-3 text-[12px] text-[#f2f0ea]/40">Creating setup code…</p>
         )}
       </div>
 
       {liveInfo?.online && (
-        <p className="text-[11px] text-emerald-400/90">
+        <p className="text-[11px] text-[#d8ff3c]/90">
           Agent is online — last seen {liveInfo.seconds_since_seen}s ago. You can close this and
           control {displayName} from anywhere.
         </p>

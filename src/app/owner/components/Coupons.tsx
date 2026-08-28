@@ -364,15 +364,15 @@ See you soon! 🎯`;
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => { setView('list'); setSelectedCoupon(null); resetForm(); }}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-white/[0.08]"
+                            className="p-2 hover:bg-[#f2f0ea]/5 transition-colors border border-transparent hover:border-[#f2f0ea]/10"
                         >
-                            <ChevronLeft className="w-5 h-5 text-slate-400" />
+                            <ChevronLeft className="w-5 h-5 text-[#f2f0ea]/50" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white tracking-tight">
+                            <h1 className="text-2xl font-bold text-[#f2f0ea] tracking-tight">
                                 {selectedCoupon ? 'Edit Coupon' : 'Create New Coupon'}
                             </h1>
-                            <p className="text-sm text-slate-400">
+                            <p className="text-sm text-[#f2f0ea]/50">
                                 {selectedCoupon ? 'Update campaign details' : 'Configure a new discount campaign'}
                             </p>
                         </div>
@@ -382,29 +382,29 @@ See you soon! 🎯`;
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     {/* Left Column: Form */}
                     <div className="lg:col-span-2 space-y-6">
-                        <Card padding="lg" className="space-y-8 bg-white/[0.03] border-white/[0.08]">
+                        <Card padding="lg" className="space-y-8 bg-[#111113] border-[#f2f0ea]/10">
                             {/* Coupon Code Section */}
                             <div>
-                                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                    <Ticket size={18} className="text-emerald-500" />
+                                <h3 className="text-lg font-medium text-[#f2f0ea] mb-4 flex items-center gap-2">
+                                    <Ticket size={18} className="text-[#d8ff3c]" />
                                     Campaign Details
                                 </h3>
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">Coupon Code</label>
+                                        <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-2">Coupon Code</label>
                                         <div className="relative">
                                             <input
                                                 type="text"
                                                 placeholder="e.g., SUMMER50 (auto-gen if empty)"
                                                 value={formData.code}
                                                 onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                                                className="w-full pl-4 pr-28 py-3 bg-[#09090e] border border-white/[0.09] rounded-xl text-white font-mono text-lg tracking-wider placeholder-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                                                className="w-full pl-4 pr-28 py-3 bg-[#09090e] border border-[#f2f0ea]/10 text-[#f2f0ea] font-mono text-lg tracking-wider placeholder-[#f2f0ea]/30 focus:border-[#d8ff3c] focus:ring-1 focus:ring-[#d8ff3c] transition-all"
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, code: Math.random().toString(36).substring(2, 8).toUpperCase() })}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-md text-xs font-semibold border border-emerald-500/30 transition-colors"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-[#d8ff3c]/20 hover:bg-[#d8ff3c]/30 text-[#d8ff3c] text-xs font-semibold border border-[#d8ff3c]/30 transition-colors"
                                             >
                                                 Generate
                                             </button>
@@ -413,84 +413,84 @@ See you soon! 🎯`;
 
                                     {/* Discount Selector */}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-3">Discount Type</label>
+                                        <label className="block text-sm font-medium text-[#f2f0ea]/70 mb-3">Discount Type</label>
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, discountType: 'percentage' })}
-                                                className={`group relative p-4 rounded-xl border-2 text-left transition-all ${formData.discountType === 'percentage'
-                                                        ? 'border-emerald-500 bg-emerald-500/5'
-                                                        : 'border-white/[0.08] hover:border-white/[0.09] bg-white/[0.03]'
+                                                className={`group relative p-4  border-2 text-left transition-all ${formData.discountType === 'percentage'
+                                                        ? 'border-[#d8ff3c] bg-[#d8ff3c]/5'
+                                                        : 'border-[#f2f0ea]/10 hover:border-[#f2f0ea]/10 bg-[#111113]'
                                                     }`}
                                             >
-                                                <div className={`p-2 w-fit rounded-lg mb-3 ${formData.discountType === 'percentage' ? 'bg-emerald-500 text-white' : 'bg-white/[0.06] text-slate-400 group-hover:bg-white/[0.08]'}`}>
+                                                <div className={`p-2 w-fit  mb-3 ${formData.discountType === 'percentage' ? 'bg-[#d8ff3c] text-[#f2f0ea]' : 'bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 group-hover:bg-[#f2f0ea]/[0.08]'}`}>
                                                     <div className="text-xl font-bold">%</div>
                                                 </div>
-                                                <div className="text-sm font-medium text-white mb-0.5">Percentage Off</div>
-                                                <div className="text-xs text-slate-400">Reduce price by %</div>
+                                                <div className="text-sm font-medium text-[#f2f0ea] mb-0.5">Percentage Off</div>
+                                                <div className="text-xs text-[#f2f0ea]/50">Reduce price by %</div>
                                             </button>
 
                                             <button
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, discountType: 'minutes' })}
-                                                className={`group relative p-4 rounded-xl border-2 text-left transition-all ${formData.discountType === 'minutes'
-                                                        ? 'border-blue-500 bg-blue-500/5'
-                                                        : 'border-white/[0.08] hover:border-white/[0.09] bg-white/[0.03]'
+                                                className={`group relative p-4  border-2 text-left transition-all ${formData.discountType === 'minutes'
+                                                        ? 'border-[#d8ff3c] bg-[#d8ff3c]/5'
+                                                        : 'border-[#f2f0ea]/10 hover:border-[#f2f0ea]/10 bg-[#111113]'
                                                     }`}
                                             >
-                                                <div className={`p-2 w-fit rounded-lg mb-3 ${formData.discountType === 'minutes' ? 'bg-blue-500 text-white' : 'bg-white/[0.06] text-slate-400 group-hover:bg-white/[0.08]'}`}>
+                                                <div className={`p-2 w-fit  mb-3 ${formData.discountType === 'minutes' ? 'bg-[#d8ff3c] text-[#f2f0ea]' : 'bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 group-hover:bg-[#f2f0ea]/[0.08]'}`}>
                                                     <Clock size={20} />
                                                 </div>
-                                                <div className="text-sm font-medium text-white mb-0.5">Free Game Time</div>
-                                                <div className="text-xs text-slate-400">Add free minutes</div>
+                                                <div className="text-sm font-medium text-[#f2f0ea] mb-0.5">Free Game Time</div>
+                                                <div className="text-xs text-[#f2f0ea]/50">Add free minutes</div>
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* Value Inputs */}
-                                    <div className="p-5 rounded-xl bg-[#09090e] border border-white/[0.08]">
+                                    <div className="p-5 bg-[#09090e] border border-[#f2f0ea]/10">
                                         {formData.discountType === 'percentage' ? (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-xs uppercase tracking-wide text-slate-500 font-semibold mb-2">Discount Percentage</label>
+                                                    <label className="block text-xs uppercase tracking-wide text-[#f2f0ea]/40 font-semibold mb-2">Discount Percentage</label>
                                                     <div className="relative">
                                                         <input
                                                             type="number"
                                                             value={formData.discountValue}
                                                             onChange={e => setFormData({ ...formData, discountValue: e.target.value })}
-                                                            className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.09] rounded-lg text-white text-xl font-semibold pr-10 focus:border-emerald-500 focus:outline-none transition-colors"
+                                                            className="w-full px-4 py-3 bg-[#111113] border border-[#f2f0ea]/10 text-[#f2f0ea] text-xl font-semibold pr-10 focus:border-[#d8ff3c] focus:outline-none transition-colors"
                                                             placeholder="0"
                                                             max="100"
                                                         />
-                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">%</span>
+                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#f2f0ea]/40 font-bold">%</span>
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs uppercase tracking-wide text-slate-500 font-semibold mb-2">Bonus Free Time (Opt)</label>
+                                                    <label className="block text-xs uppercase tracking-wide text-[#f2f0ea]/40 font-semibold mb-2">Bonus Free Time (Opt)</label>
                                                     <div className="relative">
                                                         <input
                                                             type="number"
                                                             value={formData.bonusMinutes}
                                                             onChange={e => setFormData({ ...formData, bonusMinutes: e.target.value })}
-                                                            className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.09] rounded-lg text-white text-xl font-semibold pr-16 focus:border-emerald-500 focus:outline-none transition-colors"
+                                                            className="w-full px-4 py-3 bg-[#111113] border border-[#f2f0ea]/10 text-[#f2f0ea] text-xl font-semibold pr-16 focus:border-[#d8ff3c] focus:outline-none transition-colors"
                                                             placeholder="0"
                                                         />
-                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">mins</span>
+                                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#f2f0ea]/40 text-sm">mins</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         ) : (
                                             <div>
-                                                <label className="block text-xs uppercase tracking-wide text-slate-500 font-semibold mb-2">Free Minutes Amount</label>
+                                                <label className="block text-xs uppercase tracking-wide text-[#f2f0ea]/40 font-semibold mb-2">Free Minutes Amount</label>
                                                 <div className="relative">
                                                     <input
                                                         type="number"
                                                         value={formData.bonusMinutes}
                                                         onChange={e => setFormData({ ...formData, bonusMinutes: e.target.value })}
-                                                        className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.09] rounded-lg text-white text-xl font-semibold pr-16 focus:border-blue-500 focus:outline-none transition-colors"
+                                                        className="w-full px-4 py-3 bg-[#111113] border border-[#f2f0ea]/10 text-[#f2f0ea] text-xl font-semibold pr-16 focus:border-[#d8ff3c] focus:outline-none transition-colors"
                                                         placeholder="30"
                                                     />
-                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">mins</span>
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#f2f0ea]/40 text-sm">mins</span>
                                                 </div>
                                             </div>
                                         )}
@@ -499,52 +499,52 @@ See you soon! 🎯`;
                             </div>
 
                             {/* Rules & Limits */}
-                            <div className="pt-6 border-t border-white/[0.08]">
-                                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                    <Filter size={18} className="text-blue-500" />
+                            <div className="pt-6 border-t border-[#f2f0ea]/10">
+                                <h3 className="text-lg font-medium text-[#f2f0ea] mb-4 flex items-center gap-2">
+                                    <Filter size={18} className="text-[#d8ff3c]" />
                                     Rules & Validity
                                 </h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1.5">Valid From</label>
+                                            <label className="block text-sm text-[#f2f0ea]/50 mb-1.5">Valid From</label>
                                             <input
                                                 type="date"
                                                 value={formData.validFrom}
                                                 onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
-                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-[#f2f0ea]/10 text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1.5">Valid Until</label>
+                                            <label className="block text-sm text-[#f2f0ea]/50 mb-1.5">Valid Until</label>
                                             <input
                                                 type="date"
                                                 value={formData.validUntil}
                                                 onChange={e => setFormData({ ...formData, validUntil: e.target.value })}
-                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-[#f2f0ea]/10 text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1.5">Min Order Value (₹)</label>
+                                            <label className="block text-sm text-[#f2f0ea]/50 mb-1.5">Min Order Value (₹)</label>
                                             <input
                                                 type="number"
                                                 value={formData.minOrderAmount}
                                                 onChange={e => setFormData({ ...formData, minOrderAmount: e.target.value })}
-                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-[#f2f0ea]/10 text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
                                                 placeholder="0"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1.5">Max Uses (Total)</label>
+                                            <label className="block text-sm text-[#f2f0ea]/50 mb-1.5">Max Uses (Total)</label>
                                             <input
                                                 type="number"
                                                 value={formData.maxUses}
                                                 onChange={e => setFormData({ ...formData, maxUses: e.target.value })}
-                                                className="w-full px-3 py-2 bg-[#09090e] border border-white/[0.09] rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                                className="w-full px-3 py-2 bg-[#09090e] border border-[#f2f0ea]/10 text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
                                                 placeholder="Unlimited"
                                             />
                                         </div>
@@ -552,9 +552,9 @@ See you soon! 🎯`;
                                 </div>
 
                                 <div className="mt-6 flex flex-wrap gap-3">
-                                    <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all ${formData.newCustomerOnly
-                                            ? 'bg-blue-500/10 border-blue-500 text-blue-400'
-                                            : 'bg-white/[0.03] border-white/[0.09] text-slate-400 hover:border-slate-600'
+                                    <label className={`flex items-center gap-2 px-4 py-2  border cursor-pointer transition-all ${formData.newCustomerOnly
+                                            ? 'bg-[#d8ff3c]/10 border-[#d8ff3c] text-[#d8ff3c]'
+                                            : 'bg-[#111113] border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:border-[#f2f0ea]/30'
                                         }`}>
                                         <input
                                             type="checkbox"
@@ -566,9 +566,9 @@ See you soon! 🎯`;
                                         <span className="text-sm font-medium">New Customers Only</span>
                                     </label>
 
-                                    <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all ${formData.isActive
-                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
-                                            : 'bg-white/[0.03] border-white/[0.09] text-slate-400 hover:border-slate-600'
+                                    <label className={`flex items-center gap-2 px-4 py-2  border cursor-pointer transition-all ${formData.isActive
+                                            ? 'bg-[#d8ff3c]/10 border-[#d8ff3c] text-[#d8ff3c]'
+                                            : 'bg-[#111113] border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:border-[#f2f0ea]/30'
                                         }`}>
                                         <input
                                             type="checkbox"
@@ -584,7 +584,7 @@ See you soon! 🎯`;
 
                             {/* Error & Actions */}
                             {error && (
-                                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center gap-3">
+                                <div className="p-4 bg-[#ff5c2b]/10 border border-[#ff5c2b]/20 text-[#ff5c2b] text-sm flex items-center gap-3">
                                     <AlertCircle size={20} className="shrink-0" /> {error}
                                 </div>
                             )}
@@ -592,12 +592,12 @@ See you soon! 🎯`;
                             <div className="flex gap-4 pt-4">
                                 <Button
                                     variant="ghost"
-                                    className="flex-1 h-12 text-slate-400"
+                                    className="flex-1 h-12 text-[#f2f0ea]/50"
                                     onClick={() => { setView('list'); setSelectedCoupon(null); resetForm(); }}
                                 >
                                     Discard Changes
                                 </Button>
-                                <Button variant="primary" className="flex-1 h-12 text-lg shadow-lg shadow-emerald-500/20" onClick={handleSave} disabled={saving}>
+                                <Button variant="primary" className="flex-1 h-12 text-lg shadow-lg shadow-[#d8ff3c]/20" onClick={handleSave} disabled={saving}>
                                     {saving ? 'Saving...' : selectedCoupon ? 'Update Campaign' : 'Launch Campaign'}
                                 </Button>
                             </div>
@@ -607,31 +607,31 @@ See you soon! 🎯`;
                     {/* Right Column: Preview */}
                     <div className="lg:col-span-1 lg:sticky lg:top-8">
                         <div className="space-y-4">
-                            <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest pl-1">Live Preview</h3>
+                            <h3 className="text-sm font-medium text-[#f2f0ea]/50 uppercase tracking-widest pl-1">Live Preview</h3>
 
-                            <div className="relative bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 shadow-2xl shadow-black/50 overflow-hidden">
+                            <div className="relative bg-[#111113] border border-[#f2f0ea]/10 p-6 shadow-2xl shadow-black/50 overflow-hidden">
                                 <div className="absolute top-0 right-0 p-4 opacity-50">
-                                    <div className="w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl"></div>
+                                    <div className="w-20 h-20 bg-[#d8ff3c]/10 rounded-full blur-2xl"></div>
                                 </div>
 
                                 <div className="flex justify-between items-start mb-6">
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${formData.isActive
-                                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                            : 'bg-white/[0.04] text-slate-400 border-white/[0.09]'
+                                            ? 'bg-[#d8ff3c]/10 text-[#d8ff3c] border-[#d8ff3c]/20'
+                                            : 'bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 border-[#f2f0ea]/10'
                                         }`}>
                                         {formData.isActive ? 'Active' : 'Inactive'}
                                     </span>
                                 </div>
 
                                 <div className="mb-8 text-center">
-                                    <div className="font-mono text-2xl font-bold text-white tracking-widest mb-2">
+                                    <div className="font-mono text-2xl font-bold text-[#f2f0ea] tracking-widest mb-2">
                                         {formData.code || 'CODE'}
                                     </div>
-                                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-200 bg-clip-text text-transparent">
+                                    <div className="text-3xl font-bold bg-gradient-to-r from-[#d8ff3c] to-[#d8ff3c] bg-clip-text text-transparent">
                                         {previewDiscountDisplay}
                                     </div>
                                     {formData.discountType === 'percentage' && formData.bonusMinutes && (
-                                        <div className="text-sm text-emerald-500 font-medium mt-2">
+                                        <div className="text-sm text-[#d8ff3c] font-medium mt-2">
                                             + {formData.bonusMinutes} mins bonus
                                         </div>
                                     )}
@@ -639,28 +639,28 @@ See you soon! 🎯`;
 
                                 {/* Placeholder Progress */}
                                 <div className="mb-6">
-                                    <div className="flex justify-between text-xs text-slate-400 mb-2">
+                                    <div className="flex justify-between text-xs text-[#f2f0ea]/50 mb-2">
                                         <span>Redemptions</span>
                                         <span>0 / {formData.maxUses || '∞'}</span>
                                     </div>
-                                    <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 rounded-full w-0" />
+                                    <div className="h-1.5 bg-[#f2f0ea]/[0.06] rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#d8ff3c] rounded-full w-0" />
                                     </div>
                                 </div>
 
-                                <div className="space-y-3 pt-6 border-t border-white/[0.06]">
+                                <div className="space-y-3 pt-6 border-t border-[#f2f0ea]/[0.07]">
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-500 flex items-center gap-2"><Calendar size={14} /> Valid Until</span>
-                                        <span className="text-slate-300">{formData.validUntil ? formatDate(formData.validUntil) : 'Forever'}</span>
+                                        <span className="text-[#f2f0ea]/40 flex items-center gap-2"><Calendar size={14} /> Valid Until</span>
+                                        <span className="text-[#f2f0ea]/70">{formData.validUntil ? formatDate(formData.validUntil) : 'Forever'}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-500 flex items-center gap-2"><Users size={14} /> Audience</span>
-                                        <span className="text-slate-300">{formData.newCustomerOnly ? 'New Customers' : 'Everyone'}</span>
+                                        <span className="text-[#f2f0ea]/40 flex items-center gap-2"><Users size={14} /> Audience</span>
+                                        <span className="text-[#f2f0ea]/70">{formData.newCustomerOnly ? 'New Customers' : 'Everyone'}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <p className="text-xs text-slate-500 text-center px-4">
+                            <p className="text-xs text-[#f2f0ea]/40 text-center px-4">
                                 This is how the coupon card will appear in your dashboard.
                             </p>
                         </div>
@@ -684,13 +684,13 @@ See you soon! 🎯`;
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setView('list')}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                            className="p-2 hover:bg-[#f2f0ea]/5 transition-colors"
                         >
-                            <ChevronLeft className="w-5 h-5 text-slate-400" />
+                            <ChevronLeft className="w-5 h-5 text-[#f2f0ea]/50" />
                         </button>
                         <div>
-                            <h1 className="text-xl font-bold text-white">Coupon Details</h1>
-                            <p className="text-sm text-slate-400">General coupon</p>
+                            <h1 className="text-xl font-bold text-[#f2f0ea]">Coupon Details</h1>
+                            <p className="text-sm text-[#f2f0ea]/50">General coupon</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -712,7 +712,7 @@ See you soon! 🎯`;
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <h2 className="text-2xl font-bold font-mono tracking-wider text-white">
+                                <h2 className="text-2xl font-bold font-mono tracking-wider text-[#f2f0ea]">
                                     {selectedCoupon.code}
                                 </h2>
                                 <button
@@ -720,20 +720,20 @@ See you soon! 🎯`;
                                     className="p-1.5 hover:bg-white/10 rounded transition-colors"
                                 >
                                     {copiedCode === selectedCoupon.code
-                                        ? <Check size={16} className="text-emerald-500" />
-                                        : <Copy size={16} className="text-slate-400" />
+                                        ? <Check size={16} className="text-[#d8ff3c]" />
+                                        : <Copy size={16} className="text-[#f2f0ea]/50" />
                                     }
                                 </button>
                             </div>
-                            <span className={`inline-block text-xs px-2 py-1 rounded-full ${status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                                status === 'expired' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                                    'bg-white/[0.04] text-slate-400 border border-white/[0.09]'
+                            <span className={`inline-block text-xs px-2 py-1 rounded-full ${status === 'active' ? 'bg-[#d8ff3c]/10 text-[#d8ff3c] border border-[#d8ff3c]/20' :
+                                status === 'expired' ? 'bg-[#ff5c2b]/10 text-[#ff5c2b] border border-[#ff5c2b]/20' :
+                                    'bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 border border-[#f2f0ea]/10'
                                 }`}>
                                 {status.charAt(0).toUpperCase() + status.slice(1)}
                             </span>
                         </div>
                         <div className="text-right">
-                            <div className="text-3xl font-bold text-emerald-500">
+                            <div className="text-3xl font-bold text-[#d8ff3c]">
                                 {selectedCoupon.discount_type === 'percentage' && selectedCoupon.discount_value > 0
                                     ? `${selectedCoupon.discount_value}% off`
                                     : selectedCoupon.bonus_minutes > 0
@@ -742,32 +742,32 @@ See you soon! 🎯`;
                                 }
                             </div>
                             {selectedCoupon.discount_type === 'percentage' && selectedCoupon.bonus_minutes > 0 && (
-                                <div className="text-sm text-emerald-400">+ +{selectedCoupon.bonus_minutes}m free free</div>
+                                <div className="text-sm text-[#d8ff3c]">+ +{selectedCoupon.bonus_minutes}m free free</div>
                             )}
                         </div>
                     </div>
 
                     {/* Stats Row */}
-                    <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/[0.08]">
+                    <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-[#f2f0ea]/10">
                         <div>
-                            <div className="text-xs text-slate-500 mb-1">Usage</div>
-                            <div className="text-lg font-semibold text-white">
+                            <div className="text-xs text-[#f2f0ea]/40 mb-1">Usage</div>
+                            <div className="text-lg font-semibold text-[#f2f0ea]">
                                 {selectedCoupon.uses_count}/{selectedCoupon.max_uses || '∞'} used
                             </div>
                         </div>
                         <div>
-                            <div className="text-xs text-slate-500 mb-1">Eligible</div>
-                            <div className="text-lg font-semibold text-white">{eligibleCount} customers</div>
+                            <div className="text-xs text-[#f2f0ea]/40 mb-1">Eligible</div>
+                            <div className="text-lg font-semibold text-[#f2f0ea]">{eligibleCount} customers</div>
                         </div>
                         <div>
-                            <div className="text-xs text-slate-500 mb-1">Validity</div>
-                            <div className="text-lg font-semibold text-white">
+                            <div className="text-xs text-[#f2f0ea]/40 mb-1">Validity</div>
+                            <div className="text-lg font-semibold text-[#f2f0ea]">
                                 {formatDate(selectedCoupon.valid_from)} - {selectedCoupon.valid_until ? formatDate(selectedCoupon.valid_until) : 'No end'}
                             </div>
                         </div>
                         <div>
-                            <div className="text-xs text-slate-500 mb-1">Created</div>
-                            <div className="text-lg font-semibold text-white">
+                            <div className="text-xs text-[#f2f0ea]/40 mb-1">Created</div>
+                            <div className="text-lg font-semibold text-[#f2f0ea]">
                                 {formatDate(selectedCoupon.created_at)}
                             </div>
                         </div>
@@ -775,12 +775,12 @@ See you soon! 🎯`;
                 </Card>
 
                 {/* Tabs */}
-                <div className="flex border-b border-white/[0.08]">
+                <div className="flex border-b border-[#f2f0ea]/10">
                     <button
                         onClick={() => setActiveTab('details')}
                         className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === 'details'
-                            ? 'border-emerald-500 text-white'
-                            : 'border-transparent text-slate-400 hover:text-white'
+                            ? 'border-[#d8ff3c] text-[#f2f0ea]'
+                            : 'border-transparent text-[#f2f0ea]/50 hover:text-[#f2f0ea]'
                             }`}
                     >
                         <Info size={16} /> Details
@@ -788,12 +788,12 @@ See you soon! 🎯`;
                     <button
                         onClick={() => setActiveTab('eligible')}
                         className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === 'eligible'
-                            ? 'border-emerald-500 text-white'
-                            : 'border-transparent text-slate-400 hover:text-white'
+                            ? 'border-[#d8ff3c] text-[#f2f0ea]'
+                            : 'border-transparent text-[#f2f0ea]/50 hover:text-[#f2f0ea]'
                             }`}
                     >
                         <UserCheck size={16} /> Eligible Customers
-                        <span className="ml-1 px-2 py-0.5 text-xs bg-white/[0.06] rounded-full">{eligibleCount}</span>
+                        <span className="ml-1 px-2 py-0.5 text-xs bg-[#f2f0ea]/[0.06] rounded-full">{eligibleCount}</span>
                     </button>
                 </div>
 
@@ -803,17 +803,17 @@ See you soon! 🎯`;
                         {/* Main Details */}
                         <div className="lg:col-span-2 space-y-6">
                             <Card padding="lg">
-                                <h3 className="font-semibold text-white mb-4">Discount Details</h3>
+                                <h3 className="font-semibold text-[#f2f0ea] mb-4">Discount Details</h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div>
-                                        <div className="text-xs text-slate-500 uppercase mb-1">Discount Type</div>
-                                        <div className="text-white">
+                                        <div className="text-xs text-[#f2f0ea]/40 uppercase mb-1">Discount Type</div>
+                                        <div className="text-[#f2f0ea]">
                                             {selectedCoupon.discount_type === 'percentage' ? 'Percentage' : 'Free Game Time'}
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs text-slate-500 uppercase mb-1">Discount Value</div>
-                                        <div className="text-white font-semibold">
+                                        <div className="text-xs text-[#f2f0ea]/40 uppercase mb-1">Discount Value</div>
+                                        <div className="text-[#f2f0ea] font-semibold">
                                             {selectedCoupon.discount_type === 'percentage'
                                                 ? `${selectedCoupon.discount_value}% off`
                                                 : `${selectedCoupon.bonus_minutes}m free`
@@ -821,51 +821,51 @@ See you soon! 🎯`;
                                         </div>
                                     </div>
                                     {selectedCoupon.bonus_minutes > 0 && selectedCoupon.discount_type === 'percentage' && (
-                                        <div className="col-span-2 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                                            <div className="text-xs text-emerald-400 uppercase mb-1">Free Minutes</div>
-                                            <div className="text-emerald-400 font-semibold">+{selectedCoupon.bonus_minutes}m free</div>
+                                        <div className="col-span-2 p-3 bg-[#d8ff3c]/10 border border-[#d8ff3c]/20">
+                                            <div className="text-xs text-[#d8ff3c] uppercase mb-1">Free Minutes</div>
+                                            <div className="text-[#d8ff3c] font-semibold">+{selectedCoupon.bonus_minutes}m free</div>
                                         </div>
                                     )}
                                 </div>
                             </Card>
 
                             <Card padding="lg">
-                                <h3 className="font-semibold text-white mb-4">Conditions</h3>
+                                <h3 className="font-semibold text-[#f2f0ea] mb-4">Conditions</h3>
                                 <div className="space-y-3">
-                                    <div className="flex justify-between py-2 border-b border-white/[0.08]">
-                                        <span className="text-slate-400">Minimum Spent</span>
-                                        <span className="text-white">₹{selectedCoupon.min_order_amount}</span>
+                                    <div className="flex justify-between py-2 border-b border-[#f2f0ea]/10">
+                                        <span className="text-[#f2f0ea]/50">Minimum Spent</span>
+                                        <span className="text-[#f2f0ea]">₹{selectedCoupon.min_order_amount}</span>
                                     </div>
-                                    <div className="flex justify-between py-2 border-b border-white/[0.08]">
-                                        <span className="text-slate-400">Minimum Visits</span>
-                                        <span className="text-white">{selectedCoupon.min_visits || 'None'}</span>
+                                    <div className="flex justify-between py-2 border-b border-[#f2f0ea]/10">
+                                        <span className="text-[#f2f0ea]/50">Minimum Visits</span>
+                                        <span className="text-[#f2f0ea]">{selectedCoupon.min_visits || 'None'}</span>
                                     </div>
-                                    <div className="flex justify-between py-2 border-b border-white/[0.08]">
-                                        <span className="text-slate-400">Inactive Days Required</span>
-                                        <span className="text-white">{selectedCoupon.inactive_days_required || 'None'}</span>
+                                    <div className="flex justify-between py-2 border-b border-[#f2f0ea]/10">
+                                        <span className="text-[#f2f0ea]/50">Inactive Days Required</span>
+                                        <span className="text-[#f2f0ea]">{selectedCoupon.inactive_days_required || 'None'}</span>
                                     </div>
-                                    <div className="flex justify-between py-2 border-b border-white/[0.08]">
-                                        <span className="text-slate-400">For New Customers Only</span>
-                                        <span className="text-white">{selectedCoupon.new_customer_only ? 'Yes' : 'No'}</span>
+                                    <div className="flex justify-between py-2 border-b border-[#f2f0ea]/10">
+                                        <span className="text-[#f2f0ea]/50">For New Customers Only</span>
+                                        <span className="text-[#f2f0ea]">{selectedCoupon.new_customer_only ? 'Yes' : 'No'}</span>
                                     </div>
                                     <div className="flex justify-between py-2">
-                                        <span className="text-slate-400">Maximum Uses</span>
-                                        <span className="text-white">{selectedCoupon.max_uses || 'Unlimited'}</span>
+                                        <span className="text-[#f2f0ea]/50">Maximum Uses</span>
+                                        <span className="text-[#f2f0ea]">{selectedCoupon.max_uses || 'Unlimited'}</span>
                                     </div>
                                 </div>
                             </Card>
 
                             <Card padding="lg">
-                                <h3 className="font-semibold text-white mb-4">Usage History</h3>
+                                <h3 className="font-semibold text-[#f2f0ea] mb-4">Usage History</h3>
                                 {usageHistory.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-500">
+                                    <div className="text-center py-8 text-[#f2f0ea]/40">
                                         <Ticket className="w-8 h-8 mx-auto mb-2 opacity-50" />
                                         <p>This coupon has not been used yet</p>
                                     </div>
                                 ) : (
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="text-xs text-slate-500 uppercase border-b border-white/[0.08]">
+                                            <tr className="text-xs text-[#f2f0ea]/40 uppercase border-b border-[#f2f0ea]/10">
                                                 <th className="text-left py-2">Date</th>
                                                 <th className="text-left py-2">Customer</th>
                                                 <th className="text-right py-2">Discount Applied</th>
@@ -873,10 +873,10 @@ See you soon! 🎯`;
                                         </thead>
                                         <tbody>
                                             {usageHistory.map(usage => (
-                                                <tr key={usage.id} className="border-b border-white/[0.06]">
-                                                    <td className="py-3 text-slate-300">{formatDate(usage.used_at)}</td>
-                                                    <td className="py-3 text-white">{usage.user_phone}</td>
-                                                    <td className="py-3 text-right text-emerald-400">₹{usage.discount_applied}</td>
+                                                <tr key={usage.id} className="border-b border-[#f2f0ea]/[0.07]">
+                                                    <td className="py-3 text-[#f2f0ea]/70">{formatDate(usage.used_at)}</td>
+                                                    <td className="py-3 text-[#f2f0ea]">{usage.user_phone}</td>
+                                                    <td className="py-3 text-right text-[#d8ff3c]">₹{usage.discount_applied}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -888,7 +888,7 @@ See you soon! 🎯`;
                         {/* Sidebar */}
                         <div className="space-y-6">
                             <Card padding="md">
-                                <h3 className="font-semibold text-white mb-4">Actions</h3>
+                                <h3 className="font-semibold text-[#f2f0ea] mb-4">Actions</h3>
                                 <div className="space-y-2">
                                     <Button variant="secondary" className="w-full justify-start" onClick={() => handleEdit(selectedCoupon)}>
                                         <Edit2 size={16} className="mr-2" /> Edit Coupon
@@ -902,7 +902,7 @@ See you soon! 🎯`;
                                     </Button>
                                     <Button
                                         variant="ghost"
-                                        className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                        className="w-full justify-start text-[#ff5c2b] hover:text-[#ff5c2b] hover:bg-[#ff5c2b]/10"
                                         onClick={(e) => handleDelete(selectedCoupon.id, e)}
                                     >
                                         <Trash2 size={16} className="mr-2" /> Delete Coupon
@@ -911,15 +911,15 @@ See you soon! 🎯`;
                             </Card>
 
                             <Card padding="md">
-                                <h3 className="font-semibold text-white mb-4">Validity Period</h3>
+                                <h3 className="font-semibold text-[#f2f0ea] mb-4">Validity Period</h3>
                                 <div className="space-y-3">
                                     <div className="flex justify-between">
-                                        <span className="text-slate-400">From</span>
-                                        <span className="text-white">{formatDate(selectedCoupon.valid_from)}</span>
+                                        <span className="text-[#f2f0ea]/50">From</span>
+                                        <span className="text-[#f2f0ea]">{formatDate(selectedCoupon.valid_from)}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-slate-400">Until</span>
-                                        <span className="text-white">
+                                        <span className="text-[#f2f0ea]/50">Until</span>
+                                        <span className="text-[#f2f0ea]">
                                             {selectedCoupon.valid_until ? formatDate(selectedCoupon.valid_until) : 'No expiry'}
                                         </span>
                                     </div>
@@ -932,39 +932,39 @@ See you soon! 🎯`;
                     <div className="space-y-6">
                         {/* Stats Cards */}
                         <div className="grid grid-cols-3 gap-4">
-                            <Card padding="md" className="bg-emerald-500/5 border-emerald-500/20">
+                            <Card padding="md" className="bg-[#d8ff3c]/5 border-[#d8ff3c]/20">
                                 <div className="text-center">
-                                    <div className="text-3xl font-bold text-emerald-500">{eligibleCount}</div>
-                                    <div className="text-sm text-slate-400">Eligible</div>
+                                    <div className="text-3xl font-bold text-[#d8ff3c]">{eligibleCount}</div>
+                                    <div className="text-sm text-[#f2f0ea]/50">Eligible</div>
                                 </div>
                             </Card>
-                            <Card padding="md" className="bg-blue-500/5 border-blue-500/20">
+                            <Card padding="md" className="bg-[#d8ff3c]/5 border-[#d8ff3c]/20">
                                 <div className="text-center">
-                                    <div className="text-3xl font-bold text-blue-500">{sentCount}</div>
-                                    <div className="text-sm text-slate-400">Sent</div>
+                                    <div className="text-3xl font-bold text-[#d8ff3c]">{sentCount}</div>
+                                    <div className="text-sm text-[#f2f0ea]/50">Sent</div>
                                 </div>
                             </Card>
-                            <Card padding="md" className="bg-amber-500/5 border-amber-500/20">
+                            <Card padding="md" className="bg-[#ff5c2b]/5 border-[#ff5c2b]/20">
                                 <div className="text-center">
-                                    <div className="text-3xl font-bold text-amber-500">{pendingCount}</div>
-                                    <div className="text-sm text-slate-400">Pending</div>
+                                    <div className="text-3xl font-bold text-[#ff5c2b]">{pendingCount}</div>
+                                    <div className="text-sm text-[#f2f0ea]/50">Pending</div>
                                 </div>
                             </Card>
                         </div>
 
                         {/* Eligibility Criteria */}
-                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <div className="flex items-center gap-2 text-sm text-[#f2f0ea]/50">
                             <Filter size={14} />
                             <span>Eligibility:</span>
-                            <span className="text-white">All customers from your database are eligible to receive this coupon</span>
+                            <span className="text-[#f2f0ea]">All customers from your database are eligible to receive this coupon</span>
                         </div>
 
                         {/* Customers Table */}
                         <Card padding="none">
                             {loadingCustomers ? (
-                                <div className="p-8 text-center text-slate-500">Loading customers...</div>
+                                <div className="p-8 text-center text-[#f2f0ea]/40">Loading customers...</div>
                             ) : eligibleCustomers.length === 0 ? (
-                                <div className="p-8 text-center text-slate-500">
+                                <div className="p-8 text-center text-[#f2f0ea]/40">
                                     <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
                                     <p>No eligible customers found</p>
                                 </div>
@@ -972,7 +972,7 @@ See you soon! 🎯`;
                                 <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
-                                        <tr className="text-xs text-slate-500 uppercase border-b border-white/[0.08] bg-white/[0.03]">
+                                        <tr className="text-xs text-[#f2f0ea]/40 uppercase border-b border-[#f2f0ea]/10 bg-[#111113]">
                                             <th className="text-left p-4">Customer</th>
                                             <th className="text-center p-4">Visits</th>
                                             <th className="text-center p-4">Total Spent</th>
@@ -983,25 +983,25 @@ See you soon! 🎯`;
                                     </thead>
                                     <tbody className="divide-y divide-white/[0.08]/50">
                                         {eligibleCustomers.map(customer => (
-                                            <tr key={customer.id} className="hover:bg-white/5">
+                                            <tr key={customer.id} className="hover:bg-[#f2f0ea]/5">
                                                 <td className="p-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-white/[0.08] flex items-center justify-center text-white font-medium">
+                                                        <div className="w-9 h-9 rounded-full bg-[#f2f0ea]/[0.08] flex items-center justify-center text-[#f2f0ea] font-medium">
                                                             {customer.name.charAt(0).toUpperCase()}
                                                         </div>
                                                         <div>
-                                                            <div className="font-medium text-white">{customer.name}</div>
-                                                            <div className="text-sm text-slate-500">{customer.phone}</div>
+                                                            <div className="font-medium text-[#f2f0ea]">{customer.name}</div>
+                                                            <div className="text-sm text-[#f2f0ea]/40">{customer.phone}</div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 text-center text-white">{customer.visits}</td>
-                                                <td className="p-4 text-center text-white">₹{customer.total_spent.toLocaleString()}</td>
-                                                <td className="p-4 text-center text-slate-400">{formatDate(customer.last_visit)}</td>
+                                                <td className="p-4 text-center text-[#f2f0ea]">{customer.visits}</td>
+                                                <td className="p-4 text-center text-[#f2f0ea]">₹{customer.total_spent.toLocaleString()}</td>
+                                                <td className="p-4 text-center text-[#f2f0ea]/50">{formatDate(customer.last_visit)}</td>
                                                 <td className="p-4 text-center">
                                                     <span className={`text-xs px-2 py-1 rounded-full ${customer.coupon_sent
-                                                        ? 'bg-emerald-500/10 text-emerald-500'
-                                                        : 'bg-amber-500/10 text-amber-500'
+                                                        ? 'bg-[#d8ff3c]/10 text-[#d8ff3c]'
+                                                        : 'bg-[#ff5c2b]/10 text-[#ff5c2b]'
                                                         }`}>
                                                         {customer.coupon_sent ? 'Sent' : 'Not Sent'}
                                                     </span>
@@ -1011,7 +1011,7 @@ See you soon! 🎯`;
                                                         variant="primary"
                                                         size="sm"
                                                         onClick={() => sendCouponWhatsApp(customer, selectedCoupon)}
-                                                        className={customer.coupon_sent ? 'bg-emerald-600' : 'bg-emerald-500 hover:bg-emerald-600'}
+                                                        className={customer.coupon_sent ? 'bg-[#d8ff3c]' : 'bg-[#d8ff3c] hover:bg-[#d8ff3c]'}
                                                     >
                                                         {customer.coupon_sent ? (
                                                             <><Check size={14} className="mr-1" /> Sent</>

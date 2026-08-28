@@ -4,17 +4,17 @@ import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { Toast } from '../hooks/useToast';
 
 const ICONS = {
-  success: <CheckCircle size={16} className="text-emerald-400 shrink-0" />,
-  error: <AlertCircle size={16} className="text-red-400 shrink-0" />,
-  warning: <AlertTriangle size={16} className="text-amber-400 shrink-0" />,
-  info: <Info size={16} className="text-blue-400 shrink-0" />,
+  success: <CheckCircle size={16} className="text-[#d8ff3c] shrink-0" />,
+  error: <AlertCircle size={16} className="text-[#ff5c2b] shrink-0" />,
+  warning: <AlertTriangle size={16} className="text-[#ff5c2b] shrink-0" />,
+  info: <Info size={16} className="text-[#d8ff3c] shrink-0" />,
 };
 
 const STYLES = {
-  success: 'border-emerald-500/30 bg-emerald-950/80',
-  error: 'border-red-500/30 bg-red-950/80',
-  warning: 'border-amber-500/30 bg-amber-950/80',
-  info: 'border-blue-500/30 bg-white/[0.03]/90',
+  success: 'border-[#d8ff3c]/30 bg-[#d8ff3c]/80',
+  error: 'border-[#ff5c2b]/30 bg-[#ff5c2b]/80',
+  warning: 'border-[#ff5c2b]/30 bg-[#ff5c2b]/80',
+  info: 'border-[#d8ff3c]/30 bg-[#111113]/90',
 };
 
 interface ToastContainerProps {
@@ -29,13 +29,13 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
       {toasts.map(t => (
         <div
           key={t.id}
-          className={`flex items-start gap-3 px-4 py-3 rounded-xl border backdrop-blur-sm shadow-xl pointer-events-auto animate-in slide-in-from-bottom-2 duration-200 ${STYLES[t.type]}`}
+          className={`flex items-start gap-3 px-4 py-3  border backdrop-blur-sm shadow-xl pointer-events-auto animate-in slide-in-from-bottom-2 duration-200 ${STYLES[t.type]}`}
         >
           {ICONS[t.type]}
-          <p className="text-sm text-slate-200 flex-1 leading-snug">{t.message}</p>
+          <p className="text-sm text-[#f2f0ea] flex-1 leading-snug">{t.message}</p>
           <button
             onClick={() => onRemove(t.id)}
-            className="text-slate-500 hover:text-slate-300 transition-colors shrink-0"
+            className="text-[#f2f0ea]/40 hover:text-[#f2f0ea]/70 transition-colors shrink-0"
           >
             <X size={14} />
           </button>
