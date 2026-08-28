@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Star, Loader2, AlertCircle, MessageSquare, Eye, EyeOff, Send } from 'lucide-react';
+import { Chips, GhostButton, Panel, PrimaryButton, Tag } from './consoleUi';
 
 type Review = {
     id: string;
@@ -27,21 +27,6 @@ interface OwnerReviewsProps {
 const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-function Stars({ rating }: { rating: number }) {
-    return (
-        <span className="inline-flex gap-0.5">
-            {[1, 2, 3, 4, 5].map((n) => (
-                <Star
-                    key={n}
-                    size={12}
-                    fill={n <= Math.round(rating) ? '#f59e0b' : 'none'}
-                    className={n <= Math.round(rating) ? 'text-amber-500' : 'text-slate-600'}
-                />
-            ))}
-        </span>
-    );
-}
-
 /**
  * What customers said, and the owner's right of reply.
  *
@@ -59,6 +44,7 @@ export function OwnerReviews({ cafeId }: OwnerReviewsProps) {
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
     const [savingId, setSavingId] = useState<string | null>(null);
+    const [filter, setFilter] = useState('all');
 
     const load = useCallback(async () => {
         if (!cafeId) return;
@@ -112,192 +98,224 @@ export function OwnerReviews({ cafeId }: OwnerReviewsProps) {
     };
 
     const total = summary?.count ?? 0;
+    const average = summary?.average ?? 0;
+    const distribution = summary?.distribution ?? [0, 0, 0, 0, 0];
+    const peak = Math.max(...distribution, 1);
+
+    const shown = reviews.filter((review) => {
+        if (filter === 'unanswered') return !review.ownerReply && !review.isHidden;
+        if (filter === 'low') return review.rating <= 3 && !review.isHidden;
+        if (filter === 'hidden') return review.isHidden;
+        return true;
+    });
+
+    const filters = [
+        { id: 'all', label: 'ALL', count: reviews.length },
+        { id: 'unanswered', label: 'NO REPLY', count: reviews.filter((r) => !r.ownerReply && !r.isHidden).length },
+        { id: 'low', label: '3★ OR LESS', count: reviews.filter((r) => r.rating <= 3 && !r.isHidden).length },
+        { id: 'hidden', label: 'HIDDEN', count: reviews.filter((r) => r.isHidden).length },
+    ];
 
     return (
-        <div className="flex flex-col gap-4">
-            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-                <div className="mb-5 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15">
-                        <Star size={15} className="text-amber-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-200">Reviews</h3>
-                        <p className="text-[11px] text-slate-500">
-                            What customers say after they play
-                        </p>
+        <div className="grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+            {/* ── the score, and how it is made up ── */}
+            <div className="flex flex-col gap-3.5 border border-[#f2f0ea]/[0.12] bg-[#111113] p-[18px]">
+                <span className="font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">OVERALL</span>
+
+                <div className="flex items-end gap-3">
+                    <span className="text-[52px] font-black leading-[0.82] tracking-[-0.03em] text-[#d8ff3c]">
+                        {total > 0 ? average.toFixed(1) : '—'}
+                    </span>
+                    <div className="flex flex-col gap-1 pb-[5px]">
+                        <span className="font-mono text-[13px] tracking-[0.1em] text-[#d8ff3c]">
+                            {'★'.repeat(Math.round(average))}
+                            <span className="text-[#f2f0ea]/20">{'★'.repeat(5 - Math.round(average))}</span>
+                        </span>
+                        <span className="font-mono text-[10.5px] text-[#f2f0ea]/[0.42]">
+                            {total} review{total === 1 ? '' : 's'}
+                        </span>
                     </div>
                 </div>
 
-                {error && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
-                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                {loading && (
-                    <div className="flex items-center gap-2 py-6 text-[12px] text-slate-500">
-                        <Loader2 size={14} className="animate-spin" /> Loading…
-                    </div>
-                )}
-
-                {!loading && total === 0 && !error && (
-                    <p className="py-8 text-center text-[12px] text-slate-500">
-                        No reviews yet. Customers are asked to rate a session once it is marked
-                        complete.
-                    </p>
-                )}
-
-                {total > 0 && (
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center">
-                            <p className="text-3xl font-bold text-slate-100">
-                                {summary!.average.toFixed(1)}
-                            </p>
-                            <div className="mt-1.5">
-                                <Stars rating={summary!.average} />
+                <div className="flex flex-col gap-[7px]">
+                    {[5, 4, 3, 2, 1].map((star) => {
+                        const n = distribution[star - 1] ?? 0;
+                        return (
+                            <div key={star} className="grid grid-cols-[26px_minmax(0,1fr)_40px] items-center gap-[9px]">
+                                <span className="font-mono text-[10.5px] text-[#f2f0ea]/50">{star}★</span>
+                                <div className="h-1.5 bg-[#f2f0ea]/[0.08]">
+                                    <div
+                                        className="h-1.5"
+                                        style={{
+                                            width: `${(n / peak) * 100}%`,
+                                            background: star >= 4 ? '#d8ff3c' : star === 3 ? 'rgba(242,240,234,.4)' : '#ff5c2b',
+                                        }}
+                                    />
+                                </div>
+                                <span className="text-right font-mono text-[10.5px] text-[#f2f0ea]/50">{n}</span>
                             </div>
-                            <p className="mt-1 text-[11px] text-slate-500">
-                                {total} {total === 1 ? 'review' : 'reviews'}
-                            </p>
-                        </div>
+                        );
+                    })}
+                </div>
 
-                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:col-span-2">
-                            {[5, 4, 3, 2, 1].map((star) => {
-                                const count = summary!.distribution[star - 1];
-                                const pct = total > 0 ? (count / total) * 100 : 0;
-
-                                return (
-                                    <div key={star} className="mb-1 flex items-center gap-2 last:mb-0">
-                                        <span className="w-3 text-[11px] text-slate-500">{star}</span>
-                                        <Star size={9} fill="#f59e0b" className="text-amber-500" />
-                                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                                            <div
-                                                className="h-full rounded-full bg-amber-500"
-                                                style={{ width: `${pct}%` }}
-                                            />
-                                        </div>
-                                        <span className="w-6 text-right text-[11px] text-slate-500">
-                                            {count}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Replying is the highest-value thing an owner can do here, so
-                    the count of unanswered reviews is called out rather than
-                    left to be counted down the list. */}
-                {needsReply > 0 && (
-                    <p className="mt-3 text-[12px] text-amber-300">
-                        {needsReply} {needsReply === 1 ? 'review has' : 'reviews have'} no reply yet.
-                        Answering one — especially a bad one — is what other customers read.
-                    </p>
-                )}
-            </section>
-
-            <div className="flex flex-col gap-2">
-                {reviews.map((review) => (
-                    <div
-                        key={review.id}
-                        className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
-                        style={{ opacity: review.isHidden ? 0.5 : 1 }}
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2.5">
-                                <Stars rating={review.rating} />
-                                <span className="text-[13px] font-bold text-slate-200">{review.name}</span>
-                                {review.isHidden && (
-                                    <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase text-slate-400">
-                                        Hidden
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-[11px] text-slate-500">
-                                {formatDate(review.createdAt)}
+                <div className="flex flex-col gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+                    {[
+                        { k: 'WAITING ON YOU', v: String(needsReply), c: needsReply > 0 ? '#ff5c2b' : 'rgba(242,240,234,.6)' },
+                        { k: 'REPLIED', v: String(reviews.filter((r) => r.ownerReply).length), c: 'rgba(242,240,234,.6)' },
+                        { k: 'HIDDEN', v: String(reviews.filter((r) => r.isHidden).length), c: 'rgba(242,240,234,.6)' },
+                    ].map((stat) => (
+                        <div key={stat.k} className="flex items-center gap-2.5 bg-[#0e0e10] px-[13px] py-[11px]">
+                            <span className="font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/[0.42]">
+                                {stat.k}
+                            </span>
+                            <span className="flex-1" />
+                            <span className="whitespace-nowrap font-mono text-xs" style={{ color: stat.c }}>
+                                {stat.v}
                             </span>
                         </div>
+                    ))}
+                </div>
+            </div>
 
-                        {review.comment && (
-                            <p className="mt-2.5 text-[13px] leading-relaxed text-slate-300">
-                                {review.comment}
-                            </p>
-                        )}
+            {/* ── what people wrote ── */}
+            <div className="flex min-w-0 flex-col gap-3.5">
+                <div className="flex flex-wrap items-center gap-[9px]">
+                    <Chips items={filters} active={filter} onPick={setFilter} />
+                    <span className="h-px min-w-[20px] flex-1 bg-[#f2f0ea]/10" />
+                    {loading && (
+                        <span className="font-mono text-[10.5px] tracking-[0.12em] text-[#f2f0ea]/40">
+                            LOADING…
+                        </span>
+                    )}
+                </div>
 
-                        {review.ownerReply && replyingTo !== review.id && (
-                            <div className="mt-3 border-l-2 border-cyan-500/50 pl-3">
-                                <p className="text-[11px] font-bold text-cyan-400">Your reply</p>
-                                <p className="mt-0.5 text-[12px] leading-relaxed text-slate-400">
-                                    {review.ownerReply}
-                                </p>
+                {error && (
+                    <div className="border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#ff5c2b]">
+                        {error}
+                    </div>
+                )}
+
+                {!loading && shown.length === 0 && (
+                    <Panel className="px-4 py-8">
+                        <span className="font-mono text-[11.5px] text-[#f2f0ea]/45">
+                            {reviews.length === 0
+                                ? 'No reviews yet. They appear here as customers leave them.'
+                                : 'Nothing under this filter.'}
+                        </span>
+                    </Panel>
+                )}
+
+                {shown.map((review) => {
+                    const isReplying = replyingTo === review.id;
+                    const edge = review.isHidden
+                        ? 'rgba(242,240,234,.2)'
+                        : review.rating <= 3
+                            ? '#ff5c2b'
+                            : review.ownerReply
+                                ? 'rgba(216,255,60,.45)'
+                                : '#d8ff3c';
+
+                    return (
+                        <div
+                            key={review.id}
+                            className="flex flex-col gap-[11px] border border-[#f2f0ea]/10 bg-[#111113] px-4 py-[15px]"
+                            style={{ borderLeft: `2px solid ${edge}` }}
+                        >
+                            <div className="flex flex-wrap items-center gap-2.5">
+                                <span
+                                    className="whitespace-nowrap font-mono text-[12.5px] tracking-[0.1em]"
+                                    style={{ color: review.rating >= 4 ? '#d8ff3c' : '#ff5c2b' }}
+                                >
+                                    {'★'.repeat(review.rating)}
+                                    <span className="text-[#f2f0ea]/20">{'★'.repeat(5 - review.rating)}</span>
+                                </span>
+                                <span className="whitespace-nowrap text-[13.5px] font-bold text-[#f2f0ea]">
+                                    {review.name}
+                                </span>
+                                {review.isHidden && <Tag>HIDDEN</Tag>}
+                                {!review.ownerReply && !review.isHidden && <Tag tone="orange">NO REPLY</Tag>}
+                                <span className="min-w-[10px] flex-1" />
+                                <span className="whitespace-nowrap font-mono text-[10.5px] text-[#f2f0ea]/35">
+                                    {formatDate(review.createdAt).toUpperCase()}
+                                </span>
                             </div>
-                        )}
 
-                        {replyingTo === review.id ? (
-                            <div className="mt-3">
-                                <textarea
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    maxLength={1000}
-                                    rows={3}
-                                    placeholder="Reply publicly…"
-                                    className="w-full rounded-lg border border-white/[0.08] bg-[#0b1018] px-2.5 py-2 text-[13px] text-slate-200 focus:border-cyan-500/50 focus:outline-none"
-                                />
-                                <div className="mt-2 flex gap-2">
+                            {review.comment && (
+                                <span className="text-[13.5px] leading-[1.5] text-[#f2f0ea]/80">
+                                    {review.comment}
+                                </span>
+                            )}
+
+                            {review.ownerReply && !isReplying && (
+                                <div
+                                    className="flex gap-2.5 bg-[#0e0e10] px-[13px] py-[11px]"
+                                    style={{ borderLeft: '2px solid rgba(216,255,60,.45)' }}
+                                >
+                                    <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] text-[#d8ff3c]">
+                                        YOU
+                                    </span>
+                                    <span className="font-mono text-[11px] leading-[1.5] text-[#f2f0ea]/55">
+                                        {review.ownerReply}
+                                    </span>
+                                </div>
+                            )}
+
+                            {isReplying ? (
+                                <div className="flex flex-col gap-2.5">
+                                    <textarea
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        rows={3}
+                                        placeholder="Answer them the way you would at the counter."
+                                        className="w-full border border-[#f2f0ea]/[0.14] bg-transparent px-3 py-2.5 font-mono text-[11.5px] leading-[1.6] text-[#f2f0ea] outline-none transition-colors placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
+                                    />
+                                    <div className="flex flex-wrap gap-2">
+                                        <PrimaryButton
+                                            disabled={savingId === review.id || !replyText.trim()}
+                                            onClick={() => save(review.id, { reply: replyText.trim() })}
+                                        >
+                                            {savingId === review.id ? 'SENDING…' : 'POST REPLY'}
+                                        </PrimaryButton>
+                                        <GhostButton onClick={() => { setReplyingTo(null); setReplyText(''); }}>
+                                            CANCEL
+                                        </GhostButton>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="min-w-[10px] flex-1" />
                                     <button
                                         type="button"
-                                        onClick={() => save(review.id, { reply: replyText })}
-                                        disabled={savingId === review.id}
-                                        className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-[12px] font-bold text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+                                        onClick={() => { setReplyingTo(review.id); setReplyText(review.ownerReply ?? ''); }}
+                                        className="border px-3 py-2 font-mono text-[10px] tracking-[0.12em] transition-colors hover:border-[#d8ff3c]"
+                                        style={
+                                            review.ownerReply
+                                                ? { borderColor: 'rgba(242,240,234,.16)', color: 'rgba(242,240,234,.5)' }
+                                                : { borderColor: '#d8ff3c', background: 'rgba(216,255,60,.10)', color: '#d8ff3c' }
+                                        }
                                     >
-                                        {savingId === review.id ? (
-                                            <Loader2 size={12} className="animate-spin" />
-                                        ) : (
-                                            <Send size={12} />
-                                        )}
-                                        Post reply
+                                        {review.ownerReply ? 'EDIT REPLY' : 'REPLY'}
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setReplyingTo(null);
-                                            setReplyText('');
-                                        }}
-                                        className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-[12px] text-slate-400 hover:text-white"
+                                        disabled={savingId === review.id}
+                                        onClick={() => save(review.id, { isHidden: !review.isHidden })}
+                                        className="border border-[#f2f0ea]/[0.14] px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-[#f2f0ea]/50 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
                                     >
-                                        Cancel
+                                        {review.isHidden ? 'SHOW' : 'HIDE'}
                                     </button>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="mt-3 flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setReplyingTo(review.id);
-                                        setReplyText(review.ownerReply || '');
-                                    }}
-                                    className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white"
-                                >
-                                    <MessageSquare size={11} />
-                                    {review.ownerReply ? 'Edit reply' : 'Reply'}
-                                </button>
+                            )}
+                        </div>
+                    );
+                })}
 
-                                <button
-                                    type="button"
-                                    onClick={() => save(review.id, { isHidden: !review.isHidden })}
-                                    disabled={savingId === review.id}
-                                    className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:text-white disabled:opacity-40"
-                                >
-                                    {review.isHidden ? <Eye size={11} /> : <EyeOff size={11} />}
-                                    {review.isHidden ? 'Show again' : 'Hide'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                {/* The rating is the one thing on this page that is not the
+                    owner's to change, so it says so where they might look for
+                    the control. */}
+                <span className="font-mono text-[10px] leading-[1.7] tracking-[0.1em] text-[#f2f0ea]/30">
+                    YOU CAN REPLY TO ANYTHING AND HIDE ABUSE. THE SCORE ITSELF IS THE CUSTOMER&apos;S.
+                </span>
             </div>
         </div>
     );
