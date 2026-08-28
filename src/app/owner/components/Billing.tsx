@@ -1294,21 +1294,30 @@ export function Billing({
                                         {(isAdvanceMode ? 'upi' : paymentMode).toUpperCase()}
                                     </span>
                                 </div>
-                                <div className="mt-4 grid grid-cols-2 gap-3">
-                                    <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Calculated</div>
-                                        <div className="mono mt-2 text-lg font-semibold text-[#f2f0ea]">Rs.{calculatedTotal}</div>
-                                    </div>
-                                    <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Payment mode</div>
-                                        <div className="mt-2 text-lg font-semibold text-[#f2f0ea]">{isAdvanceMode ? 'UPI' : paymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
-                                    </div>
+                                <div className="mt-4 flex flex-col gap-2">
+                                    {[
+                                        { k: `GAMING · ${items.length} line${items.length === 1 ? '' : 's'}`, v: `₹${calculatedTotal}`, c: '#f2f0ea' },
+                                        { k: 'CALCULATED', v: `₹${calculatedTotal}`, c: 'rgba(242,240,234,.55)' },
+                                        {
+                                            k: 'PAYMENT',
+                                            v: isAdvanceMode ? 'UPI' : paymentMode.toUpperCase(),
+                                            c: '#d8ff3c',
+                                        },
+                                    ].map((line) => (
+                                        <div key={line.k} className="flex items-center gap-2.5 font-mono text-[11.5px]">
+                                            <span className="min-w-0 truncate text-[#f2f0ea]/55">{line.k}</span>
+                                            <span className="flex-1" />
+                                            <span className="whitespace-nowrap" style={{ color: line.c }}>
+                                                {line.v}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <label className={`${CONTROL_SURFACE_CLASS} focus-ring px-3.5 py-3 transition`}>
-                                    <div className="mb-1.5 flex items-center gap-2 text-[10px] smallcaps text-[var(--dim)]">
+                                <label className="flex flex-col gap-1.5 border border-[#f2f0ea]/[0.12] px-3.5 py-3 transition-colors focus-within:border-[#d8ff3c]">
+                                    <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.38]">
                                         <CalendarDays size={13} className="text-[#f2f0ea]/40" />
                                         Date
                                     </div>
@@ -1320,8 +1329,8 @@ export function Billing({
                                         style={{ colorScheme: 'dark' }}
                                     />
                                 </label>
-                                <label className={`${CONTROL_SURFACE_CLASS} focus-ring px-3.5 py-3 transition`}>
-                                    <div className="mb-1.5 flex items-center gap-2 text-[10px] smallcaps text-[var(--dim)]">
+                                <label className="flex flex-col gap-1.5 border border-[#f2f0ea]/[0.12] px-3.5 py-3 transition-colors focus-within:border-[#d8ff3c]">
+                                    <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.38]">
                                         <Clock size={13} className="text-[#f2f0ea]/40" />
                                         Start Time
                                     </div>
@@ -1415,25 +1424,33 @@ export function Billing({
                                     </div>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMode('cash')}
-                                        className={` border p-4 text-left transition-all duration-200 ${paymentMode === 'cash' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c]' : 'text-[#f2f0ea]/70 hover:border-white/15'}`}
-                                    >
-                                        <Banknote className="mb-3" size={20} />
-                                        <div className="text-sm font-semibold">Cash</div>
-                                        <div className="mt-1 text-xs text-current/70">Collect directly at the counter</div>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMode('upi')}
-                                        className={` border p-4 text-left transition-all duration-200 ${paymentMode === 'upi' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c]' : 'text-[#f2f0ea]/70 hover:border-white/15'}`}
-                                    >
-                                        <Smartphone className="mb-3" size={20} />
-                                        <div className="text-sm font-semibold">UPI</div>
-                                        <div className="mt-1 text-xs text-current/70">Show the QR and collect instantly</div>
-                                    </button>
+                                <div className="flex flex-col gap-2.5">
+                                    <span className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-[#f2f0ea]/[0.42]">
+                                        PAYMENT
+                                    </span>
+                                    {/* The design's segmented picker: two big
+                                        cards with icons and a sentence each
+                                        became two words on one control. */}
+                                    <div className="grid grid-cols-2 gap-px border border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.12]">
+                                        {(['cash', 'upi'] as const).map((option) => {
+                                            const on = paymentMode === option;
+                                            return (
+                                                <button
+                                                    key={option}
+                                                    type="button"
+                                                    onClick={() => setPaymentMode(option)}
+                                                    className="py-3 text-center font-mono text-[11px] tracking-[0.12em] transition-colors"
+                                                    style={
+                                                        on
+                                                            ? { background: 'rgba(216,255,60,.14)', color: '#d8ff3c' }
+                                                            : { background: '#111113', color: 'rgba(242,240,234,.5)' }
+                                                    }
+                                                >
+                                                    {option.toUpperCase()}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
 
@@ -1478,14 +1495,18 @@ export function Billing({
                                 <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 text-sm text-[#ff5c2b]">{formError}</p>
                             )}
 
-                            <Button
-                                className="w-full justify-center py-3.5 text-base"
+                            <button
+                                type="button"
                                 onClick={handleSubmit}
-                                loading={submitting}
                                 disabled={submitting || items.length === 0}
+                                className="w-full bg-[#d8ff3c] py-4 font-mono text-[11.5px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
                             >
-                                {submitting ? 'Creating...' : isAdvanceMode ? 'Create Payment Link' : 'Confirm Booking'}
-                            </Button>
+                                {submitting
+                                    ? 'CREATING…'
+                                    : isAdvanceMode
+                                        ? 'CREATE PAYMENT LINK →'
+                                        : `TAKE ₹${totalAmount} · START SESSION →`}
+                            </button>
                         </Card>
                     </div>
                 </div>
