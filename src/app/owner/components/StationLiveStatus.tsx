@@ -193,10 +193,10 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
             return {
                 label: 'Offline',
                 note: 'Not reporting in',
-                bar: 'bg-red-500',
-                pill: 'border-red-500/30 bg-red-500/10 text-red-300',
-                dot: 'bg-red-500',
-                card: 'border-red-500/20 bg-red-500/[0.04]',
+                bar: 'bg-[#ff5c2b]',
+                pill: 'border-red-500/30 bg-[#ff5c2b]/10 text-red-300',
+                dot: 'bg-[#ff5c2b]',
+                card: 'border-red-500/20 bg-[#ff5c2b]/[0.04]',
             };
         }
 
@@ -205,9 +205,9 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                 label: 'Unlocked',
                 note: 'A customer can use this PC',
                 bar: 'bg-emerald-400',
-                pill: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+                pill: 'border-emerald-500/30 bg-[#d8ff3c]/10 text-emerald-300',
                 dot: 'bg-emerald-400',
-                card: 'border-emerald-500/20 bg-emerald-500/[0.03]',
+                card: 'border-emerald-500/20 bg-[#d8ff3c]/[0.03]',
             };
         }
 
@@ -215,9 +215,9 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
             label: 'Locked',
             note: 'Waiting for payment',
             bar: 'bg-slate-500',
-            pill: 'border-white/[0.10] bg-white/[0.04] text-slate-300',
+            pill: 'border-white/[0.10] bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/70',
             dot: 'bg-emerald-400',
-            card: 'border-white/[0.08] bg-white/[0.02]',
+            card: 'border-[#f2f0ea]/10 bg-[#111113]',
         };
     };
 
@@ -227,15 +227,15 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
     const behind = stations.filter((s) => s.update_available);
 
     return (
-        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
+        <section className=" border border-[#f2f0ea]/10 bg-[#111113] p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15">
-                        <Activity size={15} className="text-cyan-400" />
+                    <div className="flex h-8 w-8 items-center justify-center bg-[#d8ff3c]/15">
+                        <Activity size={15} className="text-[#d8ff3c]" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-200">Live machine status</h3>
-                        <p className="text-[11px] text-slate-500">
+                        <h3 className="text-sm font-bold text-[#f2f0ea]">Live machine status</h3>
+                        <p className="text-[11px] text-[#f2f0ea]/40">
                             Lock or unlock any PC here — no booking needed ({MANUAL_UNLOCK_MINUTES}m unlock, or {TEST_UNLOCK_MINUTES}m to test warnings)
                         </p>
                     </div>
@@ -244,7 +244,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                     type="button"
                     onClick={load}
                     disabled={loading}
-                    className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:text-white disabled:opacity-40"
+                    className="flex items-center gap-1.5 border border-[#f2f0ea]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#f2f0ea]/70 transition-colors hover:text-[#f2f0ea] disabled:opacity-40"
                 >
                     <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                     Refresh
@@ -252,14 +252,14 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
             </div>
 
             {behind.length > 0 && (
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-500/25 bg-cyan-500/[0.06] px-3.5 py-3">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border border-cyan-500/25 bg-[#d8ff3c]/[0.06] px-3.5 py-3">
                     <div className="flex items-start gap-2.5">
-                        <ArrowUpCircle size={15} className="mt-0.5 shrink-0 text-cyan-400" />
+                        <ArrowUpCircle size={15} className="mt-0.5 shrink-0 text-[#d8ff3c]" />
                         <div>
                             <p className="text-[12px] font-bold text-cyan-100">
                                 Update available{latestVersion ? ` — v${latestVersion}` : ''}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-slate-400">
+                            <p className="mt-0.5 text-[11px] text-[#f2f0ea]/50">
                                 {behind.length === 1
                                     ? `${behind[0].station_name.toUpperCase()} is on an older version.`
                                     : `${behind.length} PCs are on an older version.`}{' '}
@@ -274,21 +274,21 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
             )}
 
             {error && (
-                <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
+                <div className="mb-3 flex items-start gap-2 border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[12px] text-amber-300">
                     <AlertCircle size={14} className="mt-0.5 shrink-0" />
                     <span>{error}</span>
                 </div>
             )}
 
             {commandError && (
-                <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.06] p-3 text-[12px] text-red-300">
+                <div className="mb-3 flex items-start gap-2 border border-red-500/25 bg-[#ff5c2b]/[0.06] p-3 text-[12px] text-red-300">
                     <AlertCircle size={14} className="mt-0.5 shrink-0" />
                     <span>{commandError}</span>
                 </div>
             )}
 
             {!error && stations.length === 0 && !loading && (
-                <p className="py-6 text-center text-[12px] text-slate-500">
+                <p className="py-6 text-center text-[12px] text-[#f2f0ea]/40">
                     No machine has reported in yet. Stations appear here once the lock agent is
                     running and configured to send heartbeats.
                 </p>
@@ -299,17 +299,17 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                     {/* A one-line answer to "is everything alright?", so the
                         grid below only has to be read when it is not. */}
                     <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
-                        <span className="font-semibold text-slate-300">
+                        <span className="font-semibold text-[#f2f0ea]/70">
                             {online.length} of {stations.length} online
                         </span>
                         {unlocked.length > 0 && (
-                            <span className="flex items-center gap-1.5 text-emerald-400">
+                            <span className="flex items-center gap-1.5 text-[#d8ff3c]">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                                 {unlocked.length} unlocked
                             </span>
                         )}
                         {offline.length > 0 && (
-                            <span className="flex items-center gap-1.5 text-red-400">
+                            <span className="flex items-center gap-1.5 text-[#ff5c2b]">
                                 <WifiOff size={11} />
                                 {offline.length} not reporting
                             </span>
@@ -328,7 +328,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                             return (
                                 <div
                                     key={station.station_name}
-                                    className={`relative overflow-hidden rounded-xl border pl-4 pr-3 py-3 transition-colors ${state.card}`}
+                                    className={`relative overflow-hidden  border pl-4 pr-3 py-3 transition-colors ${state.card}`}
                                 >
                                     {/* Colour down the edge: the grid becomes
                                         scannable without reading any of it. */}
@@ -339,7 +339,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                             <p className="truncate text-[15px] font-bold uppercase tracking-wide text-slate-100">
                                                 {station.station_name}
                                             </p>
-                                            <p className="mt-0.5 text-[10px] text-slate-500">
+                                            <p className="mt-0.5 text-[10px] text-[#f2f0ea]/40">
                                                 Seen {describeLastSeen(station.seconds_since_seen)}
                                                 {station.agent_version ? ` · v${station.agent_version}` : ''}
                                             </p>
@@ -354,7 +354,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                                     type="button"
                                                     disabled={updating === station.station_name}
                                                     onClick={() => updateStation(station.station_name)}
-                                                    className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2 py-1 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500/25 disabled:opacity-40"
+                                                    className="mt-1.5 inline-flex items-center gap-1 bg-[#d8ff3c]/15 px-2 py-1 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-[#d8ff3c]/25 disabled:opacity-40"
                                                     title={`Restart to install v${latestVersion ?? 'the update'}`}
                                                 >
                                                     <ArrowUpCircle size={10} />
@@ -365,7 +365,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                             )}
 
                                             {station.update_available && station.online && isUnlocked && (
-                                                <p className="mt-1.5 text-[10px] text-slate-500">
+                                                <p className="mt-1.5 text-[10px] text-[#f2f0ea]/40">
                                                     Update waiting — in use right now
                                                 </p>
                                             )}
@@ -386,7 +386,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                         </span>
                                     </div>
 
-                                    <p className="mt-1.5 text-[11px] text-slate-500">{state.note}</p>
+                                    <p className="mt-1.5 text-[11px] text-[#f2f0ea]/40">{state.note}</p>
 
                                     {showControls && (
                                         <div className="mt-3 flex gap-2">
@@ -403,10 +403,10 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                                 type="button"
                                                 disabled={!station.online || busy}
                                                 onClick={() => sendCommand(station.station_name, 'unlock')}
-                                                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                                                className={`flex flex-1 items-center justify-center gap-1.5  px-2 py-2 text-[11px] font-bold transition-colors disabled:opacity-40 ${
                                                     !station.online || isUnlocked
-                                                        ? 'border border-white/[0.08] text-slate-400 hover:bg-white/[0.05]'
-                                                        : 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                                                        ? 'border border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:bg-white/[0.05]'
+                                                        : 'bg-[#d8ff3c] text-emerald-950 hover:bg-emerald-400'
                                                 }`}
                                             >
                                                 <Unlock size={12} />
@@ -423,7 +423,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                                     sendCommand(station.station_name, 'unlock', TEST_UNLOCK_MINUTES)
                                                 }
                                                 title={`Unlock for ${TEST_UNLOCK_MINUTES} minutes to check the time warnings`}
-                                                className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/30 px-2 py-2 text-[11px] font-bold text-amber-300/90 transition-colors hover:bg-amber-500/10 disabled:opacity-40"
+                                                className="flex items-center justify-center gap-1.5 border border-amber-500/30 px-2 py-2 text-[11px] font-bold text-amber-300/90 transition-colors hover:bg-amber-500/10 disabled:opacity-40"
                                             >
                                                 <FlaskConical size={12} />
                                                 {TEST_UNLOCK_MINUTES}m
@@ -432,10 +432,10 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                                 type="button"
                                                 disabled={!station.online || busy}
                                                 onClick={() => sendCommand(station.station_name, 'lock')}
-                                                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                                                className={`flex flex-1 items-center justify-center gap-1.5  px-2 py-2 text-[11px] font-bold transition-colors disabled:opacity-40 ${
                                                     isUnlocked && station.online
                                                         ? 'bg-slate-200 text-slate-900 hover:bg-white'
-                                                        : 'border border-white/[0.08] text-slate-400 hover:bg-white/[0.05]'
+                                                        : 'border border-[#f2f0ea]/10 text-[#f2f0ea]/50 hover:bg-white/[0.05]'
                                                 }`}
                                             >
                                                 <Lock size={12} />
@@ -445,7 +445,7 @@ export function StationLiveStatus({ cafeId }: StationLiveStatusProps) {
                                     )}
 
                                     {!station.online && (
-                                        <p className="mt-3 rounded-lg bg-black/20 px-2 py-1.5 text-[10px] text-red-300/80">
+                                        <p className="mt-3 bg-black/20 px-2 py-1.5 text-[10px] text-red-300/80">
                                             Check the PC is on and the lock app is running.
                                         </p>
                                     )}
