@@ -104,21 +104,13 @@ export default function SettingsTab({
       <div
         style={{
           background: theme.cardBackground,
-          borderRadius: 16,
           border: `1px solid ${theme.border}`,
           padding: "32px",
         }}
       >
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 28 }}>🏢</span>
-            <h2 style={{
-              fontFamily: fonts.heading,
-              fontSize: 24,
-              margin: 0,
-              color: theme.textPrimary,
-              fontWeight: 700,
-            }}>
+            <h2 style={{ margin: 0, fontFamily: "var(--font-plex-mono), monospace", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(242,240,234,.5)", fontWeight: 500 }}>
               Café Information
             </h2>
           </div>
@@ -151,7 +143,6 @@ export default function SettingsTab({
                   padding: "14px 16px",
                   background: "rgba(15, 23, 42, 0.5)",
                   border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
                   color: theme.textPrimary,
                   fontSize: 15,
                   outline: "none",
@@ -190,7 +181,6 @@ export default function SettingsTab({
                   padding: "14px 16px",
                   background: "rgba(15, 23, 42, 0.8)",
                   border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
                   color: theme.textPrimary,
                   fontSize: 15,
                   outline: "none",
@@ -199,7 +189,7 @@ export default function SettingsTab({
                   transition: "all 0.2s",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#3b82f6";
+                  e.currentTarget.style.borderColor = "#d8ff3c";
                   e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                 }}
                 onBlur={(e) => {
@@ -237,14 +227,13 @@ export default function SettingsTab({
                     padding: "14px 16px",
                     background: "rgba(15, 23, 42, 0.8)",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
                     color: theme.textPrimary,
                     fontSize: 15,
                     outline: "none",
                     transition: "all 0.2s",
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#3b82f6";
+                    e.currentTarget.style.borderColor = "#d8ff3c";
                     e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                   }}
                   onBlur={(e) => {
@@ -280,14 +269,13 @@ export default function SettingsTab({
                     padding: "14px 16px",
                     background: "rgba(15, 23, 42, 0.8)",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
                     color: theme.textPrimary,
                     fontSize: 15,
                     outline: "none",
                     transition: "all 0.2s",
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#3b82f6";
+                    e.currentTarget.style.borderColor = "#d8ff3c";
                     e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                   }}
                   onBlur={(e) => {
@@ -324,7 +312,6 @@ export default function SettingsTab({
                   padding: "14px 16px",
                   background: "rgba(15, 23, 42, 0.8)",
                   border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
                   color: theme.textPrimary,
                   fontSize: 15,
                   outline: "none",
@@ -333,7 +320,7 @@ export default function SettingsTab({
                   transition: "all 0.2s",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#3b82f6";
+                  e.currentTarget.style.borderColor = "#d8ff3c";
                   e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                 }}
                 onBlur={(e) => {
@@ -349,10 +336,9 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
                 border: "none",
-                borderRadius: 10,
-                color: settingsChanged ? "#ffffff" : theme.textMuted,
+                color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: settingsChanged && !savingSettings ? "pointer" : "not-allowed",
@@ -381,7 +367,6 @@ export default function SettingsTab({
         <div
           style={{
             background: theme.cardBackground,
-            borderRadius: 16,
             border: `1px solid ${theme.border}`,
             padding: "32px",
           }}
@@ -441,14 +426,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -484,14 +468,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -509,10 +492,9 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
                 border: "none",
-                borderRadius: 10,
-                color: settingsChanged ? "#ffffff" : theme.textMuted,
+                color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: settingsChanged && !savingSettings ? "pointer" : "not-allowed",
@@ -532,7 +514,6 @@ export default function SettingsTab({
         <div
           style={{
             background: theme.cardBackground,
-            borderRadius: 16,
             border: `1px solid ${theme.border}`,
             padding: "32px",
           }}
@@ -592,14 +573,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -635,14 +615,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -692,14 +671,13 @@ export default function SettingsTab({
                     padding: "14px 16px",
                     background: "rgba(15, 23, 42, 0.8)",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
                     color: theme.textPrimary,
                     fontSize: 15,
                     outline: "none",
                     transition: "all 0.2s",
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#3b82f6";
+                    e.currentTarget.style.borderColor = "#d8ff3c";
                     e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                   }}
                   onBlur={(e) => {
@@ -719,10 +697,9 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
                 border: "none",
-                borderRadius: 10,
-                color: settingsChanged ? "#ffffff" : theme.textMuted,
+                color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: settingsChanged && !savingSettings ? "pointer" : "not-allowed",
@@ -742,7 +719,6 @@ export default function SettingsTab({
         <div
           style={{
             background: theme.cardBackground,
-            borderRadius: 16,
             border: `1px solid ${theme.border}`,
             padding: "32px",
           }}
@@ -802,14 +778,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -845,14 +820,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -888,14 +862,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -931,14 +904,13 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -974,7 +946,6 @@ export default function SettingsTab({
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
@@ -983,7 +954,7 @@ export default function SettingsTab({
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#3b82f6";
+                      e.currentTarget.style.borderColor = "#d8ff3c";
                       e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
                     }}
                     onBlur={(e) => {
@@ -1001,10 +972,9 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
                 border: "none",
-                borderRadius: 10,
-                color: settingsChanged ? "#ffffff" : theme.textMuted,
+                color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: settingsChanged && !savingSettings ? "pointer" : "not-allowed",
@@ -1024,7 +994,6 @@ export default function SettingsTab({
         <div
           style={{
             background: theme.cardBackground,
-            borderRadius: 16,
             border: `1px solid ${theme.border}`,
             padding: "32px",
           }}
@@ -1067,17 +1036,15 @@ export default function SettingsTab({
                       width: 200,
                       height: 200,
                       objectFit: "cover",
-                      borderRadius: 12,
                       border: `2px solid ${theme.border}`,
                     }}
                   />
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <label style={{
                       padding: "12px 20px",
-                      background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                      background: "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)",
                       border: "none",
-                      borderRadius: 12,
-                      color: "#ffffff",
+                      color: "#0b0b0c",
                       fontSize: 14,
                       fontWeight: 600,
                       cursor: uploadingProfilePhoto ? "not-allowed" : "pointer",
@@ -1098,10 +1065,9 @@ export default function SettingsTab({
                       onClick={handleProfilePhotoDelete}
                       style={{
                         padding: "12px 20px",
-                        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                        background: "linear-gradient(135deg, #ff5c2b 0%, #ff5c2b 100%)",
                         border: "none",
-                        borderRadius: 12,
-                        color: "#ffffff",
+                        color: "#0b0b0c",
                         fontSize: 14,
                         fontWeight: 600,
                         cursor: "pointer",
@@ -1121,7 +1087,6 @@ export default function SettingsTab({
                   height: 200,
                   background: "rgba(15, 23, 42, 0.8)",
                   border: `2px dashed ${theme.border}`,
-                  borderRadius: 12,
                   cursor: uploadingProfilePhoto ? "not-allowed" : "pointer",
                   transition: "all 0.2s",
                   opacity: uploadingProfilePhoto ? 0.5 : 1,
@@ -1169,7 +1134,6 @@ export default function SettingsTab({
                   aspectRatio: "1",
                   background: "rgba(15, 23, 42, 0.8)",
                   border: `2px dashed ${theme.border}`,
-                  borderRadius: 12,
                   cursor: uploadingGalleryPhoto ? "not-allowed" : "pointer",
                   transition: "all 0.2s",
                   opacity: uploadingGalleryPhoto ? 0.5 : 1,
@@ -1196,7 +1160,6 @@ export default function SettingsTab({
                     style={{
                       position: "relative",
                       aspectRatio: "1",
-                      borderRadius: 12,
                       overflow: "hidden",
                       border: `2px solid ${theme.border}`,
                     }}
@@ -1220,8 +1183,7 @@ export default function SettingsTab({
                         height: 32,
                         background: "rgba(239, 68, 68, 0.9)",
                         border: "none",
-                        borderRadius: 8,
-                        color: "#ffffff",
+                        color: "#0b0b0c",
                         fontSize: 16,
                         cursor: "pointer",
                         display: "flex",
@@ -1254,10 +1216,9 @@ export default function SettingsTab({
               disabled={!settingsChanged || savingSettings}
               style={{
                 padding: "14px 20px",
-                background: settingsChanged ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" : "rgba(100, 116, 139, 0.3)",
+                background: settingsChanged ? "linear-gradient(135deg, #d8ff3c 0%, #d8ff3c 100%)" : "rgba(100, 116, 139, 0.3)",
                 border: "none",
-                borderRadius: 10,
-                color: settingsChanged ? "#ffffff" : theme.textMuted,
+                color: settingsChanged ? "#0b0b0c" : theme.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: settingsChanged && !savingSettings ? "pointer" : "not-allowed",
