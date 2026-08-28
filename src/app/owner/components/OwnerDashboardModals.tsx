@@ -343,7 +343,7 @@ export function OwnerDashboardModals() {
                       width: "100%",
                       padding: "12px 14px",
                       borderRadius: 10,
-                      border: `1px solid ${deleteRemark.trim() ? "rgba(56,189,248,0.4)" : "rgba(239,68,68,0.4)"}`,
+                      border: `1px solid ${deleteRemark.trim() ? "rgba(56,189,248,0.4)" : "rgba(255, 92, 43,0.4)"}`,
                       background: "rgba(15,23,42,0.8)",
                       color: theme.textPrimary,
                       fontSize: 13,
@@ -535,7 +535,7 @@ export function OwnerDashboardModals() {
                 </div>
 
                 {/* Apply to All Checkbox */}
-                <div style={{ marginBottom: 24, padding: 16, background: 'rgba(59, 130, 246, 0.08)', border: `1px solid rgba(59, 130, 246, 0.2)`, borderRadius: 12 }}>
+                <div style={{ marginBottom: 24, padding: 16, background: 'rgba(216, 255, 60, 0.08)', border: `1px solid rgba(216, 255, 60, 0.2)`, borderRadius: 12 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
@@ -1099,7 +1099,7 @@ export function OwnerDashboardModals() {
                     fontSize: 14,
                     fontWeight: 600,
                     cursor: savingPricing ? "not-allowed" : "pointer",
-                    boxShadow: savingPricing ? "none" : "0 4px 16px rgba(16, 185, 129, 0.3)",
+                    boxShadow: savingPricing ? "none" : "0 4px 16px rgba(216, 255, 60, 0.3)",
                   }}
                 >
                   {savingPricing ? "Saving..." : "Save Changes"}
@@ -1296,7 +1296,7 @@ export function OwnerDashboardModals() {
                   onMouseEnter={(e) => {
                     if (!addingStation && newStationCount >= 1) {
                       e.currentTarget.style.transform = "scale(1.05)";
-                      e.currentTarget.style.boxShadow = "0 8px 20px rgba(59, 130, 246, 0.4)";
+                      e.currentTarget.style.boxShadow = "0 8px 20px rgba(216, 255, 60, 0.4)";
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -1441,8 +1441,8 @@ export function OwnerDashboardModals() {
                 <div style={{
                   padding: "16px",
                   borderRadius: 12,
-                  background: "rgba(239, 68, 68, 0.1)",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  background: "rgba(255, 92, 43, 0.1)",
+                  border: "1px solid rgba(255, 92, 43, 0.3)",
                 }}>
                   <p style={{
                     margin: 0,
@@ -1508,7 +1508,7 @@ export function OwnerDashboardModals() {
                   onMouseEnter={(e) => {
                     if (!deletingStation) {
                       e.currentTarget.style.transform = "scale(1.05)";
-                      e.currentTarget.style.boxShadow = "0 8px 20px rgba(239, 68, 68, 0.4)";
+                      e.currentTarget.style.boxShadow = "0 8px 20px rgba(255, 92, 43, 0.4)";
                     }
                   }}
                   onMouseLeave={(e) => {

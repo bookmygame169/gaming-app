@@ -277,7 +277,7 @@ export default function InlineSnackManager({ bookingId, cafeId, existingOrders, 
               onClick={handleAddToBooking}
               disabled={adding || addedAnim}
               className="flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-bold transition-all disabled:opacity-60"
-              style={{ background: addedAnim ? 'rgba(16,185,129,0.18)' : 'rgba(251,146,60,0.20)', color: addedAnim ? '#d8ff3c' : '#ff5c2b', border: addedAnim ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(251,146,60,0.35)' }}
+              style={{ background: addedAnim ? 'rgba(216, 255, 60,0.18)' : 'rgba(251,146,60,0.20)', color: addedAnim ? '#d8ff3c' : '#ff5c2b', border: addedAnim ? '1px solid rgba(216, 255, 60,0.3)' : '1px solid rgba(251,146,60,0.35)' }}
             >
               {adding     ? <Loader2 size={13} className="animate-spin" /> :
                addedAnim  ? <><Check size={13} /> Added!</> :

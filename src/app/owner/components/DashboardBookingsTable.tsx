@@ -121,7 +121,7 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-4 py-3 sm:px-5 sm:py-4">
                 <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center sm:h-7 sm:w-7" style={{ background: 'rgba(6,182,212,0.12)', color: '#d8ff3c' }}>
+                    <div className="flex h-6 w-6 items-center justify-center sm:h-7 sm:w-7" style={{ background: 'rgba(216, 255, 60,0.12)', color: '#d8ff3c' }}>
                         <CalendarX size={13} />
                     </div>
                     <h2 className="font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">TODAY&apos;S BOOKINGS</h2>

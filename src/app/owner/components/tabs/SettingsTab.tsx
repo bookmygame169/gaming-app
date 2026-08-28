@@ -1181,7 +1181,7 @@ export default function SettingsTab({
                         right: 8,
                         width: 32,
                         height: 32,
-                        background: "rgba(239, 68, 68, 0.9)",
+                        background: "rgba(255, 92, 43, 0.9)",
                         border: "none",
                         color: "#0b0b0c",
                         fontSize: 16,
@@ -1196,7 +1196,7 @@ export default function SettingsTab({
                         e.currentTarget.style.transform = "scale(1.1)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(239, 68, 68, 0.9)";
+                        e.currentTarget.style.background = "rgba(255, 92, 43, 0.9)";
                         e.currentTarget.style.transform = "scale(1)";
                       }}
                     >

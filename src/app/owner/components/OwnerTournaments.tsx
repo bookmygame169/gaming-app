@@ -36,10 +36,10 @@ interface OwnerTournamentsProps {
 const STATUSES = ['upcoming', 'ongoing', 'completed', 'cancelled'] as const;
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
-    upcoming: { bg: 'rgba(59,130,246,0.12)', fg: '#60a5fa' },
-    ongoing: { bg: 'rgba(34,197,94,0.12)', fg: '#4ade80' },
+    upcoming: { bg: 'rgba(216, 255, 60,0.12)', fg: '#60a5fa' },
+    ongoing: { bg: 'rgba(216, 255, 60,0.12)', fg: '#4ade80' },
     completed: { bg: 'rgba(255,255,255,0.06)', fg: '#94a3b8' },
-    cancelled: { bg: 'rgba(239,68,68,0.12)', fg: '#f87171' },
+    cancelled: { bg: 'rgba(255, 92, 43,0.12)', fg: '#f87171' },
 };
 
 const emptyForm = {

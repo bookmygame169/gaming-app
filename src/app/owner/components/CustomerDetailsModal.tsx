@@ -171,7 +171,7 @@ export default function CustomerDetailsModal({
                                 fontSize: 36,
                                 fontWeight: 700,
                                 color: 'white',
-                                boxShadow: '0 0 40px rgba(139, 92, 246, 0.3)',
+                                boxShadow: '0 0 40px rgba(216, 255, 60, 0.3)',
                                 border: '4px solid rgba(255,255,255,0.1)'
                             }}>
                                 {initials}
@@ -281,7 +281,7 @@ export default function CustomerDetailsModal({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: 10,
-                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                                boxShadow: '0 4px 12px rgba(216, 255, 60, 0.2)',
                                 transition: 'transform 0.2s',
                             }}
                                 onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
@@ -292,8 +292,8 @@ export default function CustomerDetailsModal({
                             <button style={{
                                 width: '100%',
                                 padding: '14px',
-                                background: 'rgba(139, 92, 246, 0.1)',
-                                border: '1px solid rgba(139, 92, 246, 0.2)',
+                                background: 'rgba(216, 255, 60, 0.1)',
+                                border: '1px solid rgba(216, 255, 60, 0.2)',
                                 borderRadius: 14,
                                 color: '#a78bfa',
                                 fontWeight: 600,
@@ -305,8 +305,8 @@ export default function CustomerDetailsModal({
                                 gap: 10,
                                 transition: 'all 0.2s'
                             }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)'; }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(216, 255, 60, 0.2)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(216, 255, 60, 0.1)'; }}
                             >
                                 <Star size={18} /> New Membership
                             </button>
@@ -320,7 +320,7 @@ export default function CustomerDetailsModal({
                         {activeSubscription ? (
                             <div style={{
                                 background: '#111113',
-                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                                border: '1px solid rgba(216, 255, 60, 0.2)',
                                 borderRadius: 20,
                                 padding: 24,
                                 marginBottom: 32,

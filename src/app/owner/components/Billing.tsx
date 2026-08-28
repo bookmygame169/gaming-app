@@ -8,7 +8,7 @@ import { getInitialOwnerBookingStatus } from '@/lib/bookingFilters';
 import { dedupeStationPricingRows, normaliseStationName } from '@/lib/stationNames';
 import { Card, Button } from './ui';
 import {
-    User, Smartphone, Clock, Plus, Trash2, X,
+    User, Smartphone, Clock, Plus, X,
     CreditCard, Banknote, CheckCircle, Star,
     Store, CalendarDays, IndianRupee, Gamepad2, ExternalLink
 } from 'lucide-react';
@@ -1088,38 +1088,37 @@ export function Billing({
                             ) : (
                                 <div className="space-y-3">
                                     {items.map((item, index) => {
-                                        const theme = getConsoleTheme(item.console);
-
                                         return (
                                             <div
                                                 key={item.id}
                                                 className="space-y-3 rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113] p-4"
                                             >
-                                                {/* Header row */}
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="rounded-full border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] px-2.5 py-1 text-[10px] smallcaps text-[var(--dim)]">
-                                                            Item {index + 1}
-                                                        </span>
-                                                        <div>
-                                                            <div className="text-sm font-semibold text-[#f2f0ea]">
-                                                                {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
-                                                            </div>
-                                                            <div className="text-[11px] text-[var(--muted)]">
-                                                                {item.quantity} player{item.quantity === 1 ? '' : 's'} · {formatDurationLabel(item.duration)}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="mono rounded-full px-2.5 py-1 text-sm font-bold" style={{ color: theme.accent, background: `${theme.accent}12` }}>Rs.{item.price}</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeItem(item.id)}
-                                                            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#f2f0ea]/10 text-[#f2f0ea]/40 transition-all duration-200 hover:border-[#ff5c2b]/30 hover:text-[#ff5c2b]"
-                                                        >
-                                                            <Trash2 size={13} />
-                                                        </button>
-                                                    </div>
+                                                {/* The design's line header: the
+                                                    whole line as one sentence,
+                                                    its price, and a cross. */}
+                                                <div className="-mx-4 -mt-4 mb-0 flex items-center gap-3 border-b border-[#f2f0ea]/[0.08] px-4 py-3">
+                                                    <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/35">
+                                                        LINE {index + 1}
+                                                    </span>
+                                                    <span className="text-[15px] font-extrabold tracking-[-0.01em] text-[#f2f0ea]">
+                                                        {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
+                                                    </span>
+                                                    <span className="truncate font-mono text-[11px] text-[#f2f0ea]/[0.42]">
+                                                        {item.quantity}P · {formatDurationLabel(item.duration)} ·{' '}
+                                                        {item.station ? item.station.toUpperCase() : 'auto station'}
+                                                    </span>
+                                                    <span className="flex-1" />
+                                                    <span className="whitespace-nowrap font-mono text-[13px] text-[#d8ff3c]">
+                                                        ₹{item.price}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeItem(item.id)}
+                                                        title="Remove this line"
+                                                        className="px-[7px] py-1 font-mono text-xs text-[#f2f0ea]/35 transition-colors hover:text-[#ff5c2b]"
+                                                    >
+                                                        ✕
+                                                    </button>
                                                 </div>
 
                                                 {/* Console — card grid */}
@@ -1165,7 +1164,7 @@ export function Billing({
                                                 {/* Players */}
                                                 <div className={CONTROL_ROW_CLASS}>
                                                         <div className={CONTROL_LABEL_CLASS}>PLAYERS</div>
-                                                        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                                        <div className="flex flex-wrap gap-1.5">
                                                             {PLAYER_OPTIONS.map((players) => {
                                                                 const selected = item.quantity === players;
                                                                 return (
@@ -1173,7 +1172,7 @@ export function Billing({
                                                                         key={players}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'quantity', players)}
-                                                                        className="py-2.5 font-mono text-[11px] tracking-[0.1em] transition-colors"
+                                                                        className="min-w-[42px] px-2.5 py-2 text-center font-mono text-[11px] transition-colors"
                                                                         style={{
                                                                             background: selected ? 'rgba(216,255,60,.12)' : 'transparent',
                                                                             border: selected ? '1px solid #d8ff3c' : '1px solid rgba(242,240,234,.14)',
@@ -1190,7 +1189,7 @@ export function Billing({
                                                 {/* Duration */}
                                                 <div className={CONTROL_ROW_CLASS}>
                                                     <div className={CONTROL_LABEL_CLASS}>DURATION</div>
-                                                    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+                                                    <div className="flex flex-wrap gap-1.5">
                                                         {DURATION_OPTIONS.map((dur) => {
                                                             const selected = item.duration === dur;
                                                             return (
@@ -1198,12 +1197,11 @@ export function Billing({
                                                                     key={dur}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'duration', dur)}
-                                                                    className=" py-3 text-sm font-bold transition-all duration-200"
+                                                                    className="min-w-[52px] px-2.5 py-2 text-center font-mono text-[11px] transition-colors"
                                                                     style={{
-                                                                        background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)',
-                                                                        border: selected ? '1.5px solid rgba(6,182,212,0.40)' : '1.5px solid rgba(255,255,255,0.07)',
+                                                                        background: selected ? 'rgba(216,255,60,0.12)' : 'transparent',
+                                                                        border: selected ? '1px solid #d8ff3c' : '1px solid rgba(242,240,234,0.14)',
                                                                         color: selected ? '#67e8f9' : '#64748b',
-                                                                        boxShadow: selected ? '0 0 20px -6px rgba(6,182,212,0.5)' : 'none',
                                                                     }}
                                                                 >
                                                                     {formatDurationLabel(dur)}
@@ -1218,7 +1216,8 @@ export function Billing({
                                                 {item.quantity === 1 && stationOptions(item.console).length > 0 && (
                                                     <div className={CONTROL_ROW_CLASS}>
                                                         <div className={CONTROL_LABEL_CLASS}>STATION</div>
-                                                        <div className="grid grid-cols-3 gap-2 md:grid-cols-4 xl:grid-cols-6">
+                                                        <div className="min-w-0">
+                                                        <div className="flex flex-wrap gap-1.5">
                                                             {[undefined, ...stationOptions(item.console)].map((station) => {
                                                                 const selected = item.station === station;
                                                                 return (
@@ -1228,10 +1227,9 @@ export function Billing({
                                                                         onClick={() => updateItem(item.id, 'station', station)}
                                                                         className=" py-3 text-xs font-bold uppercase tracking-wide transition-all duration-200"
                                                                         style={{
-                                                                            background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)',
-                                                                            border: selected ? '1.5px solid rgba(6,182,212,0.40)' : '1.5px solid rgba(255,255,255,0.07)',
+                                                                            background: selected ? 'rgba(216,255,60,0.12)' : 'transparent',
+                                                                            border: selected ? '1px solid #d8ff3c' : '1px solid rgba(242,240,234,0.14)',
                                                                             color: selected ? '#67e8f9' : '#64748b',
-                                                                            boxShadow: selected ? '0 0 20px -6px rgba(6,182,212,0.5)' : 'none',
                                                                         }}
                                                                     >
                                                                         {station ?? 'Any'}
@@ -1239,9 +1237,10 @@ export function Billing({
                                                                 );
                                                             })}
                                                         </div>
-                                                        <div className="mono mt-2 text-[11px] text-[var(--muted)]">
-                                                            Any picks the first machine free for this time. Choosing one
-                                                            fails the booking rather than moving the customer if it is taken.
+                                                            <div className="mt-2 font-mono text-[10.5px] leading-[1.6] text-[#f2f0ea]/[0.38]">
+                                                                Any picks the first machine free for this time. Choosing one
+                                                                fails the booking rather than moving the customer if it is taken.
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}

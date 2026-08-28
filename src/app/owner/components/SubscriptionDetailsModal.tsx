@@ -75,7 +75,7 @@ export default function SubscriptionDetailsModal({
                 <div style={{
                     padding: isMobile ? "20px 24px" : "28px 32px",
                     borderBottom: `1px solid ${theme.border}`,
-                    background: "rgba(16, 185, 129, 0.05)",
+                    background: "rgba(216, 255, 60, 0.05)",
                 }}>
                     <button
                         onClick={onClose}
@@ -388,8 +388,8 @@ export default function SubscriptionDetailsModal({
                             style={{
                                 flex: isMobile ? '1 1 100%' : '1',
                                 padding: isMobile ? "12px 20px" : "14px 24px",
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                border: `2px solid rgba(239, 68, 68, 0.4)`,
+                                background: 'rgba(255, 92, 43, 0.1)',
+                                border: `2px solid rgba(255, 92, 43, 0.4)`,
                                 borderRadius: 10,
                                 color: '#ff5c2b',
                                 fontSize: isMobile ? 14 : 15,

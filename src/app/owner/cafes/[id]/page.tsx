@@ -576,8 +576,8 @@ export default function OwnerCafeEditPage() {
             style={{
               padding: "16px 20px",
               borderRadius: 12,
-              background: "rgba(34, 197, 94, 0.1)",
-              border: "1px solid rgba(34, 197, 94, 0.3)",
+              background: "rgba(216, 255, 60, 0.1)",
+              border: "1px solid rgba(216, 255, 60, 0.3)",
               color: "#d8ff3c",
               marginBottom: 24,
               fontSize: 14,
@@ -597,8 +597,8 @@ export default function OwnerCafeEditPage() {
             style={{
               padding: "16px 20px",
               borderRadius: 12,
-              background: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
+              background: "rgba(255, 92, 43, 0.1)",
+              border: "1px solid rgba(255, 92, 43, 0.3)",
               color: "#ff5c2b",
               marginBottom: 24,
               fontSize: 14,
@@ -942,7 +942,7 @@ export default function OwnerCafeEditPage() {
                   border: "none",
                   background:
                     saving || !formData.name || !formData.address
-                      ? "rgba(34, 197, 94, 0.3)"
+                      ? "rgba(216, 255, 60, 0.3)"
                       : "#111113",
                   color: "#fff",
                   fontSize: 14,
@@ -951,7 +951,7 @@ export default function OwnerCafeEditPage() {
                   boxShadow:
                     saving || !formData.name || !formData.address
                       ? "none"
-                      : "0 4px 16px rgba(34, 197, 94, 0.3)",
+                      : "0 4px 16px rgba(216, 255, 60, 0.3)",
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
@@ -1177,7 +1177,7 @@ export default function OwnerCafeEditPage() {
                         padding: "12px 24px",
                         borderRadius: 8,
                         border: "none",
-                        background: newImageUrl ? "#111113" : "rgba(59, 130, 246, 0.3)",
+                        background: newImageUrl ? "#111113" : "rgba(216, 255, 60, 0.3)",
                         color: "#fff",
                         fontSize: 14,
                         fontWeight: 600,
@@ -1237,7 +1237,7 @@ export default function OwnerCafeEditPage() {
                             padding: "6px 10px",
                             borderRadius: 6,
                             border: "none",
-                            background: formData.cover_url === image.image_url ? "rgba(34, 197, 94, 0.9)" : "rgba(59, 130, 246, 0.9)",
+                            background: formData.cover_url === image.image_url ? "rgba(216, 255, 60, 0.9)" : "rgba(216, 255, 60, 0.9)",
                             color: "#fff",
                             fontSize: 11,
                             fontWeight: 600,
@@ -1258,7 +1258,7 @@ export default function OwnerCafeEditPage() {
                             padding: "6px 10px",
                             borderRadius: 6,
                             border: "none",
-                            background: "rgba(239, 68, 68, 0.9)",
+                            background: "rgba(255, 92, 43, 0.9)",
                             color: "#fff",
                             fontSize: 11,
                             fontWeight: 600,

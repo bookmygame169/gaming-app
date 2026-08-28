@@ -105,11 +105,11 @@ export function CafeDetailsTab() {
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(59, 130, 246, 0.4)";
+                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(216, 255, 60, 0.4)";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 16px rgba(59, 130, 246, 0.3)";
+                      e.currentTarget.style.boxShadow = "0 4px 16px rgba(216, 255, 60, 0.3)";
                     }}
                   >
                     <span style={{ fontSize: 20 }}>⚙️</span>
