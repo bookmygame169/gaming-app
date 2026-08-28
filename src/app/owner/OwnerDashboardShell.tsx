@@ -30,14 +30,17 @@ function OwnerDashboardView({ railCollapsed }: { railCollapsed: boolean }) {
       <div
         style={{
           minHeight: "100vh",
-          background: "#020617",
+          background: "#0b0b0c",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#f8fafc",
+          color: "#f2f0ea",
+          fontFamily: "ui-monospace, monospace",
+          letterSpacing: "0.16em",
+          fontSize: 12,
         }}
       >
-        Loading...
+        LOADING
       </div>
     );
   }

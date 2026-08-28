@@ -4,20 +4,23 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  /* Design system tokens */
-  --bg: #0a0a0f;
-  --card: #0d0d14;
-  --card-2: #11111a;
-  --stroke: rgba(255,255,255,0.07);
-  --stroke-2: rgba(255,255,255,0.12);
-  --text: #e7e9ee;
-  --muted: #8a8f9c;
-  --dim: #5b6170;
-  --cyan: #06b6d4;
-  --emerald: #10b981;
-  --violet: #8b5cf6;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Owner Console tokens — lime on near-black, cream type. */
+  --bg: #0b0b0c;
+  --card: #111113;
+  --card-2: #17171a;
+  --stroke: rgba(242, 240, 234, 0.10);
+  --stroke-2: rgba(242, 240, 234, 0.16);
+  --text: #f2f0ea;
+  --muted: rgba(242, 240, 234, 0.45);
+  --dim: rgba(242, 240, 234, 0.32);
+  --cyan: #d8ff3c;
+  --emerald: #d8ff3c;
+  --violet: #ffa53c;
+  --amber: #ffa53c;
+  --red: #ff5c2b;
+  --lime: #d8ff3c;
+  --cream: #f2f0ea;
+  --ink: #0b0b0c;
 }
 
 @theme inline {
@@ -95,8 +98,8 @@ body {
 .glow-selected {
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.08),
-    0 0 0 1.5px var(--cyan),
-    0 0 36px -6px rgba(6,182,212,0.6);
+    0 0 0 1.5px var(--lime),
+    0 0 36px -6px rgba(216, 255, 60, 0.35);
 }
 
 /* Dot grid background pattern for cards */
@@ -131,16 +134,14 @@ body {
 
 /* Focus ring for inputs */
 .focus-ring:focus-within {
-  box-shadow: 0 0 0 1.5px rgba(6,182,212,0.9), 0 0 28px -6px rgba(6,182,212,0.6);
+  box-shadow: 0 0 0 1.5px rgba(216, 255, 60, 0.85);
   border-color: transparent;
 }
 
-/* Owner background atmosphere */
+/* Owner Console ground. No cyan/violet orbs — the design is flat ink. */
 .owner-bg {
-  background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(6,182,212,0.07), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(139,92,246,0.05), transparent 60%),
-    #0a0a0f;
+  background: #0b0b0c;
+  color: #f2f0ea;
 }
 
 /* Performance optimizations */

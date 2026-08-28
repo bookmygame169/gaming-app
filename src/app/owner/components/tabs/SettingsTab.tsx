@@ -76,7 +76,7 @@ export default function SettingsTab({
     <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease-out", paddingBottom: settingsChanged ? 80 : 0 }}>
       {/* Sticky save bar */}
       {settingsChanged && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 px-6 py-4 bg-[#0d0d14]/95 border-t border-white/[0.08] backdrop-blur-md shadow-2xl shadow-black/50">
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 border-t border-[#f2f0ea]/10 bg-[#0b0b0c]/95 px-6 py-4 backdrop-blur-md">
           <div className="flex items-center gap-2 text-sm text-amber-400">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
             <span className="font-medium">Unsaved changes</span>

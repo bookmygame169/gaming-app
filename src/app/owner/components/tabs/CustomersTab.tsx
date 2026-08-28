@@ -105,10 +105,10 @@ function getSegment(customer: Customer): 'new' | 'regular' | 'vip' | 'lapsed' {
 }
 
 const SEGMENT_META: Record<string, { label: string; badge: string; chip: string; activeChip: string }> = {
-  new:     { label: 'New',     badge: '🆕', chip: 'border-sky-500/20 text-sky-400/70 hover:bg-sky-500/10',     activeChip: 'bg-sky-600/20 text-sky-300 border-sky-500/40' },
-  regular: { label: 'Regular', badge: '⭐', chip: 'border-amber-500/20 text-amber-400/70 hover:bg-amber-500/10', activeChip: 'bg-amber-600/20 text-amber-300 border-amber-500/40' },
-  vip:     { label: 'VIP',     badge: '👑', chip: 'border-violet-500/20 text-violet-400/70 hover:bg-violet-500/10', activeChip: 'bg-violet-600/20 text-violet-300 border-violet-500/40' },
-  lapsed:  { label: 'Lapsed',  badge: '💤', chip: 'border-red-500/20 text-red-400/70 hover:bg-red-500/10',      activeChip: 'bg-red-600/20 text-red-300 border-red-500/40' },
+  new:     { label: 'New',     badge: 'NEW', chip: 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]',     activeChip: 'border-[#d8ff3c] bg-[#d8ff3c]/[0.10] text-[#d8ff3c]' },
+  regular: { label: 'Regular', badge: 'REG', chip: 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]', activeChip: 'border-[#d8ff3c] bg-[#d8ff3c]/[0.10] text-[#d8ff3c]' },
+  vip:     { label: 'VIP',     badge: 'VIP', chip: 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]', activeChip: 'border-[#d8ff3c] bg-[#d8ff3c]/[0.10] text-[#d8ff3c]' },
+  lapsed:  { label: 'Lapsed',  badge: 'OUT', chip: 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]',      activeChip: 'border-[#ff5c2b] bg-[#ff5c2b]/[0.12] text-[#ff5c2b]' },
 };
 
 function WhatsAppBtn({ phone, name }: { phone: string; name: string }) {
@@ -298,8 +298,8 @@ export default function CustomersTab({
   };
 
   const SortIcon = ({ col }: { col: CustomerSortBy }) => {
-    if (customerSortBy !== col) return <ArrowUpDown size={11} className="text-slate-600" />;
-    return customerSortOrder === 'asc' ? <ArrowUp size={11} className="text-blue-400" /> : <ArrowDown size={11} className="text-blue-400" />;
+    if (customerSortBy !== col) return <ArrowUpDown size={11} className="text-[#f2f0ea]/30" />;
+    return customerSortOrder === 'asc' ? <ArrowUp size={11} className="text-[#d8ff3c]" /> : <ArrowDown size={11} className="text-[#d8ff3c]" />;
   };
 
   const today = getLocalDateString();
@@ -314,21 +314,20 @@ export default function CustomersTab({
 
   return (
     <div className="space-y-4">
-      {/* Segment chips */}
       <div className="flex flex-wrap gap-1.5">
         <button
           onClick={() => { setCurrentPage(1); setSegment('all'); }}
-          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${segment === 'all' ? 'bg-white/[0.1] text-white border-white/20' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
+          className={`border px-3 py-1 font-mono text-[10.5px] font-semibold tracking-[0.12em] transition-colors ${segment === 'all' ? 'border-[#d8ff3c] bg-[#d8ff3c]/[0.10] text-[#d8ff3c]' : 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]'}`}
         >
-          All <span className="ml-1 text-slate-500">{segmentCounts.all}</span>
+          ALL <span className="ml-1 opacity-70">{segmentCounts.all}</span>
         </button>
         {(['new', 'regular', 'vip', 'lapsed'] as const).map(seg => (
           <button
             key={seg}
             onClick={() => { setCurrentPage(1); setSegment(seg); }}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors border ${segment === seg ? SEGMENT_META[seg].activeChip : SEGMENT_META[seg].chip}`}
+            className={`border px-3 py-1 font-mono text-[10.5px] font-semibold tracking-[0.12em] transition-colors ${segment === seg ? SEGMENT_META[seg].activeChip : SEGMENT_META[seg].chip}`}
           >
-            {SEGMENT_META[seg].badge} {SEGMENT_META[seg].label}
+            {SEGMENT_META[seg].badge} {SEGMENT_META[seg].label.toUpperCase()}
             {segmentCounts[seg] > 0 && (
               <span className="ml-1.5 opacity-70">{segmentCounts[seg]}</span>
             )}
@@ -336,38 +335,35 @@ export default function CustomersTab({
         ))}
       </div>
 
-      {/* Search + filters */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative w-full flex-1 sm:max-w-sm">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#f2f0ea]/35" />
           <input
             type="text"
             placeholder="Name, phone, or email..."
             value={customerSearch}
             onChange={(e) => { setCurrentPage(1); setCustomerSearch(e.target.value); }}
-            className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.09] rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30"
+            className="h-[38px] w-full border border-[#f2f0ea]/[0.14] bg-transparent pl-9 pr-4 font-mono text-[12px] text-[#f2f0ea] outline-none placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
           />
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => { setCurrentPage(1); setHasSubscription(!hasSubscription); }}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${hasSubscription ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
+            className={`h-[38px] border px-3 font-mono text-[10.5px] font-semibold tracking-[0.12em] transition-colors ${hasSubscription ? 'border-[#d8ff3c] bg-[#d8ff3c]/[0.10] text-[#d8ff3c]' : 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]'}`}
           >
-            Active Plan
+            ACTIVE PLAN
           </button>
           <button
             onClick={() => { setCurrentPage(1); setHasMembership(!hasMembership); }}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${hasMembership ? 'bg-violet-600/20 text-violet-300 border-violet-500/40' : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'}`}
+            className={`h-[38px] border px-3 font-mono text-[10.5px] font-semibold tracking-[0.12em] transition-colors ${hasMembership ? 'border-[#d8ff3c] bg-[#d8ff3c]/[0.10] text-[#d8ff3c]' : 'border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]'}`}
           >
-            Members
+            MEMBERS
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] overflow-hidden">
-        {/* Desktop header */}
-        <div className="hidden md:grid grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] gap-3 px-4 py-3 bg-white/[0.03] border-b border-white/[0.06]">
+      <div className="overflow-hidden border border-[#f2f0ea]/10 bg-[#111113]">
+        <div className="hidden md:grid grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] gap-3 border-b border-[#f2f0ea]/10 px-4 py-3">
           {[
             { col: 'name' as CustomerSortBy, label: 'Customer' },
             { col: null, label: 'Phone' },
@@ -377,9 +373,9 @@ export default function CustomersTab({
             { col: 'lastVisit' as CustomerSortBy, label: 'Last Visit' },
             { col: null, label: '' },
           ].map(({ col, label }, i) => (
-            <div key={i} className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+            <div key={i} className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f2f0ea]/[0.42]">
               {col ? (
-                <button onClick={() => handleSort(col)} className="flex items-center gap-1 hover:text-slate-300 transition-colors">
+                <button onClick={() => handleSort(col)} className="flex items-center gap-1 transition-colors hover:text-[#d8ff3c]">
                   {label} <SortIcon col={col} />
                 </button>
               ) : label}
@@ -388,74 +384,69 @@ export default function CustomersTab({
         </div>
 
         {customers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <span className="text-4xl opacity-20">👥</span>
-            <p className="text-sm text-slate-400 font-medium">No customers found</p>
-            <p className="text-xs text-slate-600">
+          <div className="flex flex-col items-center justify-center gap-2 py-16">
+            <p className="text-sm font-medium text-[#f2f0ea]/70">No customers found</p>
+            <p className="font-mono text-[11px] text-[#f2f0ea]/40">
               {customerSearch || hasSubscription || hasMembership || segment !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Customers appear after bookings or memberships'}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.05]">
+          <div className="divide-y divide-[#f2f0ea]/10">
             {pagedCustomers.map((customer) => {
               const seg = getSegment(customer);
               const meta = SEGMENT_META[seg];
+              const tierClass = seg === 'lapsed'
+                ? 'border-[#ff5c2b]/40 bg-[#ff5c2b]/[0.12] text-[#ff5c2b]'
+                : 'border-[#d8ff3c]/40 bg-[#d8ff3c]/[0.10] text-[#d8ff3c]';
               return (
                 <div
                   key={customer.id}
                   onClick={() => handleViewCustomer(customer)}
-                  className="group flex items-center gap-3 px-3 py-3 transition-colors hover:bg-white/[0.04] cursor-pointer md:grid md:grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] md:px-4"
+                  className="group flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-[#f2f0ea]/[0.03] md:grid md:grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] md:px-4"
                 >
-                  {/* Customer name + avatar */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/30 to-purple-500/30 text-xs font-bold text-white md:h-8 md:w-8 md:text-sm">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center bg-[#d8ff3c] text-xs font-black text-[#0b0b0c] md:h-8 md:w-8 md:text-sm">
                       {customer.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-white transition-colors group-hover:text-blue-300 md:text-sm">{customer.name}</p>
-                      <p className="text-[11px] text-slate-500 truncate md:hidden">{customer.phone || customer.email || '-'}</p>
+                      <p className="truncate text-[15px] font-semibold text-[#f2f0ea] md:text-sm">{customer.name}</p>
+                      <p className="truncate font-mono text-[11px] text-[#f2f0ea]/45 md:hidden">{customer.phone || customer.email || '-'}</p>
                     </div>
                   </div>
                     <div className="mt-2 flex flex-wrap gap-1.5 md:hidden">
-                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5">
-                        <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Sessions</div>
-                        <div className="mt-0.5 text-[13px] font-semibold text-white">{customer.sessions}</div>
+                      <div className="border border-[#f2f0ea]/10 bg-[#0b0b0c] px-2.5 py-1.5">
+                        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Sessions</div>
+                        <div className="mt-0.5 text-[13px] font-semibold text-[#f2f0ea]">{customer.sessions}</div>
                       </div>
-                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5">
-                        <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Spent</div>
-                        <div className="mt-0.5 text-[13px] font-semibold text-emerald-400">₹{customer.totalSpent.toLocaleString('en-IN')}</div>
+                      <div className="border border-[#f2f0ea]/10 bg-[#0b0b0c] px-2.5 py-1.5">
+                        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Spent</div>
+                        <div className="mt-0.5 text-[13px] font-semibold text-[#d8ff3c]">₹{customer.totalSpent.toLocaleString('en-IN')}</div>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5 md:hidden">
-                      <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${seg === 'new' ? 'bg-sky-500/10 border-sky-500/20 text-sky-400' : seg === 'regular' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : seg === 'vip' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                        {meta.badge} {meta.label}
+                      <span className={`inline-flex items-center border px-2 py-0.5 font-mono text-[10px] font-semibold ${tierClass}`}>
+                        {meta.badge}
                       </span>
-                      <span className="text-[11px] text-slate-500">{getLastVisitDisplay(customer.lastVisit)}</span>
+                      <span className="font-mono text-[11px] text-[#f2f0ea]/45">{getLastVisitDisplay(customer.lastVisit)}</span>
                     </div>
                   </div>
-                  {/* Phone — desktop only */}
-                  <p className="hidden md:block text-sm text-slate-400 truncate">{customer.phone || '-'}</p>
-                  {/* Sessions */}
-                  <p className="hidden md:block text-sm font-semibold text-white">{customer.sessions}</p>
-                  {/* Spent */}
-                  <p className="hidden md:block text-sm font-semibold text-emerald-400">₹{customer.totalSpent.toLocaleString('en-IN')}</p>
-                  {/* Tier badge */}
-                  <div className="hidden md:flex items-center">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${seg === 'new' ? 'bg-sky-500/10 border-sky-500/20 text-sky-400' : seg === 'regular' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : seg === 'vip' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                      {meta.badge} {meta.label}
+                  <p className="hidden truncate font-mono text-sm text-[#f2f0ea]/55 md:block">{customer.phone || '-'}</p>
+                  <p className="hidden text-sm font-semibold text-[#f2f0ea] md:block">{customer.sessions}</p>
+                  <p className="hidden text-sm font-semibold text-[#d8ff3c] md:block">₹{customer.totalSpent.toLocaleString('en-IN')}</p>
+                  <div className="hidden items-center md:flex">
+                    <span className={`px-2 py-0.5 font-mono text-[10px] font-semibold ${tierClass} border`}>
+                      {meta.badge}
                     </span>
                   </div>
-                  {/* Last visit */}
-                  <p className="hidden md:block text-xs text-slate-500">{getLastVisitDisplay(customer.lastVisit)}</p>
-                  {/* Actions */}
+                  <p className="hidden font-mono text-xs text-[#f2f0ea]/45 md:block">{getLastVisitDisplay(customer.lastVisit)}</p>
                   <div className="ml-auto flex items-center gap-1.5 md:ml-0" onClick={e => e.stopPropagation()}>
                     {customer.phone && <WhatsAppBtn phone={customer.phone} name={customer.name} />}
                     <button
                       onClick={(e) => { e.stopPropagation(); handleViewCustomer(customer); }}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-indigo-500/20 bg-indigo-500/10 text-indigo-400 transition-colors hover:bg-indigo-500/20"
+                      className="flex h-7 w-7 items-center justify-center border border-[#f2f0ea]/[0.14] font-mono text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
                       title="View details"
                     >
                       <span className="text-sm">›</span>
@@ -468,24 +459,23 @@ export default function CustomersTab({
         )}
       </div>
 
-      {/* Pagination */}
       {customers.length > PAGE_SIZE && (
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs text-slate-500">
+          <span className="font-mono text-xs text-[#f2f0ea]/45">
             {(safeCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(safeCurrentPage * PAGE_SIZE, customers.length)} of {customers.length}
           </span>
           <div className="flex gap-1">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, Math.min(p, totalPages) - 1))}
               disabled={safeCurrentPage === 1}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >← Prev</button>
-            <span className="px-3 py-1.5 text-xs text-slate-400">{safeCurrentPage}/{totalPages}</span>
+              className="border border-[#f2f0ea]/[0.14] px-3 py-1.5 font-mono text-[10.5px] font-semibold text-[#f2f0ea]/55 transition-colors hover:text-[#f2f0ea] disabled:cursor-not-allowed disabled:opacity-40"
+            >← PREV</button>
+            <span className="px-3 py-1.5 font-mono text-xs text-[#f2f0ea]/45">{safeCurrentPage}/{totalPages}</span>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, Math.min(p, totalPages) + 1))}
               disabled={safeCurrentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >Next →</button>
+              className="border border-[#f2f0ea]/[0.14] px-3 py-1.5 font-mono text-[10.5px] font-semibold text-[#f2f0ea]/55 transition-colors hover:text-[#f2f0ea] disabled:cursor-not-allowed disabled:opacity-40"
+            >NEXT →</button>
           </div>
         </div>
       )}
