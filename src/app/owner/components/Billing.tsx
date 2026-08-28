@@ -714,7 +714,7 @@ export function Billing({
         if (!(showSuggestions && suggestionField === field && suggestions.length > 0)) return null;
 
         return (
-            <div className="glass absolute left-0 top-full z-[200] mt-2 max-h-56 w-full overflow-y-auto rounded-2xl">
+            <div className="glass absolute left-0 top-full z-[200] mt-2 max-h-56 w-full overflow-y-auto ">
                 {suggestions.map((suggestion, idx) => (
                     <button
                         key={`${suggestion.phone}-${idx}`}
@@ -723,13 +723,13 @@ export function Billing({
                             event.preventDefault();
                             applyCustomer(suggestion);
                         }}
-                        className="flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3 text-left transition last:border-b-0 hover:bg-white/[0.04]"
+                        className="flex w-full items-center gap-3 border-b border-[#f2f0ea]/[0.07] px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f2f0ea]/[0.04]"
                     >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/12 text-xs font-bold text-cyan-300">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#d8ff3c]/12 text-xs font-bold text-[#d8ff3c]">
                             {suggestion.name.charAt(0).toUpperCase()}
                         </span>
                         <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-white">{suggestion.name}</span>
+                            <span className="block truncate text-sm font-medium text-[#f2f0ea]">{suggestion.name}</span>
                             <span className="mono block text-[11px] text-[var(--muted)]">{suggestion.phone}</span>
                         </span>
                     </button>
@@ -750,25 +750,25 @@ export function Billing({
         <Card className={`overflow-visible space-y-5 ${SECTION_CARD_CLASS}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/12 text-cyan-300">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
                         <User size={18} />
                     </div>
                     <div>
                         <div className="text-[10px] smallcaps text-[var(--dim)]">Customer</div>
-                        <h3 className="text-base font-semibold text-white">{customerCardTitle}</h3>
+                        <h3 className="text-base font-semibold text-[#f2f0ea]">{customerCardTitle}</h3>
                     </div>
                 </div>
 
                 {matchedCustomer && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="chip border-transparent bg-cyan-500/12 text-cyan-200">Returning guest</span>
+                        <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">Returning guest</span>
                         {typeof matchedCustomer.visits === 'number' && (
-                            <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                            <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                 {matchedCustomer.visits} visit{matchedCustomer.visits === 1 ? '' : 's'}
                             </span>
                         )}
                         {matchedCustomer.last_visit && (
-                            <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                            <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                 Last {formatLastVisit(matchedCustomer.last_visit)}
                             </span>
                         )}
@@ -785,13 +785,13 @@ export function Billing({
                             charging them again for a session they have already
                             paid for is the mistake worth preventing. */}
                         {customerInsight?.wallet && customerInsight.wallet.balance > 0 && (
-                            <span className="chip border-transparent bg-emerald-500/12 text-emerald-200">
+                            <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                 ₹{customerInsight.wallet.balance} in wallet
                             </span>
                         )}
 
                         {customerInsight?.membership && (
-                            <span className="chip border-transparent bg-violet-500/12 text-violet-200">
+                            <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                 {customerInsight.membership.planName} ·{' '}
                                 {customerInsight.membership.hoursRemaining}h left
                             </span>
@@ -801,8 +801,8 @@ export function Billing({
                             <span
                                 className={`chip border-transparent ${
                                     customerInsight.loyalty.canRedeem
-                                        ? 'bg-emerald-500/12 text-emerald-200'
-                                        : 'bg-white/[0.06] text-slate-400'
+                                        ? 'bg-[#d8ff3c]/12 text-[#d8ff3c]'
+                                        : 'bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50'
                                 }`}
                             >
                                 {customerInsight.loyalty.balance} points
@@ -820,9 +820,9 @@ export function Billing({
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
                         Name
                     </label>
-                    <div className="relative glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                    <div className="relative glass-2 focus-ring border border-white/[0.07] px-3.5 py-2.5 transition">
                         <div className="flex items-center gap-2">
-                            <User size={16} className="text-slate-500" />
+                            <User size={16} className="text-[#f2f0ea]/40" />
                             <input
                                 value={customerName}
                                 onChange={(event) => {
@@ -832,7 +832,7 @@ export function Billing({
                                 onBlur={() => setTimeout(closeSuggestions, 150)}
                                 placeholder="Walk-in customer"
                                 maxLength={100}
-                                className="w-full bg-transparent text-sm text-white placeholder:text-[#4b5060] focus:outline-none"
+                                className="w-full bg-transparent text-sm text-[#f2f0ea] placeholder:text-[#4b5060] focus:outline-none"
                             />
                         </div>
                         {renderSuggestions('name')}
@@ -843,9 +843,9 @@ export function Billing({
                     <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--dim)]">
                         {mode === 'membership' || mode === 'advance' ? 'Phone Required' : 'Phone'}
                     </label>
-                    <div className="relative glass-2 focus-ring rounded-xl border border-white/[0.07] px-3.5 py-2.5 transition">
+                    <div className="relative glass-2 focus-ring border border-white/[0.07] px-3.5 py-2.5 transition">
                         <div className="flex items-center gap-2">
-                            <Smartphone size={16} className="text-slate-500" />
+                            <Smartphone size={16} className="text-[#f2f0ea]/40" />
                             <input
                                 value={customerPhone}
                                 onChange={(event) => {
@@ -855,7 +855,7 @@ export function Billing({
                                 onBlur={() => setTimeout(closeSuggestions, 150)}
                                 placeholder="98765 43210"
                                 maxLength={15}
-                                className="mono w-full bg-transparent text-sm text-white placeholder:text-[#4b5060] focus:outline-none"
+                                className="mono w-full bg-transparent text-sm text-[#f2f0ea] placeholder:text-[#4b5060] focus:outline-none"
                             />
                         </div>
                         {renderSuggestions('phone')}
@@ -868,11 +868,11 @@ export function Billing({
 
     return (
         <div className={`space-y-6 ${isMobile && isGamingFlow && !lastBooking && items.length > 0 ? 'pb-24' : isMobile ? 'pb-20' : ''}`}>
-            <div className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] px-4 py-4 shadow-[0_28px_56px_-40px_rgba(0,0,0,0.95)] sm:px-5">
+            <div className=" border border-[#f2f0ea]/10 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] px-4 py-4 shadow-[0_28px_56px_-40px_rgba(0,0,0,0.95)] sm:px-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1">
                         <div className="text-[10px] smallcaps text-[var(--dim)]">{modeIntro.eyebrow}</div>
-                        <h2 className="text-xl font-semibold tracking-tight text-white sm:text-[1.4rem]">{modeIntro.title}</h2>
+                        <h2 className="text-xl font-semibold tracking-tight text-[#f2f0ea] sm:text-[1.4rem]">{modeIntro.title}</h2>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -880,30 +880,30 @@ export function Billing({
                             <button
                                 type="button"
                                 onClick={onSnackOnlySale}
-                                className="glass-2 rounded-xl border border-orange-400/15 px-3.5 py-2.5 text-sm font-medium text-orange-300 transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-400/30 hover:bg-orange-500/10"
+                                className="glass-2 border border-[#ff5c2b]/15 px-3.5 py-2.5 text-sm font-medium text-[#ff5c2b] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#ff5c2b]/30 hover:bg-[#ff5c2b]/10"
                             >
                                 Snack-only sale
                             </button>
                         )}
-                        <div className="glass-2 inline-flex rounded-2xl border border-white/[0.08] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                        <div className="glass-2 inline-flex border border-[#f2f0ea]/10 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                             <button
                                 type="button"
                                 onClick={() => setMode('gaming')}
-                                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'gaming' ? 'bg-cyan-500/15 text-white shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                                className={` px-4 py-2.5 text-sm font-medium transition-all ${mode === 'gaming' ? 'bg-[#d8ff3c]/15 text-[#f2f0ea] shadow-[0_0_24px_-10px_rgba(34,211,238,0.75)]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                             >
                                 Walk-in
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setMode('advance')}
-                                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'advance' ? 'bg-amber-500/15 text-white shadow-[0_0_24px_-10px_rgba(245,158,11,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                                className={` px-4 py-2.5 text-sm font-medium transition-all ${mode === 'advance' ? 'bg-[#ff5c2b]/15 text-[#f2f0ea] shadow-[0_0_24px_-10px_rgba(245,158,11,0.75)]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                             >
                                 Advance
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setMode('membership')}
-                                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${mode === 'membership' ? 'bg-violet-500/15 text-white shadow-[0_0_24px_-10px_rgba(168,85,247,0.75)]' : 'text-slate-400 hover:text-white'}`}
+                                className={` px-4 py-2.5 text-sm font-medium transition-all ${mode === 'membership' ? 'bg-[#d8ff3c]/15 text-[#f2f0ea] shadow-[0_0_24px_-10px_rgba(168,85,247,0.75)]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                             >
                                 Membership
                             </button>
@@ -914,31 +914,31 @@ export function Billing({
 
             {isGamingFlow && lastBooking ? (
                 <div className="mx-auto max-w-xl space-y-4">
-                    <div className={`glass rounded-2xl px-5 py-4 ${lastBooking.kind === 'advance' ? 'border border-amber-500/20' : 'border border-emerald-500/20'}`}>
+                    <div className={`glass  px-5 py-4 ${lastBooking.kind === 'advance' ? 'border border-[#ff5c2b]/20' : 'border border-[#d8ff3c]/20'}`}>
                         <div className="flex items-center gap-4">
-                            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${lastBooking.kind === 'advance' ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
+                            <div className={`flex h-11 w-11 items-center justify-center  ${lastBooking.kind === 'advance' ? 'bg-[#ff5c2b]/15 text-[#ff5c2b]' : 'bg-[#d8ff3c]/15 text-[#d8ff3c]'}`}>
                                 <CheckCircle size={20} />
                             </div>
                             <div>
-                                <p className="text-lg font-semibold text-white">
+                                <p className="text-lg font-semibold text-[#f2f0ea]">
                                     {lastBooking.kind === 'advance' ? 'Payment link ready' : 'Booking confirmed'}
                                 </p>
-                                <p className={`text-sm ${lastBooking.kind === 'advance' ? 'text-amber-300/80' : 'text-emerald-300/80'}`}>{lastBooking.name}</p>
+                                <p className={`text-sm ${lastBooking.kind === 'advance' ? 'text-[#ff5c2b]/80' : 'text-[#d8ff3c]/80'}`}>{lastBooking.name}</p>
                             </div>
                         </div>
                     </div>
 
                     <Card className="overflow-hidden p-0">
                         {([
-                            lastBooking.cafeName ? { icon: <Store size={13} className="text-slate-500" />, label: 'Cafe', value: lastBooking.cafeName, highlight: false } : null,
-                            { icon: <CalendarDays size={13} className="text-slate-500" />, label: 'Date', value: lastBooking.date, highlight: false },
-                            { icon: <Clock size={13} className="text-slate-500" />, label: 'Time', value: `${lastBooking.time} (${formatDurationLabel(lastBooking.duration, { long: true })})`, highlight: false },
-                            { icon: <Gamepad2 size={13} className="text-slate-500" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
-                            { icon: <IndianRupee size={13} className={lastBooking.kind === 'advance' ? 'text-amber-400' : 'text-emerald-400'} />, label: lastBooking.kind === 'advance' ? 'Amount due' : 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
+                            lastBooking.cafeName ? { icon: <Store size={13} className="text-[#f2f0ea]/40" />, label: 'Cafe', value: lastBooking.cafeName, highlight: false } : null,
+                            { icon: <CalendarDays size={13} className="text-[#f2f0ea]/40" />, label: 'Date', value: lastBooking.date, highlight: false },
+                            { icon: <Clock size={13} className="text-[#f2f0ea]/40" />, label: 'Time', value: `${lastBooking.time} (${formatDurationLabel(lastBooking.duration, { long: true })})`, highlight: false },
+                            { icon: <Gamepad2 size={13} className="text-[#f2f0ea]/40" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
+                            { icon: <IndianRupee size={13} className={lastBooking.kind === 'advance' ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]'} />, label: lastBooking.kind === 'advance' ? 'Amount due' : 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
                         ] as const).filter(Boolean).map((row, index, rows) => (
-                            <div key={index} className={`flex items-center justify-between px-4 py-3 ${index < rows.length - 1 ? 'border-b border-white/[0.06]' : ''}`}>
-                                <span className="flex items-center gap-2 text-sm text-slate-500">{row!.icon}{row!.label}</span>
-                                <span className={`text-sm font-medium ${row!.highlight ? (lastBooking.kind === 'advance' ? 'text-amber-300' : 'text-emerald-300') : 'text-white'}`}>{row!.value}</span>
+                            <div key={index} className={`flex items-center justify-between px-4 py-3 ${index < rows.length - 1 ? 'border-b border-[#f2f0ea]/[0.07]' : ''}`}>
+                                <span className="flex items-center gap-2 text-sm text-[#f2f0ea]/40">{row!.icon}{row!.label}</span>
+                                <span className={`text-sm font-medium ${row!.highlight ? (lastBooking.kind === 'advance' ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]') : 'text-[#f2f0ea]'}`}>{row!.value}</span>
                             </div>
                         ))}
                     </Card>
@@ -948,7 +948,7 @@ export function Billing({
                             href={lastBooking.paymentLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="glass-2 flex items-center justify-between rounded-xl px-4 py-3 text-sm text-cyan-200 transition hover:border-cyan-400/30"
+                            className="glass-2 flex items-center justify-between px-4 py-3 text-sm text-[#d8ff3c] transition hover:border-[#d8ff3c]/30"
                         >
                             <span className="min-w-0 truncate">{lastBooking.paymentLink}</span>
                             <ExternalLink size={14} className="shrink-0" />
@@ -956,12 +956,12 @@ export function Billing({
                     )}
 
                     {autoResetSecs !== null && (
-                        <div className="glass-2 flex items-center justify-between rounded-xl px-3 py-2">
-                            <span className="text-xs text-slate-500">Auto-reset in</span>
+                        <div className="glass-2 flex items-center justify-between px-3 py-2">
+                            <span className="text-xs text-[#f2f0ea]/40">Auto-reset in</span>
                             <div className="flex items-center gap-2">
-                                <span className="mono text-sm font-bold text-white">{autoResetSecs}s</span>
-                                <div className="h-1 w-24 overflow-hidden rounded-full bg-white/[0.08]">
-                                    <div className="h-full rounded-full bg-cyan-400 transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
+                                <span className="mono text-sm font-bold text-[#f2f0ea]">{autoResetSecs}s</span>
+                                <div className="h-1 w-24 overflow-hidden rounded-full bg-[#f2f0ea]/[0.08]">
+                                    <div className="h-full rounded-full bg-[#d8ff3c] transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
                                 </div>
                             </div>
                         </div>
@@ -997,14 +997,14 @@ export function Billing({
                                         href={buildWhatsAppUrl(lastBooking.phone, message)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#20b558]"
+                                        className="flex items-center justify-center gap-2 bg-[#25D366] px-4 py-3 text-sm font-semibold text-[#f2f0ea] transition-colors hover:bg-[#20b558]"
                                     >
                                         {lastBooking.kind === 'advance' ? 'Send payment link' : 'Send on WhatsApp'}
                                     </a>
                                 );
                             })()
                         ) : (
-                            <div className="glass-2 flex items-center justify-center rounded-xl px-4 py-3 text-sm text-slate-500">
+                            <div className="glass-2 flex items-center justify-center px-4 py-3 text-sm text-[#f2f0ea]/40">
                                 No phone number
                             </div>
                         )}
@@ -1014,7 +1014,7 @@ export function Billing({
                                 setLastBooking(null);
                                 onSuccess?.();
                             }}
-                            className="glass-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:border-white/15"
+                            className="glass-2 px-4 py-3 text-sm font-semibold text-[#f2f0ea] transition hover:border-white/15"
                         >
                             New booking
                         </button>
@@ -1028,16 +1028,16 @@ export function Billing({
                         <Card className={`space-y-6 ${SECTION_CARD_CLASS}`}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
+                                    <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                         <Gamepad2 size={18} />
                                     </div>
                                     <div>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Session Builder</div>
-                                        <h3 className="text-base font-semibold text-white">Build shared session</h3>
+                                        <h3 className="text-base font-semibold text-[#f2f0ea]">Build shared session</h3>
                                         {items.length > 0 && (
                                             <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
                                                 <span>One customer bill</span>
-                                                <span className="text-slate-600">/</span>
+                                                <span className="text-[#f2f0ea]/30">/</span>
                                                 <span>Same start time</span>
                                             </div>
                                         )}
@@ -1055,9 +1055,9 @@ export function Billing({
                                     <div className="mb-3 flex items-center justify-between gap-3 px-1">
                                         <div>
                                             <div className="text-[10px] smallcaps text-[var(--dim)]">Available setups</div>
-                                            <div className="text-sm font-medium text-white">Start with the first console for this customer</div>
+                                            <div className="text-sm font-medium text-[#f2f0ea]">Start with the first console for this customer</div>
                                         </div>
-                                        <span className="chip border-transparent bg-white/[0.05] text-slate-300">
+                                        <span className="chip border-transparent bg-[#f2f0ea]/[0.05] text-[#f2f0ea]/70">
                                             {availableConsoles.length} type{availableConsoles.length === 1 ? '' : 's'}
                                         </span>
                                     </div>
@@ -1070,20 +1070,20 @@ export function Billing({
                                                     key={consoleType}
                                                     type="button"
                                                     onClick={() => setItems([createItem(consoleType)])}
-                                                    className={`relative overflow-hidden rounded-2xl p-4 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
+                                                    className={`relative overflow-hidden  p-4 text-left ${SUBPANEL_CLASS} ${HOVER_CARD_CLASS}`}
                                                     style={{ background: `linear-gradient(180deg, ${theme.accent}18, rgba(0,0,0,0)) , var(--card-2)` }}
                                                 >
                                                     <span className="absolute inset-0 grid-dots opacity-30" />
                                                     <div className="relative flex items-start justify-between gap-3">
-                                                        <span className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: `${theme.accent}22`, color: theme.accent }}>
+                                                        <span className="flex h-10 w-10 items-center justify-center text-sm font-bold text-[#f2f0ea]" style={{ background: `${theme.accent}22`, color: theme.accent }}>
                                                             {theme.short}
                                                         </span>
-                                                        <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                        <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                             {stationCount} station{stationCount === 1 ? '' : 's'}
                                                         </span>
                                                     </div>
                                                     <div className="relative mt-4">
-                                                        <div className="text-sm font-semibold text-white">{CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}</div>
+                                                        <div className="text-sm font-semibold text-[#f2f0ea]">{CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}</div>
                                                         <div className="mono mt-1 text-[11px] text-[var(--muted)]">Tap to add first line</div>
                                                     </div>
                                                 </button>
@@ -1099,16 +1099,16 @@ export function Billing({
                                         return (
                                             <div
                                                 key={item.id}
-                                                className="space-y-3 rounded-[26px] border border-white/[0.09] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_26px_48px_-34px_rgba(0,0,0,0.95)]"
+                                                className="space-y-3 rounded-[26px] border border-[#f2f0ea]/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_26px_48px_-34px_rgba(0,0,0,0.95)]"
                                             >
                                                 {/* Header row */}
                                                 <div className="flex items-center justify-between gap-2">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] smallcaps text-[var(--dim)]">
+                                                        <span className="rounded-full border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] px-2.5 py-1 text-[10px] smallcaps text-[var(--dim)]">
                                                             Item {index + 1}
                                                         </span>
                                                         <div>
-                                                            <div className="text-sm font-semibold text-white">
+                                                            <div className="text-sm font-semibold text-[#f2f0ea]">
                                                                 {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
                                                             </div>
                                                             <div className="text-[11px] text-[var(--muted)]">
@@ -1121,7 +1121,7 @@ export function Billing({
                                                         <button
                                                             type="button"
                                                             onClick={() => removeItem(item.id)}
-                                                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-500 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-400/30 hover:text-red-300"
+                                                            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#f2f0ea]/10 text-[#f2f0ea]/40 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#ff5c2b]/30 hover:text-[#ff5c2b]"
                                                         >
                                                             <Trash2 size={13} />
                                                         </button>
@@ -1142,7 +1142,7 @@ export function Billing({
                                                                     key={consoleType}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'console', consoleType)}
-                                                                    className={`relative overflow-hidden rounded-2xl border p-3 text-left transition-all duration-200 ${selected ? '' : HOVER_CARD_CLASS}`}
+                                                                    className={`relative overflow-hidden  border p-3 text-left transition-all duration-200 ${selected ? '' : HOVER_CARD_CLASS}`}
                                                                     style={{
                                                                         background: selected
                                                                             ? `linear-gradient(180deg, ${t.accent}20, rgba(255,255,255,0.025) 55%, rgba(0,0,0,0) 100%), var(--card-2)`
@@ -1156,7 +1156,7 @@ export function Billing({
                                                                     <span className="absolute inset-0 grid-dots opacity-20" />
                                                                     <div className="relative flex flex-col gap-2">
                                                                         <div className="flex items-center justify-between gap-2">
-                                                                            <span className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold" style={{ background: `${t.accent}22`, color: t.accent }}>
+                                                                            <span className="flex h-9 w-9 items-center justify-center text-xs font-bold" style={{ background: `${t.accent}22`, color: t.accent }}>
                                                                                 {t.short}
                                                                             </span>
                                                                             <span
@@ -1171,7 +1171,7 @@ export function Billing({
                                                                             </span>
                                                                         </div>
                                                                         <div>
-                                                                            <div className="text-sm font-semibold text-white">
+                                                                            <div className="text-sm font-semibold text-[#f2f0ea]">
                                                                                 {CONSOLE_LABELS[consoleType as keyof typeof CONSOLE_LABELS] || consoleType.toUpperCase()}
                                                                             </div>
                                                                             <div className="text-[11px]" style={{ color: selected ? t.accent : 'var(--muted)' }}>
@@ -1197,7 +1197,7 @@ export function Billing({
                                                                         key={players}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'quantity', players)}
-                                                                        className="rounded-xl py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
+                                                                        className=" py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
                                                                         style={{
                                                                             background: selected ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
                                                                             border: selected ? '1.5px solid rgba(255,255,255,0.20)' : '1.5px solid rgba(255,255,255,0.07)',
@@ -1222,7 +1222,7 @@ export function Billing({
                                                                     key={dur}
                                                                     type="button"
                                                                     onClick={() => updateItem(item.id, 'duration', dur)}
-                                                                    className="rounded-xl py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
+                                                                    className=" py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5"
                                                                     style={{
                                                                         background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)',
                                                                         border: selected ? '1.5px solid rgba(6,182,212,0.40)' : '1.5px solid rgba(255,255,255,0.07)',
@@ -1250,7 +1250,7 @@ export function Billing({
                                                                         key={station ?? 'any'}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'station', station)}
-                                                                        className="rounded-xl py-3 text-xs font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
+                                                                        className=" py-3 text-xs font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
                                                                         style={{
                                                                             background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)',
                                                                             border: selected ? '1.5px solid rgba(6,182,212,0.40)' : '1.5px solid rgba(255,255,255,0.07)',
@@ -1282,12 +1282,12 @@ export function Billing({
                     <div className="space-y-5">
                         <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-300">
+                                <div className="flex h-10 w-10 items-center justify-center bg-[#ff5c2b]/12 text-[#ff5c2b]">
                                     <Clock size={18} />
                                 </div>
                                 <div>
                                     <div className="text-[10px] smallcaps text-[var(--dim)]">Summary</div>
-                                    <h3 className="text-base font-semibold text-white">
+                                    <h3 className="text-base font-semibold text-[#f2f0ea]">
                                         {isAdvanceMode ? 'Create payment link' : 'Collect payment'}
                                     </h3>
                                 </div>
@@ -1296,11 +1296,11 @@ export function Billing({
                             <div className={`${GAMING_SUMMARY_HERO_CLASS} p-5`}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <div className="text-[10px] smallcaps text-cyan-200/70">
+                                        <div className="text-[10px] smallcaps text-[#d8ff3c]/70">
                                             {isAdvanceMode ? 'Payable by customer' : 'Due now'}
                                         </div>
-                                        <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-white">Rs.{totalAmount}</div>
-                                        <p className="mt-2 text-sm text-cyan-100/70">
+                                        <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-[#f2f0ea]">Rs.{totalAmount}</div>
+                                        <p className="mt-2 text-sm text-[#d8ff3c]/70">
                                             {items.length > 0
                                                 ? isAdvanceMode
                                                     ? `${items.length} booking line${items.length === 1 ? '' : 's'} ready for payment link`
@@ -1308,18 +1308,18 @@ export function Billing({
                                                 : 'Add a setup to begin billing'}
                                         </p>
                                     </div>
-                                    <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
+                                    <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-3 py-1.5 text-xs font-semibold text-[#d8ff3c]">
                                         {(isAdvanceMode ? 'upi' : paymentMode).toUpperCase()}
                                     </span>
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 gap-3">
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Calculated</div>
-                                        <div className="mono mt-2 text-lg font-semibold text-white">Rs.{calculatedTotal}</div>
+                                        <div className="mono mt-2 text-lg font-semibold text-[#f2f0ea]">Rs.{calculatedTotal}</div>
                                     </div>
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Payment mode</div>
-                                        <div className="mt-2 text-lg font-semibold text-white">{isAdvanceMode ? 'UPI' : paymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
+                                        <div className="mt-2 text-lg font-semibold text-[#f2f0ea]">{isAdvanceMode ? 'UPI' : paymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1327,27 +1327,27 @@ export function Billing({
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <label className={`${CONTROL_SURFACE_CLASS} focus-ring px-3.5 py-3 transition`}>
                                     <div className="mb-1.5 flex items-center gap-2 text-[10px] smallcaps text-[var(--dim)]">
-                                        <CalendarDays size={13} className="text-slate-500" />
+                                        <CalendarDays size={13} className="text-[#f2f0ea]/40" />
                                         Date
                                     </div>
                                     <input
                                         type="date"
                                         value={bookingDate}
                                         onChange={(event) => setBookingDate(event.target.value)}
-                                        className="w-full bg-transparent text-sm text-white focus:outline-none"
+                                        className="w-full bg-transparent text-sm text-[#f2f0ea] focus:outline-none"
                                         style={{ colorScheme: 'dark' }}
                                     />
                                 </label>
                                 <label className={`${CONTROL_SURFACE_CLASS} focus-ring px-3.5 py-3 transition`}>
                                     <div className="mb-1.5 flex items-center gap-2 text-[10px] smallcaps text-[var(--dim)]">
-                                        <Clock size={13} className="text-slate-500" />
+                                        <Clock size={13} className="text-[#f2f0ea]/40" />
                                         Start Time
                                     </div>
                                     <input
                                         type="time"
                                         value={startTime}
                                         onChange={(event) => setStartTime(event.target.value)}
-                                        className="mono w-full bg-transparent text-sm text-white focus:outline-none"
+                                        className="mono w-full bg-transparent text-sm text-[#f2f0ea] focus:outline-none"
                                         style={{ colorScheme: 'dark' }}
                                     />
                                 </label>
@@ -1357,13 +1357,13 @@ export function Billing({
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between gap-3 px-1">
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Booking lines</div>
-                                        <div className="text-[11px] font-medium text-cyan-200/80">Shared start {startTime || '--:--'}</div>
+                                        <div className="text-[11px] font-medium text-[#d8ff3c]/80">Shared start {startTime || '--:--'}</div>
                                     </div>
                                     {items.map((item) => (
                                         <div key={item.id} className={`${CONTROL_SURFACE_CLASS} flex items-center justify-between gap-3 px-3.5 py-3`}>
                                             <div className="flex items-center gap-3">
                                                 <span
-                                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+                                                    className="flex h-10 w-10 shrink-0 items-center justify-center text-sm font-bold"
                                                     style={{
                                                         background: `${getConsoleTheme(item.console).accent}1a`,
                                                         color: getConsoleTheme(item.console).accent,
@@ -1372,7 +1372,7 @@ export function Billing({
                                                     {getConsoleTheme(item.console).short}
                                                 </span>
                                                 <div>
-                                                    <div className="text-sm font-medium text-white">
+                                                    <div className="text-sm font-medium text-[#f2f0ea]">
                                                         {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
                                                     </div>
                                                     <div className="text-[11px] text-[var(--muted)]">
@@ -1381,14 +1381,14 @@ export function Billing({
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="mono text-sm font-semibold text-white">Rs.{item.price}</div>
+                                                <div className="mono text-sm font-semibold text-[#f2f0ea]">Rs.{item.price}</div>
                                                 <div className="text-[11px] text-[var(--muted)]">Auto station</div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className={`${CONTROL_SURFACE_CLASS} rounded-2xl px-4 py-6 text-center text-sm text-[var(--muted)]`}>
+                                <div className={`${CONTROL_SURFACE_CLASS}  px-4 py-6 text-center text-sm text-[var(--muted)]`}>
                                     Select a console to start building the booking.
                                 </div>
                             )}
@@ -1396,12 +1396,12 @@ export function Billing({
                             <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
-                                    <span className="mono rounded-full bg-white/[0.04] px-3 py-1 text-xs text-slate-300">Calc Rs.{calculatedTotal}</span>
+                                    <span className="mono rounded-full bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{calculatedTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
                                     <span className="text-sm text-[var(--muted)]">Charge customer</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="mono text-sm text-white">Rs.</span>
+                                        <span className="mono text-sm text-[#f2f0ea]">Rs.</span>
                                         <input
                                             type="number"
                                             value={manualAmount !== null ? manualAmount : calculatedTotal}
@@ -1410,14 +1410,14 @@ export function Billing({
                                                 setManualAmount(value === calculatedTotal ? null : value);
                                             }}
                                             min={0}
-                                            className="mono w-32 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right text-lg font-semibold text-white focus:border-cyan-400/40 focus:outline-none"
+                                            className="mono w-32 border border-white/[0.07] bg-[#f2f0ea]/[0.04] px-3 py-2 text-right text-lg font-semibold text-[#f2f0ea] focus:border-[#d8ff3c]/40 focus:outline-none"
                                         />
                                     </div>
                                 </div>
                                 {manualAmount !== null && manualAmount !== calculatedTotal && (
                                     <div className="mt-3 flex items-center justify-between text-xs">
-                                        <span className="text-amber-300">Manual override applied</span>
-                                        <button type="button" onClick={resetManualAmount} className="text-slate-400 underline transition hover:text-white">
+                                        <span className="text-[#ff5c2b]">Manual override applied</span>
+                                        <button type="button" onClick={resetManualAmount} className="text-[#f2f0ea]/50 underline transition hover:text-[#f2f0ea]">
                                             Reset
                                         </button>
                                     </div>
@@ -1425,10 +1425,10 @@ export function Billing({
                             </div>
 
                             {isAdvanceMode ? (
-                                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-amber-100">
-                                    <Smartphone className="mb-3 text-amber-300" size={20} />
+                                <div className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 p-4 text-[#ff5c2b]">
+                                    <Smartphone className="mb-3 text-[#ff5c2b]" size={20} />
                                     <div className="text-sm font-semibold">UPI payment link</div>
-                                    <div className="mt-1 text-xs text-amber-100/70">
+                                    <div className="mt-1 text-xs text-[#ff5c2b]/70">
                                         Payment is locked to UPI. Share the generated link and confirm after checking Paytm Business.
                                     </div>
                                 </div>
@@ -1437,7 +1437,7 @@ export function Billing({
                                     <button
                                         type="button"
                                         onClick={() => setPaymentMode('cash')}
-                                        className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200 shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                        className={` border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'cash' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c] shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-[#f2f0ea]/70 hover:border-white/15'}`}
                                     >
                                         <Banknote className="mb-3" size={20} />
                                         <div className="text-sm font-semibold">Cash</div>
@@ -1446,7 +1446,7 @@ export function Billing({
                                     <button
                                         type="button"
                                         onClick={() => setPaymentMode('upi')}
-                                        className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'upi' ? 'border-cyan-400/30 bg-cyan-500/12 text-cyan-100 shadow-[0_18px_36px_-22px_rgba(34,211,238,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                        className={` border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${paymentMode === 'upi' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c] shadow-[0_18px_36px_-22px_rgba(34,211,238,0.8)]' : 'glass-2 text-[#f2f0ea]/70 hover:border-white/15'}`}
                                     >
                                         <Smartphone className="mb-3" size={20} />
                                         <div className="text-sm font-semibold">UPI</div>
@@ -1456,25 +1456,25 @@ export function Billing({
                             )}
 
                             {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && !upiPayee && (
-                                <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/[0.06] px-3 py-2 text-xs text-[#ff5c2b]">
                                     Add your UPI id under Payments to show a QR here. Until then, collect
                                     this one by cash or your own QR.
                                 </p>
                             )}
 
                             {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && upiPayee && (
-                                <div className="space-y-3 rounded-[24px] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(34,211,238,0.7)]">
+                                <div className="space-y-3 border border-[#d8ff3c]/15 bg-[linear-gradient(180deg,rgba(6,182,212,0.08),rgba(6,182,212,0.03))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(34,211,238,0.7)]">
                                     <div className="flex items-center justify-between gap-3 text-left">
                                         <div>
-                                            <div className="text-[10px] smallcaps text-cyan-200/70">UPI collect</div>
-                                            <div className="text-sm font-semibold text-white">Scan and receive Rs.{totalAmount}</div>
+                                            <div className="text-[10px] smallcaps text-[#d8ff3c]/70">UPI collect</div>
+                                            <div className="text-sm font-semibold text-[#f2f0ea]">Scan and receive Rs.{totalAmount}</div>
                                         </div>
-                                        <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] text-cyan-100">
+                                        <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
                                             Tap QR
                                         </span>
                                     </div>
                                     <div
-                                        className="inline-flex cursor-pointer rounded-2xl bg-[#d4d4d4] p-3 transition"
+                                        className="inline-flex cursor-pointer bg-[#d4d4d4] p-3 transition"
                                         onClick={() => setQrExpanded((value) => !value)}
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
@@ -1486,14 +1486,14 @@ export function Billing({
                                             level="Q"
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400">
-                                        Scan to pay <span className="font-semibold text-white">Rs.{totalAmount}</span> via UPI.
+                                    <p className="text-xs text-[#f2f0ea]/50">
+                                        Scan to pay <span className="font-semibold text-[#f2f0ea]">Rs.{totalAmount}</span> via UPI.
                                     </p>
                                 </div>
                             )}
 
                             {formError && (
-                                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">{formError}</p>
+                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 text-sm text-[#ff5c2b]">{formError}</p>
                             )}
 
                             <Button
@@ -1515,12 +1515,12 @@ export function Billing({
                         <Card className={`space-y-6 ${SECTION_CARD_CLASS}`}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
+                                    <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                         <Star size={18} />
                                     </div>
                                     <div>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Membership Cart</div>
-                                        <h3 className="text-base font-semibold text-white">Select plans</h3>
+                                        <h3 className="text-base font-semibold text-[#f2f0ea]">Select plans</h3>
                                     </div>
                                 </div>
                                 {membershipPlans.length > 0 && (
@@ -1531,18 +1531,18 @@ export function Billing({
                             </div>
 
                             {membershipPlans.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-white/[0.08] px-4 py-10 text-center">
-                                    <p className="text-sm text-slate-400">No membership plans configured.</p>
-                                    <p className="mt-1 text-xs text-slate-500">Add plans in the Memberships tab first.</p>
+                                <div className=" border border-dashed border-[#f2f0ea]/10 px-4 py-10 text-center">
+                                    <p className="text-sm text-[#f2f0ea]/50">No membership plans configured.</p>
+                                    <p className="mt-1 text-xs text-[#f2f0ea]/40">Add plans in the Memberships tab first.</p>
                                 </div>
                             ) : memItems.length === 0 ? (
                                 <div className={`${CONTROL_SURFACE_CLASS} p-3`}>
                                     <div className="mb-3 flex items-center justify-between gap-3 px-1">
                                         <div>
                                             <div className="text-[10px] smallcaps text-[var(--dim)]">Available plans</div>
-                                            <div className="text-sm font-medium text-white">Start the checkout with the plan you want to sell</div>
+                                            <div className="text-sm font-medium text-[#f2f0ea]">Start the checkout with the plan you want to sell</div>
                                         </div>
-                                        <span className="chip border-transparent bg-white/[0.05] text-slate-300">
+                                        <span className="chip border-transparent bg-[#f2f0ea]/[0.05] text-[#f2f0ea]/70">
                                             {membershipPlans.length} plan{membershipPlans.length === 1 ? '' : 's'}
                                         </span>
                                     </div>
@@ -1552,17 +1552,17 @@ export function Billing({
                                             key={plan.id}
                                             type="button"
                                             onClick={() => setMemItems([{ id: Math.random().toString(36).substr(2, 9), planId: plan.id, quantity: 1 }])}
-                                            className={`${SUBPANEL_CLASS} rounded-2xl p-4 text-left ${HOVER_CARD_CLASS}`}
+                                            className={`${SUBPANEL_CLASS}  p-4 text-left ${HOVER_CARD_CLASS}`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/14 text-sm font-bold text-violet-300">
+                                                <span className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/14 text-sm font-bold text-[#d8ff3c]">
                                                     {plan.console_type?.slice(0, 2).toUpperCase() || 'PL'}
                                                 </span>
-                                                <span className="chip border-transparent bg-violet-500/12 text-violet-200">
+                                                <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                                     Rs.{plan.price}
                                                 </span>
                                             </div>
-                                            <div className="mt-4 text-sm font-semibold text-white">{plan.name}</div>
+                                            <div className="mt-4 text-sm font-semibold text-[#f2f0ea]">{plan.name}</div>
                                             <div className="mt-1 text-[11px] text-[var(--muted)]">
                                                 {plan.plan_type === 'day_pass' ? 'Day pass' : `${plan.hours || 0}h`} · {plan.validity_days} days
                                             </div>
@@ -1576,31 +1576,31 @@ export function Billing({
                                         const plan = membershipPlans.find((entry) => entry.id === item.planId);
                                         const lineTotal = plan ? plan.price * item.quantity : 0;
                                         return (
-                                            <div key={item.id} className="rounded-[26px] border border-white/[0.09] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_26px_48px_-34px_rgba(0,0,0,0.95)]">
+                                            <div key={item.id} className="rounded-[26px] border border-[#f2f0ea]/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_26px_48px_-34px_rgba(0,0,0,0.95)]">
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0 flex-1">
                                                         <label className="mb-1.5 block text-[10px] smallcaps text-[var(--dim)]">Plan</label>
                                                         <select
                                                             value={item.planId}
                                                             onChange={(event) => updateMemItem(item.id, 'planId', event.target.value)}
-                                                            className="w-full rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5 text-sm text-white focus:border-violet-400/30 focus:outline-none"
+                                                            className="w-full border border-white/[0.07] bg-[#f2f0ea]/[0.04] px-3 py-2.5 text-sm text-[#f2f0ea] focus:border-[#d8ff3c]/30 focus:outline-none"
                                                             style={{ colorScheme: 'dark' }}
                                                         >
                                                             {membershipPlans.map((option) => (
-                                                                <option key={option.id} value={option.id} className="bg-[#11111a] text-white">
+                                                                <option key={option.id} value={option.id} className="bg-[#11111a] text-[#f2f0ea]">
                                                                     {option.name}
                                                                 </option>
                                                             ))}
                                                         </select>
                                                         {plan && (
                                                             <div className="mt-2 flex flex-wrap gap-2">
-                                                                <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                                <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                                     {plan.console_type?.toUpperCase()}
                                                                 </span>
-                                                                <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                                <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                                     {plan.plan_type === 'day_pass' ? 'Day pass' : `${plan.hours || 0}h`}
                                                                 </span>
-                                                                <span className="chip border-transparent bg-white/[0.06] text-slate-300">
+                                                                <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                                     {plan.validity_days} days
                                                                 </span>
                                                             </div>
@@ -1610,7 +1610,7 @@ export function Billing({
                                                     <button
                                                         type="button"
                                                         onClick={() => removeMemItem(item.id)}
-                                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-slate-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-400/30 hover:text-red-300"
+                                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-[#f2f0ea]/10 text-[#f2f0ea]/50 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#ff5c2b]/30 hover:text-[#ff5c2b]"
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -1623,15 +1623,15 @@ export function Billing({
                                                         <button
                                                             type="button"
                                                             onClick={() => updateMemItem(item.id, 'quantity', Math.max(1, item.quantity - 1))}
-                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white/15"
+                                                            className="glass-2 flex h-9 w-9 items-center justify-center text-[#f2f0ea] transition-all duration-200 hover:-translate-y-0.5 hover:border-white/15"
                                                         >
                                                             -
                                                         </button>
-                                                        <span className="mono w-10 text-center text-sm font-semibold text-white">{item.quantity}</span>
+                                                        <span className="mono w-10 text-center text-sm font-semibold text-[#f2f0ea]">{item.quantity}</span>
                                                         <button
                                                             type="button"
                                                             onClick={() => updateMemItem(item.id, 'quantity', Math.min(20, item.quantity + 1))}
-                                                            className="glass-2 flex h-9 w-9 items-center justify-center rounded-xl text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white/15"
+                                                            className="glass-2 flex h-9 w-9 items-center justify-center text-[#f2f0ea] transition-all duration-200 hover:-translate-y-0.5 hover:border-white/15"
                                                         >
                                                             +
                                                         </button>
@@ -1639,7 +1639,7 @@ export function Billing({
                                                     </div>
                                                     <div className="text-right">
                                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Line total</div>
-                                                        <div className="mono text-base font-semibold text-white">Rs.{lineTotal}</div>
+                                                        <div className="mono text-base font-semibold text-[#f2f0ea]">Rs.{lineTotal}</div>
                                                         {plan && item.quantity > 1 && (
                                                             <div className="text-[11px] text-[var(--muted)]">Rs.{plan.price} each</div>
                                                         )}
@@ -1656,38 +1656,38 @@ export function Billing({
                     <div className="space-y-5">
                         <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/12 text-violet-300">
+                                <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                     <CreditCard size={18} />
                                 </div>
                                 <div>
                                     <div className="text-[10px] smallcaps text-[var(--dim)]">Payment</div>
-                                    <h3 className="text-base font-semibold text-white">Checkout plan</h3>
+                                    <h3 className="text-base font-semibold text-[#f2f0ea]">Checkout plan</h3>
                                 </div>
                             </div>
 
                             <div className={`${MEMBERSHIP_SUMMARY_HERO_CLASS} p-5`}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <div className="text-[10px] smallcaps text-violet-200/70">Due now</div>
-                                        <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-white">Rs.{memTotalAmount}</div>
-                                        <p className="mt-2 text-sm text-violet-100/70">
+                                        <div className="text-[10px] smallcaps text-[#d8ff3c]/70">Due now</div>
+                                        <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-[#f2f0ea]">Rs.{memTotalAmount}</div>
+                                        <p className="mt-2 text-sm text-[#d8ff3c]/70">
                                             {memItems.length > 0
                                                 ? `${memItems.length} cart line${memItems.length === 1 ? '' : 's'} ready for checkout`
                                                 : 'Add a membership plan to begin checkout'}
                                         </p>
                                     </div>
-                                    <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200">
+                                    <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-3 py-1.5 text-xs font-semibold text-[#d8ff3c]">
                                         {memPaymentMode.toUpperCase()}
                                     </span>
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 gap-3">
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Calculated</div>
-                                        <div className="mono mt-2 text-lg font-semibold text-white">Rs.{memCalculatedTotal}</div>
+                                        <div className="mono mt-2 text-lg font-semibold text-[#f2f0ea]">Rs.{memCalculatedTotal}</div>
                                     </div>
                                     <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
                                         <div className="text-[10px] smallcaps text-[var(--dim)]">Payment mode</div>
-                                        <div className="mt-2 text-lg font-semibold text-white">{memPaymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
+                                        <div className="mt-2 text-lg font-semibold text-[#f2f0ea]">{memPaymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1699,19 +1699,19 @@ export function Billing({
                                     return (
                                         <div key={item.id} className={`${CONTROL_SURFACE_CLASS} flex items-center justify-between gap-3 px-3.5 py-3`}>
                                             <div className="flex items-center gap-3">
-                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/14 text-sm font-bold text-violet-300">
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#d8ff3c]/14 text-sm font-bold text-[#d8ff3c]">
                                                     {plan.console_type?.slice(0, 2).toUpperCase() || 'PL'}
                                                 </span>
                                                 <div>
-                                                    <div className="text-sm font-medium text-white">{plan.name}</div>
+                                                    <div className="text-sm font-medium text-[#f2f0ea]">{plan.name}</div>
                                                     <div className="text-[11px] text-[var(--muted)]">Qty {item.quantity}</div>
                                                 </div>
                                             </div>
-                                            <div className="mono text-sm font-semibold text-white">Rs.{plan.price * item.quantity}</div>
+                                            <div className="mono text-sm font-semibold text-[#f2f0ea]">Rs.{plan.price * item.quantity}</div>
                                         </div>
                                     );
                                 }) : (
-                                    <div className={`${CONTROL_SURFACE_CLASS} rounded-2xl px-4 py-6 text-center text-sm text-[var(--muted)]`}>
+                                    <div className={`${CONTROL_SURFACE_CLASS}  px-4 py-6 text-center text-sm text-[var(--muted)]`}>
                                         Select a plan to start the checkout.
                                     </div>
                                 )}
@@ -1720,12 +1720,12 @@ export function Billing({
                             <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="text-[10px] smallcaps text-[var(--dim)]">Final amount</div>
-                                    <span className="mono rounded-full bg-white/[0.04] px-3 py-1 text-xs text-slate-300">Calc Rs.{memCalculatedTotal}</span>
+                                    <span className="mono rounded-full bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{memCalculatedTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
                                     <span className="text-sm text-[var(--muted)]">Charge customer</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="mono text-sm text-white">Rs.</span>
+                                        <span className="mono text-sm text-[#f2f0ea]">Rs.</span>
                                         <input
                                             type="number"
                                             value={memManualAmount !== null ? memManualAmount : memCalculatedTotal}
@@ -1735,14 +1735,14 @@ export function Billing({
                                             }}
                                             min={0}
                                             step={1}
-                                            className="mono w-32 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-right text-lg font-semibold text-white focus:border-violet-400/30 focus:outline-none"
+                                            className="mono w-32 border border-white/[0.07] bg-[#f2f0ea]/[0.04] px-3 py-2 text-right text-lg font-semibold text-[#f2f0ea] focus:border-[#d8ff3c]/30 focus:outline-none"
                                         />
                                     </div>
                                 </div>
                                 {memManualAmount !== null && memManualAmount !== memCalculatedTotal && (
                                     <div className="mt-3 flex items-center justify-between text-xs">
-                                        <span className="text-amber-300">Manual override applied</span>
-                                        <button type="button" onClick={() => setMemManualAmount(null)} className="text-slate-400 underline transition hover:text-white">
+                                        <span className="text-[#ff5c2b]">Manual override applied</span>
+                                        <button type="button" onClick={() => setMemManualAmount(null)} className="text-[#f2f0ea]/50 underline transition hover:text-[#f2f0ea]">
                                             Reset
                                         </button>
                                     </div>
@@ -1753,7 +1753,7 @@ export function Billing({
                                 <button
                                     type="button"
                                     onClick={() => setMemPaymentMode('cash')}
-                                    className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${memPaymentMode === 'cash' ? 'border-emerald-400/30 bg-emerald-500/12 text-emerald-200 shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    className={` border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${memPaymentMode === 'cash' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c] shadow-[0_18px_36px_-22px_rgba(16,185,129,0.8)]' : 'glass-2 text-[#f2f0ea]/70 hover:border-white/15'}`}
                                 >
                                     <Banknote className="mb-3" size={20} />
                                     <div className="text-sm font-semibold">Cash</div>
@@ -1762,7 +1762,7 @@ export function Billing({
                                 <button
                                     type="button"
                                     onClick={() => setMemPaymentMode('upi')}
-                                    className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${memPaymentMode === 'upi' ? 'border-violet-400/30 bg-violet-500/12 text-violet-100 shadow-[0_18px_36px_-22px_rgba(168,85,247,0.8)]' : 'glass-2 text-slate-300 hover:border-white/15'}`}
+                                    className={` border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 ${memPaymentMode === 'upi' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c] shadow-[0_18px_36px_-22px_rgba(168,85,247,0.8)]' : 'glass-2 text-[#f2f0ea]/70 hover:border-white/15'}`}
                                 >
                                     <Smartphone className="mb-3" size={20} />
                                     <div className="text-sm font-semibold">UPI</div>
@@ -1771,24 +1771,24 @@ export function Billing({
                             </div>
 
                             {memPaymentMode === 'upi' && memTotalAmount > 0 && !upiPayee && (
-                                <p className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/[0.06] px-3 py-2 text-xs text-[#ff5c2b]">
                                     Add your UPI id under Payments to show a QR here.
                                 </p>
                             )}
 
                             {memPaymentMode === 'upi' && memTotalAmount > 0 && upiPayee && (
-                                <div className="space-y-3 rounded-[24px] border border-violet-400/15 bg-[linear-gradient(180deg,rgba(168,85,247,0.09),rgba(168,85,247,0.04))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(168,85,247,0.7)]">
+                                <div className="space-y-3 border border-[#d8ff3c]/15 bg-[linear-gradient(180deg,rgba(168,85,247,0.09),rgba(168,85,247,0.04))] px-4 py-4 text-center shadow-[0_20px_40px_-28px_rgba(168,85,247,0.7)]">
                                     <div className="flex items-center justify-between gap-3 text-left">
                                         <div>
-                                            <div className="text-[10px] smallcaps text-violet-200/70">UPI collect</div>
-                                            <div className="text-sm font-semibold text-white">Scan and receive Rs.{memTotalAmount}</div>
+                                            <div className="text-[10px] smallcaps text-[#d8ff3c]/70">UPI collect</div>
+                                            <div className="text-sm font-semibold text-[#f2f0ea]">Scan and receive Rs.{memTotalAmount}</div>
                                         </div>
-                                        <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-2.5 py-1 text-[11px] text-violet-100">
+                                        <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
                                             Tap QR
                                         </span>
                                     </div>
                                     <div
-                                        className="inline-flex cursor-pointer rounded-2xl bg-[#d4d4d4] p-3 transition"
+                                        className="inline-flex cursor-pointer bg-[#d4d4d4] p-3 transition"
                                         onClick={() => setQrExpanded((value) => !value)}
                                         title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
                                     >
@@ -1800,14 +1800,14 @@ export function Billing({
                                             level="Q"
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400">
-                                        Scan to pay <span className="font-semibold text-white">Rs.{memTotalAmount}</span> via UPI.
+                                    <p className="text-xs text-[#f2f0ea]/50">
+                                        Scan to pay <span className="font-semibold text-[#f2f0ea]">Rs.{memTotalAmount}</span> via UPI.
                                     </p>
                                 </div>
                             )}
 
                             {formError && (
-                                <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">{formError}</p>
+                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 text-sm text-[#ff5c2b]">{formError}</p>
                             )}
 
                             <Button
@@ -1825,21 +1825,21 @@ export function Billing({
 
             {/* Sticky mobile confirm bar */}
             {isMobile && isGamingFlow && !lastBooking && items.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 border-t border-white/[0.08] bg-[#0d0d14]/95 px-4 py-3 backdrop-blur-md">
+                <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 border-t border-[#f2f0ea]/10 bg-[#0d0d14]/95 px-4 py-3 backdrop-blur-md">
                     <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-slate-500 font-medium">Total</p>
-                        <p className="text-xl font-bold text-white leading-none">₹{totalAmount}</p>
+                        <p className="text-[10px] text-[#f2f0ea]/40 font-medium">Total</p>
+                        <p className="text-xl font-bold text-[#f2f0ea] leading-none">₹{totalAmount}</p>
                     </div>
                     <div className="flex gap-2">
                         {isAdvanceMode ? (
-                            <span className="rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 py-2 text-sm font-semibold text-amber-200">
+                            <span className=" border border-[#ff5c2b]/30 bg-[#ff5c2b]/15 px-3 py-2 text-sm font-semibold text-[#ff5c2b]">
                                 UPI
                             </span>
                         ) : (
                             <button
                                 type="button"
                                 onClick={() => setPaymentMode(paymentMode === 'cash' ? 'upi' : 'cash')}
-                                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${paymentMode === 'cash' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'}`}
+                                className={` border px-3 py-2 text-sm font-semibold transition-colors ${paymentMode === 'cash' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/15 text-[#d8ff3c]' : 'border-[#d8ff3c]/30 bg-[#d8ff3c]/15 text-[#d8ff3c]'}`}
                             >
                                 {paymentMode === 'cash' ? 'Cash' : 'UPI'}
                             </button>
@@ -1848,7 +1848,7 @@ export function Billing({
                             onClick={handleSubmit}
                             loading={submitting}
                             disabled={submitting}
-                            className="px-5 py-2 rounded-xl text-sm font-bold"
+                            className="px-5 py-2 text-sm font-bold"
                         >
                             {isAdvanceMode ? 'Create link' : 'Confirm'}
                         </Button>
