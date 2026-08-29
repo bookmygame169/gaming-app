@@ -4,6 +4,8 @@ import { phoneKey } from '@/lib/phone';
 import { BookingRow } from '../../types';
 import { getLocalDateString } from '../../utils';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Kpis } from '../consoleUi';
+import { buildWhatsAppUrl } from '../../utils';
 
 type CustomerSortBy = 'name' | 'sessions' | 'totalSpent' | 'lastVisit';
 
@@ -29,6 +31,7 @@ type Customer = {
   email: string | null;
   hasActiveSubscription: boolean;
   hasMembership: boolean;
+  firstVisit: string;
   id: string;
   lastVisit: string;
   membershipSpendIncluded: boolean;
@@ -93,6 +96,9 @@ function getActiveSubscription(subscription: CustomerSubscription | null) {
   if (!subscription.expiry_date) return subscription;
   return new Date(subscription.expiry_date) > new Date() ? subscription : null;
 }
+
+/** The design's seven tracks for the customer table. */
+const CUSTOMER_COLUMNS = 'minmax(140px,1.3fr) 112px 66px 96px 84px 90px 104px';
 
 function getSegment(customer: Customer): 'new' | 'regular' | 'vip' | 'lapsed' {
   const daysSinceVisit = customer.lastVisit
@@ -178,6 +184,10 @@ export default function CustomersTab({
         if (bookingDate && new Date(bookingDate) > new Date(existing.lastVisit || 0)) {
           existing.lastVisit = bookingDate;
         }
+        // The design's "since" line — when this person first turned up.
+        if (bookingDate && (!existing.firstVisit || new Date(bookingDate) < new Date(existing.firstVisit))) {
+          existing.firstVisit = bookingDate;
+        }
         if (!existing.phone && customerPhone) existing.phone = customerPhone;
         if (!existing.email && customerEmail) existing.email = customerEmail;
         if (existing.name === 'Unknown' && customerName !== 'Unknown') existing.name = customerName;
@@ -188,6 +198,7 @@ export default function CustomersTab({
           activeSubscription: null,
           email: customerEmail,
           hasActiveSubscription: false,
+          firstVisit: bookingDate,
           hasMembership: isMembershipBooking,
           id: customerId,
           lastVisit: bookingDate,
@@ -236,6 +247,7 @@ export default function CustomersTab({
         customerMap.set(customerId, {
           activeSubscription,
           email: null,
+          firstVisit: purchaseDate,
           hasActiveSubscription: Boolean(activeSubscription),
           hasMembership: true,
           id: customerId,
@@ -291,6 +303,54 @@ export default function CustomersTab({
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pagedCustomers = customers.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
 
+  // ── the figures the design opens on, and the two lists under them ──
+  const lifetimeTotal = allCustomers.reduce((sum, c) => sum + c.totalSpent, 0);
+  const memberCount = allCustomers.filter((c) => c.hasMembership).length;
+  const avgLifetime = allCustomers.length > 0 ? Math.round(lifetimeTotal / allCustomers.length) : 0;
+  const biggestSpend = Math.max(1, ...allCustomers.map((c) => c.totalSpent));
+
+  /** Regulars and VIPs who have not been in for a month — the ones worth a message. */
+  const winBack = allCustomers
+    .filter((c) => getSegment(c) === 'lapsed' && c.totalSpent > 0 && c.phone)
+    .sort((a, b) => b.totalSpent - a.totalSpent)
+    .slice(0, 4);
+
+  /** What each segment is worth, which is not the same as how many are in it. */
+  const segmentRevenue = (['vip', 'regular', 'new', 'lapsed'] as const).map((seg) => {
+    const inSeg = allCustomers.filter((c) => getSegment(c) === seg);
+    const revenue = inSeg.reduce((sum, c) => sum + c.totalSpent, 0);
+    return {
+      key: seg,
+      label: SEGMENT_META[seg].label.toUpperCase(),
+      people: inSeg.length,
+      revenue,
+      share: lifetimeTotal > 0 ? Math.round((revenue / lifetimeTotal) * 100) : 0,
+    };
+  }).sort((a, b) => b.revenue - a.revenue);
+
+  const exportCustomersCsv = () => {
+    const header = ['Customer', 'Phone', 'Segment', 'Visits', 'Lifetime', 'Avg bill', 'Last seen', 'Member since'];
+    const rows = customers.map((c) => [
+      c.name,
+      c.phone || '',
+      SEGMENT_META[getSegment(c)].label,
+      String(c.sessions),
+      String(Math.round(c.totalSpent)),
+      String(c.sessions > 0 ? Math.round(c.totalSpent / c.sessions) : 0),
+      c.lastVisit || '',
+      c.firstVisit || '',
+    ]);
+    const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+    const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `customers-${today}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleSort = (col: CustomerSortBy) => {
     setCurrentPage(1);
     if (customerSortBy === col) setCustomerSortOrder(customerSortOrder === 'asc' ? 'desc' : 'asc');
@@ -313,7 +373,56 @@ export default function CustomersTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-[18px]">
+      {/* The design opens on four figures: how many people, how many of them
+          come back, what they are worth, and what one visit is worth. */}
+      <Kpis
+        items={[
+          { label: 'CUSTOMERS', value: String(allCustomers.length), sub: `${segmentCounts.new} new · ${segmentCounts.regular} regular` },
+          {
+            label: 'VIPS',
+            value: String(segmentCounts.vip),
+            tone: segmentCounts.vip > 0 ? 'lime' : 'ink',
+            sub: `${memberCount} on a membership`,
+          },
+          {
+            label: 'LAPSED',
+            value: String(segmentCounts.lapsed),
+            tone: segmentCounts.lapsed > 0 ? 'orange' : 'ink',
+            sub: segmentCounts.lapsed > 0 ? 'not in for a month' : 'everyone still coming',
+          },
+          { label: 'AVG LIFETIME', value: `₹${avgLifetime.toLocaleString('en-IN')}`, sub: `₹${lifetimeTotal.toLocaleString('en-IN')} across everyone` },
+        ]}
+      />
+
+      {/* The people worth a message today, with the message one tap away. */}
+      {winBack.length > 0 && (
+        <div className="flex flex-wrap items-center gap-[9px] border border-[#ff5c2b]/[0.28] bg-[#ff5c2b]/[0.06] px-[15px] py-[13px]">
+          <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#ff5c2b]">
+            WIN BACK · {segmentCounts.lapsed}
+          </span>
+          {winBack.map((c) => (
+            <a
+              key={c.id}
+              href={buildWhatsAppUrl(c.phone || '', `Hi ${c.name}, we have not seen you at PlayTime in a while — your station is waiting.`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 border border-[#f2f0ea]/[0.14] bg-[#111113] px-2.5 py-[7px] transition-colors hover:border-[#d8ff3c]"
+            >
+              <span className="whitespace-nowrap text-[12.5px] font-bold text-[#f2f0ea]">{c.name}</span>
+              <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/45">
+                {getLastVisitDisplay(c.lastVisit)}
+              </span>
+              <span className="font-mono text-[9.5px] tracking-[0.1em] text-[#d8ff3c]">WHATSAPP</span>
+            </a>
+          ))}
+          <span className="min-w-[10px] flex-1" />
+          <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/40">
+            ₹{winBack.reduce((sum, c) => sum + c.totalSpent, 0).toLocaleString('en-IN')} AT RISK
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-1.5">
         <button
           onClick={() => { setCurrentPage(1); setSegment('all'); }}
@@ -327,7 +436,7 @@ export default function CustomersTab({
             onClick={() => { setCurrentPage(1); setSegment(seg); }}
             className={`border px-3 py-1 font-mono text-[10.5px] font-semibold tracking-[0.12em] transition-colors ${segment === seg ? SEGMENT_META[seg].activeChip : SEGMENT_META[seg].chip}`}
           >
-            {SEGMENT_META[seg].badge} {SEGMENT_META[seg].label.toUpperCase()}
+            {SEGMENT_META[seg].label.toUpperCase()}
             {segmentCounts[seg] > 0 && (
               <span className="ml-1.5 opacity-70">{segmentCounts[seg]}</span>
             )}
@@ -363,17 +472,20 @@ export default function CustomersTab({
       </div>
 
       <div className="overflow-hidden border border-[#f2f0ea]/10 bg-[#111113]">
-        <div className="hidden md:grid grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] gap-3 border-b border-[#f2f0ea]/10 px-4 py-3">
+        <div
+          className="hidden gap-[9px] border-b border-[#f2f0ea]/10 px-4 py-2.5 md:grid"
+          style={{ gridTemplateColumns: CUSTOMER_COLUMNS }}
+        >
           {[
-            { col: 'name' as CustomerSortBy, label: 'Customer' },
-            { col: null, label: 'Phone' },
-            { col: 'sessions' as CustomerSortBy, label: 'Sessions' },
-            { col: 'totalSpent' as CustomerSortBy, label: 'Spent' },
-            { col: null, label: 'Tier' },
-            { col: 'lastVisit' as CustomerSortBy, label: 'Last Visit' },
-            { col: null, label: '' },
-          ].map(({ col, label }, i) => (
-            <div key={i} className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f2f0ea]/[0.42]">
+            { col: 'name' as CustomerSortBy, label: 'CUSTOMER', align: '' },
+            { col: null, label: 'SEGMENT', align: '' },
+            { col: 'sessions' as CustomerSortBy, label: 'VISITS', align: 'justify-end' },
+            { col: 'totalSpent' as CustomerSortBy, label: 'LIFETIME', align: 'justify-end' },
+            { col: null, label: 'AVG BILL', align: 'justify-end' },
+            { col: 'lastVisit' as CustomerSortBy, label: 'LAST SEEN', align: 'justify-end' },
+            { col: null, label: 'ACTIONS', align: 'justify-end' },
+          ].map(({ col, label, align }, i) => (
+            <div key={i} className={`flex font-mono text-[9px] tracking-[0.14em] text-[#f2f0ea]/35 ${align}`}>
               {col ? (
                 <button onClick={() => handleSort(col)} className="flex items-center gap-1 transition-colors hover:text-[#d8ff3c]">
                   {label} <SortIcon col={col} />
@@ -397,59 +509,108 @@ export default function CustomersTab({
             {pagedCustomers.map((customer) => {
               const seg = getSegment(customer);
               const meta = SEGMENT_META[seg];
-              const tierClass = seg === 'lapsed'
-                ? 'border-[#ff5c2b]/40 bg-[#ff5c2b]/[0.12] text-[#ff5c2b]'
-                : 'border-[#d8ff3c]/40 bg-[#d8ff3c]/[0.10] text-[#d8ff3c]';
+              const segTone = seg === 'lapsed'
+                ? { background: 'rgba(255,92,43,.12)', color: '#ff5c2b' }
+                : seg === 'vip'
+                  ? { background: 'rgba(216,255,60,.12)', color: '#d8ff3c' }
+                  : { background: 'rgba(242,240,234,.07)', color: 'rgba(242,240,234,.6)' };
+              const avgBill = customer.sessions > 0 ? Math.round(customer.totalSpent / customer.sessions) : 0;
+              const spendShare = Math.round((customer.totalSpent / biggestSpend) * 100);
+              // From `today` rather than Date.now(): a clock read during render
+              // is impure, and this only needs day resolution anyway.
+              const daysSince = customer.lastVisit
+                ? Math.floor((new Date(today).getTime() - new Date(customer.lastVisit).getTime()) / 86400000)
+                : 999;
+
               return (
                 <div
                   key={customer.id}
                   onClick={() => handleViewCustomer(customer)}
-                  className="group flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-[#f2f0ea]/[0.03] md:grid md:grid-cols-[minmax(180px,1fr)_120px_80px_100px_90px_100px_80px] md:px-4"
+                  className="group flex cursor-pointer items-center gap-[9px] px-3 py-3 transition-colors hover:bg-[#17171a] md:grid md:px-4"
+                  style={{
+                    gridTemplateColumns: CUSTOMER_COLUMNS,
+                    // The design edges a row by how the person is doing.
+                    borderLeft: `2px solid ${seg === 'lapsed' ? '#ff5c2b' : seg === 'vip' ? '#d8ff3c' : 'transparent'}`,
+                  }}
                 >
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center bg-[#d8ff3c] text-xs font-black text-[#0b0b0c] md:h-8 md:w-8 md:text-sm">
+                  {/* Customer: the one round thing in this console, as drawn. */}
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-black"
+                      style={segTone}
+                    >
                       {customer.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-[#f2f0ea] md:text-sm">{customer.name}</p>
-                      <p className="truncate font-mono text-[11px] text-[#f2f0ea]/45 md:hidden">{customer.phone || customer.email || '-'}</p>
-                    </div>
-                  </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5 md:hidden">
-                      <div className="border border-[#f2f0ea]/10 bg-[#0b0b0c] px-2.5 py-1.5">
-                        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Sessions</div>
-                        <div className="mt-0.5 text-[13px] font-semibold text-[#f2f0ea]">{customer.sessions}</div>
+                    </span>
+                    <div className="flex min-w-0 flex-col gap-[3px]">
+                      <div className="flex min-w-0 items-center gap-[7px]">
+                        <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">{customer.name}</span>
+                        {customer.hasMembership && (
+                          <span className="shrink-0 bg-[#7dd3fc]/[0.12] px-1.5 py-0.5 font-mono text-[8.5px] tracking-[0.12em] text-[#7dd3fc]">
+                            MEMBER
+                          </span>
+                        )}
                       </div>
-                      <div className="border border-[#f2f0ea]/10 bg-[#0b0b0c] px-2.5 py-1.5">
-                        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#f2f0ea]/40">Spent</div>
-                        <div className="mt-0.5 text-[13px] font-semibold text-[#d8ff3c]">₹{customer.totalSpent.toLocaleString('en-IN')}</div>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-1.5 md:hidden">
-                      <span className={`inline-flex items-center border px-2 py-0.5 font-mono text-[10px] font-semibold ${tierClass}`}>
-                        {meta.badge}
+                      <span className="truncate font-mono text-[10px] text-[#f2f0ea]/35">
+                        {customer.phone || customer.email || '—'}
+                        {customer.firstVisit && ` · since ${new Date(customer.firstVisit).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}`}
                       </span>
-                      <span className="font-mono text-[11px] text-[#f2f0ea]/45">{getLastVisitDisplay(customer.lastVisit)}</span>
                     </div>
                   </div>
-                  <p className="hidden truncate font-mono text-sm text-[#f2f0ea]/55 md:block">{customer.phone || '-'}</p>
-                  <p className="hidden text-sm font-semibold text-[#f2f0ea] md:block">{customer.sessions}</p>
-                  <p className="hidden text-sm font-semibold text-[#d8ff3c] md:block">₹{customer.totalSpent.toLocaleString('en-IN')}</p>
-                  <div className="hidden items-center md:flex">
-                    <span className={`px-2 py-0.5 font-mono text-[10px] font-semibold ${tierClass} border`}>
+
+                  <span
+                    className="hidden justify-self-start whitespace-nowrap px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] md:inline-block"
+                    style={segTone}
+                  >
+                    {meta.badge}
+                  </span>
+
+                  <span className="hidden text-right font-mono text-[11.5px] text-[#f2f0ea]/70 md:block">
+                    {customer.sessions}
+                  </span>
+
+                  {/* Lifetime, with a bar against the biggest spender so the
+                      column ranks as well as reports. */}
+                  <div className="hidden min-w-0 flex-col gap-1 md:flex">
+                    <span className="text-right text-[13px] font-extrabold text-[#f2f0ea]">
+                      ₹{customer.totalSpent.toLocaleString('en-IN')}
+                    </span>
+                    <div className="h-1 bg-[#f2f0ea]/[0.08]">
+                      <div
+                        className="ml-auto h-1"
+                        style={{ width: `${spendShare}%`, background: seg === 'lapsed' ? '#ff5c2b' : '#d8ff3c' }}
+                      />
+                    </div>
+                  </div>
+
+                  <span className="hidden text-right font-mono text-[11.5px] text-[#f2f0ea]/60 md:block">
+                    ₹{avgBill.toLocaleString('en-IN')}
+                  </span>
+
+                  <span
+                    className="hidden whitespace-nowrap text-right font-mono text-[11.5px] md:block"
+                    style={{ color: daysSince > 30 ? '#ff5c2b' : daysSince > 14 ? '#ffa53c' : 'rgba(242,240,234,.6)' }}
+                  >
+                    {getLastVisitDisplay(customer.lastVisit)}
+                  </span>
+
+                  {/* Mobile keeps the figures the grid hides. */}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 md:hidden">
+                    <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em]" style={segTone}>
                       {meta.badge}
                     </span>
+                    <span className="font-mono text-[11px] text-[#f2f0ea]/45">
+                      {customer.sessions} visits · ₹{customer.totalSpent.toLocaleString('en-IN')} · {getLastVisitDisplay(customer.lastVisit)}
+                    </span>
                   </div>
-                  <p className="hidden font-mono text-xs text-[#f2f0ea]/45 md:block">{getLastVisitDisplay(customer.lastVisit)}</p>
-                  <div className="ml-auto flex items-center gap-1.5 md:ml-0" onClick={e => e.stopPropagation()}>
+
+                  <div className="ml-auto flex items-center justify-end gap-[5px] md:ml-0" onClick={e => e.stopPropagation()}>
                     {customer.phone && <WhatsAppBtn phone={customer.phone} name={customer.name} />}
                     <button
                       onClick={(e) => { e.stopPropagation(); handleViewCustomer(customer); }}
-                      className="flex h-7 w-7 items-center justify-center border border-[#f2f0ea]/[0.14] font-mono text-[#f2f0ea]/55 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
-                      title="View details"
+                      className="flex h-[26px] w-[26px] items-center justify-center border border-[#f2f0ea]/[0.14] font-mono text-[11px] text-[#f2f0ea]/55 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea]"
+                      title="Open profile"
                     >
-                      <span className="text-sm">›</span>
+                      →
                     </button>
                   </div>
                 </div>
@@ -457,7 +618,63 @@ export default function CustomersTab({
             })}
           </div>
         )}
+
+        {/* The design's footer strip. */}
+        <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
+          <span className="truncate">
+            {customers.length} of {allCustomers.length} customers · ₹{lifetimeTotal.toLocaleString('en-IN')} lifetime
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={exportCustomersCsv}
+            className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c]"
+          >
+            EXPORT CSV →
+          </button>
+        </div>
       </div>
+
+      {/* Which segment the money actually comes from — not the same question
+          as how many people are in it. */}
+      <section>
+        <div className="mb-3 flex items-center gap-3">
+          <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+            SEGMENTS · REVENUE SHARE
+          </span>
+          <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+          <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/40">
+            ₹{lifetimeTotal.toLocaleString('en-IN')} all time
+          </span>
+        </div>
+        <div className="flex flex-col gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+          {segmentRevenue.map((row) => {
+            const tone = row.key === 'lapsed' ? '#ff5c2b' : row.key === 'vip' ? '#d8ff3c' : 'rgba(242,240,234,.55)';
+            return (
+              <div
+                key={row.key}
+                className="grid items-center gap-3 bg-[#111113] px-4 py-3"
+                style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,100px) 96px' }}
+              >
+                <div className="flex min-w-0 flex-col gap-[3px]">
+                  <span className="truncate font-mono text-[11px] tracking-[0.08em]" style={{ color: tone }}>
+                    {row.label}
+                  </span>
+                  <span className="truncate font-mono text-[10px] text-[#f2f0ea]/35">
+                    {row.people} {row.people === 1 ? 'person' : 'people'} · {row.share}% of revenue
+                  </span>
+                </div>
+                <div className="h-1.5 bg-[#f2f0ea]/[0.08]">
+                  <div className="h-1.5" style={{ width: `${row.share}%`, background: tone }} />
+                </div>
+                <span className="whitespace-nowrap text-right font-mono text-[11.5px]" style={{ color: tone }}>
+                  ₹{row.revenue.toLocaleString('en-IN')}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {customers.length > PAGE_SIZE && (
         <div className="flex items-center justify-between px-1">
