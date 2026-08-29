@@ -14,6 +14,7 @@ import {
     Tag,
 } from './consoleUi';
 import { XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { buildWhatsAppUrl } from '../utils';
 
 type MembershipPlanType = 'day_pass' | 'hourly_package';
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -243,7 +244,61 @@ export function Memberships({
 
     // Filter Logic
     const MEMBER_COLUMNS = 'minmax(150px,1.4fr) minmax(0,1fr) 158px 96px 200px';
-    const PLAN_COLUMNS = 'minmax(150px,1.6fr) 92px 110px 80px 120px';
+    const PLAN_COLUMNS = 'minmax(160px,1.6fr) 92px 110px 66px 96px 78px 96px';
+
+    /** Everything every plan has taken, which the per-plan bar is a share of. */
+    const planRevenueTotal = cafeSubscriptions.reduce(
+        (sum, sub) => sum + (Number(sub.amount_paid) || 0), 0
+    );
+
+    const downloadCsv = (name: string, header: string[], rows: string[][]) => {
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportMembersCsv = () => downloadCsv('memberships', 
+        ['Member', 'Phone', 'Plan', 'Paid', 'Hours bought', 'Hours left', 'Expires', 'Status'],
+        filteredSubscriptions.map((sub) => [
+            sub.customer_name || '',
+            sub.customer_phone || '',
+            sub.membership_plans?.name || '',
+            String(sub.amount_paid ?? ''),
+            sub.is_unlimited ? 'unlimited' : String(sub.hours_purchased ?? ''),
+            sub.is_unlimited ? 'unlimited' : String(sub.hours_remaining ?? ''),
+            sub.expiry_date || '',
+            sub.status || '',
+        ]));
+
+    const exportPlansCsv = () => downloadCsv('membership-plans',
+        ['Plan', 'Console', 'Price', 'Hours', 'Validity days', 'Sold', 'Revenue'],
+        cafeMembershipPlans.map((plan) => {
+            const on = cafeSubscriptions.filter((sub) => sub.membership_plan_id === plan.id);
+            return [
+                plan.name,
+                plan.console_type || '',
+                String(plan.price),
+                plan.is_unlimited ? 'unlimited' : String(plan.hours ?? ''),
+                String(plan.validity_days ?? ''),
+                String(on.length),
+                String(Math.round(on.reduce((sum, sub) => sum + (Number(sub.amount_paid) || 0), 0))),
+            ];
+        }));
+
+    /** Passes inside their last week, worth a message before they lapse. */
+    const expiringSoon = cafeSubscriptions
+        .filter((sub) => {
+            if (!sub.expiry_date || sub.status !== 'active') return false;
+            const days = Math.ceil((new Date(sub.expiry_date).getTime() - Date.now()) / 86400000);
+            return days >= 0 && days <= 7;
+        })
+        .sort((a, b) => new Date(a.expiry_date || 0).getTime() - new Date(b.expiry_date || 0).getTime());
 
     const filteredSubscriptions = useMemo(() => {
         return cafeSubscriptions.filter(sub => {
@@ -496,6 +551,45 @@ export function Memberships({
                         );
                     })()}
 
+                    {/* The passes about to lapse, each one message from renewing.
+                        A membership that expires quietly is a customer lost to
+                        nothing but forgetting. */}
+                    {expiringSoon.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-[9px] border border-[#f5c542]/30 bg-[#f5c542]/[0.05] px-[15px] py-[13px]">
+                            <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.16em] text-[#f5c542]">
+                                RENEW WINDOW · {expiringSoon.length}
+                            </span>
+                            {expiringSoon.slice(0, 4).map((sub) => {
+                                const days = Math.ceil((new Date(sub.expiry_date || 0).getTime() - Date.now()) / 86400000);
+                                const phone = sub.customer_phone || '';
+                                const message = `Hi ${sub.customer_name || 'there'}, your ${sub.membership_plans?.name || 'pass'} at PlayTime ${days <= 0 ? 'expires today' : `expires in ${days} day${days === 1 ? '' : 's'}`} — want to renew it?`;
+                                return (
+                                    <a
+                                        key={sub.id}
+                                        href={phone ? buildWhatsAppUrl(phone, message) : undefined}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 border border-[#f2f0ea]/[0.14] bg-[#111113] px-2.5 py-[7px] transition-colors hover:border-[#d8ff3c]"
+                                    >
+                                        <span className="whitespace-nowrap text-[12.5px] font-bold text-[#f2f0ea]">
+                                            {sub.customer_name || 'Member'}
+                                        </span>
+                                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f5c542]">
+                                            {days <= 0 ? 'today' : `${days}d left`}
+                                        </span>
+                                        {phone && (
+                                            <span className="font-mono text-[9.5px] tracking-[0.1em] text-[#d8ff3c]">RENEW</span>
+                                        )}
+                                    </a>
+                                );
+                            })}
+                            <span className="min-w-[10px] flex-1" />
+                            <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/45">
+                                ₹{expiringSoon.reduce((sum, sub) => sum + (Number(sub.amount_paid) || 0), 0).toLocaleString('en-IN')} UP FOR RENEWAL
+                            </span>
+                        </div>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-[9px]">
                         <Chips
                             items={['all', 'active', 'expired', 'cancelled'].map((status) => ({
@@ -686,7 +780,17 @@ export function Memberships({
                         )}
 
                         <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                            <span>{filteredSubscriptions.length} of {cafeSubscriptions.length} passes</span>
+                            <span className="truncate">
+                                {filteredSubscriptions.length} of {cafeSubscriptions.length} passes · ₹{Math.round(planRevenueTotal).toLocaleString('en-IN')} taken
+                            </span>
+                            <span className="flex-1" />
+                            <button
+                                type="button"
+                                onClick={exportMembersCsv}
+                                className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c]"
+                            >
+                                EXPORT CSV →
+                            </button>
                         </div>
                     </Panel>
                 </div>
@@ -698,8 +802,10 @@ export function Memberships({
                         <TableHead columns={PLAN_COLUMNS}>
                             <span>PLAN</span>
                             <span className="text-right">PRICE</span>
-                            <span className="text-right">GIVES</span>
-                            <span className="text-right">VALID</span>
+                            <span className="text-right">INCLUDES</span>
+                            <span className="text-right">SOLD</span>
+                            <span className="text-right">REVENUE</span>
+                            <span className="text-right">EFF ₹/HR</span>
                             <span className="text-right">ACTIONS</span>
                         </TableHead>
 
@@ -711,9 +817,27 @@ export function Memberships({
                             cafeMembershipPlans.map((plan) => {
                                 const unlimited = plan.is_unlimited === true;
                                 const dayPass = plan.plan_type === 'day_pass';
-                                const sold = cafeSubscriptions.filter(
+                                const subsOnPlan = cafeSubscriptions.filter(
                                     (sub) => sub.membership_plan_id === plan.id
-                                ).length;
+                                );
+                                const sold = subsOnPlan.length;
+                                const revenue = subsOnPlan.reduce(
+                                    (sum, sub) => sum + (Number(sub.amount_paid) || 0), 0
+                                );
+                                // Hours actually taken off an hourly bundle. An
+                                // unlimited pass or a day pass has no hour count to
+                                // divide by, so it gets a dash rather than a number
+                                // that would only look like an answer.
+                                const hoursUsed = subsOnPlan.reduce((sum, sub) => {
+                                    if (sub.is_unlimited) return sum;
+                                    const bought = Number(sub.hours_purchased) || 0;
+                                    const left = Number(sub.hours_remaining) || 0;
+                                    return sum + Math.max(0, bought - left);
+                                }, 0);
+                                const effPerHour = !unlimited && !dayPass && hoursUsed > 0
+                                    ? revenue / hoursUsed
+                                    : null;
+                                const revShare = planRevenueTotal > 0 ? (revenue / planRevenueTotal) * 100 : 0;
 
                                 return (
                                     <TableRow
@@ -721,17 +845,25 @@ export function Memberships({
                                         columns={PLAN_COLUMNS}
                                         edge={unlimited ? '#d8ff3c' : 'transparent'}
                                     >
-                                        <div className="flex min-w-0 flex-col gap-[3px]">
-                                            <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
-                                                {plan.name}
-                                            </span>
-                                            <span className="truncate font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/35">
-                                                {(plan.console_type || 'PC').toUpperCase()} ·{' '}
-                                                {(plan.player_count || 'single').toUpperCase()} · {sold} SOLD
-                                            </span>
+                                        <div className="flex min-w-0 flex-col gap-[5px]">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">
+                                                    {plan.name}
+                                                </span>
+                                                <span className="shrink-0 bg-[#f2f0ea]/[0.07] px-1.5 py-0.5 font-mono text-[8.5px] tracking-[0.12em] text-[#f2f0ea]/40">
+                                                    {(plan.console_type || 'PC').toUpperCase()}
+                                                </span>
+                                            </div>
+                                            {/* Share of what every plan has taken. */}
+                                            <div className="h-1 bg-[#f2f0ea]/[0.08]">
+                                                <div
+                                                    className="h-1"
+                                                    style={{ width: `${revShare}%`, background: unlimited ? '#d8ff3c' : 'rgba(242,240,234,.4)' }}
+                                                />
+                                            </div>
                                         </div>
 
-                                        <span className="whitespace-nowrap text-right text-[15px] font-extrabold text-[#f2f0ea]">
+                                        <span className="whitespace-nowrap text-right text-[14px] font-extrabold text-[#f2f0ea]">
                                             ₹{plan.price}
                                         </span>
 
@@ -747,8 +879,23 @@ export function Memberships({
                                             )}
                                         </div>
 
-                                        <span className="whitespace-nowrap text-right font-mono text-[11px] text-[#f2f0ea]/60">
-                                            {plan.validity_days}d
+                                        <span className="whitespace-nowrap text-right font-mono text-[11.5px] text-[#f2f0ea]/70">
+                                            {sold}
+                                        </span>
+
+                                        <span
+                                            className="whitespace-nowrap text-right font-mono text-[11.5px]"
+                                            style={{ color: revenue > 0 ? '#f2f0ea' : 'rgba(242,240,234,.3)' }}
+                                        >
+                                            ₹{Math.round(revenue).toLocaleString('en-IN')}
+                                        </span>
+
+                                        <span
+                                            className="whitespace-nowrap text-right font-mono text-[11.5px]"
+                                            title={effPerHour === null ? 'No hour count to divide by on this kind of plan' : undefined}
+                                            style={{ color: effPerHour === null ? 'rgba(242,240,234,.25)' : effPerHour >= 80 ? '#d8ff3c' : effPerHour >= 40 ? 'rgba(242,240,234,.7)' : '#ff5c2b' }}
+                                        >
+                                            {effPerHour === null ? '—' : `₹${Math.round(effPerHour)}`}
                                         </span>
 
                                         <div className="flex justify-end gap-[5px]">
@@ -775,9 +922,17 @@ export function Memberships({
                         )}
 
                         <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                            <span>{cafeMembershipPlans.length} plan{cafeMembershipPlans.length === 1 ? '' : 's'}</span>
+                            <span className="truncate">
+                                {cafeMembershipPlans.length} plan{cafeMembershipPlans.length === 1 ? '' : 's'} · passes are paid for at the counter
+                            </span>
                             <span className="flex-1" />
-                            <span>PASSES ARE PAID FOR AT THE COUNTER</span>
+                            <button
+                                type="button"
+                                onClick={exportPlansCsv}
+                                className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c]"
+                            >
+                                EXPORT CSV →
+                            </button>
                         </div>
                     </Panel>
                 </div>
