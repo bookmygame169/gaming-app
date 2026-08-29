@@ -5,6 +5,7 @@ import { StationExitPassword } from './StationExitPassword';
 import { StationPlayRequests } from './StationPlayRequests';
 import React, { useState } from 'react';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
+import { isBillableRevenueBooking } from '@/lib/ownerRevenue';
 import { CafeRow, BookingRow } from '../types';
 
 interface StationsTabProps {
@@ -147,6 +148,75 @@ export function StationsTab({
         }
     });
 
+    // ── seven days of earning, per station ──
+    //
+    // Attribution is honest about what it can know. A booking that named its
+    // machine is credited to that machine. One that did not — every booking
+    // before Billing started sending a station — is spread evenly across the
+    // stations of its console type, because that is what physically happened:
+    // somebody sat at one of them and there is no record of which.
+    const OPEN_HOURS_PER_DAY = (() => {
+        const match = (currentCafe as any)?.opening_hours?.match(
+            /(\d{1,2})(?::\d{2})?\s*(AM|PM)\s*[-–]\s*(\d{1,2})(?::\d{2})?\s*(AM|PM)/i
+        );
+        if (!match) return 12;
+        let open = parseInt(match[1], 10);
+        let close = parseInt(match[3], 10);
+        if (match[2].toUpperCase() === 'PM' && open !== 12) open += 12;
+        else if (match[2].toUpperCase() === 'AM' && open === 12) open = 0;
+        if (match[4].toUpperCase() === 'PM' && close !== 12) close += 12;
+        else if (match[4].toUpperCase() === 'AM' && close === 12) close = 0;
+        const span = close - open;
+        return span > 0 ? span : 12;
+    })();
+
+    // Both ends. Without an upper bound an advance booking for next Friday
+    // counts as revenue this station has already earned.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const weekAgoIso = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 6);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    const stationWeek = new Map<string, { minutes: number; revenue: number }>();
+    const typeWeek = new Map<string, { minutes: number; revenue: number }>();
+
+    bookings
+        // The same filter Reports counts revenue through. Without it these two
+        // screens quote different figures for the same week, and the one that
+        // is wrong is whichever the owner is not looking at.
+        .filter((b) => isBillableRevenueBooking(b)
+            && !b.deleted_at
+            && (b.booking_date || '') >= weekAgoIso
+            && (b.booking_date || '') <= todayIso
+            && b.status !== 'cancelled')
+        .forEach((b) => {
+            (b.booking_items || []).forEach((item) => {
+                if (!item.console) return;
+                const minutes = getBookingItemDurationMinutes(item, b.duration || 60);
+                // A membership session holds the machine but was paid for on the
+                // plan, not at the station — Reports leaves it out of console
+                // revenue for that reason. It still occupies the hours.
+                const revenue = b.source === 'membership' ? 0 : Number(item.price) || 0;
+                const named = getAssignedStations(item.title);
+                if (named.length > 0) {
+                    named.forEach((name) => {
+                        const bucket = stationWeek.get(name) || { minutes: 0, revenue: 0 };
+                        bucket.minutes += minutes / named.length;
+                        bucket.revenue += revenue / named.length;
+                        stationWeek.set(name, bucket);
+                    });
+                } else {
+                    const key = item.console.toLowerCase();
+                    const bucket = typeWeek.get(key) || { minutes: 0, revenue: 0 };
+                    bucket.minutes += minutes;
+                    bucket.revenue += revenue;
+                    typeWeek.set(key, bucket);
+                }
+            });
+        });
+
     // Generate stations list
     const allStations: any[] = [];
     consoleTypes.forEach((consoleType) => {
@@ -164,6 +234,77 @@ export function StationsTab({
             });
         }
     });
+
+    /** This station's week: what it was named on, plus its share of the rest. */
+    const weekFor = (stationName: string, consoleType: string) => {
+        const named = stationWeek.get(stationName) || { minutes: 0, revenue: 0 };
+        const pool = typeWeek.get(consoleType.toLowerCase());
+        const peers = allStations.filter(
+            (st) => String(st.name).split('-')[0] === consoleType.toLowerCase()
+        ).length || 1;
+        const minutes = named.minutes + (pool ? pool.minutes / peers : 0);
+        const revenue = named.revenue + (pool ? pool.revenue / peers : 0);
+        const openHours = OPEN_HOURS_PER_DAY * 7;
+        return {
+            hours: minutes / 60,
+            revenue,
+            util: openHours > 0 ? Math.min(100, Math.round((minutes / 60 / openHours) * 100)) : 0,
+            perOpenHour: openHours > 0 ? revenue / openHours : 0,
+        };
+    };
+
+    /** Each console type's earning per hour the café is open. */
+    const yieldByType = (() => {
+        const byType = new Map<string, { label: string; count: number; revenue: number }>();
+        allStations.forEach((st) => {
+            const key = String(st.name).split('-')[0];
+            const entry = byType.get(key) || { label: st.type, count: 0, revenue: 0 };
+            entry.count += 1;
+            entry.revenue += weekFor(st.name, key).revenue;
+            byType.set(key, entry);
+        });
+        const openHours = OPEN_HOURS_PER_DAY * 7;
+        return [...byType.entries()]
+            .map(([type, v]) => ({
+                type,
+                ...v,
+                // Per open hour of the whole type, not per station: two idle PCs
+                // and one busy one is a worse business than one busy PC.
+                perOpenHour: openHours > 0 && v.count > 0 ? v.revenue / (openHours * v.count) : 0,
+            }))
+            .filter((r) => r.count > 0)
+            .sort((a, b) => b.perOpenHour - a.perOpenHour);
+    })();
+    const bestYield = Math.max(1, ...yieldByType.map((r) => r.perOpenHour));
+
+    const exportStationsCsv = () => {
+        const header = ['Station', 'Type', 'Rate', 'Status', 'Hours 7d', 'Utilisation %', 'Revenue 7d', 'Per open hour'];
+        const rows = filteredStations.map((st) => {
+            const w = weekFor(st.name, String(st.name).split('-')[0]);
+            const state = poweredOffStations.has(st.name) ? 'off'
+                : maintenanceStations.has(st.name) ? 'maintenance'
+                : stationOccupancy.has(st.name) ? 'in use' : 'free';
+            return [
+                String(st.name).toUpperCase(),
+                st.type,
+                String(hourlyRateFor(st) || ''),
+                state,
+                w.hours.toFixed(1),
+                String(w.util),
+                String(Math.round(w.revenue)),
+                String(Math.round(w.perOpenHour)),
+            ];
+        });
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `stations-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
 
     // Summary counts for header. Use a union so a powered-off occupied station
     // is not subtracted twice.
@@ -335,11 +476,13 @@ export function StationsTab({
             </div>
 
             <div className="border border-[#f2f0ea]/10 bg-[#111113]">
-                <div className="hidden grid-cols-[minmax(140px,1.2fr)_104px_100px_minmax(96px,1fr)_120px] gap-2.5 border-b border-[#f2f0ea]/10 px-4 py-2.5 font-mono text-[9px] tracking-[0.14em] text-[#f2f0ea]/35 lg:grid">
+                <div className="hidden gap-2.5 border-b border-[#f2f0ea]/10 px-4 py-2.5 font-mono text-[9px] tracking-[0.14em] text-[#f2f0ea]/35 lg:grid lg:grid-cols-[minmax(140px,1.2fr)_104px_100px_minmax(96px,1fr)_96px_82px_104px]">
                     <span>STATION</span>
                     <span>RATE</span>
                     <span>STATUS</span>
-                    <span>ON IT NOW</span>
+                    <span>UTILISATION · 7D</span>
+                    <span className="text-right">REVENUE 7D</span>
+                    <span className="text-right">₹/OPEN HR</span>
                     <span className="text-right">ACTIONS</span>
                 </div>
 
@@ -354,6 +497,7 @@ export function StationsTab({
                         const occupancy = stationOccupancy.get(station.name);
                         const isOccupied = !!occupancy && !isPoweredOff && !isMaintenance;
                         const rate = hourlyRateFor(station);
+                        const week = weekFor(station.name, String(station.name).split('-')[0]);
 
                         const status = isPoweredOff
                             ? { label: 'OFF', fg: 'rgba(242,240,234,.45)', bg: 'rgba(242,240,234,.07)', edge: 'rgba(242,240,234,.2)' }
@@ -366,7 +510,7 @@ export function StationsTab({
                         return (
                             <div
                                 key={station.name}
-                                className="grid grid-cols-1 items-center gap-2.5 border-b border-[#f2f0ea]/[0.05] px-4 py-3 transition-colors hover:bg-[#17171a] lg:grid-cols-[minmax(140px,1.2fr)_104px_100px_minmax(96px,1fr)_120px]"
+                                className="grid grid-cols-1 items-center gap-2.5 border-b border-[#f2f0ea]/[0.05] px-4 py-3 transition-colors hover:bg-[#17171a] lg:grid-cols-[minmax(140px,1.2fr)_104px_100px_minmax(96px,1fr)_96px_82px_104px]"
                                 style={{ borderLeft: `2px solid ${status.edge}` }}
                             >
                                 <div className="flex min-w-0 items-center gap-[9px]">
@@ -407,20 +551,51 @@ export function StationsTab({
                                     {status.label}
                                 </span>
 
-                                <div className="flex min-w-0 flex-col gap-[3px]">
-                                    {isOccupied ? (
-                                        <>
-                                            <span className="truncate text-[12.5px] font-bold text-[#f2f0ea]">
-                                                {occupancy!.customerName}
-                                            </span>
-                                            <span className="font-mono text-[10px] text-[#f2f0ea]/40">
-                                                ENDS {occupancy!.endTime.toUpperCase()}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <span className="font-mono text-[10.5px] text-[#f2f0ea]/30">—</span>
+                                {/* Utilisation, then what it earned, then what an
+                                    open hour on it is worth. A machine can be busy
+                                    and still be the wrong machine to own. */}
+                                <div className="flex min-w-0 flex-col gap-[5px]">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className="whitespace-nowrap font-mono text-[11.5px]"
+                                            style={{ color: week.util >= 40 ? '#d8ff3c' : week.util > 0 ? 'rgba(242,240,234,.7)' : 'rgba(242,240,234,.3)' }}
+                                        >
+                                            {week.hours >= 1 ? `${week.hours.toFixed(1)}h` : week.hours > 0 ? '<1h' : '0h'}
+                                        </span>
+                                        <span className="flex-1" />
+                                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                            {week.util}%
+                                        </span>
+                                    </div>
+                                    <div className="h-[5px] bg-[#f2f0ea]/[0.08]">
+                                        <div
+                                            className="h-[5px]"
+                                            style={{
+                                                width: `${week.util}%`,
+                                                background: week.util >= 40 ? '#d8ff3c' : week.util >= 15 ? '#ffa53c' : '#ff5c2b',
+                                            }}
+                                        />
+                                    </div>
+                                    {isOccupied && (
+                                        <span className="truncate font-mono text-[10px] text-[#f2f0ea]/40">
+                                            NOW · {occupancy!.customerName} TILL {occupancy!.endTime.toUpperCase()}
+                                        </span>
                                     )}
                                 </div>
+
+                                <span
+                                    className="whitespace-nowrap text-right text-[13px] font-extrabold"
+                                    style={{ color: week.revenue > 0 ? '#f2f0ea' : 'rgba(242,240,234,.3)' }}
+                                >
+                                    ₹{Math.round(week.revenue).toLocaleString('en-IN')}
+                                </span>
+
+                                <span
+                                    className="whitespace-nowrap text-right font-mono text-[11.5px]"
+                                    style={{ color: week.perOpenHour >= 20 ? '#d8ff3c' : week.perOpenHour > 0 ? 'rgba(242,240,234,.6)' : 'rgba(242,240,234,.3)' }}
+                                >
+                                    ₹{Math.round(week.perOpenHour)}
+                                </span>
 
                                 <div className="flex justify-end gap-[5px]">
                                     {onToggleMaintenance && (
@@ -474,11 +649,63 @@ export function StationsTab({
                 )}
 
                 <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                    <span>
-                        {filteredStations.length} of {totalStations} stations
+                    <span className="truncate">
+                        {filteredStations.length} of {totalStations} stations · {OPEN_HOURS_PER_DAY}h open a day
                     </span>
+                    <span className="flex-1" />
+                    <button
+                        type="button"
+                        onClick={exportStationsCsv}
+                        className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c]"
+                    >
+                        EXPORT CSV →
+                    </button>
                 </div>
             </div>
+
+            {/* Which kind of machine earns per hour it is open. Counts and even
+                revenue flatter whatever there is most of; this does not. */}
+            {yieldByType.length > 0 && (
+                <section>
+                    <div className="mb-3 flex items-center gap-3">
+                        <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                            YIELD BY TYPE · ₹ PER OPEN HOUR
+                        </span>
+                        <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/40">
+                            last 7 days
+                        </span>
+                    </div>
+                    <div className="flex flex-col gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+                        {yieldByType.map((row) => {
+                            const tone = row.perOpenHour >= 20 ? '#d8ff3c' : row.perOpenHour >= 8 ? 'rgba(242,240,234,.7)' : '#ff5c2b';
+                            return (
+                                <div
+                                    key={row.type}
+                                    className="grid items-center gap-3 bg-[#111113] px-4 py-3"
+                                    style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,100px) 96px' }}
+                                >
+                                    <div className="flex min-w-0 flex-col gap-[3px]">
+                                        <span className="truncate text-[13px] font-bold text-[#f2f0ea]">{row.label}</span>
+                                        <span className="truncate font-mono text-[10px] text-[#f2f0ea]/35">
+                                            {row.count} {row.count === 1 ? 'station' : 'stations'} · ₹{Math.round(row.revenue).toLocaleString('en-IN')} in 7d
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-[#f2f0ea]/[0.08]">
+                                        <div
+                                            className="h-1.5"
+                                            style={{ width: `${Math.min(100, (row.perOpenHour / bestYield) * 100)}%`, background: tone }}
+                                        />
+                                    </div>
+                                    <span className="whitespace-nowrap text-right font-mono text-[11.5px]" style={{ color: tone }}>
+                                        ₹{Math.round(row.perOpenHour)}/hr
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {/* One password for every station here, rather than a script run
                 at each PC. Café-level, so it sits below the grid. */}
