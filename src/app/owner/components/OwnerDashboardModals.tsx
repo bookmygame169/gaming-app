@@ -199,7 +199,7 @@ export function OwnerDashboardModals() {
                   type="button"
                   disabled={savingTimeAdjustment || !hasChange}
                   onClick={handleSaveTimeAdjustment}
-                  className="flex h-11 items-center justify-center gap-2 bg-[#d8ff3c] px-4 text-sm font-black text-[#0b0b0c] transition hover:bg-[#d8ff3c] disabled:cursor-not-allowed disabled:bg-[#f2f0ea]/[0.14] disabled:text-[#0b0b0c] disabled:shadow-none"
+                  className="flex h-11 items-center justify-center gap-2 bg-[#d8ff3c] px-4 text-sm font-black text-[#0b0b0c] transition hover:bg-[#d8ff3c] disabled:cursor-not-allowed disabled:bg-[#f2f0ea]/[0.14] disabled:text-[#f2f0ea]/50 disabled:shadow-none"
                 >
                   {savingTimeAdjustment ? (
                     <Loader2 size={16} className="animate-spin" />

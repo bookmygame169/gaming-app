@@ -286,13 +286,13 @@ export function DashboardBookingsTable({ bookings, onViewAll, feeds, activeFeed,
                                         <div className="flex items-center border border-[#f2f0ea]/[0.14] p-0.5">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'cash'); }}
-                                                className={`px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${!isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c]'}`}
+                                                className={`px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${!isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/45 hover:text-[#f2f0ea]'}`}
                                             >
                                                 Cash
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onPaymentModeChange(b.id, 'upi'); }}
-                                                className={`px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c]'}`}
+                                                className={`px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors ${isDigital ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/45 hover:text-[#f2f0ea]'}`}
                                             >
                                                 UPI
                                             </button>

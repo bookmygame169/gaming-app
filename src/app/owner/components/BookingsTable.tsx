@@ -500,13 +500,13 @@ export function BookingsTable({
                                             <div className="flex border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] p-0.5">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
-                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c]'}`}
+                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                                                 >
                                                     Cash
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
-                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c]'}`}
+                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
                                                 >
                                                     UPI
                                                 </button>

@@ -423,7 +423,7 @@ See you soon! 🎯`;
                                                         : 'border-[#f2f0ea]/10 hover:border-[#f2f0ea]/10 bg-[#111113]'
                                                     }`}
                                             >
-                                                <div className={`p-2 w-fit  mb-3 ${formData.discountType === 'percentage' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'bg-[#f2f0ea]/[0.06] text-[#0b0b0c] group-hover:bg-[#f2f0ea]/[0.08]'}`}>
+                                                <div className={`p-2 w-fit  mb-3 ${formData.discountType === 'percentage' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 group-hover:bg-[#f2f0ea]/[0.08]'}`}>
                                                     <div className="text-xl font-bold">%</div>
                                                 </div>
                                                 <div className="text-sm font-medium text-[#f2f0ea] mb-0.5">Percentage Off</div>
@@ -438,7 +438,7 @@ See you soon! 🎯`;
                                                         : 'border-[#f2f0ea]/10 hover:border-[#f2f0ea]/10 bg-[#111113]'
                                                     }`}
                                             >
-                                                <div className={`p-2 w-fit  mb-3 ${formData.discountType === 'minutes' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'bg-[#f2f0ea]/[0.06] text-[#0b0b0c] group-hover:bg-[#f2f0ea]/[0.08]'}`}>
+                                                <div className={`p-2 w-fit  mb-3 ${formData.discountType === 'minutes' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 group-hover:bg-[#f2f0ea]/[0.08]'}`}>
                                                     <Clock size={20} />
                                                 </div>
                                                 <div className="text-sm font-medium text-[#f2f0ea] mb-0.5">Free Game Time</div>
