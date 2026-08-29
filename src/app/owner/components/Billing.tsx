@@ -9,8 +9,7 @@ import { dedupeStationPricingRows, normaliseStationName } from '@/lib/stationNam
 import { Card, Button } from './ui';
 import {
     User, Smartphone, Clock, Plus, X,
-    CreditCard, Banknote, CheckCircle, Star,
-    Store, CalendarDays, IndianRupee, Gamepad2, ExternalLink
+    CheckCircle, Store, CalendarDays, IndianRupee, Gamepad2, ExternalLink
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
 import type { InventoryItem } from '@/types/inventory';
@@ -85,7 +84,6 @@ const SECTION_CARD_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const SUBPANEL_CLASS = 'border border-[#f2f0ea]/10 bg-[#0b0b0c]';
 const HOVER_CARD_CLASS = 'transition-colors duration-150 hover:border-[#d8ff3c]';
 const CONTROL_SURFACE_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
-const MEMBERSHIP_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const CONTROL_LABEL_CLASS = 'font-mono text-[9.5px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.42]';
 
 /** The design's control row: a fixed label column, then the control. */
@@ -797,14 +795,14 @@ export function Billing({
 
                 {matchedCustomer && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">Returning guest</span>
+                        <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">Returning guest</span>
                         {typeof matchedCustomer.visits === 'number' && (
-                            <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
+                            <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                 {matchedCustomer.visits} visit{matchedCustomer.visits === 1 ? '' : 's'}
                             </span>
                         )}
                         {matchedCustomer.last_visit && (
-                            <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
+                            <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                 Last {formatLastVisit(matchedCustomer.last_visit)}
                             </span>
                         )}
@@ -821,13 +819,13 @@ export function Billing({
                             charging them again for a session they have already
                             paid for is the mistake worth preventing. */}
                         {customerInsight?.wallet && customerInsight.wallet.balance > 0 && (
-                            <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
+                            <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                 ₹{customerInsight.wallet.balance} in wallet
                             </span>
                         )}
 
                         {customerInsight?.membership && (
-                            <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
+                            <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                 {customerInsight.membership.planName} ·{' '}
                                 {customerInsight.membership.hoursRemaining}h left
                             </span>
@@ -835,7 +833,7 @@ export function Billing({
 
                         {customerInsight?.loyalty && customerInsight.loyalty.balance > 0 && (
                             <span
-                                className={`chip border-transparent ${
+                                className={`px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent ${
                                     customerInsight.loyalty.canRedeem
                                         ? 'bg-[#d8ff3c]/12 text-[#d8ff3c]'
                                         : 'bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50'
@@ -1604,8 +1602,9 @@ export function Billing({
                                 </div>
 
                                 <span className="font-mono text-[10px] leading-[1.5] text-[#f2f0ea]/[0.32]">
-                                    Starting the session books the machines and opens the tab. Snacks come
-                                    off stock as the bill is taken.
+                                    {isAdvanceMode
+                                        ? 'The link holds the machines for the date and time above. Nothing starts until the money shows in Paytm Business and you confirm it.'
+                                        : 'Starting the session books the machines and opens the tab. Snacks come off stock as the bill is taken.'}
                                 </span>
                             </div>
                         </div>
@@ -1618,15 +1617,9 @@ export function Billing({
 
                         <Card className={`space-y-6 ${SECTION_CARD_CLASS}`}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
-                                        <Star size={18} />
-                                    </div>
-                                    <div>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Membership Cart</div>
-                                        <h3 className="text-base font-semibold text-[#f2f0ea]">Select plans</h3>
-                                    </div>
-                                </div>
+                                <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                                    MEMBERSHIP CART
+                                </span>
                                 {membershipPlans.length > 0 && (
                                     <Button size="sm" variant="secondary" onClick={addMemItem} className="">
                                         <Plus size={14} /> Add Plan
@@ -1646,7 +1639,7 @@ export function Billing({
                                             <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Available plans</div>
                                             <div className="text-sm font-medium text-[#f2f0ea]">Start the checkout with the plan you want to sell</div>
                                         </div>
-                                        <span className="chip border-transparent bg-[#f2f0ea]/[0.05] text-[#f2f0ea]/70">
+                                        <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#f2f0ea]/[0.05] text-[#f2f0ea]/70">
                                             {membershipPlans.length} plan{membershipPlans.length === 1 ? '' : 's'}
                                         </span>
                                     </div>
@@ -1662,8 +1655,8 @@ export function Billing({
                                                 <span className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/14 text-sm font-bold text-[#d8ff3c]">
                                                     {plan.console_type?.slice(0, 2).toUpperCase() || 'PL'}
                                                 </span>
-                                                <span className="chip border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
-                                                    Rs.{plan.price}
+                                                <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#d8ff3c]/12 text-[#d8ff3c]">
+                                                    ₹{plan.price}
                                                 </span>
                                             </div>
                                             <div className="mt-4 text-sm font-semibold text-[#f2f0ea]">{plan.name}</div>
@@ -1683,7 +1676,7 @@ export function Billing({
                                             <div key={item.id} className=" border border-[#f2f0ea]/10 bg-[#111113] p-4">
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0 flex-1">
-                                                        <label className="mb-1.5 block text-[10px] smallcaps text-[var(--dim)]">Plan</label>
+                                                        <label className="mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.18em] text-[var(--dim)]">Plan</label>
                                                         <select
                                                             value={item.planId}
                                                             onChange={(event) => updateMemItem(item.id, 'planId', event.target.value)}
@@ -1691,20 +1684,20 @@ export function Billing({
                                                             style={{ colorScheme: 'dark' }}
                                                         >
                                                             {membershipPlans.map((option) => (
-                                                                <option key={option.id} value={option.id} className="bg-[#11111a] text-[#f2f0ea]">
+                                                                <option key={option.id} value={option.id} className="bg-[#111113] text-[#f2f0ea]">
                                                                     {option.name}
                                                                 </option>
                                                             ))}
                                                         </select>
                                                         {plan && (
                                                             <div className="mt-2 flex flex-wrap gap-2">
-                                                                <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
+                                                                <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                                     {plan.console_type?.toUpperCase()}
                                                                 </span>
-                                                                <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
+                                                                <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                                     {plan.plan_type === 'day_pass' ? 'Day pass' : `${plan.hours || 0}h`}
                                                                 </span>
-                                                                <span className="chip border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
+                                                                <span className="px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] border-transparent bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70">
                                                                     {plan.validity_days} days
                                                                 </span>
                                                             </div>
@@ -1743,9 +1736,9 @@ export function Billing({
                                                     </div>
                                                     <div className="text-right">
                                                         <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Line total</div>
-                                                        <div className="mono text-base font-semibold text-[#f2f0ea]">Rs.{lineTotal}</div>
+                                                        <div className="mono text-base font-semibold text-[#f2f0ea]">₹{lineTotal}</div>
                                                         {plan && item.quantity > 1 && (
-                                                            <div className="text-[11px] text-[var(--muted)]">Rs.{plan.price} each</div>
+                                                            <div className="text-[11px] text-[var(--muted)]">₹{plan.price} each</div>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1758,171 +1751,145 @@ export function Billing({
                     </div>
 
                     <div className="space-y-5">
-                        <Card className={`sticky top-[82px] space-y-5 ${SECTION_CARD_CLASS}`}>
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
-                                    <CreditCard size={18} />
-                                </div>
-                                <div>
-                                    <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Payment</div>
-                                    <h3 className="text-base font-semibold text-[#f2f0ea]">Checkout plan</h3>
-                                </div>
-                            </div>
-
-                            <div className={`${MEMBERSHIP_SUMMARY_HERO_CLASS} p-5`}>
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <div className="text-[10px] smallcaps text-[#d8ff3c]/70">Due now</div>
-                                        <div className="mono mt-2 text-[2.15rem] font-semibold tracking-tight text-[#f2f0ea]">Rs.{memTotalAmount}</div>
-                                        <p className="mt-2 text-sm text-[#d8ff3c]/70">
-                                            {memItems.length > 0
-                                                ? `${memItems.length} cart line${memItems.length === 1 ? '' : 's'} ready for checkout`
-                                                : 'Add a membership plan to begin checkout'}
-                                        </p>
-                                    </div>
-                                    <span className="bg-[#d8ff3c]/[0.12] px-2.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-[#d8ff3c]">
-                                        {memPaymentMode.toUpperCase()}
+                        {/* ── the same one-panel summary the walk-in bill uses ── */}
+                        <div className="sticky top-[82px] flex flex-col border border-[#f2f0ea]/[0.12] bg-[#111113]">
+                            <div className="flex items-end gap-2.5 border-b border-[#f2f0ea]/[0.08] px-[18px] pb-3.5 pt-[18px]">
+                                <div className="flex min-w-0 flex-col gap-1.5">
+                                    <span className="font-mono text-[9.5px] tracking-[0.2em] text-[#f2f0ea]/[0.42]">DUE NOW</span>
+                                    <span className="text-[40px] font-black leading-[0.85] tracking-[-0.03em] text-[#f2f0ea]">
+                                        ₹{memTotalAmount}
                                     </span>
                                 </div>
-                                <div className="mt-4 grid grid-cols-2 gap-3">
-                                    <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Calculated</div>
-                                        <div className="mono mt-2 text-lg font-semibold text-[#f2f0ea]">Rs.{memCalculatedTotal}</div>
-                                    </div>
-                                    <div className={`${CONTROL_SURFACE_CLASS} px-3.5 py-3`}>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Payment mode</div>
-                                        <div className="mt-2 text-lg font-semibold text-[#f2f0ea]">{memPaymentMode === 'cash' ? 'Cash' : 'UPI'}</div>
-                                    </div>
-                                </div>
+                                <span className="flex-1" />
+                                <span className="bg-[#d8ff3c]/[0.12] px-[9px] py-[5px] font-mono text-[9.5px] tracking-[0.14em] text-[#d8ff3c]">
+                                    {memPaymentMode.toUpperCase()}
+                                </span>
                             </div>
 
-                            <div className="space-y-2">
-                                {memItems.length > 0 ? memItems.map((item) => {
-                                    const plan = membershipPlans.find((entry) => entry.id === item.planId);
-                                    if (!plan) return null;
-                                    return (
-                                        <div key={item.id} className={`${CONTROL_SURFACE_CLASS} flex items-center justify-between gap-3 px-3.5 py-3`}>
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#d8ff3c]/14 text-sm font-bold text-[#d8ff3c]">
-                                                    {plan.console_type?.slice(0, 2).toUpperCase() || 'PL'}
-                                                </span>
-                                                <div>
-                                                    <div className="text-sm font-medium text-[#f2f0ea]">{plan.name}</div>
-                                                    <div className="text-[11px] text-[var(--muted)]">Qty {item.quantity}</div>
-                                                </div>
-                                            </div>
-                                            <div className="mono text-sm font-semibold text-[#f2f0ea]">Rs.{plan.price * item.quantity}</div>
-                                        </div>
-                                    );
-                                }) : (
-                                    <div className={`${CONTROL_SURFACE_CLASS}  px-4 py-6 text-center text-sm text-[var(--muted)]`}>
-                                        Select a plan to start the checkout.
+                            <div className="flex flex-col gap-2 border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                {[
+                                    {
+                                        k: `PLANS · ${memItems.length} line${memItems.length === 1 ? '' : 's'}`,
+                                        v: `₹${memCalculatedTotal}`,
+                                        c: '#f2f0ea',
+                                    },
+                                    { k: 'CALCULATED', v: `₹${memCalculatedTotal}`, c: 'rgba(242,240,234,.55)' },
+                                    { k: 'PAYMENT', v: memPaymentMode.toUpperCase(), c: '#d8ff3c' },
+                                ].map((line) => (
+                                    <div key={line.k} className="flex items-center gap-2.5 font-mono text-[11.5px]">
+                                        <span className="min-w-0 truncate text-[#f2f0ea]/55">{line.k}</span>
+                                        <span className="flex-1" />
+                                        <span className="whitespace-nowrap" style={{ color: line.c }}>{line.v}</span>
                                     </div>
-                                )}
+                                ))}
                             </div>
 
-                            <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Final amount</div>
-                                    <span className="mono bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{memCalculatedTotal}</span>
+                            <div className="flex flex-col gap-2.5 border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                <span className="font-mono text-[9.5px] tracking-[0.2em] text-[#f2f0ea]/[0.42]">PAYMENT</span>
+                                <div className="grid grid-cols-2 gap-px border border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.12]">
+                                    {(['cash', 'upi'] as const).map((option) => {
+                                        const on = memPaymentMode === option;
+                                        return (
+                                            <button
+                                                key={option}
+                                                type="button"
+                                                onClick={() => setMemPaymentMode(option)}
+                                                className="py-[11px] text-center font-mono text-[11px] tracking-[0.12em] transition-colors"
+                                                style={
+                                                    on
+                                                        ? { background: 'rgba(216,255,60,.14)', color: '#d8ff3c' }
+                                                        : { background: '#111113', color: 'rgba(242,240,234,.5)' }
+                                                }
+                                            >
+                                                {option.toUpperCase()}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <div className="mt-4 flex items-center justify-between gap-3">
-                                    <span className="text-sm text-[var(--muted)]">Charge customer</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="mono text-sm text-[#f2f0ea]">Rs.</span>
-                                        <input
-                                            type="number"
-                                            value={memManualAmount !== null ? memManualAmount : memCalculatedTotal}
-                                            onChange={(event) => {
-                                                const value = toWholeRupees(parseFloat(event.target.value) || 0);
-                                                setMemManualAmount(value === memCalculatedTotal ? null : value);
-                                            }}
-                                            min={0}
-                                            step={1}
-                                            className="mono w-32 border border-white/[0.07] bg-[#f2f0ea]/[0.04] px-3 py-2 text-right text-lg font-semibold text-[#f2f0ea] focus:border-[#d8ff3c]/30 focus:outline-none"
-                                        />
-                                    </div>
+
+                                <div className="flex items-center gap-2.5 border border-[#f2f0ea]/[0.12] bg-[#0e0e10] px-[13px] py-[11px]">
+                                    <span className="font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/[0.42]">CHARGE</span>
+                                    <span className="flex-1" />
+                                    <span className="font-mono text-[12px] text-[#f2f0ea]/50">₹</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        value={memManualAmount !== null ? memManualAmount : memCalculatedTotal}
+                                        onChange={(event) => {
+                                            const value = toWholeRupees(parseFloat(event.target.value) || 0);
+                                            setMemManualAmount(value === memCalculatedTotal ? null : value);
+                                        }}
+                                        className="w-[84px] bg-transparent text-right font-mono text-[15px] font-semibold text-[#f2f0ea] focus:outline-none"
+                                    />
                                 </div>
+
                                 {memManualAmount !== null && memManualAmount !== memCalculatedTotal && (
-                                    <div className="mt-3 flex items-center justify-between text-xs">
-                                        <span className="text-[#ff5c2b]">Manual override applied</span>
-                                        <button type="button" onClick={() => setMemManualAmount(null)} className="text-[#f2f0ea]/50 underline transition hover:text-[#f2f0ea]">
-                                            Reset
+                                    <div className="flex items-center gap-2.5 font-mono text-[10.5px] text-[#ff5c2b]">
+                                        <span>
+                                            {memManualAmount < memCalculatedTotal
+                                                ? `Discount ₹${memCalculatedTotal - memManualAmount}`
+                                                : `Over calculated by ₹${memManualAmount - memCalculatedTotal}`}
+                                        </span>
+                                        <span className="flex-1" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setMemManualAmount(null)}
+                                            className="text-[#f2f0ea]/50 transition-colors hover:text-[#f2f0ea]"
+                                        >
+                                            CLEAR
                                         </button>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setMemPaymentMode('cash')}
-                                    className={` border p-4 text-left transition-all duration-200 ${memPaymentMode === 'cash' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c]' : 'text-[#f2f0ea]/70 hover:border-white/15'}`}
-                                >
-                                    <Banknote className="mb-3" size={20} />
-                                    <div className="text-sm font-semibold">Cash</div>
-                                    <div className="mt-1 text-xs text-current/70">Collect directly at the counter</div>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setMemPaymentMode('upi')}
-                                    className={` border p-4 text-left transition-all duration-200 ${memPaymentMode === 'upi' ? 'border-[#d8ff3c]/30 bg-[#d8ff3c]/12 text-[#d8ff3c]' : 'text-[#f2f0ea]/70 hover:border-white/15'}`}
-                                >
-                                    <Smartphone className="mb-3" size={20} />
-                                    <div className="text-sm font-semibold">UPI</div>
-                                    <div className="mt-1 text-xs text-current/70">Show the QR and collect instantly</div>
-                                </button>
-                            </div>
-
-                            {memPaymentMode === 'upi' && memTotalAmount > 0 && !upiPayee && (
-                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/[0.06] px-3 py-2 text-xs text-[#ff5c2b]">
-                                    Add your UPI id under Payments to show a QR here.
-                                </p>
-                            )}
-
-                            {memPaymentMode === 'upi' && memTotalAmount > 0 && upiPayee && (
-                                <div className="space-y-3 border border-[#d8ff3c]/15 bg-[#111113] px-4 py-4 text-center">
-                                    <div className="flex items-center justify-between gap-3 text-left">
-                                        <div>
-                                            <div className="text-[10px] smallcaps text-[#d8ff3c]/70">UPI collect</div>
-                                            <div className="text-sm font-semibold text-[#f2f0ea]">Scan and receive Rs.{memTotalAmount}</div>
+                            {memPaymentMode === 'upi' && memTotalAmount > 0 && (
+                                <div className="border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                    {upiPayee ? (
+                                        <div className="flex flex-col items-center gap-2.5">
+                                            <div className="inline-flex bg-[#d4d4d4] p-3">
+                                                <QRCodeSVG
+                                                    value={buildUpiPaymentUrl(upiPayee, memTotalAmount, 'member00', undefined)}
+                                                    size={150}
+                                                    bgColor="#d4d4d4"
+                                                    fgColor="#111111"
+                                                    level="Q"
+                                                />
+                                            </div>
+                                            <span className="font-mono text-[10.5px] text-[#f2f0ea]/50">
+                                                Scan to pay ₹{memTotalAmount}
+                                            </span>
                                         </div>
-                                        <span className=" border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
-                                            Tap QR
-                                        </span>
-                                    </div>
-                                    <div
-                                        className="inline-flex cursor-pointer bg-[#d4d4d4] p-3 transition"
-                                        onClick={() => setQrExpanded((value) => !value)}
-                                        title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
-                                    >
-                                        <QRCodeSVG
-                                            value={buildUpiPaymentUrl(upiPayee, memTotalAmount, 'membrshp', undefined)}
-                                            size={qrExpanded ? 260 : 180}
-                                            bgColor="#d4d4d4"
-                                            fgColor="#111111"
-                                            level="Q"
-                                        />
-                                    </div>
-                                    <p className="text-xs text-[#f2f0ea]/50">
-                                        Scan to pay <span className="font-semibold text-[#f2f0ea]">Rs.{memTotalAmount}</span> via UPI.
-                                    </p>
+                                    ) : (
+                                        <p className="font-mono text-[10.5px] leading-[1.5] text-[#ff5c2b]">
+                                            Add your UPI id under Payments to show a QR here. Until then, take this one
+                                            at the counter.
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
-                            {formError && (
-                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 text-sm text-[#ff5c2b]">{formError}</p>
-                            )}
+                            <div className="flex flex-col gap-2 px-[18px] pb-4 pt-3.5">
+                                {formError && (
+                                    <p className="border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 font-mono text-[10.5px] text-[#ff5c2b]">
+                                        {formError}
+                                    </p>
+                                )}
 
-                            <Button
-                                className="w-full justify-center py-3.5 text-base"
-                                onClick={handleMemSubmit}
-                                loading={memSubmitting}
-                                disabled={memSubmitting || memItems.length === 0 || !customerName.trim() || !customerPhone.trim()}
-                            >
-                                {memSubmitting ? 'Adding...' : 'Add Membership'}
-                            </Button>
-                        </Card>
+                                <button
+                                    type="button"
+                                    onClick={handleMemSubmit}
+                                    disabled={memSubmitting || memItems.length === 0 || !customerName.trim() || !customerPhone.trim()}
+                                    className="w-full bg-[#d8ff3c] py-[15px] font-mono text-[11.5px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {memSubmitting ? 'SELLING…' : `SELL PASS · ₹${memTotalAmount}`}
+                                </button>
+
+                                <span className="font-mono text-[10px] leading-[1.5] text-[#f2f0ea]/[0.32]">
+                                    The pass starts the moment it is sold and runs for the plan's own validity.
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
