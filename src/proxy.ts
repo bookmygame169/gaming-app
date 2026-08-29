@@ -1,8 +1,11 @@
-// middleware.ts - Global middleware for security and rate limiting
+// proxy.ts - Global request layer for security headers and CORS.
+//
+// Named proxy rather than middleware because Next 16 renamed the convention;
+// the file does exactly what it did before.
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   // Security Headers
