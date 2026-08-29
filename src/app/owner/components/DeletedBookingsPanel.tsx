@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Trash2, RotateCcw, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Trash2, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card } from './ui';
 import { dispatchOwnerBookingsChanged, subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 import { formatDurationLabel } from '../utils';
@@ -135,29 +135,17 @@ export function DeletedBookingsPanel() {
     <>
       <div className="mt-6">
         {/* Toggle header */}
+        {/* The design writes this as one mono line under the table, not a
+            card with an icon tile and a sentence of explanation. */}
         <button
           onClick={handleToggle}
-          className="w-full flex items-center justify-between px-5 py-3.5 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/[0.07] hover:bg-[#f2f0ea]/[0.06] transition-colors group"
+          className="flex w-full items-center gap-3 border border-[#f2f0ea]/10 bg-[#111113] px-4 py-3 font-mono text-[10.5px] tracking-[0.1em] text-[#f2f0ea]/40 transition-colors hover:text-[#f2f0ea]"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#ff5c2b]/10 flex items-center justify-center">
-              <Trash2 size={16} className="text-[#ff5c2b]" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-semibold text-[#f2f0ea]">Deleted Bookings</div>
-              <div className="text-xs text-[#f2f0ea]/40">Bookings removed by you — restore anytime from here</div>
-            </div>
-            {bookings.length > 0 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#ff5c2b]/15 text-[#ff5c2b]">
-                {bookings.length}
-              </span>
-            )}
-          </div>
-          {open ? (
-            <ChevronUp size={18} className="text-[#f2f0ea]/50 group-hover:text-[#f2f0ea] transition-colors" />
-          ) : (
-            <ChevronDown size={18} className="text-[#f2f0ea]/50 group-hover:text-[#f2f0ea] transition-colors" />
-          )}
+          <span className="whitespace-nowrap">
+            DELETED{bookings.length > 0 ? ` (${bookings.length})` : ''}
+          </span>
+          <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+          <span className="whitespace-nowrap">{open ? 'HIDE ▲' : 'SHOW ▼'}</span>
         </button>
 
         {/* Panel content */}

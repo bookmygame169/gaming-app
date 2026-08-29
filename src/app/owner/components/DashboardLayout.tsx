@@ -45,8 +45,8 @@ const MOBILE_PRIMARY_TABS = [
 ] as const;
 
 const TAB_TITLES: Record<string, string> = {
-    dashboard: 'Today',
-    billing: 'New Booking',
+    dashboard: 'Dashboard',
+    billing: 'Billing',
     bookings: 'Bookings',
     reports: 'Reports',
     inventory: 'Inventory',
@@ -55,7 +55,7 @@ const TAB_TITLES: Record<string, string> = {
     customers: 'Customers',
     stations: 'Stations',
     tournaments: 'Tournaments',
-    loyalty: 'Loyalty Points',
+    loyalty: 'Loyalty',
     reviews: 'Reviews',
     payments: 'Payments',
     wallet: 'Wallet',
@@ -97,12 +97,24 @@ export function DashboardLayout({
     const isMobileMoreActive = !MOBILE_PRIMARY_TABS.some((tab) => tab.id === activeTab);
     const pageTitle = TAB_TITLES[activeTab] ?? 'Owner Console';
 
-    const today = new Date().toLocaleDateString('en-IN', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    });
+    // Rendered on the client only: the server's clock is not the café's, and
+    // a time baked into the HTML would mismatch on hydration and then sit stale.
+    const [stamp, setStamp] = useState('');
+    useEffect(() => {
+        const write = () => {
+            const now = new Date();
+            const day = now.toLocaleDateString('en-IN', {
+                weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+            }).replace(/,/g, '');
+            const time = now.toLocaleTimeString('en-IN', {
+                hour: 'numeric', minute: '2-digit', hour12: true,
+            });
+            setStamp(`${day} · ${time}`);
+        };
+        write();
+        const tick = setInterval(write, 30_000);
+        return () => clearInterval(tick);
+    }, []);
 
     const toggleCollapsed = () => {
         setCollapsed((wasCollapsed) => {
@@ -188,8 +200,8 @@ export function DashboardLayout({
                         <span className="text-base font-extrabold leading-none tracking-[-0.01em] text-[#f2f0ea]">
                             {pageTitle}
                         </span>
-                        <span className="font-mono text-[10.5px] tracking-[0.1em] text-[#f2f0ea]/[0.42]">
-                            {today.toUpperCase()}
+                        <span className="truncate font-mono text-[10.5px] tracking-[0.1em] text-[#f2f0ea]/[0.42]">
+                            {[stamp, cafeName].filter(Boolean).join(' · ').toUpperCase()}
                         </span>
                     </div>
 
@@ -232,7 +244,7 @@ export function DashboardLayout({
                             onClick={() => onTabChange('billing')}
                             className="h-[38px] shrink-0 whitespace-nowrap bg-[#d8ff3c] px-[17px] font-mono text-[11.5px] font-semibold tracking-[0.14em] text-[#0b0b0c] transition-transform hover:-translate-y-px"
                         >
-                            + NEW BOOKING
+                            ▶ START SESSION
                         </button>
                     </div>
                 </header>

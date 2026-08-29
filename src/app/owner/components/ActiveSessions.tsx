@@ -227,7 +227,10 @@ export function ActiveSessions({
                                 type="button"
                                 onClick={handleEndMembership}
                                 disabled={isEnding}
-                                className="border-t border-[#f2f0ea]/10 bg-[#d8ff3c] py-3.5 font-mono text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:opacity-60"
+                                // mt-auto so the card's one action sits on its bottom
+                                // edge like the booking cards beside it. Without it
+                                // the button floated mid-card over dead space.
+                                className="mt-auto border-t border-[#f2f0ea]/10 bg-[#d8ff3c] py-3.5 font-mono text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:opacity-60"
                             >
                                 {isEnding ? 'ENDING…' : isDayPass ? 'END DAY PASS' : 'STOP MEMBERSHIP'}
                             </button>

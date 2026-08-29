@@ -19,7 +19,7 @@ export function formatDurationLabel(duration: number | null | undefined, options
   if (hours === 0) {
     return long
       ? `${minutes} minute${minutes === 1 ? "" : "s"}`
-      : `${minutes} min`;
+      : `${minutes}m`;
   }
 
   const hourLabel = long

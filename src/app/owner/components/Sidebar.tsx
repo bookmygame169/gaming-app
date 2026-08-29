@@ -40,7 +40,7 @@ import {
  */
 const NAV = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'billing', label: 'New Booking', icon: CreditCard },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'bookings', label: 'Bookings', icon: CalendarCheck },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'inventory', label: 'Inventory', icon: Package },
@@ -49,7 +49,7 @@ const NAV = [
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'stations', label: 'Stations', icon: Gamepad2 },
     { id: 'tournaments', label: 'Tournaments', icon: Trophy },
-    { id: 'loyalty', label: 'Loyalty Points', icon: Sparkles },
+    { id: 'loyalty', label: 'Loyalty', icon: Sparkles },
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'payments', label: 'Payments', icon: IndianRupee },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
@@ -233,7 +233,7 @@ export function Sidebar({
                     <button
                         type="button"
                         onClick={onLogout}
-                        title={isCollapsed ? 'Sign out' : undefined}
+                        title={isCollapsed ? 'Logout' : undefined}
                         className={`flex items-center gap-3.5 rounded-xl px-3 py-2.5 text-[#ff5c2b] transition-colors hover:bg-[#ff5c2b]/[0.09] ${
                             isCollapsed ? 'justify-center px-0' : ''
                         }`}
@@ -241,7 +241,7 @@ export function Sidebar({
                         <LogOut size={21} strokeWidth={1.7} className="shrink-0" />
                         {!isCollapsed && (
                             <span className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.01em]">
-                                Sign out
+                                Logout
                             </span>
                         )}
                     </button>

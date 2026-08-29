@@ -1285,7 +1285,7 @@ export function Billing({
                                                                             color: selected ? '#d8ff3c' : 'rgba(242,240,234,.5)',
                                                                         }}
                                                                     >
-                                                                        {station ?? 'Any'}
+                                                                        {(station ?? 'Any').toUpperCase()}
                                                                     </button>
                                                                 );
                                                             })}
