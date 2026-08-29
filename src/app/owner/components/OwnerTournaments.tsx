@@ -210,7 +210,30 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
         </div>
     );
 
-    const COLUMNS = 'minmax(140px,1.4fr) 128px minmax(120px,1fr) 92px 132px';
+    const COLUMNS = 'minmax(140px,1.4fr) 128px minmax(120px,1fr) 92px 96px 104px';
+
+    const exportTournamentsCsv = () => {
+        const header = ['Event', 'Game', 'When', 'Status', 'Seats taken', 'Seats', 'Entry fee', 'Collected', 'Prize pot', 'Net'];
+        const rows = tournaments.map((t) => {
+            const entry = Number(t.registration_fee) || 0;
+            const taken = t.current_participants || 0;
+            const potOut = Number(t.prize_amount) || 0;
+            return [
+                t.name, t.game || '', `${t.tournament_date} ${t.tournament_time || ''}`.trim(), t.status || '',
+                String(taken), String(t.max_participants ?? ''), String(entry),
+                String(entry * taken), String(potOut), String(entry * taken - potOut),
+            ];
+        });
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `tournaments-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
 
     const upcoming = tournaments.filter((t) => (t.status || '').toLowerCase() === 'upcoming');
     const live = tournaments.filter((t) => ['ongoing', 'live'].includes((t.status || '').toLowerCase()));
@@ -297,7 +320,8 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
                     <span>EVENT</span>
                     <span>WHEN</span>
                     <span>SEATS</span>
-                    <span className="text-right">PRIZE</span>
+                    <span className="text-right">ENTRY</span>
+                    <span className="text-right">POT / NET</span>
                     <span className="text-right">ACTIONS</span>
                 </TableHead>
 
@@ -311,6 +335,12 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
                         const seats = tournament.max_participants || 0;
                         const taken = tournament.current_participants || 0;
                         const full = seats > 0 && taken >= seats;
+                        // What the seats bring in against what the winner takes.
+                        // An event can fill and still cost money to run.
+                        const entry = Number(tournament.registration_fee) || 0;
+                        const potOut = Number(tournament.prize_amount) || 0;
+                        const collected = entry * taken;
+                        const net = collected - potOut;
                         const edge = ['ongoing', 'live'].includes(status)
                             ? '#d8ff3c'
                             : status === 'cancelled'
@@ -367,9 +397,26 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
                                     )}
                                 </div>
 
-                                <span className="whitespace-nowrap text-right text-[13.5px] font-extrabold text-[#d8ff3c]">
-                                    ₹{(Number(tournament.prize_amount) || 0).toLocaleString('en-IN')}
-                                </span>
+                                <div className="flex min-w-0 flex-col items-end gap-[3px]">
+                                    <span className="whitespace-nowrap text-[13px] font-extrabold text-[#f2f0ea]">
+                                        {entry > 0 ? `₹${entry.toLocaleString('en-IN')}` : 'FREE'}
+                                    </span>
+                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
+                                        ₹{collected.toLocaleString('en-IN')} in
+                                    </span>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col items-end gap-[3px]">
+                                    <span className="whitespace-nowrap font-mono text-[11.5px] text-[#f2f0ea]/70">
+                                        ₹{potOut.toLocaleString('en-IN')}
+                                    </span>
+                                    <span
+                                        className="whitespace-nowrap font-mono text-[11.5px] font-semibold"
+                                        style={{ color: net > 0 ? '#d8ff3c' : net < 0 ? '#ff5c2b' : 'rgba(242,240,234,.35)' }}
+                                    >
+                                        {net > 0 ? '+' : ''}₹{Math.abs(net).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
 
                                 <div className="flex justify-end gap-[5px]">
                                     <button
@@ -395,9 +442,18 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
                 )}
 
                 <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                    <span>{tournaments.length} event{tournaments.length === 1 ? '' : 's'}</span>
+                    <span className="truncate">
+                        {tournaments.length} event{tournaments.length === 1 ? '' : 's'} · entries are taken at the café, the site lists them only
+                    </span>
                     <span className="flex-1" />
-                    <span>ENTRIES ARE TAKEN AT THE CAFÉ · THE SITE LISTS THEM ONLY</span>
+                    <button
+                        type="button"
+                        onClick={exportTournamentsCsv}
+                        disabled={tournaments.length === 0}
+                        className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c] disabled:opacity-40"
+                    >
+                        EXPORT CSV →
+                    </button>
                 </div>
             </Panel>
         </div>
