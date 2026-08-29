@@ -13,7 +13,15 @@ import {
     TableRow,
 } from './consoleUi';
 
-type Holder = { phone: string; name: string | null; balance: number };
+type Holder = {
+    phone: string;
+    name: string | null;
+    balance: number;
+    /** Everything ever paid in, and everything ever spent, on this wallet. */
+    toppedUp: number;
+    spent: number;
+    lastAt: string | null;
+};
 
 type RecentEntry = {
     id: string;
@@ -34,6 +42,10 @@ const REASON_LABELS: Record<string, string> = {
     refund: 'Refunded',
     correction: 'Correction',
 };
+
+/** Whole days since a ledger entry, for colouring how stale a wallet is. */
+const daysSince = (iso: string) =>
+    Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 
 const formatWhen = (iso: string) =>
     new Date(iso).toLocaleString('en-IN', {
@@ -175,7 +187,7 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
           )
         : holders;
 
-    const COLUMNS = 'minmax(140px,1.4fr) minmax(120px,1fr) 120px 132px';
+    const COLUMNS = 'minmax(140px,1.4fr) minmax(120px,1fr) 100px 96px 100px 104px';
     const inCredit = holders.filter((holder) => holder.balance > 0);
 
     const exportWalletsCsv = () => {
@@ -287,7 +299,9 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
                 <TableHead columns={COLUMNS}>
                     <span>CUSTOMER</span>
                     <span>BALANCE</span>
-                    <span className="text-right">LAST MOVE</span>
+                    <span className="text-right">TOPPED UP</span>
+                    <span className="text-right">SPENT</span>
+                    <span className="text-right">LAST USE</span>
                     <span className="text-right">ACTIONS</span>
                 </TableHead>
 
@@ -299,8 +313,6 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
                     </EmptyRow>
                 ) : (
                     visible.map((holder) => {
-                        const last = recent.find((entry) => entry.phone === holder.phone);
-
                         return (
                             <TableRow
                                 key={holder.phone}
@@ -323,21 +335,22 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
                                     ₹{holder.balance.toLocaleString('en-IN')}
                                 </span>
 
-                                <div className="flex flex-col gap-[3px] text-right">
-                                    {last ? (
-                                        <>
-                                            <span className="whitespace-nowrap font-mono text-[11px] text-[#f2f0ea]/70">
-                                                {last.amount >= 0 ? '+' : '−'}₹{Math.abs(last.amount).toLocaleString('en-IN')}
-                                            </span>
-                                            <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
-                                                {(REASON_LABELS[last.reason] || last.reason).toUpperCase()} ·{' '}
-                                                {formatWhen(last.createdAt).toUpperCase()}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <span className="font-mono text-[10.5px] text-[#f2f0ea]/30">—</span>
-                                    )}
-                                </div>
+                                <span className="whitespace-nowrap text-right font-mono text-[11.5px] text-[#f2f0ea]/70">
+                                    {holder.toppedUp > 0 ? `₹${holder.toppedUp.toLocaleString('en-IN')}` : '—'}
+                                </span>
+
+                                <span className="whitespace-nowrap text-right font-mono text-[11.5px] text-[#f2f0ea]/60">
+                                    {holder.spent > 0 ? `₹${holder.spent.toLocaleString('en-IN')}` : '—'}
+                                </span>
+
+                                {/* Amber past a fortnight: money sitting in a wallet
+                                    nobody is spending is money owed, not money earned. */}
+                                <span
+                                    className="whitespace-nowrap text-right font-mono text-[11.5px]"
+                                    style={{ color: !holder.lastAt ? 'rgba(242,240,234,.3)' : daysSince(holder.lastAt) > 30 ? '#ff5c2b' : daysSince(holder.lastAt) > 14 ? '#ffa53c' : 'rgba(242,240,234,.6)' }}
+                                >
+                                    {holder.lastAt ? formatWhen(holder.lastAt).toUpperCase() : '—'}
+                                </span>
 
                                 <div className="flex justify-end gap-[5px]">
                                     <button
@@ -377,6 +390,48 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
                     </button>
                 </div>
             </Panel>
+
+            {/* The ledger itself. The table above says where each wallet stands;
+                this says what actually happened, in order. */}
+            {recent.length > 0 && (
+                <section>
+                    <div className="mb-3">
+                        <SectionBar
+                            title="RECENT MOVEMENTS"
+                            action={
+                                <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/40">
+                                    last {recent.length}
+                                </span>
+                            }
+                        />
+                    </div>
+                    <Panel>
+                        {recent.map((entry) => (
+                            <div
+                                key={entry.id}
+                                className="grid items-center gap-3 border-b border-[#f2f0ea]/[0.05] px-4 py-3 last:border-b-0"
+                                style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) 110px 96px' }}
+                            >
+                                <span className="truncate font-mono text-[11.5px] text-[#f2f0ea]/[0.86]">
+                                    {holders.find((h) => h.phone === entry.phone)?.name || entry.phone}
+                                </span>
+                                <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {(REASON_LABELS[entry.reason] || entry.reason).toUpperCase()}
+                                </span>
+                                <span className="whitespace-nowrap text-right font-mono text-[10.5px] text-[#f2f0ea]/35">
+                                    {formatWhen(entry.createdAt).toUpperCase()}
+                                </span>
+                                <span
+                                    className="whitespace-nowrap text-right font-mono text-[12px] font-semibold"
+                                    style={{ color: entry.amount >= 0 ? '#d8ff3c' : '#ff5c2b' }}
+                                >
+                                    {entry.amount >= 0 ? '+' : '−'}₹{Math.abs(entry.amount).toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        ))}
+                    </Panel>
+                </section>
+            )}
         </div>
     );
 }

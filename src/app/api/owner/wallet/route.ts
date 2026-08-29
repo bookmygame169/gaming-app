@@ -106,13 +106,42 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // What each wallet has taken in and paid out over its whole life, not just
+  // inside the thirty rows above. A balance says what is left; these say
+  // whether the wallet is used at all, which is the question the screen asks.
+  const { data: allMoves, error: movesError } = await supabase
+    .from("wallet_ledger")
+    .select("customer_phone, amount, created_at")
+    .eq("cafe_id", cafeId);
+
+  if (movesError) return walletError(movesError.message);
+
+  const totalsByPhone = new Map<string, { toppedUp: number; spent: number; lastAt: string | null }>();
+  for (const move of allMoves ?? []) {
+    const key = phoneKey(move.customer_phone as string | null);
+    if (!key) continue;
+    const entry = totalsByPhone.get(key) ?? { toppedUp: 0, spent: 0, lastAt: null };
+    const amount = Number(move.amount) || 0;
+    if (amount > 0) entry.toppedUp += amount;
+    else entry.spent += Math.abs(amount);
+    const at = move.created_at as string | null;
+    if (at && (!entry.lastAt || at > entry.lastAt)) entry.lastAt = at;
+    totalsByPhone.set(key, entry);
+  }
+
   const holders = [...balances.entries()]
     .filter(([, balance]) => balance !== 0)
-    .map(([phone, balance]) => ({
-      phone,
-      name: namesByPhone.get(phone) ?? null,
-      balance,
-    }))
+    .map(([phone, balance]) => {
+      const totals = totalsByPhone.get(phone);
+      return {
+        phone,
+        name: namesByPhone.get(phone) ?? null,
+        balance,
+        toppedUp: totals?.toppedUp ?? 0,
+        spent: totals?.spent ?? 0,
+        lastAt: totals?.lastAt ?? null,
+      };
+    })
     .sort((a, b) => b.balance - a.balance);
 
   return NextResponse.json({
