@@ -116,6 +116,40 @@ export function OwnerReviews({ cafeId }: OwnerReviewsProps) {
         { id: 'hidden', label: 'HIDDEN', count: reviews.filter((r) => r.isHidden).length },
     ];
 
+    // ── what people mention ──
+    //
+    // The design tags each review by topic; nothing here records tags, so this
+    // counts words instead. A fixed vocabulary, matched against the comment
+    // text, with the average rating of the reviews each word appears in — so a
+    // topic that shows up in one-star reviews reads differently from one that
+    // shows up in fives. It is a word count, not sentiment analysis, and the
+    // heading says mention rather than anything stronger.
+    const TOPICS: { label: string; words: string[] }[] = [
+        { label: 'Staff', words: ['staff', 'service', 'owner', 'helpful', 'rude'] },
+        { label: 'Price', words: ['price', 'cheap', 'expensive', 'costly', 'worth', 'rate'] },
+        { label: 'Snacks', words: ['snack', 'food', 'maggi', 'coke', 'drink', 'coffee'] },
+        { label: 'Setup', words: ['pc', 'ps5', 'xbox', 'setup', 'rig', 'console', 'screen', 'chair'] },
+        { label: 'Lag', words: ['lag', 'slow', 'stutter', 'fps', 'internet', 'wifi', 'network'] },
+        { label: 'Waiting', words: ['wait', 'queue', 'busy', 'late', 'delay'] },
+        { label: 'Booking', words: ['book', 'booking', 'slot', 'refund', 'cancel'] },
+        { label: 'Cleanliness', words: ['clean', 'dirty', 'hygiene', 'smell', 'ac'] },
+    ];
+
+    const mentions = TOPICS
+        .map((topic) => {
+            const hits = reviews.filter((r) => {
+                const text = (r.comment || '').toLowerCase();
+                return topic.words.some((w) => text.includes(w));
+            });
+            const avg = hits.length > 0
+                ? hits.reduce((sum, r) => sum + r.rating, 0) / hits.length
+                : 0;
+            return { label: topic.label, count: hits.length, avg };
+        })
+        .filter((t) => t.count > 0)
+        .sort((a, b) => b.count - a.count);
+    const topMention = Math.max(1, ...mentions.map((m) => m.count));
+
     return (
         <div className="grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
             {/* ── the score, and how it is made up ── */}
@@ -175,6 +209,45 @@ export function OwnerReviews({ cafeId }: OwnerReviewsProps) {
                         </div>
                     ))}
                 </div>
+
+                {mentions.length > 0 && (
+                    <div className="flex flex-col gap-2.5">
+                        <span className="font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+                            WHAT PEOPLE MENTION
+                        </span>
+                        <div className="flex flex-col gap-[7px]">
+                            {mentions.map((topic) => {
+                                // Coloured by the average rating of the reviews it
+                                // turns up in, so a common word and a common
+                                // complaint do not look the same.
+                                const tone = topic.avg >= 4 ? '#d8ff3c' : topic.avg >= 3 ? 'rgba(242,240,234,.5)' : '#ff5c2b';
+                                return (
+                                    <div
+                                        key={topic.label}
+                                        className="grid items-center gap-[9px]"
+                                        style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,110px) 104px' }}
+                                    >
+                                        <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/60">
+                                            {topic.label}
+                                        </span>
+                                        <div className="h-1.5 bg-[#f2f0ea]/[0.08]">
+                                            <div
+                                                className="h-1.5"
+                                                style={{ width: `${(topic.count / topMention) * 100}%`, background: tone }}
+                                            />
+                                        </div>
+                                        <span className="whitespace-nowrap text-right font-mono text-[10.5px]" style={{ color: tone }}>
+                                            {topic.count} · {topic.avg.toFixed(1)}★
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <span className="font-mono text-[10px] leading-[1.5] text-[#f2f0ea]/30">
+                            Counted from the words in review text, with the average rating each appears in.
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* ── what people wrote ── */}
