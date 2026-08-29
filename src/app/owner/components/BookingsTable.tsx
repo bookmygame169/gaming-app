@@ -434,13 +434,13 @@ export function BookingsTable({
                             <div key={i} className="p-3 space-y-2.5">
                                 <div className="flex justify-between">
                                     <div>
-                                        <div className="h-3.5 w-28 rounded bg-[#f2f0ea]/[0.06] mb-2" />
-                                        <div className="h-2.5 w-20 rounded bg-[#f2f0ea]/[0.04]" />
+                                        <div className="h-3.5 w-28 bg-[#f2f0ea]/[0.06] mb-2" />
+                                        <div className="h-2.5 w-20 bg-[#f2f0ea]/[0.04]" />
                                     </div>
                                     <div className="h-5 w-20 rounded-full bg-[#f2f0ea]/[0.06]" />
                                 </div>
                                 <div className="h-10 bg-[#f2f0ea]/[0.04]" />
-                                <div className="h-2.5 w-32 rounded bg-[#f2f0ea]/[0.06]/40" />
+                                <div className="h-2.5 w-32 bg-[#f2f0ea]/[0.06]/40" />
                             </div>
                         ))}
                     </div>

@@ -116,7 +116,7 @@ export function StationExitPassword({ cafeId }: Props) {
                     </p>
 
                     {isSet !== null && !migrationNeeded && (
-                        <p className="mt-2 text-[11px] font-semibold" style={{ color: isSet ? '#d8ff3c' : '#94a3b8' }}>
+                        <p className="mt-2 text-[11px] font-semibold" style={{ color: isSet ? '#d8ff3c' : 'rgba(242,240,234,.45)' }}>
                             {isSet
                                 ? 'A password is set. Typing a new one replaces it everywhere.'
                                 : 'No password set — the shortcut currently does nothing.'}
@@ -176,7 +176,7 @@ export function StationExitPassword({ cafeId }: Props) {
                     {message && (
                         <p
                             className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
-                            style={{ color: message.tone === 'ok' ? '#d8ff3c' : '#f87171' }}
+                            style={{ color: message.tone === 'ok' ? '#d8ff3c' : '#ff5c2b' }}
                         >
                             {message.tone === 'ok' && <Check size={12} />}
                             {message.text}

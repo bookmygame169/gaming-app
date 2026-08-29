@@ -98,7 +98,7 @@ function NavItem({
             href={href}
             onClick={onNavigate}
             title={collapsed ? item.label : undefined}
-            className={`relative my-px flex items-center gap-3.5 rounded-xl transition-colors ${
+            className={`relative my-px flex items-center gap-3.5 transition-colors ${
                 collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
             } ${
                 isActive
@@ -107,7 +107,7 @@ function NavItem({
             }`}
         >
             {isActive && (
-                <span className="absolute -left-3 bottom-2 top-2 w-[3px] rounded-r-[3px] bg-[#d8ff3c]" />
+                <span className="absolute -left-3 bottom-2 top-2 w-[3px] bg-[#d8ff3c]" />
             )}
 
             <Icon
@@ -180,7 +180,7 @@ export function Sidebar({
                         isCollapsed ? 'flex-col gap-3' : ''
                     }`}
                 >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[#d8ff3c] text-sm font-black text-[#0b0b0c]">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#d8ff3c] text-sm font-black text-[#0b0b0c]">
                         BG
                     </span>
 
@@ -202,7 +202,7 @@ export function Sidebar({
                             type="button"
                             onClick={onToggleCollapsed}
                             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#f2f0ea]/[0.42] transition-colors hover:bg-[#f2f0ea]/[0.07] hover:text-[#f2f0ea]"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center text-[#f2f0ea]/[0.42] transition-colors hover:bg-[#f2f0ea]/[0.07] hover:text-[#f2f0ea]"
                         >
                             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                         </button>
@@ -234,7 +234,7 @@ export function Sidebar({
                         type="button"
                         onClick={onLogout}
                         title={isCollapsed ? 'Logout' : undefined}
-                        className={`flex items-center gap-3.5 rounded-xl px-3 py-2.5 text-[#ff5c2b] transition-colors hover:bg-[#ff5c2b]/[0.09] ${
+                        className={`flex items-center gap-3.5 px-3 py-2.5 text-[#ff5c2b] transition-colors hover:bg-[#ff5c2b]/[0.09] ${
                             isCollapsed ? 'justify-center px-0' : ''
                         }`}
                     >
@@ -252,7 +252,7 @@ export function Sidebar({
                     <Link
                         href="/scan"
                         title={isCollapsed ? 'Scan QR ticket' : undefined}
-                        className={`flex items-center gap-3 rounded-xl border border-[#f2f0ea]/10 bg-[#17171a] px-3.5 py-3 transition-colors hover:border-[#d8ff3c] hover:bg-[#d8ff3c]/[0.08] ${
+                        className={`flex items-center gap-3 border border-[#f2f0ea]/10 bg-[#17171a] px-3.5 py-3 transition-colors hover:border-[#d8ff3c] hover:bg-[#d8ff3c]/[0.08] ${
                             isCollapsed ? 'justify-center px-0' : ''
                         }`}
                     >
@@ -267,7 +267,7 @@ export function Sidebar({
                     <Link
                         href="/"
                         title={isCollapsed ? cafeName : undefined}
-                        className={`flex items-center gap-3 rounded-[14px] bg-[#141417] px-3 py-2.5 transition-colors hover:bg-[#1c1c20] ${
+                        className={`flex items-center gap-3 bg-[#141417] px-3 py-2.5 transition-colors hover:bg-[#1c1c20] ${
                             isCollapsed ? 'justify-center px-0' : ''
                         }`}
                     >
@@ -295,7 +295,7 @@ export function MobileMenuButton({ onClick }: { onClick: () => void }) {
     return (
         <button
             onClick={onClick}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f2f0ea]/10 bg-[#f2f0ea]/5 text-[#f2f0ea] transition-colors hover:bg-[#f2f0ea]/10"
+            className="flex h-9 w-9 items-center justify-center border border-[#f2f0ea]/10 bg-[#f2f0ea]/5 text-[#f2f0ea] transition-colors hover:bg-[#f2f0ea]/10"
         >
             <Menu size={18} />
         </button>

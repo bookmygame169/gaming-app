@@ -12,7 +12,6 @@ export function CafeDetailsTab() {
                 <div
                   style={{
                     background: theme.cardBackground,
-                    borderRadius: 16,
                     border: `1px solid ${theme.border}`,
                     padding: "60px 20px",
                     textAlign: "center",
@@ -30,7 +29,6 @@ export function CafeDetailsTab() {
                 <div
                   style={{
                     background: "#111113, rgba(15,23,42,0.9))",
-                    borderRadius: 16,
                     border: `1px solid rgba(71, 85, 105, 0.3)`,
                     padding: "32px",
                     maxWidth: 800,
@@ -45,7 +43,6 @@ export function CafeDetailsTab() {
                       background: "#111113",
                       width: 80,
                       height: 80,
-                      borderRadius: 20,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -73,7 +70,6 @@ export function CafeDetailsTab() {
                       marginBottom: 32,
                       padding: "20px",
                       background: "rgba(15,23,42,0.5)",
-                      borderRadius: 12,
                       border: `1px solid ${theme.border}`,
                     }}>
                       {currentCafe.description}
@@ -89,7 +85,6 @@ export function CafeDetailsTab() {
                     style={{
                       width: "100%",
                       padding: "18px 32px",
-                      borderRadius: 12,
                       border: "none",
                       background: "#d8ff3c",
                       color: "#0b0b0c",

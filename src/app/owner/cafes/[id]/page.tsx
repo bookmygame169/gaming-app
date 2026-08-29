@@ -470,7 +470,6 @@ export default function OwnerCafeEditPage() {
           onClick={() => router.push("/owner")}
           style={{
             padding: "12px 24px",
-            borderRadius: 10,
             border: "none",
             background: "#111113",
             color: "#fff",
@@ -575,7 +574,6 @@ export default function OwnerCafeEditPage() {
           <div
             style={{
               padding: "16px 20px",
-              borderRadius: 12,
               background: "rgba(216, 255, 60, 0.1)",
               border: "1px solid rgba(216, 255, 60, 0.3)",
               color: "#d8ff3c",
@@ -596,7 +594,6 @@ export default function OwnerCafeEditPage() {
           <div
             style={{
               padding: "16px 20px",
-              borderRadius: 12,
               background: "rgba(255, 92, 43, 0.1)",
               border: "1px solid rgba(255, 92, 43, 0.3)",
               color: "#ff5c2b",
@@ -921,7 +918,6 @@ export default function OwnerCafeEditPage() {
                 disabled={saving}
                 style={{
                   padding: "14px 28px",
-                  borderRadius: 10,
                   border: `1px solid ${colors.border}`,
                   background: "rgba(51,65,85,0.5)",
                   color: colors.textSecondary,
@@ -938,7 +934,6 @@ export default function OwnerCafeEditPage() {
                 disabled={saving || !formData.name || !formData.address}
                 style={{
                   padding: "14px 28px",
-                  borderRadius: 10,
                   border: "none",
                   background:
                     saving || !formData.name || !formData.address
@@ -987,7 +982,6 @@ export default function OwnerCafeEditPage() {
                   style={{
                     padding: "20px",
                     background: "rgba(30,41,59,0.5)",
-                    borderRadius: 12,
                     border: `1px solid ${colors.border}`,
                     marginBottom: 16,
                   }}
@@ -999,7 +993,7 @@ export default function OwnerCafeEditPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
                     {[30, 60].map((duration) => (
-                      <div key={duration} style={{ background: "rgba(15,23,42,0.5)", padding: "16px", borderRadius: 8 }}>
+                      <div key={duration} style={{ background: "rgba(15,23,42,0.5)", padding: "16px"}}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: colors.cyan, marginBottom: 12 }}>
                           {duration === 30 ? "30 Minutes" : "1 Hour"}
                         </div>
@@ -1053,7 +1047,7 @@ export default function OwnerCafeEditPage() {
                     Current Cover Photo
                   </label>
                   {formData.cover_url ? (
-                    <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: `1px solid ${colors.border}` }}>
+                    <div style={{ position: "relative", overflow: "hidden", border: `1px solid ${colors.border}` }}>
                       <img
                         src={formData.cover_url}
                         alt="Cover"
@@ -1067,7 +1061,6 @@ export default function OwnerCafeEditPage() {
                     <div
                       style={{
                         height: 200,
-                        borderRadius: 12,
                         border: `2px dashed ${colors.border}`,
                         display: "flex",
                         alignItems: "center",
@@ -1119,7 +1112,6 @@ export default function OwnerCafeEditPage() {
                         justifyContent: "center",
                         gap: 8,
                         padding: "12px 24px",
-                        borderRadius: 8,
                         border: `2px dashed ${colors.border}`,
                         background: uploadingImage ? "rgba(216,255,60,0.10)" : "rgba(30,41,59,0.5)",
                         color: uploadingImage ? colors.cyan : colors.textSecondary,
@@ -1175,7 +1167,6 @@ export default function OwnerCafeEditPage() {
                       disabled={!newImageUrl}
                       style={{
                         padding: "12px 24px",
-                        borderRadius: 8,
                         border: "none",
                         background: newImageUrl ? "#111113" : "rgba(216, 255, 60, 0.3)",
                         color: "#fff",
@@ -1209,7 +1200,6 @@ export default function OwnerCafeEditPage() {
                       key={image.id}
                       style={{
                         position: "relative",
-                        borderRadius: 12,
                         overflow: "hidden",
                         border: `1px solid ${colors.border}`,
                         background: "rgba(30,41,59,0.5)",
@@ -1235,7 +1225,6 @@ export default function OwnerCafeEditPage() {
                           onClick={() => handleUpdateCoverPhoto(image.image_url)}
                           style={{
                             padding: "6px 10px",
-                            borderRadius: 6,
                             border: "none",
                             background: formData.cover_url === image.image_url ? "rgba(216, 255, 60, 0.9)" : "rgba(216, 255, 60, 0.9)",
                             color: "#fff",
@@ -1256,7 +1245,6 @@ export default function OwnerCafeEditPage() {
                           onClick={() => handleDeleteImage(image.id)}
                           style={{
                             padding: "6px 10px",
-                            borderRadius: 6,
                             border: "none",
                             background: "rgba(255, 92, 43, 0.9)",
                             color: "#fff",
@@ -1308,7 +1296,6 @@ function Section({ title, icon, children }: { title: string; icon: string; child
     <div
       style={{
         background: "rgba(15,23,42,0.6)",
-        borderRadius: 16,
         border: `1px solid ${colors.border}`,
         padding: "24px",
       }}
@@ -1361,7 +1348,6 @@ function FormField({
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "12px 16px",
-  borderRadius: 8,
   border: `1px solid ${colors.border}`,
   background: "rgba(30,41,59,0.5)",
   color: colors.textPrimary,

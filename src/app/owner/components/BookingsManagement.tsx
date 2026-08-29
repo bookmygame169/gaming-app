@@ -859,7 +859,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                     <span className="mr-1 text-[#f2f0ea]/40">Show</span>
                                     {PAGE_SIZE_OPTIONS.map(size => (
                                         <button key={size} onClick={() => setLimit(size)}
-                                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${limit === size ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/[0.06]'}`}>
+                                            className={`px-2.5 py-1 text-xs font-medium transition-colors ${limit === size ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/[0.06]'}`}>
                                             {size}
                                         </button>
                                     ))}

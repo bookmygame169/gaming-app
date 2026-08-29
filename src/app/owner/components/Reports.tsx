@@ -897,7 +897,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">REVENUE BY DAY</h3>
 </div>
                             {revenueTrendData.length > 7 && (
-                                <span className="text-xs text-[#f2f0ea]/40 bg-[#f2f0ea]/[0.06] px-2 py-1 rounded">Click to expand</span>
+                                <span className="text-xs text-[#f2f0ea]/40 bg-[#f2f0ea]/[0.06] px-2 py-1">Click to expand</span>
                             )}
                         </div>
 
@@ -921,7 +921,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                     <div className="w-full flex flex-col items-center h-full justify-end relative">
                                                         <div className="w-full max-w-[60px] relative flex items-end h-[120px]">
                                                             <div
-                                                                className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
+                                                                className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] hover:bg-[#d8ff3c]/40 transition-all relative"
                                                                 style={{ height: `${barHeight}%` }}
                                                             >
                                                                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-[#d8ff3c] font-medium whitespace-nowrap">
@@ -974,7 +974,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                 <div className="flex-1 w-full flex items-end justify-center">
                                                     <div className="w-full max-w-[50px] relative h-full flex items-end">
                                                         <div
-                                                            className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
+                                                            className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] hover:bg-[#d8ff3c]/40 transition-all relative"
                                                             style={{ height: `${Math.max(heightPercent, 5)}%` }}
                                                         >
                                                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-[#d8ff3c] font-medium whitespace-nowrap">
@@ -1013,7 +1013,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                 return (
                                     <div key={idx} className="flex-1 flex flex-col items-center group h-full justify-end">
                                         <div
-                                            className={`w-full rounded-t-sm transition-all relative ${isBusy ? 'bg-[#d8ff3c]' : 'bg-white/[0.08]'}`}
+                                            className={`w-full transition-all relative ${isBusy ? 'bg-[#d8ff3c]' : 'bg-white/[0.08]'}`}
                                             style={{ height: `${Math.max(heightPercent, 5)}%`, opacity: isBusy ? 0.8 : 0.3 }}
                                         >
                                             <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[10px] text-[#f2f0ea] opacity-0 group-hover:opacity-100">
@@ -1447,18 +1447,18 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                     <span className="text-sm font-medium text-[#f2f0ea]">{tx.customerName}</span>
                                                     {tx.customerPhone && <span className="text-xs text-[#f2f0ea]/40">{tx.customerPhone}</span>}
                                                     {isOwner ? (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Owner</span>
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Owner</span>
                                                     ) : payMode === 'cash' ? (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Cash</span>
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">Cash</span>
                                                     ) : payMode === 'upi' ? (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">UPI</span>
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-[#d8ff3c]/15 text-[#d8ff3c]">UPI</span>
                                                     ) : (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white/[0.08] text-[#f2f0ea]/50 capitalize">{tx.paymentMode}</span>
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-white/[0.08] text-[#f2f0ea]/50 capitalize">{tx.paymentMode}</span>
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap gap-1">
                                                     {tx.items.map((item, idx) => (
-                                                        <span key={idx} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 border border-[#f2f0ea]/10">
+                                                        <span key={idx} className="text-[11px] px-1.5 py-0.5 bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 border border-[#f2f0ea]/10">
                                                             {item.name} ×{item.quantity}
                                                         </span>
                                                     ))}

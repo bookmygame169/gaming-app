@@ -749,7 +749,7 @@ See you soon! 🎯`;
                                 </h2>
                                 <button
                                     onClick={(e) => copyCode(selectedCoupon.code, e)}
-                                    className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                                    className="p-1.5 hover:bg-white/10 transition-colors"
                                 >
                                     {copiedCode === selectedCoupon.code
                                         ? <Check size={16} className="text-[#d8ff3c]" />

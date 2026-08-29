@@ -309,7 +309,7 @@ export default function ViewOrdersModal({
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => removeFromCart(item.id)}
-                                className="p-1 bg-white/[0.08] hover:bg-white/[0.10] rounded text-[#f2f0ea]"
+                                className="p-1 bg-white/[0.08] hover:bg-white/[0.10] text-[#f2f0ea]"
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
@@ -319,7 +319,7 @@ export default function ViewOrdersModal({
                               <button
                                 onClick={() => addToCart(item)}
                                 disabled={inCart >= item.stock_quantity}
-                                className="p-1 bg-[#d8ff3c] hover:bg-[#d8ff3c] rounded text-[#0b0b0c] disabled:opacity-50"
+                                className="p-1 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] disabled:opacity-50"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>

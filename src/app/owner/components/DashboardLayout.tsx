@@ -266,12 +266,12 @@ export function DashboardLayout({
                             {onRefresh && (
                                 <button
                                     onClick={handleRefresh}
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#f2f0ea]/10 text-[#f2f0ea]/50 transition-colors hover:text-[#f2f0ea]"
+                                    className="flex h-9 w-9 items-center justify-center border border-[#f2f0ea]/10 text-[#f2f0ea]/50 transition-colors hover:text-[#f2f0ea]"
                                 >
                                     <RefreshCw size={14} className={spinning ? 'animate-spin' : ''} />
                                 </button>
                             )}
-                            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#d8ff3c] text-[11px] font-black text-[#0b0b0c]">
+                            <span className="flex h-8 w-8 items-center justify-center bg-[#d8ff3c] text-[11px] font-black text-[#0b0b0c]">
                                 {initials || 'O'}
                             </span>
                         </div>
@@ -295,7 +295,7 @@ export function DashboardLayout({
                                 <button
                                     key={tab.id}
                                     onClick={() => onTabChange(tab.id)}
-                                    className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2.5 transition-colors ${
+                                    className={`flex flex-col items-center justify-center gap-1 px-1 py-2.5 transition-colors ${
                                         active
                                             ? 'bg-[#d8ff3c]/[0.12] text-[#d8ff3c]'
                                             : 'text-[#f2f0ea]/45 hover:bg-[#f2f0ea]/[0.04] hover:text-[#f2f0ea]'
@@ -308,7 +308,7 @@ export function DashboardLayout({
                         })}
                         <button
                             onClick={() => setMobileMenuOpen(true)}
-                            className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2.5 transition-colors ${
+                            className={`flex flex-col items-center justify-center gap-1 px-1 py-2.5 transition-colors ${
                                 isMobileMoreActive
                                     ? 'bg-[#d8ff3c]/[0.12] text-[#d8ff3c]'
                                     : 'text-[#f2f0ea]/45 hover:bg-[#f2f0ea]/[0.04] hover:text-[#f2f0ea]'

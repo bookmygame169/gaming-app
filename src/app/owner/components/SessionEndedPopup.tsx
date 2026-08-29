@@ -64,7 +64,7 @@ export function SessionEndedPopup({
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 pointer-events-none">
       <div
-        className="pointer-events-auto bg-[#13131f] border-2 border-[#ff5c2b]/50 w-full max-w-md mx-4 animate-in slide-in-from-top-4 fade-in duration-300"
+        className="pointer-events-auto bg-[#111113] border-2 border-[#ff5c2b]/50 w-full max-w-md mx-4 animate-in slide-in-from-top-4 fade-in duration-300"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[#f2f0ea]/10">
@@ -119,7 +119,7 @@ export function SessionEndedPopup({
         </div>
 
         {/* Auto-close indicator */}
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-[#f2f0ea]/[0.06] rounded-b-2xl overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-[#f2f0ea]/[0.06] overflow-hidden">
           <div
             className="h-full bg-[#ff5c2b] animate-shrink-width"
             style={{

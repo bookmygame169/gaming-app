@@ -61,7 +61,6 @@ export default function SubscriptionDetailsModal({
             <div
                 style={{
                     background: theme.cardBackground,
-                    borderRadius: isMobile ? 16 : 24,
                     border: `1px solid ${theme.border}`,
                     maxWidth: 900,
                     width: "100%",
@@ -101,7 +100,6 @@ export default function SubscriptionDetailsModal({
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.02)',
                         border: `1px solid ${theme.border}`,
-                        borderRadius: 16,
                         padding: isMobile ? "20px" : "24px",
                         marginBottom: 24,
                     }}>
@@ -134,7 +132,6 @@ export default function SubscriptionDetailsModal({
                                 padding: isMobile ? '8px 16px' : '10px 20px',
                                 background: `${statusColor}20`,
                                 color: statusColor,
-                                borderRadius: 20,
                                 fontSize: isMobile ? 13 : 15,
                                 fontWeight: 600,
                                 textTransform: 'capitalize',
@@ -195,7 +192,6 @@ export default function SubscriptionDetailsModal({
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.02)',
                         border: `1px solid ${theme.border}`,
-                        borderRadius: 16,
                         padding: isMobile ? "20px" : "24px",
                         marginBottom: 24,
                     }}>
@@ -209,7 +205,6 @@ export default function SubscriptionDetailsModal({
                                     background: '#d8ff3c',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: 10,
                                     fontSize: isMobile ? 13 : 14,
                                     fontWeight: 600,
                                     cursor: 'pointer',
@@ -246,7 +241,6 @@ export default function SubscriptionDetailsModal({
                             width: '100%',
                             height: 12,
                             background: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: 6,
                             overflow: 'hidden',
                             marginBottom: 12,
                         }}>
@@ -270,7 +264,6 @@ export default function SubscriptionDetailsModal({
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.02)',
                         border: `1px solid ${theme.border}`,
-                        borderRadius: 16,
                         padding: isMobile ? "20px" : "24px",
                         marginBottom: 24,
                     }}>
@@ -347,7 +340,6 @@ export default function SubscriptionDetailsModal({
                                 padding: isMobile ? "12px 20px" : "14px 24px",
                                 background: 'transparent',
                                 border: `2px solid ${theme.border}`,
-                                borderRadius: 10,
                                 color: theme.textPrimary,
                                 fontSize: isMobile ? 14 : 15,
                                 fontWeight: 600,
@@ -366,7 +358,6 @@ export default function SubscriptionDetailsModal({
                                 padding: isMobile ? "12px 20px" : "14px 24px",
                                 background: 'transparent',
                                 border: `2px solid rgba(251, 191, 36, 0.4)`,
-                                borderRadius: 10,
                                 color: '#ff5c2b',
                                 fontSize: isMobile ? 14 : 15,
                                 fontWeight: 600,
@@ -390,7 +381,6 @@ export default function SubscriptionDetailsModal({
                                 padding: isMobile ? "12px 20px" : "14px 24px",
                                 background: 'rgba(255, 92, 43, 0.1)',
                                 border: `2px solid rgba(255, 92, 43, 0.4)`,
-                                borderRadius: 10,
                                 color: '#ff5c2b',
                                 fontSize: isMobile ? 14 : 15,
                                 fontWeight: 600,

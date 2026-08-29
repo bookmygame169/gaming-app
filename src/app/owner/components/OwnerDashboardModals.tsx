@@ -110,7 +110,7 @@ export function OwnerDashboardModals() {
             }}
           >
             <div
-              className="w-full max-w-sm overflow-hidden rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113]"
+              className="w-full max-w-sm overflow-hidden border border-[#f2f0ea]/10 bg-[#111113]"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[#f2f0ea]/10 px-5 py-4">
@@ -276,7 +276,6 @@ export function OwnerDashboardModals() {
             <div
               style={{
                 background: theme.cardBackground,
-                borderRadius: 20,
                 border: `1px solid ${theme.border}`,
                 maxWidth: "500px",
                 width: "100%",
@@ -297,7 +296,7 @@ export function OwnerDashboardModals() {
 
               {/* Booking Details */}
               <div style={{ padding: "20px 28px" }}>
-                <div style={{ padding: "16px", borderRadius: 12, background: "rgba(15,23,42,0.6)", border: `1px solid ${theme.border}`, marginBottom: 16 }}>
+                <div style={{ padding: "16px", background: "rgba(15,23,42,0.6)", border: `1px solid ${theme.border}`, marginBottom: 16 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 20px" }}>
                     {[
                       { label: "Customer", value: editingBooking.customer_name || editingBooking.user_name || "Walk-in" },
@@ -320,7 +319,7 @@ export function OwnerDashboardModals() {
                       <div style={{ fontSize: 10, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Consoles</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {editingBooking.booking_items.map((item: any) => (
-                          <span key={item.id} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 20, background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.2)", color: "#7dd3fc" }}>
+                          <span key={item.id} style={{ fontSize: 12, padding: "3px 10px", background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.2)", color: "#7dd3fc" }}>
                             {item.console} ×{item.quantity}
                           </span>
                         ))}
@@ -342,7 +341,6 @@ export function OwnerDashboardModals() {
                     style={{
                       width: "100%",
                       padding: "12px 14px",
-                      borderRadius: 10,
                       border: `1px solid ${deleteRemark.trim() ? "rgba(56,189,248,0.4)" : "rgba(255, 92, 43,0.4)"}`,
                       background: "rgba(15,23,42,0.8)",
                       color: theme.textPrimary,
@@ -365,7 +363,7 @@ export function OwnerDashboardModals() {
                 <button
                   onClick={() => { setShowDeleteConfirm(false); setDeleteRemark(''); }}
                   disabled={deletingBooking}
-                  style={{ padding: "11px 22px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 10, color: theme.textSecondary, fontSize: 14, fontWeight: 600, cursor: deletingBooking ? "not-allowed" : "pointer", opacity: deletingBooking ? 0.5 : 1 }}
+                  style={{ padding: "11px 22px", background: "transparent", border: `1px solid ${theme.border}`, color: theme.textSecondary, fontSize: 14, fontWeight: 600, cursor: deletingBooking ? "not-allowed" : "pointer", opacity: deletingBooking ? 0.5 : 1 }}
                 >
                   Cancel
                 </button>
@@ -376,7 +374,6 @@ export function OwnerDashboardModals() {
                     padding: "11px 22px",
                     background: (deletingBooking || !deleteRemark.trim()) ? "rgba(242,240,234,0.08)" : "#ff5c2b",
                     border: "none",
-                    borderRadius: 10,
                     color: "#ffffff",
                     fontSize: 14,
                     fontWeight: 700,
@@ -415,7 +412,6 @@ export function OwnerDashboardModals() {
             <div
               style={{
                 background: theme.cardBackground,
-                borderRadius: 24,
                 border: `1px solid ${theme.border}`,
                 maxWidth: 600,
                 width: "100%",
@@ -437,7 +433,6 @@ export function OwnerDashboardModals() {
                     style={{
                       width: 56,
                       height: 56,
-                      borderRadius: 16,
                       background: editingStation.bgColor,
                       display: "flex",
                       alignItems: "center",
@@ -489,7 +484,6 @@ export function OwnerDashboardModals() {
                       padding: "12px 16px",
                       background: theme.background,
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textMuted,
                       fontSize: 15,
                       outline: "none",
@@ -515,14 +509,12 @@ export function OwnerDashboardModals() {
                       padding: "12px 16px",
                       background: theme.background,
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                     }}
                   >
                     <span
                       style={{
                         display: "inline-block",
                         padding: "6px 12px",
-                        borderRadius: 8,
                         background: editingStation.bgColor,
                         color: editingStation.color,
                         fontSize: 13,
@@ -535,7 +527,7 @@ export function OwnerDashboardModals() {
                 </div>
 
                 {/* Apply to All Checkbox */}
-                <div style={{ marginBottom: 24, padding: 16, background: 'rgba(216, 255, 60, 0.08)', border: `1px solid rgba(216, 255, 60, 0.2)`, borderRadius: 12 }}>
+                <div style={{ marginBottom: 24, padding: 16, background: 'rgba(216, 255, 60, 0.08)', border: `1px solid rgba(216, 255, 60, 0.2)`}}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
@@ -581,7 +573,6 @@ export function OwnerDashboardModals() {
                                 padding: '6px 12px',
                                 background: '#d8ff3c',
                                 border: 'none',
-                                borderRadius: 8,
                                 color: 'white',
                                 fontSize: 12,
                                 fontWeight: 600,
@@ -599,7 +590,7 @@ export function OwnerDashboardModals() {
 
                       {/* Controller 1 - Always shown */}
                       {enabledControllers.includes(1) && (
-                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, borderRadius: 12, border: `1px solid ${theme.border}` }}>
+                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, border: `1px solid ${theme.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: theme.textSecondary }}>1 Controller</div>
                           </div>
@@ -613,7 +604,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 75"
                                 value={controller1HalfHour}
                                 onChange={(e) => setController1HalfHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -627,7 +618,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 150"
                                 value={controller1FullHour}
                                 onChange={(e) => setController1FullHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -638,7 +629,7 @@ export function OwnerDashboardModals() {
 
                       {/* 2 Controllers */}
                       {enabledControllers.includes(2) && (
-                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, borderRadius: 12, border: `1px solid ${theme.border}` }}>
+                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, border: `1px solid ${theme.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: theme.textSecondary }}>2 Controllers</div>
                             <button
@@ -651,7 +642,6 @@ export function OwnerDashboardModals() {
                                 padding: '4px 10px',
                                 background: '#ff5c2b',
                                 border: 'none',
-                                borderRadius: 6,
                                 color: 'white',
                                 fontSize: 11,
                                 fontWeight: 600,
@@ -671,7 +661,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 120"
                                 value={controller2HalfHour}
                                 onChange={(e) => setController2HalfHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -685,7 +675,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 240"
                                 value={controller2FullHour}
                                 onChange={(e) => setController2FullHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -696,7 +686,7 @@ export function OwnerDashboardModals() {
 
                       {/* 3 Controllers */}
                       {enabledControllers.includes(3) && (
-                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, borderRadius: 12, border: `1px solid ${theme.border}` }}>
+                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, border: `1px solid ${theme.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: theme.textSecondary }}>3 Controllers</div>
                             <button
@@ -709,7 +699,6 @@ export function OwnerDashboardModals() {
                                 padding: '4px 10px',
                                 background: '#ff5c2b',
                                 border: 'none',
-                                borderRadius: 6,
                                 color: 'white',
                                 fontSize: 11,
                                 fontWeight: 600,
@@ -729,7 +718,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 165"
                                 value={controller3HalfHour}
                                 onChange={(e) => setController3HalfHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -743,7 +732,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 330"
                                 value={controller3FullHour}
                                 onChange={(e) => setController3FullHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -754,7 +743,7 @@ export function OwnerDashboardModals() {
 
                       {/* 4 Controllers */}
                       {enabledControllers.includes(4) && (
-                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, borderRadius: 12, border: `1px solid ${theme.border}` }}>
+                        <div style={{ marginBottom: 16, padding: 16, background: theme.background, border: `1px solid ${theme.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: theme.textSecondary }}>4 Controllers (Max)</div>
                             <button
@@ -767,7 +756,6 @@ export function OwnerDashboardModals() {
                                 padding: '4px 10px',
                                 background: '#ff5c2b',
                                 border: 'none',
-                                borderRadius: 6,
                                 color: 'white',
                                 fontSize: 11,
                                 fontWeight: 600,
@@ -787,7 +775,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 210"
                                 value={controller4HalfHour}
                                 onChange={(e) => setController4HalfHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -801,7 +789,7 @@ export function OwnerDashboardModals() {
                                 placeholder="e.g., 420"
                                 value={controller4FullHour}
                                 onChange={(e) => setController4FullHour(e.target.value)}
-                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, borderRadius: 8, color: theme.textPrimary, fontSize: 14, outline: "none" }}
+                                style={{ width: "100%", padding: "10px 12px", background: theme.cardBackground, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 14, outline: "none" }}
                                 onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")}
                                 onBlur={(e) => (e.target.style.borderColor = theme.border)}
                               />
@@ -824,7 +812,7 @@ export function OwnerDashboardModals() {
                             Half Hour (₹)
                           </label>
                           <input type="number" placeholder="e.g., 75" value={singleHalfHour} onChange={(e) => setSingleHalfHour(e.target.value)}
-                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, borderRadius: 12, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
+                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
                             onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")} onBlur={(e) => (e.target.style.borderColor = theme.border)} />
                         </div>
                         <div>
@@ -832,7 +820,7 @@ export function OwnerDashboardModals() {
                             Full Hour (₹)
                           </label>
                           <input type="number" placeholder="e.g., 150" value={singleFullHour} onChange={(e) => setSingleFullHour(e.target.value)}
-                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, borderRadius: 12, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
+                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
                             onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")} onBlur={(e) => (e.target.style.borderColor = theme.border)} />
                         </div>
                       </div>
@@ -847,7 +835,7 @@ export function OwnerDashboardModals() {
                             Half Hour (₹)
                           </label>
                           <input type="number" placeholder="e.g., 150" value={multiHalfHour} onChange={(e) => setMultiHalfHour(e.target.value)}
-                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, borderRadius: 12, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
+                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
                             onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")} onBlur={(e) => (e.target.style.borderColor = theme.border)} />
                         </div>
                         <div>
@@ -855,7 +843,7 @@ export function OwnerDashboardModals() {
                             Full Hour (₹)
                           </label>
                           <input type="number" placeholder="e.g., 300" value={multiFullHour} onChange={(e) => setMultiFullHour(e.target.value)}
-                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, borderRadius: 12, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
+                            style={{ width: "100%", padding: "12px 16px", background: theme.background, border: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: 15, outline: "none", transition: "border-color 0.2s" }}
                             onFocus={(e) => (e.target.style.borderColor = "#d8ff3c")} onBlur={(e) => (e.target.style.borderColor = theme.border)} />
                         </div>
                       </div>
@@ -891,7 +879,6 @@ export function OwnerDashboardModals() {
                               padding: "12px 16px",
                               background: theme.background,
                               border: `1px solid ${theme.border}`,
-                              borderRadius: 12,
                               color: theme.textPrimary,
                               fontSize: 15,
                               outline: "none",
@@ -923,7 +910,6 @@ export function OwnerDashboardModals() {
                               padding: "12px 16px",
                               background: theme.background,
                               border: `1px solid ${theme.border}`,
-                              borderRadius: 12,
                               color: theme.textPrimary,
                               fontSize: 15,
                               outline: "none",
@@ -955,7 +941,6 @@ export function OwnerDashboardModals() {
                     padding: "12px 24px",
                     background: "transparent",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
                     color: theme.textSecondary,
                     fontSize: 14,
                     fontWeight: 600,
@@ -1094,7 +1079,6 @@ export function OwnerDashboardModals() {
                     padding: "12px 32px",
                     background: savingPricing ? "rgba(216,255,60,0.45)" : "#d8ff3c",
                     border: "none",
-                    borderRadius: 12,
                     color: "#fff",
                     fontSize: 14,
                     fontWeight: 600,
@@ -1133,7 +1117,6 @@ export function OwnerDashboardModals() {
             <div
               style={{
                 background: theme.cardBackground,
-                borderRadius: 24,
                 border: `1px solid ${theme.border}`,
                 maxWidth: 500,
                 width: "100%",
@@ -1194,7 +1177,6 @@ export function OwnerDashboardModals() {
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
@@ -1238,7 +1220,6 @@ export function OwnerDashboardModals() {
                       padding: "14px 16px",
                       background: "rgba(15, 23, 42, 0.8)",
                       border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
                       color: theme.textPrimary,
                       fontSize: 15,
                       outline: "none",
@@ -1265,7 +1246,6 @@ export function OwnerDashboardModals() {
                     padding: "12px 24px",
                     background: "transparent",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
                     color: theme.textSecondary,
                     fontSize: 14,
                     fontWeight: 600,
@@ -1284,7 +1264,6 @@ export function OwnerDashboardModals() {
                       ? "rgba(242,240,234,0.08)"
                       : "#111113",
                     border: "none",
-                    borderRadius: 12,
                     color: "#ffffff",
                     fontSize: 14,
                     fontWeight: 700,
@@ -1330,7 +1309,6 @@ export function OwnerDashboardModals() {
           <div
             style={{
               background: theme.cardBackground,
-              borderRadius: 20,
               border: `1px solid ${theme.border}`,
               maxWidth: "420px",
               width: "100%",
@@ -1347,7 +1325,7 @@ export function OwnerDashboardModals() {
               Station <strong style={{ color: theme.textPrimary }}>{pendingPowerToggle.name}</strong> will be marked as offline.
             </p>
             {pendingPowerToggle.hasActiveSession && (
-              <p style={{ fontSize: 13, color: "#f97316", textAlign: "center", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", borderRadius: 8, padding: "8px 12px", marginBottom: 8 }}>
+              <p style={{ fontSize: 13, color: "#f97316", textAlign: "center", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", padding: "8px 12px", marginBottom: 8 }}>
                 This station has an active session in progress.
               </p>
             )}
@@ -1355,7 +1333,7 @@ export function OwnerDashboardModals() {
               <button
                 onClick={() => setPendingPowerToggle(null)}
                 style={{
-                  flex: 1, padding: "12px", borderRadius: 10,
+                  flex: 1, padding: "12px",
                   border: `1px solid ${theme.border}`,
                   background: "transparent", color: theme.textSecondary,
                   fontSize: 14, fontWeight: 500, cursor: "pointer",
@@ -1370,7 +1348,7 @@ export function OwnerDashboardModals() {
                   void executePowerToggle(name, false);
                 }}
                 style={{
-                  flex: 1, padding: "12px", borderRadius: 10,
+                  flex: 1, padding: "12px",
                   border: "none",
                   background: "#ff5c2b",
                   color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer",
@@ -1406,7 +1384,6 @@ export function OwnerDashboardModals() {
             <div
               style={{
                 background: theme.cardBackground,
-                borderRadius: 20,
                 border: `1px solid ${theme.border}`,
                 maxWidth: "500px",
                 width: "100%",
@@ -1440,7 +1417,6 @@ export function OwnerDashboardModals() {
               <div style={{ padding: "24px 32px" }}>
                 <div style={{
                   padding: "16px",
-                  borderRadius: 12,
                   background: "rgba(255, 92, 43, 0.1)",
                   border: "1px solid rgba(255, 92, 43, 0.3)",
                 }}>
@@ -1477,7 +1453,6 @@ export function OwnerDashboardModals() {
                     padding: "12px 24px",
                     background: "transparent",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
                     color: theme.textSecondary,
                     fontSize: 14,
                     fontWeight: 600,
@@ -1496,7 +1471,6 @@ export function OwnerDashboardModals() {
                       ? "rgba(242,240,234,0.08)"
                       : "#ff5c2b",
                     border: "none",
-                    borderRadius: 12,
                     color: "#ffffff",
                     fontSize: 14,
                     fontWeight: 700,

@@ -32,7 +32,7 @@ export function StationLockSetupModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-h-[92vh] overflow-y-auto rounded-t-2xl border border-white/[0.08] bg-[#0d1118] sm:max-w-lg sm:rounded-2xl"
+        className="relative w-full max-h-[92vh] overflow-y-auto border border-white/[0.08] bg-[#111113] sm:max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <button

@@ -697,7 +697,7 @@ export default function InventoryAnalytics({ cafeId }: InventoryAnalyticsProps) 
                         <div className="w-full flex flex-col items-center h-full justify-end relative">
                           <div className="w-full max-w-[60px] relative flex items-end h-[120px]">
                             <div
-                              className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] rounded-t-sm hover:bg-[#d8ff3c]/40 transition-all relative"
+                              className="w-full bg-[#d8ff3c]/20 border-t-2 border-[#d8ff3c] hover:bg-[#d8ff3c]/40 transition-all relative"
                               style={{ height: `${barHeight}%` }}
                             >
                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-[#d8ff3c] font-medium whitespace-nowrap">

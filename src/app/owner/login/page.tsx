@@ -64,7 +64,6 @@ function LoginContent() {
         width: "100%",
         maxWidth: 420,
         padding: "48px 40px",
-        borderRadius: 20,
         background: "rgba(15,23,42,0.6)",
         border: "1px solid rgba(51,65,85,0.5)",
         backdropFilter: "blur(10px)",
@@ -83,7 +82,7 @@ function LoginContent() {
           }}>
             Owner Portal
           </h1>
-          <p style={{ fontSize: 14, color: "#64748b", margin: 0 }}>
+          <p style={{ fontSize: 14, color: "rgba(242,240,234,.45)", margin: 0 }}>
             Café Management Dashboard
           </p>
         </div>
@@ -93,7 +92,6 @@ function LoginContent() {
           <div style={{
             marginBottom: 24,
             padding: "12px 16px",
-            borderRadius: 10,
             background: "rgba(248,113,113,0.1)",
             border: "1px solid rgba(248,113,113,0.3)",
             color: "#fca5a5",
@@ -110,7 +108,6 @@ function LoginContent() {
           style={{
             width: "100%",
             padding: "14px 20px",
-            borderRadius: 12,
             border: "1px solid rgba(255,255,255,0.12)",
             background: loading ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)",
             color: "#f8fafc",
