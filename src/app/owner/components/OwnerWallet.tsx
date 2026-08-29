@@ -178,6 +178,20 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
     const COLUMNS = 'minmax(140px,1.4fr) minmax(120px,1fr) 120px 132px';
     const inCredit = holders.filter((holder) => holder.balance > 0);
 
+    const exportWalletsCsv = () => {
+        const header = ['Customer', 'Phone', 'Balance'];
+        const rows = visible.map((h) => [h.name || '', h.phone, String(h.balance)]);
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `wallets-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="flex flex-col gap-[18px]">
             <Kpis
@@ -349,9 +363,18 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
                 )}
 
                 <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                    <span>{visible.length} of {holders.length} wallets</span>
+                    <span className="truncate">
+                        {visible.length} of {holders.length} wallets · {loading ? 'loading…' : `₹${totalHeld.toLocaleString('en-IN')} held in total`}
+                    </span>
                     <span className="flex-1" />
-                    <span>{loading ? 'LOADING…' : `₹${totalHeld.toLocaleString('en-IN')} HELD IN TOTAL`}</span>
+                    <button
+                        type="button"
+                        onClick={exportWalletsCsv}
+                        disabled={visible.length === 0}
+                        className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c] disabled:opacity-40"
+                    >
+                        EXPORT CSV →
+                    </button>
                 </div>
             </Panel>
         </div>

@@ -225,6 +225,23 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
 
     const COLUMNS = 'minmax(140px,1.4fr) minmax(110px,1fr) 96px 110px 132px';
 
+    const exportLoyaltyCsv = () => {
+        const header = ['Member', 'Phone', 'Balance', 'Worth', 'Earned', 'Redeemed', 'Last seen'];
+        const rows = visibleMembers.map((m) => [
+            m.name || '', m.phone, String(m.balance), String(m.worthRupees),
+            String(m.earned), String(m.redeemed), m.lastActivity || '',
+        ]);
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `loyalty-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="flex flex-col gap-[18px]">
             <Kpis
@@ -482,7 +499,18 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                 )}
 
                 <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                    <span>{visibleMembers.length} of {members.length} members</span>
+                    <span className="truncate">
+                        {visibleMembers.length} of {members.length} members · ₹{outstandingRupees.toLocaleString('en-IN')} owed against future bills
+                    </span>
+                    <span className="flex-1" />
+                    <button
+                        type="button"
+                        onClick={exportLoyaltyCsv}
+                        disabled={visibleMembers.length === 0}
+                        className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c] disabled:opacity-40"
+                    >
+                        EXPORT CSV →
+                    </button>
                     <span className="flex-1" />
                     <span>{loading ? 'LOADING…' : `${outstandingPoints.toLocaleString('en-IN')} POINTS OWED`}</span>
                 </div>
