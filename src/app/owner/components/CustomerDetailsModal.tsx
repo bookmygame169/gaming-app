@@ -107,13 +107,11 @@ export default function CustomerDetailsModal({
             <div
                 style={{
                     background: '#0e0e10', // Slate 950
-                    borderRadius: isMobile ? 20 : 28,
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(242,240,234,0.1)',
                     maxWidth: 1000,
                     width: "100%",
                     maxHeight: '90vh',
                     overflowY: 'auto',
-                    boxShadow: "0 25px 100px -20px rgba(0,0,0,0.8)",
                     position: 'relative',
                     animation: 'slideUp 0.3s ease-out'
                 }}
@@ -126,7 +124,7 @@ export default function CustomerDetailsModal({
                         position: 'absolute',
                         top: 20,
                         right: 20,
-                        background: 'rgba(255,255,255,0.1)',
+                        background: 'rgba(242,240,234,0.1)',
                         border: 'none',
                         borderRadius: '50%',
                         width: 36,
@@ -139,8 +137,8 @@ export default function CustomerDetailsModal({
                         zIndex: 10,
                         transition: 'all 0.2s'
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'white'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = theme.textMuted; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,240,234,0.2)'; e.currentTarget.style.color = 'white'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(242,240,234,0.1)'; e.currentTarget.style.color = theme.textMuted; }}
                 >
                     <X size={20} />
                 </button>
@@ -150,8 +148,8 @@ export default function CustomerDetailsModal({
                     <div style={{
                         width: isMobile ? '100%' : '320px',
                         background: '#111113',
-                        borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.05)',
-                        borderBottom: isMobile ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                        borderRight: isMobile ? 'none' : '1px solid rgba(242,240,234,0.05)',
+                        borderBottom: isMobile ? '1px solid rgba(242,240,234,0.05)' : 'none',
                         padding: isMobile ? 24 : 32,
                         display: 'flex',
                         flexDirection: 'column',
@@ -170,21 +168,20 @@ export default function CustomerDetailsModal({
                                 justifyContent: 'center',
                                 fontSize: 36,
                                 fontWeight: 700,
-                                color: 'white',
-                                boxShadow: '0 0 40px rgba(216, 255, 60, 0.3)',
-                                border: '4px solid rgba(255,255,255,0.1)'
+                                color: '#f2f0ea',
+                                border: '4px solid rgba(242,240,234,0.1)'
                             }}>
                                 {initials}
                             </div>
-                            <h2 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 6 }}>
+                            <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f2f0ea', marginBottom: 6 }}>
                                 {customer.name}
                             </h2>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 14 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(242,240,234,.45)', fontSize: 14 }}>
                                     <Phone size={14} /> {customer.phone || 'No phone'}
                                 </div>
                                 {customer.email && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 14 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(242,240,234,.45)', fontSize: 14 }}>
                                         <Mail size={14} /> {customer.email}
                                     </div>
                                 )}
@@ -193,60 +190,59 @@ export default function CustomerDetailsModal({
 
                         {/* Quick Stats Rows */}
                         <div style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            borderRadius: 16,
+                            background: 'rgba(242,240,234,0.03)',
                             padding: 16,
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 16
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(242,240,234,.45)', fontSize: 13 }}>
                                     <History size={16} /> Sessions
                                 </div>
-                                <div style={{ color: 'white', fontWeight: 600 }}>{customerBookings.length}</div>
+                                <div style={{ color: '#f2f0ea', fontWeight: 600 }}>{customerBookings.length}</div>
                             </div>
-                            <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.05)' }} />
+                            <div style={{ width: '100%', height: 1, background: 'rgba(242,240,234,0.05)' }} />
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(242,240,234,.45)', fontSize: 13 }}>
                                     <Clock size={16} /> Playtime
                                 </div>
-                                <div style={{ color: '#60a5fa', fontWeight: 600 }}>
+                                <div style={{ color: '#d8ff3c', fontWeight: 600 }}>
                                     {Math.floor(totalHours)}h {Math.round((totalHours % 1) * 60)}m
                                 </div>
                             </div>
-                            <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.05)' }} />
+                            <div style={{ width: '100%', height: 1, background: 'rgba(242,240,234,0.05)' }} />
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(242,240,234,.45)', fontSize: 13 }}>
                                     <Award size={16} /> Total Spent
                                 </div>
                                 <div style={{ color: '#d8ff3c', fontWeight: 600 }}>₹{totalSpent.toLocaleString()}</div>
                             </div>
                             {/* Divider */}
-                            <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.05)' }} />
+                            <div style={{ width: '100%', height: 1, background: 'rgba(242,240,234,0.05)' }} />
                             {/* Visit frequency */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(242,240,234,.45)', fontSize: 13 }}>
                                     <Clock size={16} /> Visits every
                                 </div>
-                                <div style={{ color: 'white', fontWeight: 600, fontSize: 13 }}>
+                                <div style={{ color: '#f2f0ea', fontWeight: 600, fontSize: 13 }}>
                                     {avgDaysBetweenVisits !== null ? `~${avgDaysBetweenVisits}d` : '—'}
                                 </div>
                             </div>
                             {/* Last visit / churn signal */}
                             {daysSinceLastVisit !== null && (
                                 <>
-                                    <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.05)' }} />
+                                    <div style={{ width: '100%', height: 1, background: 'rgba(242,240,234,0.05)' }} />
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(242,240,234,.45)', fontSize: 13 }}>
                                             <History size={16} /> Last seen
                                         </div>
                                         <div style={{
                                             fontWeight: 600, fontSize: 13,
-                                            color: churnRisk ? '#f87171' : daysSinceLastVisit > 14 ? '#fbbf24' : '#34d399'
+                                            color: churnRisk ? '#ff5c2b' : daysSinceLastVisit > 14 ? '#ffa53c' : '#34d399'
                                         }}>
                                             {daysSinceLastVisit === 0 ? 'Today' : `${daysSinceLastVisit}d ago`}
-                                            {churnRisk && <span style={{ fontSize: 10, marginLeft: 6, background: 'rgba(248,113,113,0.15)', padding: '2px 6px', borderRadius: 6 }}>At Risk</span>}
+                                            {churnRisk && <span style={{ fontSize: 10, marginLeft: 6, background: 'rgba(255,92,43,.12)', padding: '2px 6px' }}>At Risk</span>}
                                         </div>
                                     </div>
                                 </>
@@ -254,12 +250,12 @@ export default function CustomerDetailsModal({
                             {/* Favorite console */}
                             {favoriteConsole && (
                                 <>
-                                    <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.05)' }} />
+                                    <div style={{ width: '100%', height: 1, background: 'rgba(242,240,234,0.05)' }} />
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: 13 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(242,240,234,.45)', fontSize: 13 }}>
                                             <Play size={16} /> Plays most
                                         </div>
-                                        <div style={{ color: '#a78bfa', fontWeight: 600, fontSize: 13 }}>{favoriteConsole}</div>
+                                        <div style={{ color: 'rgba(242,240,234,.6)', fontWeight: 600, fontSize: 13 }}>{favoriteConsole}</div>
                                     </div>
                                 </>
                             )}
@@ -272,8 +268,7 @@ export default function CustomerDetailsModal({
                                 padding: '14px',
                                 background: '#d8ff3c',
                                 border: 'none',
-                                borderRadius: 14,
-                                color: 'white',
+                                color: '#f2f0ea',
                                 fontWeight: 600,
                                 fontSize: 14,
                                 cursor: 'pointer',
@@ -281,21 +276,19 @@ export default function CustomerDetailsModal({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: 10,
-                                boxShadow: '0 4px 12px rgba(216, 255, 60, 0.2)',
                                 transition: 'transform 0.2s',
                             }}
                                 onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                                 onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                             >
-                                <Play size={18} fill="currentColor" /> Start Session
+                                <Play size={16} fill="currentColor" /> START SESSION
                             </button>
                             <button style={{
                                 width: '100%',
                                 padding: '14px',
                                 background: 'rgba(216, 255, 60, 0.1)',
                                 border: '1px solid rgba(216, 255, 60, 0.2)',
-                                borderRadius: 14,
-                                color: '#a78bfa',
+                                color: 'rgba(242,240,234,.6)',
                                 fontWeight: 600,
                                 fontSize: 14,
                                 cursor: 'pointer',
@@ -308,7 +301,7 @@ export default function CustomerDetailsModal({
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(216, 255, 60, 0.2)'; }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(216, 255, 60, 0.1)'; }}
                             >
-                                <Star size={18} /> New Membership
+                                <Star size={16} /> NEW MEMBERSHIP
                             </button>
                         </div>
                     </div>
@@ -321,31 +314,30 @@ export default function CustomerDetailsModal({
                             <div style={{
                                 background: '#111113',
                                 border: '1px solid rgba(216, 255, 60, 0.2)',
-                                borderRadius: 20,
                                 padding: 24,
                                 marginBottom: 32,
                                 position: 'relative',
                                 overflow: 'hidden'
                             }}>
                                 <div style={{ position: 'absolute', top: 0, right: 0, padding: 16 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', background: 'rgba(216,255,60,0.10)', padding: '4px 12px', borderRadius: 20 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#d8ff3c', background: 'rgba(216,255,60,0.10)', padding: '4px 12px' }}>
                                         ACTIVE
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
                                     <div style={{
-                                        width: 48, height: 48, borderRadius: 12,
+                                        width: 48, height: 48,
                                         background: '#111113',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: 'white', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                                        color: '#0b0b0c'
                                     }}>
                                         <CreditCard size={24} />
                                     </div>
                                     <div>
-                                        <h3 style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 4 }}>
+                                        <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f2f0ea', marginBottom: 4 }}>
                                             {activeSubscription.membership_plans?.name || 'Membership'}
                                         </h3>
-                                        <p style={{ fontSize: 13, color: '#94a3b8' }}>
+                                        <p style={{ fontSize: 13, color: 'rgba(242,240,234,.45)' }}>
                                             Expires {expiryLabel}
                                         </p>
                                     </div>
@@ -355,27 +347,25 @@ export default function CustomerDetailsModal({
                                 <div style={{ marginBottom: 16 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                                         <span style={{ color: '#e2e8f0' }}>Usage</span>
-                                        <span style={{ color: '#94a3b8' }}>
+                                        <span style={{ color: 'rgba(242,240,234,.45)' }}>
                                             {purchasedHours > 0
                                                 ? `${usedHours.toFixed(1)}h used / ${purchasedHours}h`
                                                 : 'Active pass'}
                                         </span>
                                     </div>
-                                    <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 10, overflow: 'hidden' }}>
+                                    <div style={{ height: 6, background: 'rgba(242,240,234,0.1)', overflow: 'hidden' }}>
                                         <div style={{
                                             width: `${usagePercent}%`,
                                             height: '100%',
                                             background: '#d8ff3c',
-                                            borderRadius: 10
                                         }} />
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <div style={{
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px dashed rgba(255,255,255,0.1)',
-                                borderRadius: 20,
+                                background: 'rgba(242,240,234,0.02)',
+                                border: '1px dashed rgba(242,240,234,0.1)',
                                 padding: 24,
                                 marginBottom: 32,
                                 display: 'flex',
@@ -383,35 +373,34 @@ export default function CustomerDetailsModal({
                                 justifyContent: 'space-between'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                                    <div style={{ width: 48, height: 48, background: 'rgba(242,240,234,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(242,240,234,.35)' }}>
                                         <CreditCard size={24} />
                                     </div>
                                     <div>
-                                        <h3 style={{ fontSize: 16, fontWeight: 600, color: 'white', marginBottom: 4 }}>No active subscription</h3>
-                                        <p style={{ fontSize: 13, color: '#64748b' }}>Customer doesn&apos;t have an active plan</p>
+                                        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#f2f0ea', marginBottom: 4 }}>No active subscription</h3>
+                                        <p style={{ fontSize: 13, color: 'rgba(242,240,234,.35)' }}>Customer doesn&apos;t have an active plan</p>
                                     </div>
                                 </div>
-                                <ChevronRight size={20} color="#64748b" />
+                                <ChevronRight size={20} color="rgba(242,240,234,.35)" />
                             </div>
                         )}
 
                         {/* Recent Sessions */}
                         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Recent History</h3>
+                            <h3 style={{ margin: 0, fontFamily: "var(--font-plex-mono), monospace", fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(242,240,234,.5)', fontWeight: 500 }}>Recent history</h3>
                         </div>
 
                         <div style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            borderRadius: 20,
+                            background: 'rgba(242,240,234,0.02)',
+                            border: '1px solid rgba(242,240,234,0.05)',
                             overflow: 'hidden'
                         }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
-                                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <th style={{ padding: '16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Date</th>
-                                        <th style={{ padding: '16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Details</th>
-                                        <th style={{ padding: '16px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Amount</th>
+                                    <tr style={{ background: 'rgba(242,240,234,0.02)', borderBottom: '1px solid rgba(242,240,234,0.05)' }}>
+                                        <th style={{ padding: '16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'rgba(242,240,234,.45)', textTransform: 'uppercase' }}>Date</th>
+                                        <th style={{ padding: '16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'rgba(242,240,234,.45)', textTransform: 'uppercase' }}>Details</th>
+                                        <th style={{ padding: '16px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: 'rgba(242,240,234,.45)', textTransform: 'uppercase' }}>Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -421,27 +410,27 @@ export default function CustomerDetailsModal({
                                         const stationName = consoleInfo?.console?.toUpperCase() || 'N/A';
 
                                         return (
-                                            <tr key={booking.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                <td style={{ padding: '16px', color: 'white', fontSize: 14 }}>
+                                            <tr key={booking.id} style={{ borderBottom: '1px solid rgba(242,240,234,0.03)' }}>
+                                                <td style={{ padding: '16px', color: '#f2f0ea', fontSize: 14 }}>
                                                     <div style={{ fontWeight: 500 }}>{bookingDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</div>
-                                                    <div style={{ fontSize: 12, color: '#64748b' }}>{convertTo12Hour(booking.start_time)}</div>
+                                                    <div style={{ fontSize: 12, color: 'rgba(242,240,234,.35)' }}>{convertTo12Hour(booking.start_time)}</div>
                                                 </td>
-                                                <td style={{ padding: '16px', color: 'white', fontSize: 14 }}>
+                                                <td style={{ padding: '16px', color: '#f2f0ea', fontSize: 14 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                         <span style={{
-                                                            padding: '2px 8px', borderRadius: 6, background: 'rgba(216,255,60,0.10)',
-                                                            color: '#60a5fa', fontSize: 12, fontWeight: 600
+                                                            padding: '2px 8px', background: 'rgba(216,255,60,0.10)',
+                                                            color: '#d8ff3c', fontSize: 12, fontWeight: 600
                                                         }}>
                                                             {booking.source === 'membership' ? 'Membership' : stationName}
                                                         </span>
-                                                        <span style={{ color: '#94a3b8' }}>
+                                                        <span style={{ color: 'rgba(242,240,234,.45)' }}>
                                                             {booking.source === 'membership'
                                                               ? (customer.activeSubscription?.membership_plans?.name || 'Plan')
                                                               : booking.duration ? `${Math.floor(booking.duration / 60)}h ${booking.duration % 60}m` : 'N/A'}
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: '16px', textAlign: 'right', color: 'white', fontWeight: 600, fontSize: 14 }}>
+                                                <td style={{ padding: '16px', textAlign: 'right', color: '#f2f0ea', fontWeight: 600, fontSize: 14 }}>
                                                     ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
                                                 </td>
                                             </tr>
@@ -449,7 +438,7 @@ export default function CustomerDetailsModal({
                                     })}
                                     {customerBookings.length === 0 && (
                                         <tr>
-                                            <td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                                            <td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: 'rgba(242,240,234,.35)' }}>
                                                 No sessions found
                                             </td>
                                         </tr>
