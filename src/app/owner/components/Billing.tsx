@@ -754,7 +754,7 @@ export function Billing({
         if (!(showSuggestions && suggestionField === field && suggestions.length > 0)) return null;
 
         return (
-            <div className="absolute left-0 top-full z-[200] mt-2 max-h-56 w-full overflow-y-auto ">
+            <div className={`absolute left-0 top-full z-[200] mt-2 max-h-56 w-full overflow-y-auto ${CONTROL_SURFACE_CLASS}`}>
                 {suggestions.map((suggestion, idx) => (
                     <button
                         key={`${suggestion.phone}-${idx}`}
