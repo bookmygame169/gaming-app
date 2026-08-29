@@ -1491,7 +1491,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                                                 </div>
                                                 <div className="flex flex-wrap gap-1">
                                                     {tx.items.map((item, idx) => (
-                                                        <span key={idx} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 border border-[#f2f0ea]/10/60">
+                                                        <span key={idx} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/50 border border-[#f2f0ea]/10">
                                                             {item.name} ×{item.quantity}
                                                         </span>
                                                     ))}

@@ -121,7 +121,7 @@ export function CafePcGamesEditor({ cafeId }: CafePcGamesEditorProps) {
           type="button"
           onClick={save}
           disabled={saving || loading || games.length === 0}
-          className="inline-flex items-center gap-1.5 bg-[#d8ff3c] px-3 py-2 text-[12px] font-bold text-[#f2f0ea] transition-colors hover:bg-[#d8ff3c] disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 bg-[#d8ff3c] px-3 py-2 text-[12px] font-bold text-[#0b0b0c] transition-colors hover:bg-[#d8ff3c] disabled:opacity-40"
         >
           <Save size={13} />
           {saving ? 'Saving…' : 'Save games'}

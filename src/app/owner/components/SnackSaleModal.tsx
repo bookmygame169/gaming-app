@@ -217,7 +217,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
         <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#f2f0ea]/10 bg-[#111113]/60 overflow-hidden">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2f0ea]/10/40">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2f0ea]/10">
             <div className="flex items-center gap-2.5">
               <div className={`w-8 h-8  flex items-center justify-center ${isOwnerUse ? 'bg-[#d8ff3c]/15' : 'bg-[#ff5c2b]/15'}`}>
                 <ShoppingCart size={16} className={isOwnerUse ? 'text-[#d8ff3c]' : 'text-[#ff5c2b]'} />
@@ -234,7 +234,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
 
           <div className="flex-1 overflow-y-auto">
             {/* Customer / Owner Toggle */}
-            <div className="px-5 py-4 border-b border-[#f2f0ea]/10/30">
+            <div className="px-5 py-4 border-b border-[#f2f0ea]/10">
               <p className="text-[11px] text-[#f2f0ea]/40 font-medium uppercase tracking-wide mb-2.5">Who is this for?</p>
               <div className="flex gap-2 mb-4">
                 <button
@@ -292,7 +292,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                               setCustomerPhone(s.phone || "");
                               setShowSuggestions(false);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/[0.08]/60 transition-colors border-b border-[#f2f0ea]/10/30 last:border-0"
+                            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/[0.08]/60 transition-colors border-b border-[#f2f0ea]/10 last:border-0"
                           >
                             <div>
                               <p className="text-sm text-[#f2f0ea] font-medium">{s.name}</p>
@@ -345,7 +345,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
             </div>
 
             {/* Search + Category Filter */}
-            <div className="px-5 py-3 border-b border-[#f2f0ea]/10/30 flex gap-2">
+            <div className="px-5 py-3 border-b border-[#f2f0ea]/10 flex gap-2">
               <div className="relative flex-1">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#f2f0ea]/40" />
                 <input
@@ -400,13 +400,13 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                               className={`relative  p-3 border transition-all ${
                                 qty > 0
                                   ? isOwnerUse ? "bg-[#d8ff3c]/10 border-[#d8ff3c]/30" : "bg-[#ff5c2b]/10 border-[#ff5c2b]/30"
-                                  : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10/40 hover:border-[#f2f0ea]/30"
+                                  : "bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10 hover:border-[#f2f0ea]/30"
                               }`}
                             >
                               <div className="flex items-start justify-between mb-1.5">
                                 <span className="text-sm font-medium text-[#f2f0ea] leading-tight pr-1">{item.name}</span>
                                 {qty > 0 && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-[#f2f0ea] shrink-0 ${isOwnerUse ? 'bg-[#d8ff3c]' : 'bg-[#ff5c2b]'}`}>{qty}</span>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-[#0b0b0c] shrink-0 ${isOwnerUse ? 'bg-[#d8ff3c]' : 'bg-[#ff5c2b]'}`}>{qty}</span>
                                 )}
                               </div>
                               <div className="flex items-center justify-between">
@@ -441,7 +441,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
           </div>
 
           {/* Footer */}
-          <div className="border-t border-[#f2f0ea]/10/40 px-5 py-4 bg-[#111113]">
+          <div className="border-t border-[#f2f0ea]/10 px-5 py-4 bg-[#111113]">
             {cart.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {cart.map(c => (
@@ -474,7 +474,7 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
                     : cart.length === 0
                     ? "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/30 cursor-not-allowed"
                     : isOwnerUse
-                    ? "bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea]/20"
+                    ? "bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c]"
                     : "bg-[#ff5c2b] hover:bg-[#ff5c2b] text-[#f2f0ea]/20"
                 }`}
               >

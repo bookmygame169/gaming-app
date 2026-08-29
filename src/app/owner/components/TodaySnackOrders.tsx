@@ -90,7 +90,7 @@ export function TodaySnackOrders({ bookings, todayStr, onNewSale, onEditSale }: 
   return (
     <div className="border border-[#f2f0ea]/[0.07] bg-[#f2f0ea]/[0.06]/40 overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col gap-3 px-5 py-4 border-b border-[#f2f0ea]/10/40 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 px-5 py-4 border-b border-[#f2f0ea]/10 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 bg-[#ff5c2b]/15 flex items-center justify-center">
             <ShoppingBag size={16} className="text-[#ff5c2b]" />

@@ -224,7 +224,7 @@ export default function AddItemsModal({
               onClick={() => setSelectedCategory("all")}
               className={`px-3 py-1.5  text-sm font-medium whitespace-nowrap transition ${
                 selectedCategory === "all"
-                  ? "bg-[#d8ff3c] text-[#f2f0ea]"
+                  ? "bg-[#d8ff3c] text-[#0b0b0c]"
                   : "bg-[#f2f0ea]/[0.06] text-[#f2f0ea]/70 hover:bg-white/[0.08]"
               }`}
             >
@@ -321,7 +321,7 @@ export default function AddItemsModal({
                                   <button
                                     onClick={() => addToCart(item)}
                                     disabled={isMaxed}
-                                    className="w-8 h-8 flex items-center justify-center bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 flex items-center justify-center bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] transition disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
@@ -329,7 +329,7 @@ export default function AddItemsModal({
                               ) : (
                                 <button
                                   onClick={() => addToCart(item)}
-                                  className="px-4 py-2 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] text-sm font-medium transition"
+                                  className="px-4 py-2 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] text-sm font-medium transition"
                                 >
                                   Add
                                 </button>
@@ -382,7 +382,7 @@ export default function AddItemsModal({
               <button
                 onClick={handleSave}
                 disabled={cart.length === 0 || saving}
-                className="px-6 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving ? (
                   <>

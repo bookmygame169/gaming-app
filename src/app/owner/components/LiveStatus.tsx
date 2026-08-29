@@ -419,7 +419,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                         <div className="text-2xl font-bold text-[#ff5c2b]">{totalEndingSoon}</div>
                         <div className="text-xs text-[#ff5c2b] font-semibold uppercase tracking-wide mt-0.5">Ending Soon</div>
                     </div>
-                    <div className="bg-[#f2f0ea]/[0.05] border border-[#f2f0ea]/10/50 p-3 text-center">
+                    <div className="bg-[#f2f0ea]/[0.05] border border-[#f2f0ea]/10 p-3 text-center">
                         <div className="text-2xl font-bold text-[#f2f0ea]/50">{totalOff}</div>
                         <div className="text-xs text-[#f2f0ea]/30 font-semibold uppercase tracking-wide mt-0.5">Powered Off</div>
                     </div>
@@ -461,7 +461,7 @@ export function LiveStatus({ cafeId, isMobile = false }: LiveStatusProps) {
                             const progressPct = isOngoing ? 100 : Math.min(100, (timeRemaining / duration) * 100);
 
                             const bgColor = isFree ? 'bg-[#d8ff3c]/5' : isEnding ? 'bg-[#ff5c2b]/5' : isBusy ? 'bg-[#ff5c2b]/5' : 'bg-[#f2f0ea]/[0.06]/20';
-                            const borderColor = isFree ? 'border-[#d8ff3c]/40' : isEnding ? 'border-[#ff5c2b]/40' : isBusy ? 'border-[#ff5c2b]/40' : 'border-[#f2f0ea]/10/40';
+                            const borderColor = isFree ? 'border-[#d8ff3c]/40' : isEnding ? 'border-[#ff5c2b]/40' : isBusy ? 'border-[#ff5c2b]/40' : 'border-[#f2f0ea]/10';
                             const timerColor = isEnding ? 'text-[#ff5c2b]' : isBusy ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]';
                             const barColor = isFree ? 'bg-[#d8ff3c]' : isEnding ? 'bg-[#ff5c2b]' : 'bg-[#ff5c2b]';
                             const badgeBg = isFree ? 'bg-[#d8ff3c]/20' : isEnding ? 'bg-[#ff5c2b]/20' : isBusy ? 'bg-[#ff5c2b]/20' : 'bg-[#f2f0ea]/[0.06]';

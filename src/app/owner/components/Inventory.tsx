@@ -633,7 +633,7 @@ export default function Inventory({ cafeId }: InventoryProps) {
               </button>
               <button
                 onClick={handleSave} disabled={saving}
-                className="flex-1 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : <><Check className="w-4 h-4" />{editingItem ? "Update" : "Add Item"}</>}
               </button>

@@ -143,7 +143,7 @@ export default function OwnerPWAInstaller() {
                 {!isIOS && deferredPrompt && (
                     <button
                         onClick={handleInstall}
-                        className="mt-3 w-full bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium py-2 px-4 text-sm transition-colors"
+                        className="mt-3 w-full bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] font-medium py-2 px-4 text-sm transition-colors"
                     >
                         Install App
                     </button>

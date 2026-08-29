@@ -25,7 +25,7 @@ export default function OwnerOfflinePage() {
                 {/* Retry Button */}
                 <button
                     onClick={() => window.location.reload()}
-                    className="bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#f2f0ea] font-medium py-3 px-6 transition-colors"
+                    className="bg-[#d8ff3c] hover:bg-[#d8ff3c] text-[#0b0b0c] font-medium py-3 px-6 transition-colors"
                 >
                     Reconnect
                 </button>
