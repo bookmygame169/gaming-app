@@ -3,12 +3,13 @@ import {
   clearOwnerSessionCookie,
   getOwnerSessionFromRequest,
   getSupabaseAdmin,
+  resolveDevBypassSession,
 } from "@/lib/ownerAuth";
 
 export const dynamic = "force-dynamic";
 
 async function verifyOwnerSession(request: NextRequest) {
-  const session = getOwnerSessionFromRequest(request);
+  const session = getOwnerSessionFromRequest(request) ?? (await resolveDevBypassSession());
 
   if (!session) {
     return NextResponse.json({

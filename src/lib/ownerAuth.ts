@@ -39,6 +39,62 @@ function getOwnerSessionSecret(): string {
   return resolveSessionSecret("OWNER_SESSION_SECRET", "owner");
 }
 
+/**
+ * Local development only: stand in for a signed-in owner.
+ *
+ * TEMPORARY. This exists so the owner console can be looked at while it is
+ * being rebuilt to the design — Google OAuth redirects to the production
+ * callback, so no localhost session can be obtained. Delete it, and
+ * LOCAL_DEV_BYPASS from .env.local, once that work is finished.
+ *
+ * Two independent guards, either of which alone disables it:
+ *
+ *   1. NODE_ENV must be "development". `next build` hardcodes this to
+ *      "production", so on Vercel the condition folds to false and the branch
+ *      is dropped from the bundle. It cannot be switched on by an env var in
+ *      the hosting dashboard.
+ *   2. LOCAL_DEV_BYPASS must be exactly "true", and it lives only in
+ *      .env.local, which is gitignored and never deployed.
+ *
+ * It grants no more than an identity. The caller still looks the profile up
+ * and checks the role, and every cafe-ownership check downstream runs
+ * unchanged, so this cannot see another owner's data.
+ */
+function devBypassEnabled(): boolean {
+  return process.env.NODE_ENV === "development" && process.env.LOCAL_DEV_BYPASS === "true";
+}
+
+let warnedAboutBypass = false;
+
+export async function resolveDevBypassSession(): Promise<OwnerSession | null> {
+  if (!devBypassEnabled()) return null;
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, role")
+    .in("role", ["owner", "admin", "super_admin"])
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.id) {
+    console.error("LOCAL_DEV_BYPASS: no owner profile to stand in for", error);
+    return null;
+  }
+
+  const name = [data.first_name, data.last_name].filter(Boolean).join(" ").trim();
+
+  if (!warnedAboutBypass) {
+    warnedAboutBypass = true;
+    console.warn(
+      `\n  ⚠  LOCAL_DEV_BYPASS is on — owner auth is bypassed as "${name || data.id}".\n` +
+      "     Development only. Unset it in .env.local when the design work is done.\n"
+    );
+  }
+
+  return createOwnerSession(data.id, name || "Owner");
+}
+
 export function createOwnerSession(userId: string, username: string): OwnerSession {
   const now = Date.now();
   return {
@@ -147,7 +203,7 @@ export function forbiddenResponse(message = "Forbidden"): NextResponse {
 export async function requireOwnerContext(
   request: NextRequest
 ): Promise<OwnerAuthResult> {
-  const session = getOwnerSessionFromRequest(request);
+  const session = getOwnerSessionFromRequest(request) ?? (await resolveDevBypassSession());
 
   if (!session) {
     return { context: null, response: unauthorizedResponse() };
