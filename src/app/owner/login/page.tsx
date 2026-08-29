@@ -78,9 +78,7 @@ function LoginContent() {
             fontSize: 30,
             fontWeight: 800,
             margin: "0 0 8px 0",
-            background: "#111113",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
+            color: "#f2f0ea",
             letterSpacing: "-0.5px",
           }}>
             Owner Portal
