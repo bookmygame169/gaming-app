@@ -13,8 +13,10 @@ import {
     Store, CalendarDays, IndianRupee, Gamepad2, ExternalLink
 } from 'lucide-react';
 import { CafeRow } from '@/types/database';
+import type { InventoryItem } from '@/types/inventory';
 
 import { getLocalDateString, normaliseConsoleType, buildWhatsAppUrl, buildBookingTicketMessage, formatDurationLabel } from '../utils';
+import { fetchInventory } from '../ownerLookup';
 import { calcBillingPrice, type ConsolePricingMap } from '../utils/pricing';
 
 interface MembershipPlan {
@@ -79,34 +81,16 @@ type StationPricingRecord = {
 const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 const PLAYER_OPTIONS = [1, 2, 3, 4];
 
-const CONSOLE_THEME: Record<string, { accent: string; short: string }> = {
-    ps5: { accent: '#d8ff3c', short: 'PS5' },
-    ps4: { accent: '#d8ff3c', short: 'PS4' },
-    xbox: { accent: '#d8ff3c', short: 'XB' },
-    pc: { accent: '#d8ff3c', short: 'PC' },
-    pool: { accent: '#ffa53c', short: 'PL' },
-    snooker: { accent: '#ffa53c', short: 'SN' },
-    arcade: { accent: '#ff5c2b', short: 'AR' },
-    vr: { accent: '#d8ff3c', short: 'VR' },
-    steering: { accent: '#ffa53c', short: 'SW' },
-    racing_sim: { accent: '#ff5c2b', short: 'RS' },
-};
-
 const SECTION_CARD_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const SUBPANEL_CLASS = 'border border-[#f2f0ea]/10 bg-[#0b0b0c]';
 const HOVER_CARD_CLASS = 'transition-colors duration-150 hover:border-[#d8ff3c]';
 const CONTROL_SURFACE_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
-const GAMING_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const MEMBERSHIP_SUMMARY_HERO_CLASS = 'border border-[#f2f0ea]/10 bg-[#111113]';
 const CONTROL_LABEL_CLASS = 'font-mono text-[9.5px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.42]';
 
 /** The design's control row: a fixed label column, then the control. */
 const CONTROL_ROW_CLASS =
     'grid grid-cols-1 items-start gap-2 border-b border-[#f2f0ea]/[0.05] px-[15px] py-[11px] last:border-b-0 sm:grid-cols-[74px_minmax(0,1fr)] sm:gap-2.5 sm:items-center';
-
-function getConsoleTheme(consoleType: string) {
-    return CONSOLE_THEME[consoleType] || { accent: '#d8ff3c', short: consoleType.slice(0, 2).toUpperCase() };
-}
 
 function normalizePhone(phone: string | null | undefined) {
     return (phone || '').replace(/\D/g, '').slice(-10);
@@ -219,6 +203,10 @@ export function Billing({
     const [items, setItems] = useState<BillingItem[]>([]);
     const [paymentMode, setPaymentMode] = useState<'cash' | 'upi'>('cash');
     const [manualAmount, setManualAmount] = useState<number | null>(null);
+    // The design bills snacks on the counter screen rather than sending staff
+    // to a separate modal, so the tab starts on the bill it belongs to.
+    const [snackStock, setSnackStock] = useState<InventoryItem[]>([]);
+    const [snackQty, setSnackQty] = useState<Record<string, number>>({});
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
@@ -330,6 +318,17 @@ export function Billing({
     useEffect(() => {
         setStationPricingData(stationPricingList || []);
     }, [stationPricingList]);
+
+    // Everything sellable at the counter, so the bill can carry snacks. Stock
+    // is shown rather than hidden: the design puts "6 left · low" on the item
+    // because that is when staff push it.
+    useEffect(() => {
+        if (!cafeId) return;
+        let cancelled = false;
+        fetchInventory<InventoryItem>(cafeId, { availableOnly: true, orderBy: 'category' })
+            .then((rows) => { if (!cancelled) setSnackStock(rows); });
+        return () => { cancelled = true; };
+    }, [cafeId]);
 
     const stationPricingMap = useMemo(
         () => Object.fromEntries(normalizedStationPricing.map((station) => [station.station_name, station])),
@@ -453,8 +452,17 @@ export function Billing({
         setItems(items.filter(i => i.id !== id));
     };
 
-    const calculatedTotal = items.reduce((sum, i) => sum + i.price, 0);
+    const snackLines = snackStock
+        .map((item) => ({ item, qty: snackQty[item.id] || 0 }))
+        .filter((line) => line.qty > 0);
+    const snackUnits = snackLines.reduce((sum, line) => sum + line.qty, 0);
+    const snackTotal = snackLines.reduce((sum, line) => sum + line.item.price * line.qty, 0);
+    const gamingTotal = items.reduce((sum, i) => sum + i.price, 0);
+    const calculatedTotal = gamingTotal + snackTotal;
     const totalAmount = manualAmount !== null ? manualAmount : calculatedTotal;
+
+    const setSnack = (id: string, next: number) =>
+        setSnackQty((current) => ({ ...current, [id]: Math.max(0, next) }));
     const previousCalculatedTotalRef = useRef(calculatedTotal);
 
     useEffect(() => {
@@ -490,6 +498,7 @@ export function Billing({
         setPaymentMode(nextMode);
         setBookingDate(getLocalDateString());
         setStartTime(getCurrentIndiaTimeInput());
+        setSnackQty({});
         setFormError(null);
     };
 
@@ -611,6 +620,31 @@ export function Billing({
             });
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || 'Failed to create booking');
+
+            // Snacks ride on the booking rather than a separate sale, so the tab
+            // and the stock both move once. Reported rather than swallowed: the
+            // session is already booked at this point, and staff need to know the
+            // snacks did not make it onto it.
+            if (snackLines.length > 0 && result.bookingId) {
+                const ordersRes = await fetch('/api/owner/booking-orders', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bookingId: result.bookingId,
+                        items: snackLines.map((line) => ({
+                            inventory_item_id: line.item.id,
+                            quantity: line.qty,
+                        })),
+                    }),
+                });
+                if (!ordersRes.ok) {
+                    const ordersError = await ordersRes.json().catch(() => ({}));
+                    setFormError(
+                        `Session booked, but the snacks were not added: ${ordersError.error || 'unknown error'}. Add them from the session card.`
+                    );
+                }
+            }
 
             const cafeName = cafes.find(c => c.id === cafeId)?.name || '';
             const itemsLabel = items.map(it => `${it.quantity}x ${it.console.toUpperCase()}`).join(', ');
@@ -935,7 +969,7 @@ export function Billing({
                             { icon: <CalendarDays size={13} className="text-[#f2f0ea]/40" />, label: 'Date', value: lastBooking.date, highlight: false },
                             { icon: <Clock size={13} className="text-[#f2f0ea]/40" />, label: 'Time', value: `${lastBooking.time} (${formatDurationLabel(lastBooking.duration, { long: true })})`, highlight: false },
                             { icon: <Gamepad2 size={13} className="text-[#f2f0ea]/40" />, label: 'Session', value: lastBooking.itemsLabel, highlight: false },
-                            { icon: <IndianRupee size={13} className={lastBooking.kind === 'advance' ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]'} />, label: lastBooking.kind === 'advance' ? 'Amount due' : 'Amount', value: `Rs.${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
+                            { icon: <IndianRupee size={13} className={lastBooking.kind === 'advance' ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]'} />, label: lastBooking.kind === 'advance' ? 'Amount due' : 'Amount', value: `₹${lastBooking.amount} · ${lastBooking.paymentMode}`, highlight: true },
                         ] as const).filter(Boolean).map((row, index, rows) => (
                             <div key={index} className={`flex items-center justify-between px-4 py-3 ${index < rows.length - 1 ? 'border-b border-[#f2f0ea]/[0.07]' : ''}`}>
                                 <span className="flex items-center gap-2 text-sm text-[#f2f0ea]/40">{row!.icon}{row!.label}</span>
@@ -1288,174 +1322,161 @@ export function Billing({
                                     </span>
                                 </div>
                             )}
+
+                            {/* ── snacks, billed onto the same tab ── */}
+                            {snackStock.length > 0 && (
+                                <div className="border border-[#f2f0ea]/10 bg-[#111113]">
+                                    <div className="flex items-center gap-3 border-b border-[#f2f0ea]/[0.08] px-[15px] py-3">
+                                        <span className="font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">
+                                            SNACKS &amp; DRINKS
+                                        </span>
+                                        <span className="flex-1" />
+                                        <span
+                                            className="font-mono text-[11px]"
+                                            style={{ color: snackTotal > 0 ? '#d8ff3c' : 'rgba(242,240,234,.35)' }}
+                                        >
+                                            {snackTotal > 0 ? `₹${snackTotal}` : '—'}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className="grid"
+                                        style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))' }}
+                                    >
+                                        {snackStock.map((snack) => {
+                                            const qty = snackQty[snack.id] || 0;
+                                            const out = snack.stock_quantity <= 0;
+                                            const low = !out && snack.stock_quantity <= 6;
+                                            const stockLabel = out
+                                                ? 'out of stock'
+                                                : low
+                                                    ? `${snack.stock_quantity} left · low`
+                                                    : 'in stock';
+                                            return (
+                                                <div
+                                                    key={snack.id}
+                                                    className="flex items-center gap-2.5 border-b border-r border-[#f2f0ea]/[0.05] px-[15px] py-[11px]"
+                                                >
+                                                    <div className="flex min-w-0 flex-col gap-0.5">
+                                                        <span className="truncate text-[13px] font-bold text-[#f2f0ea]">
+                                                            {snack.name}
+                                                        </span>
+                                                        <span
+                                                            className="font-mono text-[10px]"
+                                                            style={{ color: out || low ? '#ff5c2b' : 'rgba(242,240,234,.42)' }}
+                                                        >
+                                                            ₹{snack.price} · {stockLabel}
+                                                        </span>
+                                                    </div>
+                                                    <span className="flex-1" />
+                                                    <div className="flex items-center gap-px bg-[#f2f0ea]/10">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSnack(snack.id, qty - 1)}
+                                                            disabled={qty === 0}
+                                                            className="flex h-7 w-7 items-center justify-center bg-[#17171a] font-mono text-[13px] text-[#f2f0ea]/70 transition-colors hover:bg-[#232328] hover:text-[#f2f0ea] disabled:opacity-30"
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <span
+                                                            className="flex h-7 w-[30px] items-center justify-center bg-[#17171a] font-mono text-[12px]"
+                                                            style={{ color: qty > 0 ? '#d8ff3c' : 'rgba(242,240,234,.4)' }}
+                                                        >
+                                                            {qty}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSnack(snack.id, qty + 1)}
+                                                            // Stock is the cap: the sale decrements it, so selling
+                                                            // past it would drive the count negative.
+                                                            disabled={qty >= snack.stock_quantity}
+                                                            className="flex h-7 w-7 items-center justify-center bg-[#17171a] font-mono text-[13px] text-[#f2f0ea]/70 transition-colors hover:bg-[#232328] hover:text-[#d8ff3c] disabled:opacity-30"
+                                                        >
+                                                            ＋
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     <div className="space-y-5">
-                        <Card className={`sticky top-[82px] space-y-5 ${SECTION_CARD_CLASS}`}>
-                            <div className={`${GAMING_SUMMARY_HERO_CLASS} p-5`}>
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-[#f2f0ea]/[0.42]">
-                                            {isAdvanceMode ? 'PAYABLE BY CUSTOMER' : 'DUE NOW'}
-                                        </div>
-                                        <div className="mt-2 text-[44px] font-black leading-[0.9] tracking-[-0.03em] text-[#f2f0ea]">₹{totalAmount}</div>
-                                        <p className="mt-2 text-sm text-[#d8ff3c]/70">
-                                            {items.length > 0
-                                                ? isAdvanceMode
-                                                    ? `${items.length} booking line${items.length === 1 ? '' : 's'} ready for payment link`
-                                                    : `${items.length} booking line${items.length === 1 ? '' : 's'} ready for checkout`
-                                                : 'Add a setup to begin billing'}
-                                        </p>
-                                    </div>
-                                    <span className="bg-[#d8ff3c]/[0.12] px-2.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-[#d8ff3c]">
-                                        {(isAdvanceMode ? 'upi' : paymentMode).toUpperCase()}
+                        {/* ── the design's summary: one panel, hairline sections ── */}
+                        <div className="sticky top-[82px] flex flex-col border border-[#f2f0ea]/[0.12] bg-[#111113]">
+                            <div className="flex items-end gap-2.5 border-b border-[#f2f0ea]/[0.08] px-[18px] pb-3.5 pt-[18px]">
+                                <div className="flex min-w-0 flex-col gap-1.5">
+                                    <span className="font-mono text-[9.5px] tracking-[0.2em] text-[#f2f0ea]/[0.42]">
+                                        {isAdvanceMode ? 'PAYABLE BY CUSTOMER' : 'DUE NOW'}
+                                    </span>
+                                    <span className="text-[40px] font-black leading-[0.85] tracking-[-0.03em] text-[#f2f0ea]">
+                                        ₹{totalAmount}
                                     </span>
                                 </div>
-                                <div className="mt-4 flex flex-col gap-2">
-                                    {[
-                                        { k: `GAMING · ${items.length} line${items.length === 1 ? '' : 's'}`, v: `₹${calculatedTotal}`, c: '#f2f0ea' },
-                                        { k: 'CALCULATED', v: `₹${calculatedTotal}`, c: 'rgba(242,240,234,.55)' },
-                                        {
-                                            k: 'PAYMENT',
-                                            v: isAdvanceMode ? 'UPI' : paymentMode.toUpperCase(),
-                                            c: '#d8ff3c',
-                                        },
-                                    ].map((line) => (
-                                        <div key={line.k} className="flex items-center gap-2.5 font-mono text-[11.5px]">
-                                            <span className="min-w-0 truncate text-[#f2f0ea]/55">{line.k}</span>
-                                            <span className="flex-1" />
-                                            <span className="whitespace-nowrap" style={{ color: line.c }}>
-                                                {line.v}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
+                                <span className="flex-1" />
+                                <span className="bg-[#d8ff3c]/[0.12] px-[9px] py-[5px] font-mono text-[9.5px] tracking-[0.14em] text-[#d8ff3c]">
+                                    {(isAdvanceMode ? 'upi' : paymentMode).toUpperCase()}
+                                </span>
                             </div>
 
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <label className="flex flex-col gap-1.5 border border-[#f2f0ea]/[0.12] px-3.5 py-3 transition-colors focus-within:border-[#d8ff3c]">
-                                    <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.38]">
-                                        <CalendarDays size={13} className="text-[#f2f0ea]/40" />
-                                        Date
+                            <div className="flex flex-col gap-2 border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                {[
+                                    { k: `GAMING · ${items.length} line${items.length === 1 ? '' : 's'}`, v: `₹${gamingTotal}`, c: '#f2f0ea' },
+                                    { k: `SNACKS · ${snackUnits} item${snackUnits === 1 ? '' : 's'}`, v: `₹${snackTotal}`, c: snackTotal > 0 ? '#f2f0ea' : 'rgba(242,240,234,.35)' },
+                                    { k: 'CALCULATED', v: `₹${calculatedTotal}`, c: 'rgba(242,240,234,.55)' },
+                                ].map((line) => (
+                                    <div key={line.k} className="flex items-center gap-2.5 font-mono text-[11.5px]">
+                                        <span className="min-w-0 truncate text-[#f2f0ea]/55">{line.k}</span>
+                                        <span className="flex-1" />
+                                        <span className="whitespace-nowrap" style={{ color: line.c }}>{line.v}</span>
                                     </div>
-                                    <input
-                                        type="date"
-                                        value={bookingDate}
-                                        onChange={(event) => setBookingDate(event.target.value)}
-                                        className="w-full bg-transparent text-sm text-[#f2f0ea] focus:outline-none"
-                                        style={{ colorScheme: 'dark' }}
-                                    />
-                                </label>
-                                <label className="flex flex-col gap-1.5 border border-[#f2f0ea]/[0.12] px-3.5 py-3 transition-colors focus-within:border-[#d8ff3c]">
-                                    <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.38]">
-                                        <Clock size={13} className="text-[#f2f0ea]/40" />
-                                        Start Time
-                                    </div>
+                                ))}
+                            </div>
+
+                            {/* START and ENDS, as the design pairs them. The date and
+                                start are editable because advance bookings are not
+                                always for now; ENDS follows from them. */}
+                            <div className="grid grid-cols-2 gap-2.5 border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                <label className="flex flex-col gap-1.5">
+                                    <span className="font-mono text-[9px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">START</span>
                                     <input
                                         type="time"
                                         value={startTime}
                                         onChange={(event) => setStartTime(event.target.value)}
-                                        className="mono w-full bg-transparent text-sm text-[#f2f0ea] focus:outline-none"
+                                        className="w-full bg-transparent font-mono text-[12.5px] text-[#f2f0ea] focus:outline-none"
+                                        style={{ colorScheme: 'dark' }}
+                                    />
+                                </label>
+                                <div className="flex flex-col gap-1.5">
+                                    <span className="font-mono text-[9px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">ENDS</span>
+                                    <span className="font-mono text-[12.5px] text-[#d8ff3c]">{sessionEndLabel}</span>
+                                </div>
+                            </div>
+
+                            {isAdvanceMode && (
+                            <div className="border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                <label className="flex flex-col gap-1.5">
+                                    <span className="font-mono text-[9px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">DATE</span>
+                                    <input
+                                        type="date"
+                                        value={bookingDate}
+                                        onChange={(event) => setBookingDate(event.target.value)}
+                                        className="w-full bg-transparent font-mono text-[12.5px] text-[#f2f0ea] focus:outline-none"
                                         style={{ colorScheme: 'dark' }}
                                     />
                                 </label>
                             </div>
-
-                            {/* The design's ENDS, opposite the start it is derived from. */}
-                            <div className="flex items-center gap-2.5 border border-[#f2f0ea]/[0.12] px-3.5 py-3 font-mono">
-                                <span className="text-[9px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.38]">ENDS</span>
-                                <span className="flex-1" />
-                                <span className="text-[12.5px] text-[#d8ff3c]">{sessionEndLabel}</span>
-                            </div>
-
-                            {items.length > 0 ? (
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between gap-3 px-1">
-                                        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Booking lines</div>
-                                        <div className="text-[11px] font-medium text-[#d8ff3c]/80">Shared start {startTime || '--:--'}</div>
-                                    </div>
-                                    {items.map((item) => (
-                                        <div key={item.id} className={`${CONTROL_SURFACE_CLASS} flex items-center justify-between gap-3 px-3.5 py-3`}>
-                                            <div className="flex items-center gap-3">
-                                                <span
-                                                    className="flex h-10 w-10 shrink-0 items-center justify-center text-sm font-bold"
-                                                    style={{
-                                                        background: `${getConsoleTheme(item.console).accent}1a`,
-                                                        color: getConsoleTheme(item.console).accent,
-                                                    }}
-                                                >
-                                                    {getConsoleTheme(item.console).short}
-                                                </span>
-                                                <div>
-                                                    <div className="text-sm font-medium text-[#f2f0ea]">
-                                                        {CONSOLE_LABELS[item.console as keyof typeof CONSOLE_LABELS] || item.console.toUpperCase()}
-                                                    </div>
-                                                    <div className="text-[11px] text-[var(--muted)]">
-                                                        {item.quantity} player{item.quantity === 1 ? '' : 's'} · {formatDurationLabel(item.duration)}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="mono text-sm font-semibold text-[#f2f0ea]">Rs.{item.price}</div>
-                                                <div className="text-[11px] text-[var(--muted)]">Auto station</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className={`${CONTROL_SURFACE_CLASS}  px-4 py-6 text-center text-sm text-[var(--muted)]`}>
-                                    Select a console to start building the booking.
-                                </div>
                             )}
 
-                            <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Final amount</div>
-                                    <span className="mono bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{calculatedTotal}</span>
-                                </div>
-                                <div className="mt-4 flex items-center justify-between gap-3">
-                                    <span className="text-sm text-[var(--muted)]">Charge customer</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="mono text-sm text-[#f2f0ea]">Rs.</span>
-                                        <input
-                                            type="number"
-                                            value={manualAmount !== null ? manualAmount : calculatedTotal}
-                                            onChange={(event) => {
-                                                const value = parseFloat(event.target.value) || 0;
-                                                setManualAmount(value === calculatedTotal ? null : value);
-                                            }}
-                                            min={0}
-                                            className="mono w-32 border border-white/[0.07] bg-[#f2f0ea]/[0.04] px-3 py-2 text-right text-lg font-semibold text-[#f2f0ea] focus:border-[#d8ff3c]/40 focus:outline-none"
-                                        />
-                                    </div>
-                                </div>
-                                {manualAmount !== null && manualAmount !== calculatedTotal && (
-                                    <div className="mt-3 flex items-center justify-between text-xs">
-                                        <span className="text-[#ff5c2b]">Manual override applied</span>
-                                        <button type="button" onClick={resetManualAmount} className="text-[#f2f0ea]/50 underline transition hover:text-[#f2f0ea]">
-                                            Reset
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {isAdvanceMode ? (
-                                <div className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 p-4 text-[#ff5c2b]">
-                                    <Smartphone className="mb-3 text-[#ff5c2b]" size={20} />
-                                    <div className="text-sm font-semibold">UPI payment link</div>
-                                    <div className="mt-1 text-xs text-[#ff5c2b]/70">
-                                        Payment is locked to UPI. Share the generated link and confirm after checking Paytm Business.
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col gap-2.5">
-                                    <span className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-[#f2f0ea]/[0.42]">
-                                        PAYMENT
-                                    </span>
-                                    {/* The design's segmented picker: two big
-                                        cards with icons and a sentence each
-                                        became two words on one control. */}
+                            <div className="flex flex-col gap-2.5 border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                <span className="font-mono text-[9.5px] tracking-[0.2em] text-[#f2f0ea]/[0.42]">PAYMENT</span>
+                                {isAdvanceMode ? (
+                                    <p className="font-mono text-[10.5px] leading-[1.5] text-[#ff5c2b]">
+                                        Locked to UPI. Share the link and confirm once it shows in Paytm Business.
+                                    </p>
+                                ) : (
                                     <div className="grid grid-cols-2 gap-px border border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.12]">
                                         {(['cash', 'upi'] as const).map((option) => {
                                             const on = paymentMode === option;
@@ -1464,7 +1485,7 @@ export function Billing({
                                                     key={option}
                                                     type="button"
                                                     onClick={() => setPaymentMode(option)}
-                                                    className="py-3 text-center font-mono text-[11px] tracking-[0.12em] transition-colors"
+                                                    className="py-[11px] text-center font-mono text-[11px] tracking-[0.12em] transition-colors"
                                                     style={
                                                         on
                                                             ? { background: 'rgba(216,255,60,.14)', color: '#d8ff3c' }
@@ -1476,87 +1497,118 @@ export function Billing({
                                             );
                                         })}
                                     </div>
+                                )}
+
+                                <div className="flex items-center gap-2.5 border border-[#f2f0ea]/[0.12] bg-[#0e0e10] px-[13px] py-[11px]">
+                                    <span className="font-mono text-[10px] tracking-[0.14em] text-[#f2f0ea]/[0.42]">CHARGE</span>
+                                    <span className="flex-1" />
+                                    <span className="font-mono text-[12px] text-[#f2f0ea]/50">₹</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={manualAmount !== null ? manualAmount : calculatedTotal}
+                                        onChange={(event) => {
+                                            const value = parseFloat(event.target.value) || 0;
+                                            setManualAmount(value === calculatedTotal ? null : value);
+                                        }}
+                                        className="w-[84px] bg-transparent text-right font-mono text-[15px] font-semibold text-[#f2f0ea] focus:outline-none"
+                                    />
                                 </div>
-                            )}
 
-                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && !upiPayee && (
-                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/[0.06] px-3 py-2 text-xs text-[#ff5c2b]">
-                                    Add your UPI id under Payments to show a QR here. Until then, collect
-                                    this one by cash or your own QR.
-                                </p>
-                            )}
-
-                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && upiPayee && (
-                                <div className="space-y-3 border border-[#d8ff3c]/15 bg-[#111113] px-4 py-4 text-center">
-                                    <div className="flex items-center justify-between gap-3 text-left">
-                                        <div>
-                                            <div className="text-[10px] smallcaps text-[#d8ff3c]/70">UPI collect</div>
-                                            <div className="text-sm font-semibold text-[#f2f0ea]">Scan and receive Rs.{totalAmount}</div>
-                                        </div>
-                                        <span className=" border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
-                                            Tap QR
+                                {manualAmount !== null && manualAmount !== calculatedTotal && (
+                                    <div className="flex items-center gap-2.5 font-mono text-[10.5px] text-[#ff5c2b]">
+                                        <span>
+                                            {manualAmount < calculatedTotal
+                                                ? `Discount ₹${calculatedTotal - manualAmount}`
+                                                : `Over calculated by ₹${manualAmount - calculatedTotal}`}
                                         </span>
+                                        <span className="flex-1" />
+                                        <button
+                                            type="button"
+                                            onClick={resetManualAmount}
+                                            className="text-[#f2f0ea]/50 transition-colors hover:text-[#f2f0ea]"
+                                        >
+                                            CLEAR
+                                        </button>
                                     </div>
-                                    <div
-                                        className="inline-flex cursor-pointer bg-[#d4d4d4] p-3 transition"
-                                        onClick={() => setQrExpanded((value) => !value)}
-                                        title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
-                                    >
-                                        <QRCodeSVG
-                                            value={buildUpiPaymentUrl(upiPayee, totalAmount, 'walkin00', undefined)}
-                                            size={qrExpanded ? 260 : 180}
-                                            bgColor="#d4d4d4"
-                                            fgColor="#111111"
-                                            level="Q"
-                                        />
-                                    </div>
-                                    <p className="text-xs text-[#f2f0ea]/50">
-                                        Scan to pay <span className="font-semibold text-[#f2f0ea]">Rs.{totalAmount}</span> via UPI.
-                                    </p>
-                                </div>
-                            )}
-
-                            {formError && (
-                                <p className=" border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 text-sm text-[#ff5c2b]">{formError}</p>
-                            )}
-
-                            <button
-                                type="button"
-                                onClick={handleSubmit}
-                                disabled={submitting || items.length === 0}
-                                className="w-full bg-[#d8ff3c] py-4 font-mono text-[11.5px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                {submitting
-                                    ? 'CREATING…'
-                                    : isAdvanceMode
-                                        ? 'CREATE PAYMENT LINK →'
-                                        : `TAKE ₹${totalAmount} · START SESSION →`}
-                            </button>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => resetBill()}
-                                    disabled={submitting}
-                                    className="border border-[#f2f0ea]/[0.16] py-[11px] font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
-                                >
-                                    RESET
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => window.print()}
-                                    disabled={items.length === 0}
-                                    className="border border-[#f2f0ea]/[0.16] py-[11px] font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
-                                >
-                                    PRINT BILL
-                                </button>
+                                )}
                             </div>
 
-                            <span className="font-mono text-[10px] leading-[1.5] text-[#f2f0ea]/[0.32]">
-                                Starting the session books the machines and opens the tab. Snacks can be
-                                added to it until checkout.
-                            </span>
-                        </Card>
+                            {!isAdvanceMode && paymentMode === 'upi' && totalAmount > 0 && (
+                                <div className="border-b border-[#f2f0ea]/[0.08] px-[18px] py-3.5">
+                                    {upiPayee ? (
+                                        <div className="flex flex-col items-center gap-2.5">
+                                            <div
+                                                className="inline-flex cursor-pointer bg-[#d4d4d4] p-3"
+                                                onClick={() => setQrExpanded((value) => !value)}
+                                                title={qrExpanded ? 'Click to shrink' : 'Click to enlarge'}
+                                            >
+                                                <QRCodeSVG
+                                                    value={buildUpiPaymentUrl(upiPayee, totalAmount, 'walkin00', undefined)}
+                                                    size={qrExpanded ? 240 : 150}
+                                                    bgColor="#d4d4d4"
+                                                    fgColor="#111111"
+                                                    level="Q"
+                                                />
+                                            </div>
+                                            <span className="font-mono text-[10.5px] text-[#f2f0ea]/50">
+                                                Scan to pay ₹{totalAmount}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <p className="font-mono text-[10.5px] leading-[1.5] text-[#ff5c2b]">
+                                            Add your UPI id under Payments to show a QR here. Until then, collect
+                                            this one by cash or your own QR.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-2 px-[18px] pb-4 pt-3.5">
+                                {formError && (
+                                    <p className="border border-[#ff5c2b]/20 bg-[#ff5c2b]/10 px-3 py-2 font-mono text-[10.5px] text-[#ff5c2b]">
+                                        {formError}
+                                    </p>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={submitting || items.length === 0}
+                                    className="w-full bg-[#d8ff3c] py-[15px] font-mono text-[11.5px] font-semibold tracking-[0.16em] text-[#0b0b0c] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {submitting
+                                        ? 'CREATING…'
+                                        : isAdvanceMode
+                                            ? 'CREATE PAYMENT LINK →'
+                                            : `TAKE ₹${totalAmount} · START SESSION →`}
+                                </button>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => resetBill()}
+                                        disabled={submitting}
+                                        className="border border-[#f2f0ea]/[0.16] py-[11px] font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
+                                    >
+                                        RESET
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        disabled={items.length === 0}
+                                        className="border border-[#f2f0ea]/[0.16] py-[11px] font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
+                                    >
+                                        PRINT BILL
+                                    </button>
+                                </div>
+
+                                <span className="font-mono text-[10px] leading-[1.5] text-[#f2f0ea]/[0.32]">
+                                    Starting the session books the machines and opens the tab. Snacks come
+                                    off stock as the bill is taken.
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : (
