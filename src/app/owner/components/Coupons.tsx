@@ -53,6 +53,12 @@ interface Customer {
     coupon_sent: boolean;
 }
 
+type UsageRow = {
+    coupon_id: string;
+    discount_applied: number | string | null;
+    bookings?: { total_amount: number | string | null } | { total_amount: number | string | null }[] | null;
+};
+
 interface CouponUsage {
     id: string;
     used_at: string;
@@ -82,6 +88,8 @@ export function Coupons({ cafeId }: CouponsProps) {
     // Eligible customers
     const [eligibleCustomers, setEligibleCustomers] = useState<Customer[]>([]);
     const [usageHistory, setUsageHistory] = useState<CouponUsage[]>([]);
+    // What every code gave away and what came back with it, keyed by coupon.
+    const [economics, setEconomics] = useState<Record<string, { given: number; earned: number }>>({});
     const [loadingCustomers, setLoadingCustomers] = useState(false);
 
     // Create/Edit State
@@ -119,6 +127,30 @@ export function Coupons({ cafeId }: CouponsProps) {
     useEffect(() => {
         fetchCoupons();
     }, [fetchCoupons]);
+
+    // A coupon is worth judging on money, not on how often it was typed. Quiet
+    // on failure: the columns fall back to a dash rather than taking the page
+    // down over a figure that decorates it.
+    useEffect(() => {
+        if (!cafeId) return;
+        let cancelled = false;
+        fetch(`/api/owner/coupons/usage?cafeId=${cafeId}`, { credentials: 'include' })
+            .then((res) => (res.ok ? res.json() : []))
+            .then((rows: UsageRow[]) => {
+                if (cancelled || !Array.isArray(rows)) return;
+                const tally: Record<string, { given: number; earned: number }> = {};
+                for (const row of rows) {
+                    if (!row?.coupon_id) continue;
+                    const bucket = tally[row.coupon_id] || (tally[row.coupon_id] = { given: 0, earned: 0 });
+                    bucket.given += Number(row.discount_applied) || 0;
+                    const booking = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings;
+                    bucket.earned += Number(booking?.total_amount) || 0;
+                }
+                setEconomics(tally);
+            })
+            .catch(() => { /* the columns show a dash */ });
+        return () => { cancelled = true; };
+    }, [cafeId]);
 
 
     // Fetch all customers (from bookings, same as Customers tab)
@@ -1042,7 +1074,46 @@ See you soon! 🎯`;
         return daysUntil > 0 && daysUntil <= 7;
     }).length;
 
-    const COLUMNS = 'minmax(150px,1.25fr) minmax(0,1fr) 132px 110px 132px';
+    const totalGiven = Object.values(economics).reduce((sum, e) => sum + e.given, 0);
+    const totalEarned = Object.values(economics).reduce((sum, e) => sum + e.earned, 0);
+
+    /** Codes that actually ran, ordered by what each rupee of discount returned. */
+    const roiRanking = coupons
+        .map((c) => ({ id: c.id, code: c.code, ...(economics[c.id] || { given: 0, earned: 0 }) }))
+        .filter((r) => r.given > 0)
+        .map((r) => ({ ...r, roi: r.earned / r.given }))
+        .sort((a, b) => b.roi - a.roi)
+        .slice(0, 6);
+    const bestRoi = Math.max(1, ...roiRanking.map((r) => r.roi));
+
+    const exportCouponsCsv = () => {
+        const header = ['Code', 'Discount', 'Status', 'Used', 'Limit', 'Given', 'Earned', 'Return', 'Valid until'];
+        const rows = filteredCoupons.map((c) => {
+            const money = economics[c.id];
+            return [
+                c.code,
+                c.discount_type === 'percentage' ? `${c.discount_value}%` : `${c.bonus_minutes} mins`,
+                getCouponStatus(c),
+                String(c.uses_count),
+                c.max_uses ? String(c.max_uses) : '',
+                money ? String(Math.round(money.given)) : '',
+                money ? String(Math.round(money.earned)) : '',
+                money && money.given > 0 ? (money.earned / money.given).toFixed(2) : '',
+                c.valid_until || '',
+            ];
+        });
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `coupons-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const COLUMNS = 'minmax(150px,1.25fr) minmax(0,1fr) 132px 110px 70px 86px 112px';
 
     return (
         <div className="flex flex-col gap-[18px]">
@@ -1099,8 +1170,10 @@ See you soon! 🎯`;
             <Panel>
                 <TableHead columns={COLUMNS}>
                     <span>CODE</span>
-                    <span>GIVES</span>
-                    <span>USED</span>
+                    <span>DISCOUNT</span>
+                    <span>REDEEMED</span>
+                    <span className="text-right">GIVEN / EARNED</span>
+                    <span className="text-right">RETURN</span>
                     <span className="text-right">WINDOW</span>
                     <span className="text-right">ACTIONS</span>
                 </TableHead>
@@ -1124,6 +1197,10 @@ See you soon! 🎯`;
                             usedUp || status === 'expired' ? 'rgba(242,240,234,.2)'
                             : status === 'active' ? '#d8ff3c'
                             : 'transparent';
+                        const money = economics[coupon.id];
+                        // Return per rupee discounted. No usage means no answer,
+                        // which is a dash rather than a zero — they read differently.
+                        const roi = money && money.given > 0 ? money.earned / money.given : null;
 
                         return (
                             <TableRow
@@ -1169,6 +1246,35 @@ See you soon! 🎯`;
                                         </div>
                                     ) : null}
                                 </div>
+
+                                {/* What it cost against what it brought back. A code
+                                    used forty times is not automatically a good one. */}
+                                <div className="flex min-w-0 flex-col items-end gap-[3px]">
+                                    {money ? (
+                                        <>
+                                            <span className="whitespace-nowrap font-mono text-[11.5px] text-[#ff5c2b]">
+                                                −₹{Math.round(money.given).toLocaleString('en-IN')}
+                                            </span>
+                                            <span className="whitespace-nowrap font-mono text-[11.5px] text-[#d8ff3c]">
+                                                +₹{Math.round(money.earned).toLocaleString('en-IN')}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="font-mono text-[11.5px] text-[#f2f0ea]/25">—</span>
+                                    )}
+                                </div>
+
+                                <span
+                                    className="whitespace-nowrap text-right font-mono text-[12px]"
+                                    style={{
+                                        color: roi === null ? 'rgba(242,240,234,.25)'
+                                            : roi >= 3 ? '#d8ff3c'
+                                            : roi >= 1 ? 'rgba(242,240,234,.7)'
+                                            : '#ff5c2b',
+                                    }}
+                                >
+                                    {roi === null ? '—' : `${roi.toFixed(1)}×`}
+                                </span>
 
                                 <span className="whitespace-nowrap text-right font-mono text-[10.5px] text-[#f2f0ea]/60">
                                     {coupon.valid_until
@@ -1226,11 +1332,65 @@ See you soon! 🎯`;
                 )}
 
                 <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40">
-                    <span>{filteredCoupons.length} of {coupons.length} coupons</span>
+                    <span className="truncate">
+                        {filteredCoupons.length} of {coupons.length} coupons · a row opens its full report
+                    </span>
                     <span className="flex-1" />
-                    <span>A ROW OPENS ITS FULL REPORT</span>
+                    <button
+                        type="button"
+                        onClick={exportCouponsCsv}
+                        className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c]"
+                    >
+                        EXPORT CSV →
+                    </button>
                 </div>
             </Panel>
+
+            {/* The design ranks codes by what a rupee of discount brought back,
+                which is the only ordering that says which to run again. */}
+            {roiRanking.length > 0 && (
+                <section>
+                    <div className="mb-3 flex items-center gap-3">
+                        <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                            RETURN PER ₹1 DISCOUNTED
+                        </span>
+                        <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/40">
+                            ₹{Math.round(totalGiven).toLocaleString('en-IN')} given · ₹{Math.round(totalEarned).toLocaleString('en-IN')} back
+                        </span>
+                    </div>
+                    <div className="flex flex-col gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+                        {roiRanking.map((row) => {
+                            const tone = row.roi >= 3 ? '#d8ff3c' : row.roi >= 1 ? 'rgba(242,240,234,.7)' : '#ff5c2b';
+                            return (
+                                <div
+                                    key={row.id}
+                                    className="grid items-center gap-3 bg-[#111113] px-4 py-3"
+                                    style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,100px) 96px' }}
+                                >
+                                    <div className="flex min-w-0 flex-col gap-[3px]">
+                                        <span className="truncate font-mono text-[12px] font-semibold tracking-[0.06em] text-[#f2f0ea]">
+                                            {row.code}
+                                        </span>
+                                        <span className="truncate font-mono text-[10px] text-[#f2f0ea]/35">
+                                            ₹{Math.round(row.given).toLocaleString('en-IN')} given · ₹{Math.round(row.earned).toLocaleString('en-IN')} earned
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-[#f2f0ea]/[0.08]">
+                                        <div
+                                            className="h-1.5"
+                                            style={{ width: `${Math.min(100, (row.roi / bestRoi) * 100)}%`, background: tone }}
+                                        />
+                                    </div>
+                                    <span className="whitespace-nowrap text-right font-mono text-[12px]" style={{ color: tone }}>
+                                        {row.roi.toFixed(1)}×
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }
