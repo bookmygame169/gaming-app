@@ -6,6 +6,7 @@ import { StationPlayRequests } from './StationPlayRequests';
 import React, { useState } from 'react';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { isBillableRevenueBooking } from '@/lib/ownerRevenue';
+import { WhatToFix, type Insight } from './consoleUi';
 import { CafeRow, BookingRow } from '../types';
 
 interface StationsTabProps {
@@ -277,6 +278,7 @@ export function StationsTab({
     })();
     const bestYield = Math.max(1, ...yieldByType.map((r) => r.perOpenHour));
 
+
     const exportStationsCsv = () => {
         const header = ['Station', 'Type', 'Rate', 'Status', 'Hours 7d', 'Utilisation %', 'Revenue 7d', 'Per open hour'];
         const rows = filteredStations.map((st) => {
@@ -343,6 +345,7 @@ export function StationsTab({
         return matchesSearch && matchesType && matchesStatus;
     });
 
+
     /** The hourly rate for a station, whatever shape its pricing row takes. */
     const hourlyRateFor = (station: any) => {
         const saved = stationPricing[station.name];
@@ -355,6 +358,69 @@ export function StationsTab({
     const notEarning = allStations.filter(
         (station) => poweredOffStations.has(station.name) || maintenanceStations.has(station.name)
     );
+
+    /** What this week's numbers say about the floor, when they say anything. */
+    const insights: Insight[] = (() => {
+        const out: Insight[] = [];
+        const ranked = yieldByType.filter((r) => r.revenue > 0 || r.count > 0);
+
+        // The gap between the best and worst kind of machine, per hour open.
+        if (ranked.length >= 2) {
+            const best = ranked[0];
+            const worst = ranked[ranked.length - 1];
+            if (best.perOpenHour > 0 && best.perOpenHour >= worst.perOpenHour * 3) {
+                out.push({
+                    id: 'yield-gap',
+                    tone: 'orange',
+                    title: `${worst.label} earns ₹${Math.round(worst.perOpenHour)} an open hour against ${best.label}'s ₹${Math.round(best.perOpenHour)}`,
+                    // A multiple against zero is not a multiple. Say it plainly
+                    // instead of dividing by a guard and reporting the guard.
+                    detail: worst.perOpenHour < 1
+                        ? `${worst.count} ${worst.count === 1 ? 'machine' : 'machines'} took nothing at all in seven days, while ${best.label} returned ₹${Math.round(best.perOpenHour)} for every hour the doors were open.`
+                        : `${worst.count} ${worst.count === 1 ? 'machine' : 'machines'} taking ₹${Math.round(worst.revenue).toLocaleString('en-IN')} in seven days. The floor space earns ${Math.round(best.perOpenHour / worst.perOpenHour)}× more as ${best.label}.`,
+                });
+            }
+        }
+
+        // Busy and still not paying for itself — usually a membership sitting on it.
+        const soaked = filteredStations
+            .map((st) => ({ st, w: weekFor(st.name, String(st.name).split('-')[0]) }))
+            .filter(({ w }) => w.util >= 40 && w.perOpenHour < 10)
+            .sort((a, b) => b.w.util - a.w.util)[0];
+        if (soaked) {
+            out.push({
+                id: 'busy-not-earning',
+                tone: 'orange',
+                title: `${String(soaked.st.name).toUpperCase()} is occupied ${soaked.w.util}% of opening hours and returns ₹${Math.round(soaked.w.perOpenHour)} an hour`,
+                detail: `${soaked.w.hours.toFixed(0)} hours used for ₹${Math.round(soaked.w.revenue).toLocaleString('en-IN')}. Usually an unlimited pass holding a machine that walk-ins would pay for.`,
+            });
+        }
+
+        // Machines that took nothing at all.
+        const idle = filteredStations.filter(
+            (st) => weekFor(st.name, String(st.name).split('-')[0]).revenue === 0
+        );
+        if (idle.length > 0) {
+            out.push({
+                id: 'idle',
+                tone: idle.length > 2 ? 'orange' : 'ink',
+                title: `${idle.length} ${idle.length === 1 ? 'station' : 'stations'} took nothing in seven days`,
+                detail: `${idle.slice(0, 4).map((st) => String(st.name).toUpperCase()).join(', ')}${idle.length > 4 ? ` and ${idle.length - 4} more` : ''}. Worth knowing whether they are broken, off the booking list, or simply never chosen.`,
+            });
+        }
+
+        // Not earning because somebody switched them off.
+        if (notEarning.length > 0) {
+            out.push({
+                id: 'off-floor',
+                tone: 'orange',
+                title: `${notEarning.length} ${notEarning.length === 1 ? 'machine is' : 'machines are'} off the floor`,
+                detail: 'Powered off or in maintenance, so they cannot be booked. Every hour one stays down is an hour of rent it does not pay.',
+            });
+        }
+
+        return out;
+    })();
 
     const typeCounts = consoleTypes
         .map((entry) => ({
@@ -706,6 +772,8 @@ export function StationsTab({
                     </div>
                 </section>
             )}
+
+            <WhatToFix items={insights} />
 
             {/* One password for every station here, rather than a script run
                 at each PC. Café-level, so it sits below the grid. */}

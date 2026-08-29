@@ -4,7 +4,7 @@ import { phoneKey } from '@/lib/phone';
 import { BookingRow } from '../../types';
 import { getLocalDateString } from '../../utils';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { Kpis } from '../consoleUi';
+import { Kpis, WhatToFix, type Insight } from '../consoleUi';
 import { buildWhatsAppUrl } from '../../utils';
 
 type CustomerSortBy = 'name' | 'sessions' | 'totalSpent' | 'lastVisit';
@@ -327,6 +327,50 @@ export default function CustomersTab({
       share: lifetimeTotal > 0 ? Math.round((revenue / lifetimeTotal) * 100) : 0,
     };
   }).sort((a, b) => b.revenue - a.revenue);
+
+  /** What the segment split is saying, where it is worth saying. */
+  const insights: Insight[] = (() => {
+    const out: Insight[] = [];
+    const vip = segmentRevenue.find((r) => r.key === 'vip');
+    const lapsed = segmentRevenue.find((r) => r.key === 'lapsed');
+    const fresh = segmentRevenue.find((r) => r.key === 'new');
+
+    // A handful of people carrying a disproportionate share of the takings.
+    if (vip && vip.people > 0 && vip.share >= 15) {
+      out.push({
+        id: 'vip-concentration',
+        tone: 'lime',
+        title: `${vip.people} ${vip.people === 1 ? 'customer is' : 'customers are'} ${vip.share}% of your revenue`,
+        detail: `₹${vip.revenue.toLocaleString('en-IN')} between them. Losing one of these is worth roughly ${Math.round(vip.revenue / Math.max(1, vip.people) / Math.max(1, avgLifetime))} ordinary customers.`,
+      });
+    }
+
+    // Money already earned, from people who have stopped coming.
+    if (lapsed && lapsed.people > 0 && lapsed.revenue > 0) {
+      out.push({
+        id: 'lapsed-value',
+        tone: 'orange',
+        title: `${lapsed.people} lapsed ${lapsed.people === 1 ? 'customer holds' : 'customers hold'} ₹${lapsed.revenue.toLocaleString('en-IN')} of past spend`,
+        detail: 'Nobody here has been in for a month. They already know the place and already paid once, which makes them cheaper to bring back than a stranger is to find.',
+      });
+    }
+
+    // Lots of first-timers who never returned.
+    if (fresh && fresh.people > 0 && allCustomers.length > 0) {
+      const onceOnly = allCustomers.filter((c) => c.sessions <= 1).length;
+      const pct = Math.round((onceOnly / allCustomers.length) * 100);
+      if (pct >= 40) {
+        out.push({
+          id: 'one-visit',
+          tone: 'orange',
+          title: `${pct}% of customers have been in exactly once`,
+          detail: `${onceOnly} of ${allCustomers.length}. A second visit is the one that decides whether somebody becomes a regular, and most are not making it.`,
+        });
+      }
+    }
+
+    return out;
+  })();
 
   const exportCustomersCsv = () => {
     const header = ['Customer', 'Phone', 'Segment', 'Visits', 'Lifetime', 'Avg bill', 'Last seen', 'Member since'];
@@ -675,6 +719,8 @@ export default function CustomersTab({
           })}
         </div>
       </section>
+
+      <WhatToFix items={insights} />
 
       {customers.length > PAGE_SIZE && (
         <div className="flex items-center justify-between px-1">

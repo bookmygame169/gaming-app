@@ -74,6 +74,53 @@ export function SectionBar({ title, note, action }: { title: string; note?: Reac
     );
 }
 
+/**
+ * One thing the numbers on a screen are saying that a person might not notice.
+ *
+ * Every insight is derived from the data already on the page, so a card can
+ * only appear when it is true — there is no "everything looks fine" filler,
+ * and an empty list renders nothing at all. The tone is the point of the
+ * left edge: orange is costing money, lime is working, cream is neither.
+ */
+export type Insight = {
+    id: string;
+    tone: 'orange' | 'lime' | 'ink';
+    title: string;
+    detail: string;
+};
+
+export function WhatToFix({ items, title = 'WHAT TO FIX' }: { items: Insight[]; title?: string }) {
+    if (items.length === 0) return null;
+
+    const edge = { orange: '#ff5c2b', lime: '#d8ff3c', ink: 'rgba(242,240,234,.25)' };
+
+    return (
+        <section>
+            <div className="mb-3">
+                <SectionBar title={title} />
+            </div>
+            <div className="flex flex-col gap-2">
+                {items.map((item) => (
+                    <div
+                        key={item.id}
+                        className="flex gap-[11px] bg-[#111113] px-[14px] py-3"
+                        style={{ borderLeft: `2px solid ${edge[item.tone]}` }}
+                    >
+                        <div className="flex min-w-0 flex-col gap-1">
+                            <span className="text-[13px] font-bold tracking-[-0.005em] text-[#f2f0ea]">
+                                {item.title}
+                            </span>
+                            <span className="font-mono text-[10.5px] leading-[1.6] text-[#f2f0ea]/45 [text-wrap:pretty]">
+                                {item.detail}
+                            </span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
 /** Filter chips with counts — the design's way of slicing any list. */
 export function Chips({
     items,

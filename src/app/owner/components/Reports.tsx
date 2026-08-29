@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Button } from './ui';
-import { Chips, GhostButton, Kpis } from './consoleUi';
+import { Chips, GhostButton, Kpis, WhatToFix, type Insight } from './consoleUi';
+import { CONSOLE_LABELS } from '@/lib/constants';
 import {
     getBookingGamingTotal,
     getBookingRevenueTotal,
@@ -644,6 +645,61 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
         return { totalRevenue, totalItemsSold, totalOrders, avgOrderValue, totalCost, totalProfit, profitMargin };
     }, [snackOrders, snackInventoryItems]);
+
+    /** What the period's figures are saying, where they say something. */
+    const insights: Insight[] = (() => {
+        const out: Insight[] = [];
+
+        // Nobody is being offered anything from the counter.
+        if (billableBookings.length >= 10 && snackStats.totalOrders === 0) {
+            out.push({
+                id: 'no-snacks',
+                tone: 'orange',
+                title: `${billableBookings.length} bookings and not one snack sold`,
+                detail: 'Every session is somebody sat in a chair for an hour with nothing offered to them. Snacks carry the margin that gaming hours do not.',
+            });
+        } else if (snackStats.totalRevenue > 0 && snackStats.profitMargin > 0) {
+            out.push({
+                id: 'snack-margin',
+                tone: 'lime',
+                title: `Snacks return ${Math.round(snackStats.profitMargin)}% margin on ₹${Math.round(snackStats.totalRevenue).toLocaleString('en-IN')}`,
+                detail: `₹${Math.round(snackStats.totalProfit).toLocaleString('en-IN')} of profit across ${snackStats.totalOrders} orders. Better margin than the hours themselves, and it rides on sessions already sold.`,
+            });
+        }
+
+        // The hour the café is fullest, and the hours it is not.
+        const busiest = [...peakHoursData].sort((a, b) => b.count - a.count)[0];
+        const quiet = peakHoursData.filter((h) => h.count === 0);
+        if (busiest && busiest.count > 0) {
+            const label = busiest.hour === 0 ? '12am' : busiest.hour < 12 ? `${busiest.hour}am` : busiest.hour === 12 ? '12pm' : `${busiest.hour - 12}pm`;
+            out.push({
+                id: 'peak',
+                tone: 'ink',
+                title: `${label} is the busiest hour of the day`,
+                detail: quiet.length > 0
+                    ? `${busiest.count} sessions started then, against ${quiet.length} opening ${quiet.length === 1 ? 'hour' : 'hours'} that saw none at all. The quiet hours are where a happy-hour rate would pay for itself.`
+                    : `${busiest.count} sessions started in that hour.`,
+            });
+        }
+
+        // One kind of machine carrying the takings.
+        const byRevenue = [...consoleData].sort((a, b) => b.revenue - a.revenue);
+        const gamingTotal = byRevenue.reduce((sum, c) => sum + c.revenue, 0);
+        if (byRevenue.length >= 2 && gamingTotal > 0) {
+            const top = byRevenue[0];
+            const share = Math.round((top.revenue / gamingTotal) * 100);
+            if (share >= 45) {
+                out.push({
+                    id: 'console-concentration',
+                    tone: 'ink',
+                    title: `${CONSOLE_LABELS[top.name.toLowerCase() as keyof typeof CONSOLE_LABELS] || top.name.toUpperCase()} is ${share}% of gaming revenue`,
+                    detail: `₹${Math.round(top.revenue).toLocaleString('en-IN')} of ₹${Math.round(gamingTotal).toLocaleString('en-IN')}. Worth knowing before the next machine is bought.`,
+                });
+            }
+        }
+
+        return out;
+    })();
 
     const snackTopItems = useMemo((): ItemSalesData[] => {
         const map: Record<string, ItemSalesData> = {};
@@ -1479,6 +1535,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             </div>
 
             {/* Top Customers Leaderboard */}
+            <WhatToFix items={insights} />
+
             {topCustomers.length > 0 && (
             <section>
                 <div className="mb-3 flex items-center gap-3">

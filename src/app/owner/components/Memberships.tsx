@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, Button, Input, Select } from './ui';
 import {
     Chips,
+    WhatToFix,
+    type Insight,
     EmptyRow,
     Field,
     Kpis,
@@ -251,6 +253,7 @@ export function Memberships({
         (sum, sub) => sum + (Number(sub.amount_paid) || 0), 0
     );
 
+
     const downloadCsv = (name: string, header: string[], rows: string[][]) => {
         const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
         const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
@@ -299,6 +302,52 @@ export function Memberships({
             return days >= 0 && days <= 7;
         })
         .sort((a, b) => new Date(a.expiry_date || 0).getTime() - new Date(b.expiry_date || 0).getTime());
+
+    /** Which plans are earning, and which passes are about to go quiet. */
+    const insights: Insight[] = (() => {
+        const out: Insight[] = [];
+
+        const sold = cafeMembershipPlans
+            .map((plan) => ({
+                plan,
+                count: cafeSubscriptions.filter((sub) => sub.membership_plan_id === plan.id).length,
+            }));
+        const neverSold = sold.filter((p) => p.count === 0);
+
+        // A price list nobody buys from.
+        if (cafeMembershipPlans.length > 0 && neverSold.length > 0) {
+            out.push({
+                id: 'plans-never-sold',
+                tone: neverSold.length === cafeMembershipPlans.length ? 'orange' : 'ink',
+                title: `${neverSold.length} of ${cafeMembershipPlans.length} plans ${neverSold.length === 1 ? 'has' : 'have'} never sold`,
+                detail: `${neverSold.slice(0, 3).map((p) => p.plan.name).join(', ')}${neverSold.length > 3 ? ` and ${neverSold.length - 3} more` : ''}. Either nobody is offered them at the counter, or they are priced beside one that is simply better value.`,
+            });
+        }
+
+        // Everything riding on a single plan.
+        const top = sold.filter((p) => p.count > 0).sort((a, b) => b.count - a.count)[0];
+        if (top && cafeSubscriptions.length > 0 && top.count === cafeSubscriptions.length && cafeMembershipPlans.length > 1) {
+            out.push({
+                id: 'single-plan',
+                tone: 'ink',
+                title: `Every pass sold is ${top.plan.name}`,
+                detail: `₹${Math.round(planRevenueTotal).toLocaleString('en-IN')} of membership revenue from one plan. Worth knowing whether the others are wrong, or just never mentioned.`,
+            });
+        }
+
+        // Passes running out.
+        if (expiringSoon.length > 0) {
+            const value = expiringSoon.reduce((sum, sub) => sum + (Number(sub.amount_paid) || 0), 0);
+            out.push({
+                id: 'expiring',
+                tone: 'orange',
+                title: `${expiringSoon.length} ${expiringSoon.length === 1 ? 'pass expires' : 'passes expire'} within the week, worth ₹${value.toLocaleString('en-IN')}`,
+                detail: 'A membership that lapses quietly is a regular who stops turning up without ever deciding to. The renew row above sends each of them a message.',
+            });
+        }
+
+        return out;
+    })();
 
     const filteredSubscriptions = useMemo(() => {
         return cafeSubscriptions.filter(sub => {
@@ -1347,6 +1396,8 @@ export function Memberships({
                     </Card>
                 </div>
             )}
+
+            <WhatToFix items={insights} />
         </div>
     );
 }

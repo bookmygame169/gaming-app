@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
     Chips,
+    WhatToFix,
+    type Insight,
     EmptyRow,
     Field,
     Kpis,
@@ -200,6 +202,58 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
             .catch(() => { /* the section stays hidden */ });
         return () => { cancelled = true; };
     }, [cafeId]);
+
+    /** What the claim queue and the week's takings are saying. */
+    const insights: Insight[] = (() => {
+        const out: Insight[] = [];
+
+        // Claims where the amount does not match the booking.
+        if (mismatched.length > 0) {
+            out.push({
+                id: 'mismatch',
+                tone: 'orange',
+                title: `${mismatched.length} ${mismatched.length === 1 ? 'claim does' : 'claims do'} not match the booking amount`,
+                detail: 'Somebody says they sent a different figure to the one owed. Check these against the bank before confirming — the app cannot see your account.',
+            });
+        }
+
+        // A queue that has been left sitting.
+        if (waiting.length > 0) {
+            const owed = waiting.reduce((sum, c) => sum + c.amount, 0);
+            out.push({
+                id: 'waiting',
+                tone: 'orange',
+                title: `${waiting.length} ${waiting.length === 1 ? 'claim is' : 'claims are'} waiting on you, worth ₹${owed.toLocaleString('en-IN')}`,
+                detail: 'Each one is a customer who believes they have paid. Until it is confirmed the booking still reads unpaid at the counter.',
+            });
+        }
+
+        // Cash-heavy weeks mean this screen sees very little of the money.
+        if (arrivals && arrivals.cash + arrivals.upi > 0) {
+            const total = arrivals.cash + arrivals.upi;
+            const onlineShare = Math.round((arrivals.upi / total) * 100);
+            if (onlineShare < 40) {
+                out.push({
+                    id: 'cash-heavy',
+                    tone: 'ink',
+                    title: `${100 - onlineShare}% of this week's money was cash`,
+                    detail: `₹${arrivals.cash.toLocaleString('en-IN')} counted at the counter against ₹${arrivals.upi.toLocaleString('en-IN')} online. This screen only ever shows the online part, so most of the week never appears here.`,
+                });
+            }
+        }
+
+        // No UPI id means nobody can pay online at all.
+        if (!upiId) {
+            out.push({
+                id: 'no-upi',
+                tone: 'orange',
+                title: 'No UPI id is set, so nobody can pay online',
+                detail: 'Every customer is sent to the counter and no QR can be shown. Adding one above is the difference between this screen having anything on it and not.',
+            });
+        }
+
+        return out;
+    })();
 
     const exportClaimsCsv = () => {
         const header = ['When', 'Reference', 'Customer', 'Phone', 'Booking date', 'Start', 'Claimed', 'Expected', 'Status'];
@@ -486,6 +540,8 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
                     </div>
                 </section>
             )}
+
+            <WhatToFix items={insights} />
         </div>
     );
 }

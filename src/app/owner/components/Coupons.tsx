@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, Button } from './ui';
 import {
     Chips,
+    WhatToFix,
+    type Insight,
     EmptyRow,
     Field,
     Kpis,
@@ -1086,6 +1088,58 @@ See you soon! 🎯`;
         .slice(0, 6);
     const bestRoi = Math.max(1, ...roiRanking.map((r) => r.roi));
 
+    /** Which codes are paying for themselves and which are just discounts. */
+    const insights: Insight[] = (() => {
+        const out: Insight[] = [];
+
+        // A code that gave away more than it brought back.
+        const losing = roiRanking.filter((r) => r.roi < 1);
+        if (losing.length > 0) {
+            const worst = losing[losing.length - 1];
+            out.push({
+                id: 'losing-codes',
+                tone: 'orange',
+                title: `${losing.length} ${losing.length === 1 ? 'code returns' : 'codes return'} less than the discount ${losing.length === 1 ? 'it gave' : 'they gave'}`,
+                detail: `${worst.code} is the worst at ${worst.roi.toFixed(1)}× — ₹${Math.round(worst.given).toLocaleString('en-IN')} given for ₹${Math.round(worst.earned).toLocaleString('en-IN')} back. A code below 1× is buying customers at a loss.`,
+            });
+        }
+
+        // The one worth running again.
+        const bestCode = roiRanking[0];
+        if (bestCode && bestCode.roi >= 3) {
+            out.push({
+                id: 'best-code',
+                tone: 'lime',
+                title: `${bestCode.code} returns ₹${bestCode.roi.toFixed(1)} for every ₹1 discounted`,
+                detail: `₹${Math.round(bestCode.given).toLocaleString('en-IN')} of discount brought ₹${Math.round(bestCode.earned).toLocaleString('en-IN')} of bookings. This is the one to run again.`,
+            });
+        }
+
+        // Made and then never used.
+        const unused = coupons.filter((c) => c.uses_count === 0);
+        if (unused.length > 0 && coupons.length > 0) {
+            out.push({
+                id: 'unused-codes',
+                tone: unused.length === coupons.length ? 'orange' : 'ink',
+                title: `${unused.length} of ${coupons.length} codes ${unused.length === 1 ? 'has' : 'have'} never been used`,
+                detail: `${unused.slice(0, 3).map((c) => c.code).join(', ')}${unused.length > 3 ? ` and ${unused.length - 3} more` : ''}. A code nobody redeems is a code nobody was told about.`,
+            });
+        }
+
+        // About to hit its cap.
+        const nearCap = coupons.filter((c) => c.max_uses && c.uses_count >= c.max_uses * 0.8 && c.uses_count < c.max_uses);
+        if (nearCap.length > 0) {
+            out.push({
+                id: 'near-cap',
+                tone: 'ink',
+                title: `${nearCap.length} ${nearCap.length === 1 ? 'code is' : 'codes are'} near the usage cap`,
+                detail: `${nearCap.map((c) => `${c.code} at ${c.uses_count}/${c.max_uses}`).join(', ')}. They stop working on their own once the cap is reached.`,
+            });
+        }
+
+        return out;
+    })();
+
     const exportCouponsCsv = () => {
         const header = ['Code', 'Discount', 'Status', 'Used', 'Limit', 'Given', 'Earned', 'Return', 'Valid until'];
         const rows = filteredCoupons.map((c) => {
@@ -1391,6 +1445,8 @@ See you soon! 🎯`;
                     </div>
                 </section>
             )}
+
+            <WhatToFix items={insights} />
         </div>
     );
 }
