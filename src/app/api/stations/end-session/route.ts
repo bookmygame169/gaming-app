@@ -220,7 +220,7 @@ async function inProgressBookingFor(
   cafeId: string,
   stationName: string
 ): Promise<string | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("booking_items")
     .select("booking_id, bookings!inner(id, cafe_id, status, deleted_at, created_at)")
     .contains("station_names", [stationName])
@@ -229,6 +229,13 @@ async function inProgressBookingFor(
     .is("bookings.deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(1);
+
+  // This is now the only way the booking is found, so a query that fails has to
+  // say so. Swallowed, it looks exactly like a station with nobody on it.
+  if (error) {
+    console.warn(`Could not find the booking running on ${stationName}:`, error.message);
+    return null;
+  }
 
   return (data?.[0]?.booking_id as string | undefined) ?? null;
 }
@@ -239,10 +246,15 @@ const MAX_BOOKING_MINUTES = 24 * 60;
 /**
  * Closes off the booking this session was started from.
  *
- * Only bookings this feature created — found through the play request that
- * produced them. A session started at the counter or from a phone belongs to
- * those flows, and reaching into their records from here would mean two places
- * deciding when a booking is finished.
+ * The booking is found from the station, not from the play request that may
+ * have created it. An approved `station_play_requests` row is never cleared, so
+ * the newest one on a station is not necessarily this sitting's: pc-01 sat
+ * in-progress for a whole day because the newest approved request there was a
+ * week old and pointed at a booking already completed, and reading it meant the
+ * update matched no rows and said nothing about it.
+ *
+ * The play request is still consulted — only after the booking is known, and
+ * only to learn what was sold.
  */
 async function completeBooking(
   supabase: SupabaseClient,
@@ -251,26 +263,28 @@ async function completeBooking(
   minutesPlayed: number
 ) {
   try {
-    const { data: request } = await supabase
-      .from("station_play_requests")
-      .select("id, booking_id, request_type")
-      .eq("cafe_id", cafeId)
-      .eq("station_name", stationName)
-      .eq("status", "approved")
-      .not("booking_id", "is", null)
-      .order("decided_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    // No play request means the session started somewhere else - the counter,
-    // or a member scanning the QR. Those bookings need closing just the same,
-    // so fall back to whatever is still in progress on this station.
-    const bookingId = request?.booking_id ?? (await inProgressBookingFor(supabase, cafeId, stationName));
-    const requestType = request?.request_type ?? "membership";
+    const bookingId = await inProgressBookingFor(supabase, cafeId, stationName);
 
     if (!bookingId) {
       return;
     }
+
+    // Matched to the booking rather than to the station, so a row left behind by
+    // an earlier sitting cannot answer for this one. There is none at all for a
+    // session started at the counter or by a member scanning the QR, which is
+    // what the default covers.
+    const { data: request } = await supabase
+      .from("station_play_requests")
+      .select("request_type")
+      .eq("cafe_id", cafeId)
+      .eq("station_name", stationName)
+      .eq("booking_id", bookingId)
+      .eq("status", "approved")
+      .order("decided_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const requestType = request?.request_type ?? "membership";
 
     const updates: Record<string, unknown> = { status: "completed" };
 
@@ -288,14 +302,26 @@ async function completeBooking(
       updates.duration = Math.min(minutesPlayed, MAX_BOOKING_MINUTES);
     }
 
-    const { error } = await supabase
+    const { data: completed, error } = await supabase
       .from("bookings")
       .update(updates)
       .eq("id", bookingId)
-      .eq("status", "in-progress");
+      .eq("status", "in-progress")
+      .select("id");
 
     if (error) {
       console.warn("Could not complete the booking on session end:", error.message);
+      return;
+    }
+
+    // Matching no rows is not an error, and that silence is what hid the stale
+    // play request for as long as it hid: a station reading as occupied with
+    // nobody in it, and nothing anywhere saying so. Something else closing the
+    // booking first is survivable. Not being told is not.
+    if (!completed || completed.length === 0) {
+      console.warn(
+        `Nothing to complete on ${stationName}: booking ${bookingId} was no longer in progress.`
+      );
       return;
     }
 
