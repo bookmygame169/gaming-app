@@ -6,7 +6,7 @@ import { BookingsTable } from './BookingsTable';
 import { ActiveSessions } from './ActiveSessions';
 import { Card, Button } from './ui';
 import { Kpis } from './consoleUi';
-import { RefreshCw, Search, Check, X, Zap, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
+import { RefreshCw, Search, Check, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 import { getLocalDateString } from '../utils';
@@ -423,17 +423,39 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
 
     return (
         <div className="space-y-3 md:space-y-4">
+            {/* The design opens on the day in four figures — how many bookings,
+                how many running, how many done, and what was taken. */}
+            <Kpis
+                items={[
+                    { label: 'BOOKINGS', value: total.toLocaleString() },
+                    {
+                        label: 'ACTIVE',
+                        value: String(activeSessionCount),
+                        tone: activeSessionCount > 0 ? 'lime' : 'ink',
+                    },
+                    { label: 'COMPLETED', value: String(summary.completed) },
+                    {
+                        label: `COLLECTED · ₹${summary.cashTotal.toLocaleString('en-IN')} CASH / ₹${summary.upiTotal.toLocaleString('en-IN')} UPI`,
+                        value: `₹${(summary.cashTotal + summary.upiTotal).toLocaleString('en-IN')}`,
+                        tone: summary.cashTotal + summary.upiTotal > 0 ? 'lime' : 'ink',
+                    },
+                ]}
+            />
+
             {/* Active Sessions */}
             <section className="mb-2 border border-[#f2f0ea]/[0.07] bg-[#111113] p-2.5 md:border-0 md:bg-transparent md:p-0">
                 <div className="flex items-center justify-between gap-3 md:mb-4">
-                    <div className="flex items-center gap-2.5">
-                        <div className="flex h-6 w-6 items-center justify-center bg-[#ff5c2b]/15 md:h-7 md:w-7">
-                            <Zap size={14} className="text-[#ff5c2b]" />
-                        </div>
-                        <h2 className="text-[15px] font-semibold text-[#f2f0ea] md:text-base">Active Sessions</h2>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                            ACTIVE SESSIONS
+                        </span>
                         {activeSessionCount > 0 && (
-                            <span className="px-2 py-0.5 rounded-full bg-[#ff5c2b]/15 text-[#ff5c2b] text-[11px] font-bold">{activeSessionCount}</span>
+                            <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-[#d8ff3c]">
+                                <span className="h-1.5 w-1.5 animate-pulse bg-[#d8ff3c]" />
+                                {activeSessionCount}
+                            </span>
                         )}
+                        <span className="hidden h-px flex-1 bg-[#f2f0ea]/10 md:block" />
                     </div>
                     <button
                         type="button"
@@ -453,6 +475,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                         currentTime={currentTime}
                         onAddTime={onAdjustTime || onEdit}
                         onAddItems={onAddItems}
+                        onEdit={onEdit}
                         onSessionEnded={onSessionEnded}
                         onEndCollect={onEndCollect}
                         onEndMembership={onStopTimer}
@@ -472,7 +495,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                     <button
                         key={tab.id}
                         onClick={() => setBookingSubTab(tab.id)}
-                        className={`px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.12em] transition-colors md:px-4 md:py-2 ${bookingSubTab === tab.id ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:bg-[#f2f0ea]/[0.04] hover:text-[#0b0b0c]'}`}
+                        className={`px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.12em] transition-colors md:px-4 md:py-2 ${bookingSubTab === tab.id ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:bg-[#f2f0ea]/[0.04] hover:text-[#f2f0ea]'}`}
                     >
                         {tab.label}
                     </button>
@@ -663,134 +686,122 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                 </div>
             ) : (
                 <>
-                    {/* The day in four figures, on the console's one strip.
-                        Five coloured chips with icons was the old dashboard's
-                        idea of a summary and it does not belong on a table. */}
-                    <Kpis
-                        items={[
-                            {
-                                label: 'ACTIVE NOW',
-                                value: String(activeSessionCount),
-                                tone: activeSessionCount > 0 ? 'lime' : 'ink',
-                                sub: `${summary.completed} finished today`,
-                            },
-                            {
-                                label: 'WAITING ON PAYMENT',
-                                value: String(summary.pending),
-                                tone: summary.pending > 0 ? 'orange' : 'ink',
-                                sub: summary.pending > 0 ? 'not started until paid' : 'nothing outstanding',
-                            },
-                            {
-                                label: 'CASH',
-                                value: `₹${summary.cashTotal.toLocaleString('en-IN')}`,
-                                sub: 'taken at the counter',
-                            },
-                            {
-                                label: 'ONLINE',
-                                value: `₹${summary.upiTotal.toLocaleString('en-IN')}`,
-                                tone: summary.upiTotal > 0 ? 'lime' : 'ink',
-                                sub: 'UPI and links',
-                            },
-                        ]}
-                    />
-
-                    {/* Filters */}
-                    <Card padding="md" className="space-y-3">
+                    {/* The design's filter row: one line for the search and the
+                        range, the statuses under it with their counts. This was
+                        three stacked rows inside a card. */}
+                    <div className="space-y-2">
                         <div className="flex items-center justify-between gap-3 md:hidden">
                             <div className="min-w-0">
-                                <div className="flex items-center gap-2 text-sm font-semibold text-[#f2f0ea]">
-                                    <SlidersHorizontal size={15} className="text-[#f2f0ea]/50" />
-                                    Filters
+                                <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                                    <SlidersHorizontal size={13} />
+                                    FILTERS
                                 </div>
-                                <p className="mt-1 text-xs text-[#f2f0ea]/40">{mobileFilterSummary}</p>
+                                <p className="mt-1 font-mono text-[10.5px] text-[#f2f0ea]/40">{mobileFilterSummary}</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setMobileFiltersOpen((open) => !open)}
-                                className="inline-flex items-center gap-1.5 border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] px-3 py-1.5 text-[11px] font-semibold text-[#f2f0ea]/70 transition-colors hover:text-[#f2f0ea]"
+                                className="inline-flex items-center gap-1.5 border border-[#f2f0ea]/[0.14] px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-[#f2f0ea]/70 transition-colors hover:text-[#f2f0ea]"
                             >
-                                {mobileFiltersOpen ? 'Hide' : 'Show'}
+                                {mobileFiltersOpen ? 'HIDE' : 'SHOW'}
                                 {mobileFiltersOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </button>
                         </div>
-                        <div className={`${mobileFiltersOpen ? 'space-y-3' : 'hidden'} md:block md:space-y-3`}>
-                            {/* Search */}
-                            <div className="flex gap-2 items-center">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#f2f0ea]/40" size={15} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search by name, phone, or ID..."
-                                        value={searchTerm}
-                                        onChange={(e) => handleSearchChange(e.target.value)}
-                                        className="w-full pl-9 pr-4 py-2 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/10 focus:outline-none focus:border-[#d8ff3c]/60 focus:ring-1 focus:ring-[#d8ff3c]/30 text-[#f2f0ea] placeholder-[#f2f0ea]/30 text-sm"
-                                    />
+
+                        <div className={`${mobileFiltersOpen ? 'space-y-2' : 'hidden'} md:block md:space-y-2`}>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Search name, phone or ID"
+                                    value={searchTerm}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    className="min-w-[190px] flex-1 border border-[#f2f0ea]/[0.14] bg-[#111113] px-[13px] py-[11px] font-mono text-[12px] text-[#f2f0ea] placeholder-[#f2f0ea]/30 transition-colors focus:border-[#d8ff3c] focus:outline-none"
+                                />
+                                <div className="flex gap-px border border-[#f2f0ea]/[0.12] bg-[#f2f0ea]/[0.12]">
+                                    {([
+                                        { v: 'today', l: 'TODAY' },
+                                        { v: 'yesterday', l: 'YESTERDAY' },
+                                        { v: 'week', l: 'THIS WEEK' },
+                                        { v: 'all', l: 'ALL TIME' },
+                                        { v: 'custom', l: 'CUSTOM' },
+                                    ] as const).map(({ v, l }) => {
+                                        const on = dateRange === v;
+                                        return (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                onClick={() => setDateRange(v)}
+                                                className="whitespace-nowrap px-[13px] py-2.5 font-mono text-[10.5px] tracking-[0.1em] transition-colors"
+                                                style={
+                                                    on
+                                                        ? { background: 'rgba(216,255,60,.14)', color: '#d8ff3c' }
+                                                        : { background: '#111113', color: 'rgba(242,240,234,.5)' }
+                                                }
+                                            >
+                                                {l}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                                 <button
                                     onClick={() => { fetchBookings(debouncedSearch, currentPage); onRefresh?.(); }}
                                     title="Refresh"
-                                    className="w-9 h-9 flex items-center justify-center border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:border-white/20 transition-colors shrink-0"
+                                    className="flex h-[38px] w-[38px] shrink-0 items-center justify-center border border-[#f2f0ea]/[0.14] text-[#f2f0ea]/50 transition-colors hover:border-[#f2f0ea]/35 hover:text-[#f2f0ea]"
                                 >
                                     <RefreshCw size={15} />
                                 </button>
                             </div>
-                            {/* Date chips */}
+
+                            {/* Counts come from the server's summary for this range;
+                                a status it does not count goes without one rather
+                                than showing a number for the loaded page only. */}
                             <div className="flex flex-wrap gap-1.5">
                                 {([
-                                    { v: 'today', l: 'Today' },
-                                    { v: 'yesterday', l: 'Yesterday' },
-                                    { v: 'week', l: 'This Week' },
-                                    { v: 'all', l: 'All Time' },
-                                    { v: 'custom', l: 'Custom' },
-                                ] as const).map(({ v, l }) => (
-                                    <button key={v} onClick={() => setDateRange(v)}
-                                        className={`px-3 py-1  text-xs font-semibold transition-colors border ${dateRange === v ? 'bg-[#d8ff3c]/20 text-[#d8ff3c] border-[#d8ff3c]/40' : 'bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 border-[#f2f0ea]/10 hover:text-[#f2f0ea] hover:bg-white/[0.07]'}`}>
-                                        {l}
-                                    </button>
-                                ))}
-                            </div>
-                            {/* Status chips */}
-                            <div className="flex flex-wrap gap-1.5">
-                                {([
-                                    { v: 'all', l: 'All', color: '' },
-                                    { v: 'in-progress', l: 'Active', color: 'blue' },
-                                    { v: 'confirmed', l: 'Confirmed', color: 'amber' },
-                                    { v: 'pending', l: 'Pending', color: 'amber' },
-                                    { v: 'completed', l: 'Done', color: 'emerald' },
-                                    { v: 'cancelled', l: 'Cancelled', color: 'red' },
-                                ] as { v: string; l: string; color: string }[]).map(({ v, l, color }) => {
-                                    const isActive = statusFilter === v;
-                                    const colorMap: Record<string, string> = {
-                                        blue: isActive ? 'bg-[#d8ff3c]/20 text-[#d8ff3c] border-[#d8ff3c]/40' : 'text-[#d8ff3c]/60 border-[#d8ff3c]/20 hover:bg-[#d8ff3c]/10',
-                                        amber: isActive ? 'bg-[#ff5c2b]/20 text-[#ff5c2b] border-[#ff5c2b]/40' : 'text-[#ff5c2b]/60 border-[#ff5c2b]/20 hover:bg-[#ff5c2b]/10',
-                                        emerald: isActive ? 'bg-[#d8ff3c]/20 text-[#d8ff3c] border-[#d8ff3c]/40' : 'text-[#d8ff3c]/60 border-[#d8ff3c]/20 hover:bg-[#d8ff3c]/10',
-                                        red: isActive ? 'bg-[#ff5c2b]/20 text-[#ff5c2b] border-[#ff5c2b]/40' : 'text-[#ff5c2b]/60 border-[#ff5c2b]/20 hover:bg-[#ff5c2b]/10',
-                                    };
-                                    const base = !color ? (isActive ? 'bg-white/[0.1] text-[#f2f0ea] border-white/20' : 'bg-[#f2f0ea]/[0.04] text-[#f2f0ea]/50 border-[#f2f0ea]/10 hover:text-[#f2f0ea]') : '';
+                                    { v: 'all', l: 'ALL', n: total },
+                                    { v: 'in-progress', l: 'ACTIVE', n: summary.inProgress },
+                                    { v: 'confirmed', l: 'CONFIRMED', n: null },
+                                    { v: 'pending', l: 'PENDING', n: summary.pending },
+                                    { v: 'completed', l: 'COMPLETED', n: summary.completed },
+                                    { v: 'cancelled', l: 'CANCELLED', n: null },
+                                ] as { v: string; l: string; n: number | null }[]).map(({ v, l, n }) => {
+                                    const on = statusFilter === v;
                                     return (
-                                        <button key={v} onClick={() => setStatusFilter(v)}
-                                            className={`px-3 py-1  text-xs font-semibold transition-colors border ${color ? colorMap[color] : base}`}>
+                                        <button
+                                            key={v}
+                                            type="button"
+                                            onClick={() => setStatusFilter(v)}
+                                            className="whitespace-nowrap px-3 py-2.5 font-mono text-[10.5px] tracking-[0.1em] transition-colors"
+                                            style={
+                                                on
+                                                    ? { border: '1px solid #d8ff3c', background: 'rgba(216,255,60,.10)', color: '#d8ff3c' }
+                                                    : { border: '1px solid rgba(242,240,234,.14)', color: 'rgba(242,240,234,.5)' }
+                                            }
+                                        >
                                             {l}
+                                            {n !== null && <span className="opacity-50"> {n}</span>}
                                         </button>
                                     );
                                 })}
                             </div>
+
                             {dateRange === 'custom' && (
-                                <div className="flex flex-wrap gap-4 pt-2 border-t border-[#f2f0ea]/[0.07]">
+                                <div className="flex flex-wrap gap-4 border-t border-[#f2f0ea]/[0.07] pt-2">
                                     <div className="space-y-1">
-                                        <label className="text-xs text-[#f2f0ea]/50">Start Date</label>
+                                        <label className="font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">START DATE</label>
                                         <input type="date" value={customStart} onChange={(e) => { setCustomStart(e.target.value); }}
-                                            className="block px-3 py-2 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/10 text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]/60" />
+                                            className="block border border-[#f2f0ea]/[0.14] bg-[#111113] px-3 py-2 font-mono text-[12px] text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
+                                            style={{ colorScheme: 'dark' }} />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs text-[#f2f0ea]/50">End Date</label>
+                                        <label className="font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.38]">END DATE</label>
                                         <input type="date" value={customEnd} onChange={(e) => { setCustomEnd(e.target.value); }}
-                                            className="block px-3 py-2 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/10 text-[#f2f0ea] text-sm focus:outline-none focus:border-[#d8ff3c]/60" />
+                                            className="block border border-[#f2f0ea]/[0.14] bg-[#111113] px-3 py-2 font-mono text-[12px] text-[#f2f0ea] focus:border-[#d8ff3c] focus:outline-none"
+                                            style={{ colorScheme: 'dark' }} />
                                     </div>
                                 </div>
                             )}
                         </div>
-                    </Card>
+                    </div>
 
                     {/* Bulk action bar */}
                     {selectedIds.size > 0 && (
@@ -819,7 +830,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                         onViewOrders={onViewOrders}
                         onViewCustomer={onViewCustomer}
                         loading={loading}
-                        title={`Bookings (${total.toLocaleString()} total)`}
+                        title=""
                         showActions={true}
                         selectedIds={selectedIds}
                         onSelectionChange={setSelectedIds}
@@ -830,8 +841,11 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                         row and this table does not. */}
                     {total > 0 && (
                         <div className="flex flex-col gap-3 border border-t-0 border-[#f2f0ea]/10 bg-[#111113] px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40 md:flex-row md:items-center md:justify-between">
-                            <p>
-                                Showing {showingStart.toLocaleString()}–{showingEnd.toLocaleString()} of {total.toLocaleString()} bookings
+                            <p className="truncate">
+                                Showing {showingEnd - showingStart + 1} of {total.toLocaleString()} bookings
+                                {activeSessionCount > 0 && ` · ${activeSessionCount} active`}
+                                {summary.cashTotal + summary.upiTotal > 0 &&
+                                    ` · ₹${(summary.cashTotal + summary.upiTotal).toLocaleString('en-IN')} collected`}
                             </p>
                             <div className="flex flex-wrap items-center gap-3">
                                 <button
@@ -845,7 +859,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                                     <span className="mr-1 text-[#f2f0ea]/40">Show</span>
                                     {PAGE_SIZE_OPTIONS.map(size => (
                                         <button key={size} onClick={() => setLimit(size)}
-                                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${limit === size ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c] hover:bg-[#f2f0ea]/[0.06]'}`}>
+                                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${limit === size ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/[0.06]'}`}>
                                             {size}
                                         </button>
                                     ))}

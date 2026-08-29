@@ -358,7 +358,14 @@ export function ActiveSessions({
                                 {/* The design's three: edit the booking, extend it,
                                     or add to the tab. The station controls below are
                                     this app's own and have no counterpart there. */}
-                                <div className="grid grid-cols-3 gap-px border-t border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+                                <div
+                                    className="grid gap-px border-t border-[#f2f0ea]/10 bg-[#f2f0ea]/10"
+                                    style={{
+                                        // Sized to what is actually rendered. Fixed at three,
+                                        // a card without EDIT left an empty lit cell.
+                                        gridTemplateColumns: `repeat(${[onEdit, onAddTime, onAddItems].filter(Boolean).length || 1}, minmax(0,1fr))`,
+                                    }}
+                                >
                                     {onEdit && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onEdit(booking); }}
