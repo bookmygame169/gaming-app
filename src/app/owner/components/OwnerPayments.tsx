@@ -176,6 +176,55 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
         : filter === 'rejected' ? rejected
         : claims;
 
+    // How the week's money actually arrived. The bookings endpoint already
+    // totals cash and UPI for a range, so this is one call rather than a
+    // second tally of the same rows.
+    const [arrivals, setArrivals] = useState<{ cash: number; upi: number } | null>(null);
+    useEffect(() => {
+        if (!cafeId) return;
+        let cancelled = false;
+        const to = new Date();
+        const from = new Date(to);
+        from.setDate(from.getDate() - 6);
+        const iso = (d: Date) => d.toISOString().slice(0, 10);
+        fetch(`/api/owner/bookings?cafeId=${cafeId}&page=1&pageSize=1&dateFrom=${iso(from)}&dateTo=${iso(to)}`,
+            { credentials: 'include' })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (cancelled || !data?.summary) return;
+                setArrivals({
+                    cash: Number(data.summary.cashTotal) || 0,
+                    upi: Number(data.summary.upiTotal) || 0,
+                });
+            })
+            .catch(() => { /* the section stays hidden */ });
+        return () => { cancelled = true; };
+    }, [cafeId]);
+
+    const exportClaimsCsv = () => {
+        const header = ['When', 'Reference', 'Customer', 'Phone', 'Booking date', 'Start', 'Claimed', 'Expected', 'Status'];
+        const rows = shown.map((c) => [
+            c.createdAt,
+            c.reference || '',
+            c.customerName || 'Guest',
+            c.customerPhone || '',
+            c.bookingDate || '',
+            c.startTime || '',
+            String(c.amount),
+            String(c.expectedAmount),
+            c.status,
+        ]);
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `payment-claims-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     const COLUMNS = '96px minmax(130px,1.3fr) minmax(120px,1fr) 104px 100px 132px';
 
     return (
@@ -263,7 +312,7 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
                     <span>WHEN</span>
                     <span>CUSTOMER</span>
                     <span>AGAINST</span>
-                    <span className="text-right">REFERENCE</span>
+                    <span className="text-right">MODE</span>
                     <span className="text-right">AMOUNT</span>
                     <span className="text-right">ACTIONS</span>
                 </TableHead>
@@ -303,16 +352,20 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
 
                                 <div className="flex min-w-0 flex-col gap-[3px]">
                                     <span className="truncate font-mono text-[11.5px] text-[#f2f0ea]/75">
-                                        {claim.bookingDate || '—'}
+                                        {claim.bookingDate || '—'}{claim.startTime ? ` · ${claim.startTime}` : ''}
                                     </span>
-                                    <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/35">
-                                        {claim.startTime || ''}
+                                    {/* The reference belongs with what it references,
+                                        which is where the design puts it. */}
+                                    <span className="truncate font-mono text-[10px] text-[#f2f0ea]/35">
+                                        {claim.reference || 'NO REF'}
                                     </span>
                                 </div>
 
+                                {/* Every claim on this screen is someone saying they
+                                    sent money online — cash never becomes a claim. */}
                                 <div className="flex justify-end">
-                                    <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/60">
-                                        {claim.reference || 'NO REF'}
+                                    <span className="whitespace-nowrap bg-[#d8ff3c]/[0.12] px-2 py-1 font-mono text-[9.5px] tracking-[0.1em] text-[#d8ff3c]">
+                                        UPI
                                     </span>
                                 </div>
 
@@ -369,12 +422,70 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
                     })
                 )}
 
-                <div className="flex items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] leading-[1.7] text-[#f2f0ea]/40">
+                <div className="flex flex-wrap items-center gap-3.5 border-t border-[#f2f0ea]/10 px-4 py-3 font-mono text-[10.5px] leading-[1.7] text-[#f2f0ea]/40">
                     {/* Said plainly, because the button says CONFIRM and it
                         would be easy to read that as the app having checked. */}
-                    NOTHING HERE CAN SEE YOUR BANK. CONFIRM MEANS YOU CHECKED AND THE MONEY IS THERE.
+                    <span className="min-w-0 flex-1">
+                        NOTHING HERE CAN SEE YOUR BANK. CONFIRM MEANS YOU CHECKED AND THE MONEY IS THERE.
+                    </span>
+                    <button
+                        type="button"
+                        onClick={exportClaimsCsv}
+                        disabled={shown.length === 0}
+                        className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c] disabled:opacity-40"
+                    >
+                        EXPORT CSV →
+                    </button>
                 </div>
             </Panel>
+
+            {/* Cash against online over the week. This screen only ever shows
+                the online half as claims, so without this an owner cannot see
+                what share of takings it even represents. */}
+            {arrivals && arrivals.cash + arrivals.upi > 0 && (
+                <section>
+                    <div className="mb-3 flex items-center gap-3">
+                        <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                            HOW MONEY ARRIVES · 7D
+                        </span>
+                        <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+                        <span className="whitespace-nowrap font-mono text-[10px] text-[#f2f0ea]/40">
+                            ₹{(arrivals.cash + arrivals.upi).toLocaleString('en-IN')} taken
+                        </span>
+                    </div>
+                    <div className="flex flex-col gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+                        {([
+                            { key: 'cash', label: 'CASH', value: arrivals.cash, note: 'counted at the counter', tone: '#f2f0ea' },
+                            { key: 'upi', label: 'UPI / ONLINE', value: arrivals.upi, note: 'confirmed against a claim', tone: '#d8ff3c' },
+                        ] as const).map((row) => {
+                            const total = arrivals.cash + arrivals.upi;
+                            const share = total > 0 ? Math.round((row.value / total) * 100) : 0;
+                            return (
+                                <div
+                                    key={row.key}
+                                    className="grid items-center gap-3 bg-[#111113] px-4 py-3"
+                                    style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,100px) 96px' }}
+                                >
+                                    <div className="flex min-w-0 flex-col gap-[3px]">
+                                        <span className="truncate font-mono text-[11px] tracking-[0.08em]" style={{ color: row.tone }}>
+                                            {row.label}
+                                        </span>
+                                        <span className="truncate font-mono text-[10px] text-[#f2f0ea]/35">
+                                            {share}% · {row.note}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-[#f2f0ea]/[0.08]">
+                                        <div className="h-1.5" style={{ width: `${share}%`, background: row.tone }} />
+                                    </div>
+                                    <span className="whitespace-nowrap text-right font-mono text-[11.5px]" style={{ color: row.tone }}>
+                                        ₹{row.value.toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }
