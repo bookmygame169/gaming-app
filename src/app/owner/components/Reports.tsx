@@ -21,7 +21,6 @@ import {
 import {
     TrendingUp,
     TrendingDown,
-    Clock,
     Download,
     ArrowUpRight,
     CreditCard,
@@ -31,9 +30,6 @@ import {
     X,
     Globe,
     Store,
-    Package,
-    Receipt,
-    Trophy,
 } from 'lucide-react';
 
 interface ReportsProps {
@@ -121,6 +117,9 @@ const parseLocalDate = (value: string): Date => {
     const [year, month, day] = value.split('-').map(Number);
     return new Date(year, month - 1, day);
 };
+
+/** The design's six tracks for the top-customers table. */
+const TOP_CUSTOMER_COLUMNS = '38px minmax(0,1.2fr) 74px 96px minmax(0,.8fr) 86px';
 
 export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsProps) {
     const [dateRange, setDateRange] = useState('7d');
@@ -555,6 +554,12 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             .slice(0, 10);
     }, [billableBookings]);
 
+    /** What the whole top ten spent, which the SHARE bar is a fraction of. */
+    const topSpend = useMemo(
+        () => topCustomers.reduce((sum, c) => sum + c.spent, 0),
+        [topCustomers]
+    );
+
     // 5. Console Popularity
     const consoleData = useMemo(() => {
         const consoles: Record<string, { count: number; revenue: number }> = {};
@@ -880,7 +885,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             />
 
             {/* Charts Section - Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
                 {/* Revenue Trend Chart */}
                 <div
                     className={revenueTrendData.length > 7 ? "cursor-pointer" : ""}
@@ -889,12 +894,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     <Card className="min-h-[300px] flex flex-col hover:ring-1 hover:ring-[#d8ff3c]/30 transition-all">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                    <TrendingUp size={20} className="text-[#d8ff3c]" />
-                                    Revenue Trend
-                                </h3>
-                                <p className="text-sm text-[#f2f0ea]/50">Daily earnings based on service date</p>
-                            </div>
+                                <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">REVENUE BY DAY</h3>
+</div>
                             {revenueTrendData.length > 7 && (
                                 <span className="text-xs text-[#f2f0ea]/40 bg-[#f2f0ea]/[0.06] px-2 py-1 rounded">Click to expand</span>
                             )}
@@ -955,12 +956,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                         >
                             <div className="flex items-center justify-between p-6 border-b border-[#f2f0ea]/10">
                                 <div>
-                                    <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                        <TrendingUp size={24} className="text-[#d8ff3c]" />
-                                        Revenue Trend - Full View
-                                    </h3>
-                                    <p className="text-sm text-[#f2f0ea]/50">{revenueTrendData.length} days of data</p>
-                                </div>
+                                    <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">REVENUE BY DAY · FULL</h3>
+</div>
                                 <button
                                     onClick={() => setExpandedChart(false)}
                                     className="p-2 hover:bg-[#f2f0ea]/[0.06] transition-colors"
@@ -997,18 +994,14 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 )}
 
                 {/* Peak Hours Chart */}
-                <Card className="min-h-[300px] flex flex-col">
+                <Card className="flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <Clock size={20} className="text-[#d8ff3c]" />
-                                Peak Hours
-                            </h3>
-                            <p className="text-sm text-[#f2f0ea]/50">Based on last 30 days of bookings</p>
-                        </div>
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">PEAK HOURS</h3>
+</div>
                     </div>
 
-                    <div className="flex-1 w-full relative flex items-end gap-1 px-2 pb-6">
+                    <div className="relative flex h-[132px] w-full items-end gap-1 px-2 pb-6">
                         {loading ? (
                             <div className="absolute inset-0 flex items-center justify-center text-[#f2f0ea]/40">Loading chart...</div>
                         ) : (
@@ -1049,12 +1042,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card padding="none" className="overflow-hidden">
                     <div className="p-5 border-b border-[#f2f0ea]/10 flex items-center justify-between">
                         <div>
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <Calendar size={20} className="text-[#d8ff3c]" />
-                                Month-Wise Revenue Analysis
-                            </h3>
-                            <p className="text-sm text-[#f2f0ea]/50">Gaming, F&amp;B, and membership revenue by booking month</p>
-                        </div>
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">REVENUE BY MONTH</h3>
+</div>
                         <div className="text-right">
                             <p className="text-xs text-[#f2f0ea]/40">Total</p>
                             <p className="text-base font-bold text-[#f2f0ea]">
@@ -1163,17 +1152,13 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
             )}
 
             {/* Charts Section - Row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:items-start gap-5">
                 {/* Console Popularity */}
                 <Card className="min-h-[280px]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <Gamepad2 size={20} className="text-pink-500" />
-                                Console Popularity
-                            </h3>
-                            <p className="text-sm text-[#f2f0ea]/50">Most booked gaming stations</p>
-                        </div>
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">STATION PERFORMANCE</h3>
+</div>
                         <div className="text-right">
                             <p className="text-xs text-[#f2f0ea]/40">Gaming Revenue</p>
                             <p className="text-base font-bold text-[#f2f0ea]">
@@ -1226,12 +1211,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="min-h-[280px]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <CreditCard size={20} className="text-[#d8ff3c]" />
-                                Payment Methods
-                            </h3>
-                            <p className="text-sm text-[#f2f0ea]/50">Breakdown by payment type</p>
-                        </div>
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">HOW THEY PAY</h3>
+</div>
                     </div>
 
                     {loading ? (
@@ -1290,12 +1271,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 <Card className="min-h-[280px]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <Globe size={20} className="text-[#d8ff3c]" />
-                                Booking Source
-                            </h3>
-                            <p className="text-sm text-[#f2f0ea]/50">Online vs Walk-in</p>
-                        </div>
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">WHERE THEY BOOK</h3>
+</div>
                     </div>
 
                     {loading ? (
@@ -1381,12 +1358,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                            <Store className="w-5 h-5 text-[#ff5c2b]" />
-                            F&B Snacks
-                        </h2>
-                        <p className="text-[#f2f0ea]/50 text-sm mt-0.5">Snack & drink sales for this period</p>
-                    </div>
+                        <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">SNACKS</h2>
+</div>
                     {snackOrders.length > 0 && (
                         <div className="hidden sm:flex items-center gap-4 bg-[#f2f0ea]/[0.04] border border-[#f2f0ea]/[0.07] px-4 py-2">
                             <div className="flex items-center gap-1.5">
@@ -1422,11 +1395,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     {/* Top Selling Items */}
                     <Card>
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <Package size={18} className="text-[#ff5c2b]" />
-                                Top Items
-                            </h3>
-                            <div className="text-right">
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">TOP ITEMS</h3>
+<div className="text-right">
                                 <p className="text-xs text-[#f2f0ea]/40">F&B Revenue</p>
                                 <p className="text-sm font-bold text-[#ff5c2b]">₹{snackStats.totalRevenue.toLocaleString('en-IN')}</p>
                             </div>
@@ -1460,11 +1430,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     {/* Sale Transactions */}
                     <Card padding="none" className="overflow-hidden">
                         <div className="p-4 border-b border-[#f2f0ea]/10 flex items-center justify-between">
-                            <h3 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">
-                                <Receipt size={18} className="text-[#d8ff3c]" />
-                                F&B Transactions
-                            </h3>
-                            <span className="text-xs text-[#f2f0ea]/40">{snackTransactions.filter(t => !t.isOwnerUse).length} sales</span>
+                            <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">SNACK SALES</h3>
+<span className="text-xs text-[#f2f0ea]/40">{snackTransactions.filter(t => !t.isOwnerUse).length} sales</span>
                         </div>
                         <div className="divide-y divide-white/[0.08]/60 max-h-[320px] overflow-y-auto">
                             {snackTransactions.map(tx => {
@@ -1513,53 +1480,87 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
 
             {/* Top Customers Leaderboard */}
             {topCustomers.length > 0 && (
-                <Card className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <Trophy size={18} className="text-[#ff5c2b]" />
-                        <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#f2f0ea]/50">Top customers by spend</h3>
-                        <span className="text-xs text-[#f2f0ea]/40 ml-1">by spend · {dateRange === 'all' ? 'all time' : 'selected period'}</span>
+            <section>
+                <div className="mb-3 flex items-center gap-3">
+                    <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.2em] text-[#f2f0ea]/50">
+                        TOP CUSTOMERS BY SPEND
+                    </span>
+                    <span className="h-px flex-1 bg-[#f2f0ea]/10" />
+                    <span className="whitespace-nowrap font-mono text-[10.5px] text-[#f2f0ea]/40">
+                        {dateRange === 'all' ? 'all time' : 'selected period'}
+                    </span>
+                </div>
+
+                <div className="border border-[#f2f0ea]/10 bg-[#111113]">
+                    <div
+                        className="grid gap-3 border-b border-[#f2f0ea]/10 px-4 py-2.5 font-mono text-[9px] tracking-[0.14em] text-[#f2f0ea]/35"
+                        style={{ gridTemplateColumns: TOP_CUSTOMER_COLUMNS }}
+                    >
+                        <span>#</span>
+                        <span>CUSTOMER</span>
+                        <span className="text-right">VISITS</span>
+                        <span className="text-right">LAST VISIT</span>
+                        <span>SHARE</span>
+                        <span className="text-right">SPEND</span>
                     </div>
-                    <div className="space-y-2">
-                        {topCustomers.map((c, i) => {
-                            const daysSince = Math.floor((nowMs - new Date(c.lastVisit).getTime()) / 86400000);
-                            const churnColor = daysSince > 30 ? 'text-[#ff5c2b]' : daysSince > 14 ? 'text-[#ff5c2b]' : 'text-[#d8ff3c]';
-                            const rankColors = ['text-[#ff5c2b]', 'text-[#f2f0ea]/70', 'text-[#ff5c2b]'];
-                            const rankBg = ['bg-[#ff5c2b]/15 border-[#ff5c2b]/25', 'bg-[#f2f0ea]/[0.07] border-[#f2f0ea]/10', 'bg-[#ff5c2b]/15 border-[#ff5c2b]/25'];
-                            return (
-                                <div key={c.phone || c.name} className="flex items-center gap-3 px-4 py-3 bg-[#111113] border border-white/[0.07] hover:bg-white/[0.05] transition-colors">
-                                    {/* Rank */}
-                                    <div className={`w-7 h-7  border flex items-center justify-center text-xs font-bold shrink-0 ${i < 3 ? rankBg[i] : 'bg-[#f2f0ea]/[0.04] border-[#f2f0ea]/10'}`}>
-                                        <span className={i < 3 ? rankColors[i] : 'text-[#f2f0ea]/40'}>#{i + 1}</span>
-                                    </div>
-                                    {/* Avatar */}
-                                    <div className="w-8 h-8 bg-[#111113] flex items-center justify-center text-xs font-bold text-[#f2f0ea] shrink-0">
-                                        {(c.name[0] || '?').toUpperCase()}
-                                    </div>
-                                    {/* Name + phone */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-[#f2f0ea] truncate">{c.name}</p>
-                                        {c.phone && <p className="text-xs text-[#f2f0ea]/40 truncate">{c.phone}</p>}
-                                    </div>
-                                    {/* Sessions */}
-                                    <div className="text-center shrink-0 hidden sm:block">
-                                        <p className="text-sm font-semibold text-[#f2f0ea]">{c.sessions}</p>
-                                        <p className="text-[10px] text-[#f2f0ea]/40">visits</p>
-                                    </div>
-                                    {/* Last visit */}
-                                    <div className="text-center shrink-0 hidden md:block">
-                                        <p className={`text-xs font-semibold ${churnColor}`}>{daysSince === 0 ? 'Today' : `${daysSince}d ago`}</p>
-                                        <p className="text-[10px] text-[#f2f0ea]/40">last visit</p>
-                                    </div>
-                                    {/* Spend */}
-                                    <div className="text-right shrink-0">
-                                        <p className="text-sm font-bold text-[#d8ff3c]">₹{c.spent.toLocaleString('en-IN')}</p>
-                                        <p className="text-[10px] text-[#f2f0ea]/40">spent</p>
-                                    </div>
+
+                    {topCustomers.map((c, i) => {
+                        const daysSince = Math.floor((nowMs - new Date(c.lastVisit).getTime()) / 86400000);
+                        // Share of what this top ten spent, so the bar says who
+                        // carries the period rather than only ranking them.
+                        const share = topSpend > 0 ? Math.round((c.spent / topSpend) * 100) : 0;
+                        return (
+                            <div
+                                key={c.phone || c.name}
+                                className="grid items-center gap-3 border-b border-[#f2f0ea]/[0.05] px-4 py-3 transition-colors hover:bg-[#17171a]"
+                                style={{ gridTemplateColumns: TOP_CUSTOMER_COLUMNS }}
+                            >
+                                <span
+                                    className="font-mono text-[11px]"
+                                    style={{ color: i < 3 ? '#d8ff3c' : 'rgba(242,240,234,.35)' }}
+                                >
+                                    {i + 1}
+                                </span>
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate text-[13.5px] font-bold text-[#f2f0ea]">{c.name}</span>
+                                    {c.phone && (
+                                        <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/[0.38]">{c.phone}</span>
+                                    )}
                                 </div>
-                            );
-                        })}
+
+                                <span className="text-right font-mono text-[11.5px] text-[#f2f0ea]/[0.62]">
+                                    {c.sessions}
+                                </span>
+
+                                {/* Amber past a fortnight, orange past a month: the
+                                    point of this column is spotting who stopped coming. */}
+                                <span
+                                    className="text-right font-mono text-[11.5px]"
+                                    style={{ color: daysSince > 30 ? '#ff5c2b' : daysSince > 14 ? '#ffa53c' : 'rgba(242,240,234,.62)' }}
+                                >
+                                    {daysSince === 0 ? 'today' : `${daysSince}d ago`}
+                                </span>
+
+                                <div className="h-1.5 w-full bg-[#f2f0ea]/[0.08]">
+                                    <div
+                                        className="h-1.5"
+                                        style={{ width: `${share}%`, background: i < 3 ? '#d8ff3c' : 'rgba(242,240,234,.3)' }}
+                                    />
+                                </div>
+
+                                <span className="text-right text-[13.5px] font-extrabold text-[#f2f0ea]">
+                                    ₹{c.spent.toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        );
+                    })}
+
+                    <div className="px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/[0.42]">
+                        Top {topCustomers.length} · ₹{topSpend.toLocaleString('en-IN')} between them
                     </div>
-                </Card>
+                </div>
+            </section>
             )}
 
             {/* Recent Transactions Table */}
