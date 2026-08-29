@@ -102,7 +102,7 @@ const CONTROL_LABEL_CLASS = 'font-mono text-[9.5px] uppercase tracking-[0.16em] 
 
 /** The design's control row: a fixed label column, then the control. */
 const CONTROL_ROW_CLASS =
-    'grid grid-cols-1 items-start gap-2 border-b border-[#f2f0ea]/[0.07] px-4 py-3.5 last:border-b-0 sm:grid-cols-[74px_minmax(0,1fr)] sm:gap-4 sm:items-center';
+    'grid grid-cols-1 items-start gap-2 border-b border-[#f2f0ea]/[0.05] px-[15px] py-[11px] last:border-b-0 sm:grid-cols-[74px_minmax(0,1fr)] sm:gap-2.5 sm:items-center';
 
 function getConsoleTheme(consoleType: string) {
     return CONSOLE_THEME[consoleType] || { accent: '#d8ff3c', short: consoleType.slice(0, 2).toUpperCase() };
@@ -464,7 +464,34 @@ export function Billing({
     }, [calculatedTotal]);
 
     // Reset manual amount when items change (recalculate)
+    // The design puts ENDS next to START. Longest line decides it: the bill is
+    // one session and it is over when the last console is.
+    const sessionEndLabel = (() => {
+        if (!startTime || items.length === 0) return '—';
+        const [hours, minutes] = startTime.split(':').map(Number);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return '—';
+        const longest = Math.max(...items.map((item) => item.duration));
+        const end = (hours * 60 + minutes + longest) % 1440;
+        const endHours24 = Math.floor(end / 60);
+        const endMinutes = end % 60;
+        const suffix = endHours24 >= 12 ? 'pm' : 'am';
+        const endHours12 = endHours24 % 12 === 0 ? 12 : endHours24 % 12;
+        return `${endHours12}:${String(endMinutes).padStart(2, '0')} ${suffix}`;
+    })();
+
     const resetManualAmount = () => setManualAmount(null);
+
+    /** Clears the counter back to an empty bill — the design's RESET. */
+    const resetBill = (nextMode: 'cash' | 'upi' = isAdvanceMode ? 'upi' : 'cash') => {
+        setCustomerName('');
+        setCustomerPhone('');
+        setItems([]);
+        setManualAmount(null);
+        setPaymentMode(nextMode);
+        setBookingDate(getLocalDateString());
+        setStartTime(getCurrentIndiaTimeInput());
+        setFormError(null);
+    };
 
     // What this customer already has with the café — points they could spend,
     // a membership they have already paid for. Looked up as the number is
@@ -602,13 +629,7 @@ export function Billing({
                 bookingId: result.bookingId,
                 paymentLink,
             });
-            setCustomerName('');
-            setCustomerPhone('');
-            setItems([]);
-            setManualAmount(null);
-            setPaymentMode(isAdvanceBooking ? 'upi' : 'cash');
-            setBookingDate(getLocalDateString());
-            setStartTime(getCurrentIndiaTimeInput());
+            resetBill(isAdvanceBooking ? 'upi' : 'cash');
             // Don't call onSuccess here — wait for user to click "New Booking"
             // so the success card stays visible for WhatsApp sending
 
@@ -940,8 +961,8 @@ export function Billing({
                             <span className="text-xs text-[#f2f0ea]/40">Auto-reset in</span>
                             <div className="flex items-center gap-2">
                                 <span className="mono text-sm font-bold text-[#f2f0ea]">{autoResetSecs}s</span>
-                                <div className="h-1 w-24 overflow-hidden rounded-full bg-[#f2f0ea]/[0.08]">
-                                    <div className="h-full rounded-full bg-[#d8ff3c] transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
+                                <div className="h-1 w-24 overflow-hidden bg-[#f2f0ea]/[0.08]">
+                                    <div className="h-full bg-[#d8ff3c] transition-all duration-1000" style={{ width: `${(autoResetSecs / 8) * 100}%` }} />
                                 </div>
                             </div>
                         </div>
@@ -1001,7 +1022,7 @@ export function Billing({
                     </div>
                 </div>
             ) : isGamingFlow ? (
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_410px] xl:items-start">
+                <div className="grid grid-cols-1 gap-[22px] xl:grid-cols-[minmax(0,1fr)_372px] xl:items-start">
                     <div className="flex flex-col gap-3.5">
                         {/* Name, phone, lookup — one row, as the design draws
                             it. This was a card with an icon chip and a title
@@ -1091,12 +1112,12 @@ export function Billing({
                                         return (
                                             <div
                                                 key={item.id}
-                                                className="space-y-3 rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113] p-4"
+                                                className="border border-[#f2f0ea]/10 bg-[#111113]"
                                             >
                                                 {/* The design's line header: the
                                                     whole line as one sentence,
                                                     its price, and a cross. */}
-                                                <div className="-mx-4 -mt-4 mb-0 flex items-center gap-3 border-b border-[#f2f0ea]/[0.08] px-4 py-3">
+                                                <div className="flex items-center gap-3 border-b border-[#f2f0ea]/[0.08] px-[15px] py-3">
                                                     <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/35">
                                                         LINE {index + 1}
                                                     </span>
@@ -1121,11 +1142,10 @@ export function Billing({
                                                     </button>
                                                 </div>
 
-                                                {/* Console — card grid */}
-                                                <div>
+                                                {/* Console — the same row as the three below it */}
+                                                <div className={CONTROL_ROW_CLASS}>
                                                     <div className={CONTROL_LABEL_CLASS}>CONSOLE</div>
-                                                    <div className={`${CONTROL_SURFACE_CLASS} p-3`}>
-                                                        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+                                                        <div className="flex flex-wrap gap-1.5">
                                                         {availableConsoles.map((consoleType) => {
                                                             const selected = item.console === consoleType;
                                                             // How many of this kind are free right now. The
@@ -1158,7 +1178,6 @@ export function Billing({
                                                             );
                                                         })}
                                                         </div>
-                                                    </div>
                                                 </div>
 
                                                 {/* Players */}
@@ -1201,7 +1220,7 @@ export function Billing({
                                                                     style={{
                                                                         background: selected ? 'rgba(216,255,60,0.12)' : 'transparent',
                                                                         border: selected ? '1px solid #d8ff3c' : '1px solid rgba(242,240,234,0.14)',
-                                                                        color: selected ? '#67e8f9' : '#64748b',
+                                                                        color: selected ? '#d8ff3c' : 'rgba(242,240,234,.5)',
                                                                     }}
                                                                 >
                                                                     {formatDurationLabel(dur)}
@@ -1225,11 +1244,11 @@ export function Billing({
                                                                         key={station ?? 'any'}
                                                                         type="button"
                                                                         onClick={() => updateItem(item.id, 'station', station)}
-                                                                        className=" py-3 text-xs font-bold uppercase tracking-wide transition-all duration-200"
+                                                                        className="px-[11px] py-2 font-mono text-[11px] transition-colors"
                                                                         style={{
                                                                             background: selected ? 'rgba(216,255,60,0.12)' : 'transparent',
                                                                             border: selected ? '1px solid #d8ff3c' : '1px solid rgba(242,240,234,0.14)',
-                                                                            color: selected ? '#67e8f9' : '#64748b',
+                                                                            color: selected ? '#d8ff3c' : 'rgba(242,240,234,.5)',
                                                                         }}
                                                                     >
                                                                         {station ?? 'Any'}
@@ -1273,7 +1292,7 @@ export function Billing({
                     </div>
 
                     <div className="space-y-5">
-                        <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
+                        <Card className={`sticky top-[82px] space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className={`${GAMING_SUMMARY_HERO_CLASS} p-5`}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
@@ -1343,6 +1362,13 @@ export function Billing({
                                 </label>
                             </div>
 
+                            {/* The design's ENDS, opposite the start it is derived from. */}
+                            <div className="flex items-center gap-2.5 border border-[#f2f0ea]/[0.12] px-3.5 py-3 font-mono">
+                                <span className="text-[9px] uppercase tracking-[0.16em] text-[#f2f0ea]/[0.38]">ENDS</span>
+                                <span className="flex-1" />
+                                <span className="text-[12.5px] text-[#d8ff3c]">{sessionEndLabel}</span>
+                            </div>
+
                             {items.length > 0 ? (
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between gap-3 px-1">
@@ -1383,10 +1409,10 @@ export function Billing({
                                 </div>
                             )}
 
-                            <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
+                            <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Final amount</div>
-                                    <span className="mono rounded-full bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{calculatedTotal}</span>
+                                    <span className="mono bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{calculatedTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
                                     <span className="text-sm text-[var(--muted)]">Charge customer</span>
@@ -1467,7 +1493,7 @@ export function Billing({
                                             <div className="text-[10px] smallcaps text-[#d8ff3c]/70">UPI collect</div>
                                             <div className="text-sm font-semibold text-[#f2f0ea]">Scan and receive Rs.{totalAmount}</div>
                                         </div>
-                                        <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
+                                        <span className=" border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
                                             Tap QR
                                         </span>
                                     </div>
@@ -1506,11 +1532,35 @@ export function Billing({
                                         ? 'CREATE PAYMENT LINK →'
                                         : `TAKE ₹${totalAmount} · START SESSION →`}
                             </button>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => resetBill()}
+                                    disabled={submitting}
+                                    className="border border-[#f2f0ea]/[0.16] py-[11px] font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
+                                >
+                                    RESET
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => window.print()}
+                                    disabled={items.length === 0}
+                                    className="border border-[#f2f0ea]/[0.16] py-[11px] font-mono text-[10.5px] tracking-[0.14em] text-[#f2f0ea]/60 transition-colors hover:border-[#f2f0ea] hover:text-[#f2f0ea] disabled:opacity-40"
+                                >
+                                    PRINT BILL
+                                </button>
+                            </div>
+
+                            <span className="font-mono text-[10px] leading-[1.5] text-[#f2f0ea]/[0.32]">
+                                Starting the session books the machines and opens the tab. Snacks can be
+                                added to it until checkout.
+                            </span>
                         </Card>
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_410px] xl:items-start">
+                <div className="grid grid-cols-1 gap-[22px] xl:grid-cols-[minmax(0,1fr)_372px] xl:items-start">
                     <div className="space-y-5">
                         {customerInfoCard}
 
@@ -1578,7 +1628,7 @@ export function Billing({
                                         const plan = membershipPlans.find((entry) => entry.id === item.planId);
                                         const lineTotal = plan ? plan.price * item.quantity : 0;
                                         return (
-                                            <div key={item.id} className="rounded-[26px] border border-[#f2f0ea]/10 bg-[#111113] p-4">
+                                            <div key={item.id} className=" border border-[#f2f0ea]/10 bg-[#111113] p-4">
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0 flex-1">
                                                         <label className="mb-1.5 block text-[10px] smallcaps text-[var(--dim)]">Plan</label>
@@ -1612,7 +1662,7 @@ export function Billing({
                                                     <button
                                                         type="button"
                                                         onClick={() => removeMemItem(item.id)}
-                                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-[#f2f0ea]/10 text-[#f2f0ea]/50 transition-all duration-200 hover:border-[#ff5c2b]/30 hover:text-[#ff5c2b]"
+                                                        className="flex h-8 w-8 items-center justify-center border border-[#f2f0ea]/10 text-[#f2f0ea]/50 transition-all duration-200 hover:border-[#ff5c2b]/30 hover:text-[#ff5c2b]"
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -1656,7 +1706,7 @@ export function Billing({
                     </div>
 
                     <div className="space-y-5">
-                        <Card className={`sticky top-6 space-y-5 ${SECTION_CARD_CLASS}`}>
+                        <Card className={`sticky top-[82px] space-y-5 ${SECTION_CARD_CLASS}`}>
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center bg-[#d8ff3c]/12 text-[#d8ff3c]">
                                     <CreditCard size={18} />
@@ -1719,10 +1769,10 @@ export function Billing({
                                 )}
                             </div>
 
-                            <div className={`${CONTROL_SURFACE_CLASS} rounded-[22px] p-4`}>
+                            <div className={`${CONTROL_SURFACE_CLASS} p-4`}>
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-[#f2f0ea]/[0.42]">Final amount</div>
-                                    <span className="mono rounded-full bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{memCalculatedTotal}</span>
+                                    <span className="mono bg-[#f2f0ea]/[0.04] px-3 py-1 text-xs text-[#f2f0ea]/70">Calc Rs.{memCalculatedTotal}</span>
                                 </div>
                                 <div className="mt-4 flex items-center justify-between gap-3">
                                     <span className="text-sm text-[var(--muted)]">Charge customer</span>
@@ -1785,7 +1835,7 @@ export function Billing({
                                             <div className="text-[10px] smallcaps text-[#d8ff3c]/70">UPI collect</div>
                                             <div className="text-sm font-semibold text-[#f2f0ea]">Scan and receive Rs.{memTotalAmount}</div>
                                         </div>
-                                        <span className="rounded-full border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
+                                        <span className=" border border-[#d8ff3c]/20 bg-[#d8ff3c]/10 px-2.5 py-1 text-[11px] text-[#d8ff3c]">
                                             Tap QR
                                         </span>
                                     </div>
