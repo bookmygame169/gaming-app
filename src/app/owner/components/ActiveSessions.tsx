@@ -37,6 +37,8 @@ interface ActiveSessionsProps {
     currentTime: Date;
     onAddTime?: (booking: any) => void;
     onAddItems?: (bookingId: string, customerName: string) => void;
+    /** Opens the booking behind this session, as the design's ✎ EDIT does. */
+    onEdit?: (booking: any) => void;
     onSessionEnded?: (info: SessionEndedInfo) => void;
     onEndCollect?: (bookingId: string, paymentMode: 'cash' | 'upi') => void;
     onEndMembership?: (subscriptionId: string) => Promise<void> | void;
@@ -52,6 +54,7 @@ export function ActiveSessions({
     currentTime,
     onAddTime,
     onAddItems,
+    onEdit,
     onSessionEnded,
     onEndCollect,
     onEndMembership,
@@ -149,14 +152,17 @@ export function ActiveSessions({
         return (
             <div className="flex flex-col gap-3 border border-dashed border-[#f2f0ea]/[0.16] bg-[#111113] p-[26px]">
                 <span className="font-mono text-[11.5px] text-[#f2f0ea]/45">
-                    No live sessions right now. Start one and it appears on the floor.
+                    No live sessions right now. Start one to see it on the floor.
                 </span>
             </div>
         );
     }
 
     return (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        <div
+            className="grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))' }}
+        >
             {/* ── memberships on the clock ── */}
             {activeMemberships.map((sub: any) => {
                 const planDetails = sub.membership_plans || {};
@@ -349,13 +355,24 @@ export function ActiveSessions({
 
                         {!isShowingEndCollect && (
                             <>
-                                <div className="grid grid-cols-2 gap-px border-t border-[#f2f0ea]/10 bg-[#f2f0ea]/10 sm:grid-cols-4">
+                                {/* The design's three: edit the booking, extend it,
+                                    or add to the tab. The station controls below are
+                                    this app's own and have no counterpart there. */}
+                                <div className="grid grid-cols-3 gap-px border-t border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
+                                    {onEdit && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onEdit(booking); }}
+                                            className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#f2f0ea] transition-colors hover:bg-[#1c1c20]"
+                                        >
+                                            ✎ EDIT
+                                        </button>
+                                    )}
                                     {onAddTime && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onAddTime(booking); }}
                                             className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#f2f0ea] transition-colors hover:bg-[#1c1c20]"
                                         >
-                                            + TIME
+                                            ＋ TIME
                                         </button>
                                     )}
                                     {onAddItems && (
@@ -363,11 +380,13 @@ export function ActiveSessions({
                                             onClick={(e) => { e.stopPropagation(); onAddItems(bookingId, customerName); }}
                                             className="bg-[#111113] py-3 font-mono text-[10.5px] font-semibold tracking-[0.14em] text-[#f2f0ea] transition-colors hover:bg-[#1c1c20]"
                                         >
-                                            + SNACK
+                                            ＋ SNACK
                                         </button>
                                     )}
-                                    {onStationCommand && (
-                                        <>
+                                </div>
+
+                                {onStationCommand && (
+                                    <div className="grid grid-cols-2 gap-px border-t border-[#f2f0ea]/10 bg-[#f2f0ea]/10">
                                             <button
                                                 type="button"
                                                 // 'pending' is this app's "money not taken yet". The API
@@ -404,9 +423,8 @@ export function ActiveSessions({
                                             >
                                                 LOCK
                                             </button>
-                                        </>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
 
                                 {onEndCollect && (
                                     <button

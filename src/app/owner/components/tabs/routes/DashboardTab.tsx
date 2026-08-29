@@ -155,6 +155,7 @@ export function DashboardTab() {
                   timerElapsed={timerElapsed}
                   currentTime={currentTime}
                   onAddTime={handleOpenTimeAdjustment}
+                  onEdit={handleEditBooking}
                   onStationCommand={handleStationCommand}
                   onAddItems={(bookingId, customerName) => {
                     setAddItemsBookingId(bookingId);

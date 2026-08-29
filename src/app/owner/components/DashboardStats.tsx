@@ -7,9 +7,12 @@ import {
   getOwnerPaymentBucket,
   hasBookingSessionItems,
   isBillableRevenueBooking,
-  toOwnerAmount,
 } from '@/lib/ownerRevenue';
-import { isBookingActiveNow } from '@/lib/bookingFilters';
+import {
+  getBookingDurationMinutes,
+  isBookingActiveNow,
+  parseBookingStartMinutes,
+} from '@/lib/bookingFilters';
 import { getLocalDateString } from '../utils';
 
 const REVENUE_VISIBILITY_KEY = 'owner-dashboard-revenue-visible';
@@ -28,6 +31,8 @@ interface DashboardBooking {
   payment_mode?: string | null;
   status?: string | null;
   source?: string | null;
+  start_time?: string | null;
+  duration?: number | null;
   total_amount?: number | string | null;
   booking_items?: Array<{ id: string; console?: string | null; price?: number | string | null }> | null;
   booking_orders?: Array<{ id: string; quantity?: number | null; total_price: number | null }>;
@@ -112,15 +117,6 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const displayPrevRevenue = period === 'today' ? yesterdayRevenue : prevWeekRevenue;
 
 
-  let snacksRevenue = 0;
-
-  for (const b of todayBookings) {
-    const isSnackOnly = !hasBookingSessionItems(b);
-    snacksRevenue += isSnackOnly
-      ? getBookingSnackTotal(b) || toOwnerAmount(b.total_amount)
-      : getBookingSnackTotal(b);
-  }
-
   const revenueVisible = loadedPreference && showRevenue;
 
   // 7-day sparkline data (daily revenue totals)
@@ -159,6 +155,47 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
   const cashPct = paymentSplitTotal > 0 ? 100 - upiPct : 0;
   const totalCheckouts = todayBookings.length + todayMembershipBookings.length;
   const averageCheckout = totalCheckouts > 0 ? Math.round(totalRevenue / totalCheckouts) : 0;
+
+  // The design's ACTIVE NOW card reads the floor rather than the ledger:
+  // how many machines are occupied, when the next one frees up, and what is
+  // still owed on the machines running now.
+  const liveBookings = billableSessionBookings.filter((booking) => isBookingActiveNow(booking));
+
+  const stationsBusy = liveBookings.reduce(
+    (count, booking) => count + (booking.booking_items?.length || 0),
+    0
+  );
+
+  const clockLabel = (minutesOfDay: number) => {
+    const wrapped = ((minutesOfDay % 1440) + 1440) % 1440;
+    const hours24 = Math.floor(wrapped / 60);
+    const minutes = wrapped % 60;
+    const suffix = hours24 >= 12 ? 'pm' : 'am';
+    const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+    return `${hours12}:${String(minutes).padStart(2, '0')} ${suffix}`;
+  };
+
+  // Soonest end across the live sessions, so staff know which machine frees up
+  // next without opening the floor cards.
+  const soonestEnd = liveBookings.reduce<number | null>((soonest, booking) => {
+    const start = parseBookingStartMinutes(booking.start_time);
+    if (start === null) return soonest;
+    const end = start + getBookingDurationMinutes(booking);
+    return soonest === null || end < soonest ? end : soonest;
+  }, null);
+
+  // "Pending" is how this app has always marked a session that has not been
+  // paid for; ActiveSessions reads it the same way for its UNPAID tag.
+  const unpaidTotal = liveBookings
+    .filter((booking) => (booking.status || '').toLowerCase() === 'pending')
+    .reduce((sum, booking) => sum + getBookingRevenueTotal(booking), 0);
+
+  // Share of today's sessions that left with something from the counter. The
+  // design puts this next to average checkout because it is the lever on it.
+  const sessionCheckouts = todayBookings.filter(hasBookingSessionItems);
+  const withSnacks = sessionCheckouts.filter((booking) => getBookingSnackTotal(booking) > 0).length;
+  const snackAttachPct =
+    sessionCheckouts.length > 0 ? Math.round((withSnacks / sessionCheckouts.length) * 100) : 0;
 
   if (loadingData) {
     return (
@@ -268,18 +305,20 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
         </div>
         <div className="flex flex-col gap-[5px] font-mono text-[11px]">
           <div className="flex min-w-0 justify-between gap-2.5">
-            <span className="truncate text-[#f2f0ea]/50">GAMING</span>
-            <span className="text-[#f2f0ea]">{activeBookingsCount}</span>
+            <span className="truncate text-[#f2f0ea]/50">STATIONS BUSY</span>
+            <span className="text-[#f2f0ea]">{stationsBusy}</span>
           </div>
           <div className="flex min-w-0 justify-between gap-2.5">
-            <span className="truncate text-[#f2f0ea]/50">MEMBERSHIPS</span>
-            <span style={{ color: activeSubscriptionsCount > 0 ? '#d8ff3c' : '#f2f0ea' }}>
-              {activeSubscriptionsCount}
+            <span className="truncate text-[#f2f0ea]/50">ENDS SOONEST</span>
+            <span style={{ color: soonestEnd === null ? 'rgba(242,240,234,.35)' : '#d8ff3c' }}>
+              {soonestEnd === null ? '—' : clockLabel(soonestEnd)}
             </span>
           </div>
           <div className="flex min-w-0 justify-between gap-2.5">
-            <span className="truncate text-[#f2f0ea]/50">CHECKOUTS</span>
-            <span className="text-[#f2f0ea]/50">{totalCheckouts}</span>
+            <span className="truncate text-[#f2f0ea]/50">UNPAID</span>
+            <span style={{ color: unpaidTotal > 0 ? '#ff5c2b' : 'rgba(242,240,234,.35)' }}>
+              {revenueVisible ? money(unpaidTotal) : '••••'}
+            </span>
           </div>
         </div>
       </div>
@@ -329,9 +368,9 @@ export function DashboardStats({ bookings, subscriptions, activeTimers, loadingD
             <span className="text-[#f2f0ea]/50">{yesterdaySessions}</span>
           </div>
           <div className="flex min-w-0 justify-between gap-2.5">
-            <span className="truncate text-[#f2f0ea]/50">SNACKS</span>
-            <span style={{ color: snacksRevenue > 0 ? '#d8ff3c' : 'rgba(242,240,234,.35)' }}>
-              {revenueVisible ? money(snacksRevenue) : '••••'}
+            <span className="truncate text-[#f2f0ea]/50">SNACK ATTACH</span>
+            <span style={{ color: snackAttachPct >= 30 ? '#d8ff3c' : '#ff5c2b' }}>
+              {snackAttachPct}%
             </span>
           </div>
         </div>
