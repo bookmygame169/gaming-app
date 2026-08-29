@@ -13,6 +13,11 @@
 type LookupBody = Record<string, unknown> & { cafeId: string; shape: string };
 
 async function lookup<T>(body: LookupBody, pick: (json: Record<string, unknown>) => T, fallback: T): Promise<T> {
+  // The cafe id arrives a render after the components that read it, and the
+  // route answers 400 without one. Eight callers would each need this guard;
+  // the request that cannot succeed is better not sent from one place.
+  if (!body.cafeId) return fallback;
+
   try {
     const res = await fetch("/api/owner/lookup", {
       method: "POST",

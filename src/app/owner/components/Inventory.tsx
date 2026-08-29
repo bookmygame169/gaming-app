@@ -91,6 +91,9 @@ export default function Inventory({ cafeId }: InventoryProps) {
   });
 
   const loadItems = useCallback(async () => {
+    // The cafe arrives a tick after the first render, and the lookup rejects an
+    // empty id — which is a 400 in the console on every visit to this tab.
+    if (!cafeId) return;
     try {
       setLoading(true);
       setItems(await fetchInventory<InventoryItem>(cafeId));
