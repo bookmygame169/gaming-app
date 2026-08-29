@@ -54,7 +54,6 @@ type SettingsTabProps = {
 
 export default function SettingsTab({
   theme,
-  fonts,
   cafes,
   editedCafe,
   setEditedCafe,
@@ -94,8 +93,8 @@ export default function SettingsTab({
               className="flex items-center gap-2 bg-[#d8ff3c] px-5 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] font-semibold text-[#0b0b0c] transition-[filter] hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {savingSettings ? (
-                <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
-              ) : 'Save Changes'}
+                <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />SAVING…</>
+              ) : 'SAVE'}
             </button>
           </div>
         </div>
@@ -114,9 +113,6 @@ export default function SettingsTab({
               Café Information
             </h2>
           </div>
-          <p style={{ fontSize: 14, color: theme.textSecondary, margin: 0 }}>
-            Manage your café&apos;s basic information and contact details
-          </p>
         </div>
 
         {cafe && (
@@ -125,12 +121,13 @@ export default function SettingsTab({
             <div>
               <label style={{
                 display: "block",
-                fontSize: 13,
-                fontWeight: 600,
-                color: theme.textSecondary,
-                marginBottom: 8,
+                fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                letterSpacing: "0.18em",
               }}>
                 Café Name
               </label>
@@ -140,11 +137,12 @@ export default function SettingsTab({
                 readOnly
                 style={{
                   width: "100%",
-                  padding: "14px 16px",
-                  background: "rgba(15, 23, 42, 0.5)",
+                  padding: "11px 12px",
+                  background: "#0e0e10",
                   border: `1px solid ${theme.border}`,
                   color: theme.textPrimary,
-                  fontSize: 15,
+                  fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                   outline: "none",
                   cursor: "not-allowed",
                   opacity: 0.7,
@@ -159,12 +157,13 @@ export default function SettingsTab({
             <div>
               <label style={{
                 display: "block",
-                fontSize: 13,
-                fontWeight: 600,
-                color: theme.textSecondary,
-                marginBottom: 8,
+                fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                letterSpacing: "0.18em",
               }}>
                 Address
               </label>
@@ -178,14 +177,14 @@ export default function SettingsTab({
                 placeholder="Enter café address"
                 style={{
                   width: "100%",
-                  padding: "14px 16px",
-                  background: "rgba(15, 23, 42, 0.8)",
+                  padding: "11px 12px",
+                  background: "#0e0e10",
                   border: `1px solid ${theme.border}`,
                   color: theme.textPrimary,
-                  fontSize: 15,
+                  fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                   outline: "none",
                   resize: "vertical",
-                  fontFamily: fonts.body,
                   transition: "all 0.2s",
                 }}
                 onFocus={(e) => {
@@ -205,12 +204,13 @@ export default function SettingsTab({
               <div>
                 <label style={{
                   display: "block",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: theme.textSecondary,
-                  marginBottom: 8,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                 }}>
                   Phone Number
                 </label>
@@ -224,11 +224,12 @@ export default function SettingsTab({
                   placeholder="Enter phone number"
                   style={{
                     width: "100%",
-                    padding: "14px 16px",
-                    background: "rgba(15, 23, 42, 0.8)",
+                    padding: "11px 12px",
+                    background: "#0e0e10",
                     border: `1px solid ${theme.border}`,
                     color: theme.textPrimary,
-                    fontSize: 15,
+                    fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                     outline: "none",
                     transition: "all 0.2s",
                   }}
@@ -247,12 +248,13 @@ export default function SettingsTab({
               <div>
                 <label style={{
                   display: "block",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: theme.textSecondary,
-                  marginBottom: 8,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                 }}>
                   Email Address
                 </label>
@@ -266,11 +268,12 @@ export default function SettingsTab({
                   placeholder="Enter email address"
                   style={{
                     width: "100%",
-                    padding: "14px 16px",
-                    background: "rgba(15, 23, 42, 0.8)",
+                    padding: "11px 12px",
+                    background: "#0e0e10",
                     border: `1px solid ${theme.border}`,
                     color: theme.textPrimary,
-                    fontSize: 15,
+                    fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                     outline: "none",
                     transition: "all 0.2s",
                   }}
@@ -290,12 +293,13 @@ export default function SettingsTab({
             <div>
               <label style={{
                 display: "block",
-                fontSize: 13,
-                fontWeight: 600,
-                color: theme.textSecondary,
-                marginBottom: 8,
+                fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                letterSpacing: "0.18em",
               }}>
                 Description
               </label>
@@ -309,14 +313,14 @@ export default function SettingsTab({
                 placeholder="Describe your gaming café..."
                 style={{
                   width: "100%",
-                  padding: "14px 16px",
-                  background: "rgba(15, 23, 42, 0.8)",
+                  padding: "11px 12px",
+                  background: "#0e0e10",
                   border: `1px solid ${theme.border}`,
                   color: theme.textPrimary,
-                  fontSize: 15,
+                  fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                   outline: "none",
                   resize: "vertical",
-                  fontFamily: fonts.body,
                   transition: "all 0.2s",
                 }}
                 onFocus={(e) => {
@@ -347,7 +351,7 @@ export default function SettingsTab({
                 alignSelf: "flex-end",
               }}
             >
-              {savingSettings ? "Saving..." : "Save Changes"}
+              {savingSettings ? "SAVING…" : "SAVE"}
             </button>
           </div>
         )}
@@ -373,43 +377,34 @@ export default function SettingsTab({
         >
           <div style={{ marginBottom: 24 }}>
             <h2 style={{
-              fontSize: 18,
-              margin: "0 0 4px 0",
-              color: theme.textPrimary,
-              fontWeight: 700,
+              margin: 0,
+              fontFamily: "var(--font-plex-mono), monospace",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "rgba(242,240,234,.5)",
+              fontWeight: 500,
             }}>
               Operational Hours
             </h2>
-            <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0 }}>
-              Set your café&apos;s operating hours
-            </p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Operational Hours Section */}
             <div>
-              <h3 style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: theme.textPrimary,
-                margin: "0 0 16px 0",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}>
-                Operational Hours
-              </h3>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 {/* Opening Time */}
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Opening Time
                   </label>
@@ -423,11 +418,12 @@ export default function SettingsTab({
                     placeholder="09:00 AM"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -446,12 +442,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Closing Time
                   </label>
@@ -465,11 +462,12 @@ export default function SettingsTab({
                     placeholder="11:00 PM"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -503,7 +501,7 @@ export default function SettingsTab({
                 alignSelf: "flex-end",
               }}
             >
-              {savingSettings ? "Saving..." : "Save Changes"}
+              {savingSettings ? "SAVING…" : "SAVE"}
             </button>
           </div>
         </div>
@@ -520,28 +518,29 @@ export default function SettingsTab({
         >
           <div style={{ marginBottom: 24 }}>
             <h2 style={{
-              fontSize: 18,
-              margin: "0 0 4px 0",
-              color: theme.textPrimary,
-              fontWeight: 700,
+              margin: 0,
+              fontFamily: "var(--font-plex-mono), monospace",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "rgba(242,240,234,.5)",
+              fontWeight: 500,
             }}>
               Social Links & Pricing
             </h2>
-            <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0 }}>
-              Add your social media links and pricing information
-            </p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Social Links Section */}
             <div>
               <h3 style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: theme.textPrimary,
-                margin: "0 0 16px 0",
+                margin: "0 0 14px 0",
+                fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 10,
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                color: "rgba(242,240,234,.5)",
+                fontWeight: 500,
               }}>
                 Social Links
               </h3>
@@ -551,12 +550,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Google Maps URL
                   </label>
@@ -570,11 +570,12 @@ export default function SettingsTab({
                     placeholder="https://maps.google.com/..."
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -593,12 +594,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Instagram URL
                   </label>
@@ -612,11 +614,12 @@ export default function SettingsTab({
                     placeholder="https://instagram.com/..."
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -636,12 +639,13 @@ export default function SettingsTab({
             {/* Pricing Section */}
             <div>
               <h3 style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: theme.textPrimary,
-                margin: "0 0 16px 0",
+                margin: "0 0 14px 0",
+                fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 10,
+                letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                color: "rgba(242,240,234,.5)",
+                fontWeight: 500,
               }}>
                 Pricing
               </h3>
@@ -649,12 +653,13 @@ export default function SettingsTab({
               <div>
                 <label style={{
                   display: "block",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: theme.textSecondary,
-                  marginBottom: 8,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                 }}>
                   Price Starts From (₹)
                 </label>
@@ -668,11 +673,12 @@ export default function SettingsTab({
                   placeholder="50"
                   style={{
                     width: "100%",
-                    padding: "14px 16px",
-                    background: "rgba(15, 23, 42, 0.8)",
+                    padding: "11px 12px",
+                    background: "#0e0e10",
                     border: `1px solid ${theme.border}`,
                     color: theme.textPrimary,
-                    fontSize: 15,
+                    fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                     outline: "none",
                     transition: "all 0.2s",
                   }}
@@ -708,7 +714,7 @@ export default function SettingsTab({
                 alignSelf: "flex-end",
               }}
             >
-              {savingSettings ? "Saving..." : "Save Changes"}
+              {savingSettings ? "SAVING…" : "SAVE"}
             </button>
           </div>
         </div>
@@ -725,43 +731,34 @@ export default function SettingsTab({
         >
           <div style={{ marginBottom: 24 }}>
             <h2 style={{
-              fontSize: 18,
-              margin: "0 0 4px 0",
-              color: theme.textPrimary,
-              fontWeight: 700,
+              margin: 0,
+              fontFamily: "var(--font-plex-mono), monospace",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "rgba(242,240,234,.5)",
+              fontWeight: 500,
             }}>
               Device Specifications
             </h2>
-            <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0 }}>
-              Add details about your gaming equipment
-            </p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Device Specifications Section */}
             <div>
-              <h3 style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: theme.textPrimary,
-                margin: "0 0 16px 0",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}>
-                Device Specifications
-              </h3>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                 {/* Monitor Details */}
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Monitor Details
                   </label>
@@ -775,11 +772,12 @@ export default function SettingsTab({
                     placeholder="e.g., 27-inch 144Hz Gaming Monitor"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -798,12 +796,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Processor Details
                   </label>
@@ -817,11 +816,12 @@ export default function SettingsTab({
                     placeholder="e.g., Intel Core i7-12700K"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -840,12 +840,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     GPU Details
                   </label>
@@ -859,11 +860,12 @@ export default function SettingsTab({
                     placeholder="e.g., NVIDIA RTX 4070"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -882,12 +884,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     RAM Details
                   </label>
@@ -901,11 +904,12 @@ export default function SettingsTab({
                     placeholder="e.g., 32GB DDR5"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       transition: "all 0.2s",
                     }}
@@ -924,12 +928,13 @@ export default function SettingsTab({
                 <div>
                   <label style={{
                     display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: theme.textSecondary,
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-plex-mono), monospace",
+                fontSize: 9,
+                fontWeight: 500,
+                color: "rgba(242,240,234,.4)",
+                marginBottom: 7,
+                textTransform: "uppercase",
+                letterSpacing: "0.18em",
                   }}>
                     Accessories Details
                   </label>
@@ -943,14 +948,14 @@ export default function SettingsTab({
                     placeholder="e.g., Mechanical Keyboard, Gaming Mouse, Headset"
                     style={{
                       width: "100%",
-                      padding: "14px 16px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      padding: "11px 12px",
+                      background: "#0e0e10",
                       border: `1px solid ${theme.border}`,
                       color: theme.textPrimary,
-                      fontSize: 15,
+                      fontSize: 12.5,
+                  fontFamily: "var(--font-plex-mono), monospace",
                       outline: "none",
                       resize: "vertical",
-                      fontFamily: fonts.body,
                       transition: "all 0.2s",
                     }}
                     onFocus={(e) => {
@@ -983,7 +988,7 @@ export default function SettingsTab({
                 alignSelf: "flex-end",
               }}
             >
-              {savingSettings ? "Saving..." : "Save Changes"}
+              {savingSettings ? "SAVING…" : "SAVE"}
             </button>
           </div>
         </div>
@@ -1000,16 +1005,16 @@ export default function SettingsTab({
         >
           <div style={{ marginBottom: 24 }}>
             <h2 style={{
-              fontSize: 18,
-              margin: "0 0 4px 0",
-              color: theme.textPrimary,
-              fontWeight: 700,
+              margin: 0,
+              fontFamily: "var(--font-plex-mono), monospace",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "rgba(242,240,234,.5)",
+              fontWeight: 500,
             }}>
               Photos
             </h2>
-            <p style={{ fontSize: 13, color: theme.textSecondary, margin: 0 }}>
-              Upload your café&apos;s profile photo and gallery images
-            </p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -1085,7 +1090,7 @@ export default function SettingsTab({
                   justifyContent: "center",
                   width: 200,
                   height: 200,
-                  background: "rgba(15, 23, 42, 0.8)",
+                  background: "#0e0e10",
                   border: `2px dashed ${theme.border}`,
                   cursor: uploadingProfilePhoto ? "not-allowed" : "pointer",
                   transition: "all 0.2s",
@@ -1093,9 +1098,6 @@ export default function SettingsTab({
                 }}>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 40, marginBottom: 8 }}>📷</div>
-                    <p style={{ fontSize: 14, color: theme.textSecondary, margin: 0 }}>
-                      {uploadingProfilePhoto ? "Uploading..." : "Upload Photo"}
-                    </p>
                   </div>
                   <input
                     type="file"
@@ -1132,7 +1134,7 @@ export default function SettingsTab({
                   alignItems: "center",
                   justifyContent: "center",
                   aspectRatio: "1",
-                  background: "rgba(15, 23, 42, 0.8)",
+                  background: "#0e0e10",
                   border: `2px dashed ${theme.border}`,
                   cursor: uploadingGalleryPhoto ? "not-allowed" : "pointer",
                   transition: "all 0.2s",
@@ -1227,7 +1229,7 @@ export default function SettingsTab({
                 alignSelf: "flex-end",
               }}
             >
-              {savingSettings ? "Saving..." : "Save Changes"}
+              {savingSettings ? "SAVING…" : "SAVE"}
             </button>
           </div>
         </div>
