@@ -25,6 +25,21 @@ interface BookingsTableProps {
     onSelectionChange?: (ids: Set<string>) => void;
 }
 
+/**
+ * The design's seven tracks. The checkbox column only exists where selection
+ * does, so it drops out rather than leaving a 34px gutter.
+ */
+const BOOKING_COLUMNS = (selectable: boolean, withActions: boolean) =>
+    [
+        selectable ? '34px' : null,
+        'minmax(0,1.05fr)',
+        'minmax(0,.95fr)',
+        'minmax(0,.9fr)',
+        'minmax(0,.62fr)',
+        '108px',
+        withActions ? '132px' : null,
+    ].filter(Boolean).join(' ');
+
 export function BookingsTable({
     bookings,
     onStatusChange,
@@ -189,243 +204,226 @@ export function BookingsTable({
             </div>
             )}
 
-            <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm text-left table-fixed">
-                    <thead className="border-b border-[#f2f0ea]/10 bg-[#111113] font-mono text-[9px] uppercase tracking-[0.14em] text-[#f2f0ea]/35">
-                        <tr>
-                            {selectable && (
-                                <th className="px-3 py-3 w-8">
-                                    <input
-                                        type="checkbox"
-                                        className="accent-[#d8ff3c] cursor-pointer"
-                                        checked={paginatedBookings.length > 0 && paginatedBookings.every(b => selectedIds?.has(b.id))}
-                                        onChange={(e) => {
+            {/* ── the design's booking table: seven tracks, no chrome ── */}
+            <div className="hidden md:block">
+                <div
+                    className="grid items-center gap-3 border-b border-[#f2f0ea]/10 px-4 py-[11px] font-mono text-[9.5px] tracking-[0.16em] text-[#f2f0ea]/[0.38]"
+                    style={{ gridTemplateColumns: BOOKING_COLUMNS(selectable, showActions) }}
+                >
+                    {selectable && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const next = new Set(selectedIds);
+                                const allOn = paginatedBookings.length > 0 && paginatedBookings.every(b => selectedIds?.has(b.id));
+                                paginatedBookings.forEach(b => allOn ? next.delete(b.id) : next.add(b.id));
+                                onSelectionChange!(next);
+                            }}
+                            aria-label="Select every booking on this page"
+                            className="flex h-[15px] w-[15px] items-center justify-center text-[10px] text-[#0b0b0c] transition-colors"
+                            style={
+                                paginatedBookings.length > 0 && paginatedBookings.every(b => selectedIds?.has(b.id))
+                                    ? { border: '1px solid #d8ff3c', background: '#d8ff3c' }
+                                    : { border: '1px solid rgba(242,240,234,.25)', background: 'transparent' }
+                            }
+                        >
+                            {paginatedBookings.length > 0 && paginatedBookings.every(b => selectedIds?.has(b.id)) ? '✓' : ''}
+                        </button>
+                    )}
+                    <span>CUSTOMER</span>
+                    <span>DETAILS</span>
+                    <span>DATE &amp; TIME</span>
+                    <span className="text-right">AMOUNT</span>
+                    <span>STATUS</span>
+                    {showActions && <span className="text-right">ACTIONS</span>}
+                </div>
+
+                {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="grid animate-pulse items-center gap-3 border-b border-[#f2f0ea]/[0.05] px-4 py-3"
+                            style={{ gridTemplateColumns: BOOKING_COLUMNS(selectable, showActions) }}
+                        >
+                            {selectable && <div className="h-[15px] w-[15px] bg-[#f2f0ea]/[0.06]" />}
+                            <div className="h-3.5 w-28 bg-[#f2f0ea]/[0.06]" />
+                            <div className="h-3.5 w-20 bg-[#f2f0ea]/[0.06]" />
+                            <div className="h-3.5 w-20 bg-[#f2f0ea]/[0.06]" />
+                            <div className="h-3.5 w-14 justify-self-end bg-[#f2f0ea]/[0.06]" />
+                            <div className="h-5 w-20 bg-[#f2f0ea]/[0.06]" />
+                            {showActions && <div className="h-7 w-24 justify-self-end bg-[#f2f0ea]/[0.06]" />}
+                        </div>
+                    ))
+                ) : paginatedBookings.length === 0 ? (
+                    <div className="px-4 py-[22px] font-mono text-[11.5px] text-[#f2f0ea]/45">
+                        No bookings match this filter.
+                    </div>
+                ) : (
+                    paginatedBookings.map((booking) => {
+                        const normalizedStatus = (booking.status || '').toLowerCase();
+                        const picked = selectedIds?.has(booking.id) ?? false;
+                        const name = booking.customer_name || booking.user_name || 'Guest';
+                        const isDigital = isDigitalPaymentMode(booking.payment_mode);
+                        const whatsappUrl = getWhatsAppUrl(booking);
+                        const canSwitchPayment =
+                            !!onPaymentModeChange && !(booking.source === 'advance' && normalizedStatus === 'pending');
+
+                        return (
+                            <div
+                                key={booking.id}
+                                className="grid items-center gap-3 border-b border-[#f2f0ea]/[0.05] px-4 py-3 transition-colors hover:bg-[#17171a]"
+                                style={{
+                                    gridTemplateColumns: BOOKING_COLUMNS(selectable, showActions),
+                                    background: picked ? 'rgba(216,255,60,.05)' : undefined,
+                                }}
+                            >
+                                {selectable && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
                                             const next = new Set(selectedIds);
-                                            paginatedBookings.forEach(b => e.target.checked ? next.add(b.id) : next.delete(b.id));
+                                            if (picked) next.delete(booking.id);
+                                            else next.add(booking.id);
                                             onSelectionChange!(next);
                                         }}
-                                    />
-                                </th>
-                            )}
-                            <th className="px-4 py-2.5 font-normal w-[18%]">Customer</th>
-                            <th className="px-4 py-2.5 font-normal w-[18%]">Details</th>
-                            <th className="px-4 py-2.5 font-normal w-[18%]">Date & Time</th>
-                            <th className="px-4 py-2.5 font-normal w-[12%]">Amount</th>
-                            <th className="px-4 py-2.5 font-normal w-[14%]">Status</th>
-                            {showActions && <th className="px-4 py-2.5 font-normal text-right w-[20%]">Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f2f0ea]/[0.05]">
-                        {loading ? (
-                            Array.from({ length: 5 }).map((_, i) => (
-                                <tr key={i} className="animate-pulse">
-                                    {selectable && <td className="px-3 py-3"><div className="w-4 h-4 rounded bg-[#f2f0ea]/[0.06]" /></td>}
-                                    <td className="px-4 py-2">
-                                        <div className="h-3.5 w-28 rounded bg-[#f2f0ea]/[0.06] mb-2" />
-                                        <div className="h-2.5 w-20 rounded bg-[#f2f0ea]/[0.04]" />
-                                    </td>
-                                    <td className="px-4 py-2"><div className="h-3.5 w-20 rounded bg-[#f2f0ea]/[0.06]" /></td>
-                                    <td className="px-4 py-2">
-                                        <div className="h-3.5 w-20 rounded bg-[#f2f0ea]/[0.06] mb-2" />
-                                        <div className="h-2.5 w-14 rounded bg-[#f2f0ea]/[0.04]" />
-                                    </td>
-                                    <td className="px-4 py-2"><div className="h-3.5 w-14 rounded bg-[#f2f0ea]/[0.06]" /></td>
-                                    <td className="px-4 py-2"><div className="h-5 w-20 rounded-full bg-[#f2f0ea]/[0.06]" /></td>
-                                    {showActions && <td className="px-4 py-2"><div className="h-7 w-24 rounded bg-[#f2f0ea]/[0.06] ml-auto" /></td>}
-                                </tr>
-                            ))
-                        ) : paginatedBookings.length === 0 ? (
-                            <tr>
-                                <td colSpan={(showActions ? 6 : 5) + (selectable ? 1 : 0)}>
-                                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#f2f0ea]/40">
-                                        <CalendarX size={36} strokeWidth={1.5} className="text-[#f2f0ea]/[0.14]" />
-                                        <p className="text-sm font-medium text-[#f2f0ea]/50">No bookings found</p>
-                                        <p className="text-xs text-[#f2f0ea]/30">Try adjusting your filters</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : (
-                            paginatedBookings.map((booking) => {
-                                const normalizedStatus = (booking.status || '').toLowerCase();
-                                const rowAccent = normalizedStatus === 'in-progress' ? 'border-l-2 border-l-[#d8ff3c]' : normalizedStatus === 'pending' || normalizedStatus === 'confirmed' ? 'border-l-2 border-l-[#ff5c2b]' : normalizedStatus === 'cancelled' ? 'border-l-2 border-l-[#f2f0ea]/20 opacity-60' : normalizedStatus === 'completed' ? 'border-l-2 border-l-[#f2f0ea]/[0.14]' : '';
-                                return (
-                                <tr key={booking.id} className={`hover:bg-[#f2f0ea]/5 transition-colors ${rowAccent} ${selectedIds?.has(booking.id) ? 'bg-[#d8ff3c]/5' : ''}`}>
-                                    {selectable && (
-                                        <td className="px-3 py-1.5">
-                                            <input
-                                                type="checkbox"
-                                                className="accent-[#d8ff3c] cursor-pointer"
-                                                checked={selectedIds?.has(booking.id) ?? false}
-                                                onChange={(e) => {
-                                                    e.stopPropagation();
-                                                    const next = new Set(selectedIds);
-                                                    if (e.target.checked) next.add(booking.id);
-                                                    else next.delete(booking.id);
-                                                    onSelectionChange!(next);
-                                                }}
-                                            />
-                                        </td>
-                                    )}
-                                    <td className="px-4 py-1.5">
-                                        <div
-                                            className={`font-medium text-[#f2f0ea] ${onViewCustomer ? 'cursor-pointer hover:text-[#d8ff3c] hover:underline' : ''}`}
+                                        aria-label={`Select ${name}'s booking`}
+                                        className="flex h-[15px] w-[15px] items-center justify-center font-mono text-[10px] text-[#0b0b0c] transition-colors"
+                                        style={
+                                            picked
+                                                ? { border: '1px solid #d8ff3c', background: '#d8ff3c' }
+                                                : { border: '1px solid rgba(242,240,234,.25)', background: 'transparent' }
+                                        }
+                                    >
+                                        {picked ? '✓' : ''}
+                                    </button>
+                                )}
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span
+                                        className={`truncate text-[13.5px] font-bold tracking-[-0.005em] text-[#f2f0ea] ${onViewCustomer ? 'cursor-pointer hover:text-[#d8ff3c]' : ''}`}
+                                        onClick={(e) => {
+                                            if (!onViewCustomer) return;
+                                            e.stopPropagation();
+                                            onViewCustomer({
+                                                name,
+                                                phone: booking.customer_phone || booking.user_phone,
+                                                email: booking.user_email,
+                                            });
+                                        }}
+                                    >
+                                        {name}
+                                    </span>
+                                    <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/[0.38]">
+                                        {getCustomerContact(booking)}
+                                    </span>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate font-mono text-[12px] text-[#f2f0ea]/[0.86]">
+                                        {booking.source === 'membership'
+                                            ? `★ ${booking.booking_items?.[0]?.console || 'Membership'}`
+                                            : hasBookingItems(booking)
+                                                ? booking.booking_items.map((item: any) => `${item.quantity}× ${item.console}`).join(' · ')
+                                                : 'No items'}
+                                    </span>
+                                    <span
+                                        className="truncate font-mono text-[10.5px] capitalize"
+                                        style={{ color: booking.source === 'membership' ? '#d8ff3c' : 'rgba(242,240,234,.38)' }}
+                                    >
+                                        {booking.source === 'membership'
+                                            ? 'Membership'
+                                            : booking.source?.replace('_', ' ') || 'Online'}
+                                    </span>
+                                </div>
+
+                                <div className="flex min-w-0 flex-col gap-[3px]">
+                                    <span className="truncate font-mono text-[12px] text-[#f2f0ea]/[0.86]">
+                                        {formatTime(booking.start_time)} ({formatDurationLabel(booking.duration)})
+                                    </span>
+                                    <span className="truncate font-mono text-[10.5px] text-[#f2f0ea]/[0.38]">
+                                        {formatDate(booking.booking_date)}
+                                    </span>
+                                </div>
+
+                                {/* Payment mode is the control that changes it, which keeps
+                                    the design's two chips in ACTIONS and drops a toggle
+                                    whose selected state was cream at 20% on lime. */}
+                                <div className="flex flex-col items-end gap-[3px]">
+                                    <span className="text-[13.5px] font-extrabold text-[#f2f0ea]">
+                                        ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
+                                    </span>
+                                    {canSwitchPayment ? (
+                                        <button
+                                            type="button"
+                                            title="Switch between cash and UPI"
                                             onClick={(e) => {
-                                                if (onViewCustomer) {
-                                                    e.stopPropagation();
-                                                    onViewCustomer({
-                                                        name: booking.customer_name || booking.user_name || "Guest",
-                                                        phone: booking.customer_phone || booking.user_phone,
-                                                        email: booking.user_email
-                                                    });
-                                                }
+                                                e.stopPropagation();
+                                                onPaymentModeChange!(booking.id, isDigital ? 'cash' : 'upi');
                                             }}
+                                            className="font-mono text-[10.5px] capitalize text-[#f2f0ea]/[0.38] transition-colors hover:text-[#d8ff3c]"
                                         >
-                                            {booking.customer_name || booking.user_name || "Guest"}
-                                        </div>
-                                        <div className="text-xs text-[#f2f0ea]/40 mt-0.5">
-                                            {getCustomerContact(booking)}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-1.5">
-                                        <div className="text-[#f2f0ea]/70">
-                                            {booking.source === 'membership'
-                                                ? <span className="inline-flex items-center gap-1 text-[#d8ff3c] font-medium">
-                                                    ★ {booking.booking_items?.[0]?.console || 'Membership'}
-                                                  </span>
-                                                : hasBookingItems(booking) ? booking.booking_items.map((item: any, idx: number) => (
-                                                    <span key={idx} className="block">
-                                                        {item.quantity}x {item.console}
-                                                    </span>
-                                                )) : <span className="text-[#f2f0ea]/40">No items</span>
-                                            }
-                                        </div>
-                                        <div className="text-xs mt-0.5 capitalize">
-                                            {booking.source === 'membership'
-                                                ? <span className="text-[#d8ff3c]">Membership</span>
-                                                : <span className="text-[#f2f0ea]/40">{booking.source?.replace('_', ' ') || 'Online'}</span>
-                                            }
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-1.5">
-                                        <div className="text-[#f2f0ea]">{formatDate(booking.booking_date)}</div>
-                                        <div className="text-xs text-[#f2f0ea]/40 mt-0.5">
-                                            {formatTime(booking.start_time)} ({formatDurationLabel(booking.duration)})
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-1.5">
-                                        <div className="font-semibold text-[#d8ff3c]">
-                                            ₹{getBookingRevenueTotal(booking).toLocaleString('en-IN')}
-                                        </div>
-                                        <div className="text-xs text-[#f2f0ea]/40 mt-0.5 capitalize">
                                             {booking.payment_mode || 'Unpaid'}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-1.5">
-                                        <StatusBadge status={booking.status || 'pending'} />
-                                    </td>
-                                    {showActions && (
-                                        <td className="px-4 py-1.5 text-right">
-                                            <div className="flex items-center justify-end gap-1">
-
-                                                {onStatusChange && normalizedStatus === 'pending' && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-[#d8ff3c] hover:text-[#d8ff3c] hover:bg-[#d8ff3c]/10"
-                                                        onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'confirmed'); }}
-                                                        title="Confirm Payment"
-                                                    >
-                                                        Confirm
-                                                    </Button>
-                                                )}
-
-                                                {onStatusChange && (normalizedStatus === 'confirmed' || normalizedStatus === 'in-progress') && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-[#d8ff3c] hover:text-[#d8ff3c] hover:bg-[#d8ff3c]/10"
-                                                        onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'completed'); }}
-                                                        title="Complete Booking"
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                    </Button>
-                                                )}
-
-                                                {onStatusChange && ['confirmed', 'in-progress', 'pending'].includes(normalizedStatus) && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-[#ff5c2b] hover:text-[#ff5c2b] hover:bg-[#ff5c2b]/10"
-                                                        onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'cancelled'); }}
-                                                        title="Cancel Booking"
-                                                    >
-                                                        <X size={18} />
-                                                    </Button>
-                                                )}
-
-                                                {onViewOrders && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-[#d8ff3c] hover:text-[#d8ff3c] hover:bg-[#d8ff3c]/10"
-                                                        onClick={(e) => { e.stopPropagation(); onViewOrders(booking.id, booking.customer_name || booking.user_name || 'Guest'); }}
-                                                        title="View F&B Orders"
-                                                    >
-                                                        <ShoppingBag size={16} />
-                                                    </Button>
-                                                )}
-
-                                                {onPaymentModeChange && !(booking.source === 'advance' && normalizedStatus === 'pending') && (
-                                                    <div className="flex bg-[#f2f0ea]/[0.04] p-0.5 border border-white/5 mr-1">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#f2f0ea]/20' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/5'}`}
-                                                            title="Set Cash"
-                                                        >
-                                                            Cash
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#f2f0ea]/20' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/5'}`}
-                                                            title="Set UPI/Digital"
-                                                        >
-                                                            UPI
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {onEdit && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-[#f2f0ea]/50 hover:text-[#f2f0ea]"
-                                                        onClick={(e) => { e.stopPropagation(); onEdit(booking); }}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                )}
-
-                                                {(() => { const url = getWhatsAppUrl(booking); return url ? (
-                                                    <a
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        title="Send ticket on WhatsApp"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="inline-flex items-center justify-center w-7 h-7 bg-[#25D366]/15 hover:bg-[#25D366]/30 text-[#25D366] transition-colors"
-                                                    >
-                                                        <WhatsAppIcon />
-                                                    </a>
-                                                ) : null; })()}
-                                            </div>
-                                        </td>
+                                        </button>
+                                    ) : (
+                                        <span className="font-mono text-[10.5px] capitalize text-[#f2f0ea]/[0.38]">
+                                            {booking.payment_mode || 'Unpaid'}
+                                        </span>
                                     )}
-                                </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                                </div>
+
+                                <div className="min-w-0">
+                                    <StatusBadge status={booking.status || 'pending'} />
+                                </div>
+
+                                {showActions && (
+                                    <div className="flex justify-end gap-1.5">
+                                        {onEdit && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); onEdit(booking); }}
+                                                title="Open this booking — status, items and delete live here"
+                                                className="border border-[#f2f0ea]/[0.16] px-2.5 py-1.5 font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/75 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                            >
+                                                EDIT
+                                            </button>
+                                        )}
+                                        {onStatusChange && normalizedStatus === 'pending' ? (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'confirmed'); }}
+                                                title="Mark this booking paid"
+                                                className="border border-[#f2f0ea]/[0.16] px-2.5 py-1.5 font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/50 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                            >
+                                                ✓ PAID
+                                            </button>
+                                        ) : onStatusChange && (normalizedStatus === 'confirmed' || normalizedStatus === 'in-progress') ? (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'completed'); }}
+                                                title="Complete this booking"
+                                                className="border border-[#f2f0ea]/[0.16] px-2.5 py-1.5 font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/50 transition-colors hover:border-[#d8ff3c] hover:text-[#d8ff3c]"
+                                            >
+                                                ✓ DONE
+                                            </button>
+                                        ) : whatsappUrl ? (
+                                            <a
+                                                href={whatsappUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                title="Send ticket on WhatsApp"
+                                                className="border border-[#f2f0ea]/[0.16] px-2.5 py-1.5 font-mono text-[10px] tracking-[0.1em] text-[#f2f0ea]/50 transition-colors hover:border-[#f2f0ea]/40 hover:text-[#f2f0ea]"
+                                            >
+                                                ↗ TICKET
+                                            </a>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                )}
             </div>
 
             {/* Mobile View */}
@@ -502,13 +500,13 @@ export function BookingsTable({
                                             <div className="flex border border-[#f2f0ea]/10 bg-[#f2f0ea]/[0.04] p-0.5">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'cash'); }}
-                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#f2f0ea]/30' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
+                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${booking.payment_mode === 'cash' ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c]'}`}
                                                 >
                                                     Cash
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onPaymentModeChange(booking.id, 'upi'); }}
-                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#f2f0ea]/30' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea]'}`}
+                                                    className={`flex-1  py-1.5 text-[10px] font-bold uppercase transition-all ${isDigitalPaymentMode(booking.payment_mode) ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c]'}`}
                                                 >
                                                     UPI
                                                 </button>

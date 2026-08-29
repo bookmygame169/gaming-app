@@ -10,6 +10,7 @@ import { RefreshCw, Search, Check, X, Zap, ChevronLeft, ChevronRight, ChevronDow
 import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 import { getLocalDateString } from '../utils';
+import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
 const EMPTY_BOOKING_SUMMARY = {
@@ -289,6 +290,35 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
     const showingStart = total === 0 ? 0 : ((currentPage - 1) * limit) + 1;
     const showingEnd = total === 0 ? 0 : Math.min(currentPage * limit, total);
 
+    /** The rows currently on screen, as the design's EXPORT CSV offers them. */
+    const exportBookingsCsv = () => {
+        const header = ['Customer', 'Contact', 'Details', 'Source', 'Date', 'Start', 'Duration', 'Amount', 'Payment', 'Status'];
+        const rows = bookings.map((booking) => {
+            const items = booking.booking_items || [];
+            return [
+                booking.customer_name || booking.user_name || 'Guest',
+                booking.customer_phone || booking.user_phone || '',
+                items.map((item: { quantity?: number; console?: string }) => `${item.quantity}x ${item.console}`).join(' / '),
+                booking.source || '',
+                booking.booking_date || '',
+                booking.start_time || '',
+                String(booking.duration ?? ''),
+                String(getBookingRevenueTotal(booking)),
+                booking.payment_mode || '',
+                booking.status || '',
+            ];
+        });
+        const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+        const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     // Fetch subscriptions when Membership tab is active
     const fetchSubscriptions = useCallback(async () => {
         if (!cafeId) return;
@@ -442,7 +472,7 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                     <button
                         key={tab.id}
                         onClick={() => setBookingSubTab(tab.id)}
-                        className={`px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.12em] transition-colors md:px-4 md:py-2 ${bookingSubTab === tab.id ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#f2f0ea]/50 hover:bg-[#f2f0ea]/[0.04] hover:text-[#f2f0ea]'}`}
+                        className={`px-3 py-1.5 font-mono text-[11px] font-semibold tracking-[0.12em] transition-colors md:px-4 md:py-2 ${bookingSubTab === tab.id ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:bg-[#f2f0ea]/[0.04] hover:text-[#0b0b0c]'}`}
                     >
                         {tab.label}
                     </button>
@@ -795,18 +825,27 @@ export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateS
                         onSelectionChange={setSelectedIds}
                     />
 
-                    {/* Show count + limit selector */}
+                    {/* The design's footer strip: what is on screen, then the
+                        ways out of it. Paging is ours — the design shows every
+                        row and this table does not. */}
                     {total > 0 && (
-                        <div className="flex flex-col gap-3 px-2 md:flex-row md:items-center md:justify-between">
-                            <p className="text-sm text-[#f2f0ea]/50">
-                                Showing {showingStart.toLocaleString()}-{showingEnd.toLocaleString()} of {total.toLocaleString()} bookings
+                        <div className="flex flex-col gap-3 border border-t-0 border-[#f2f0ea]/10 bg-[#111113] px-4 py-3 font-mono text-[10.5px] text-[#f2f0ea]/40 md:flex-row md:items-center md:justify-between">
+                            <p>
+                                Showing {showingStart.toLocaleString()}–{showingEnd.toLocaleString()} of {total.toLocaleString()} bookings
                             </p>
                             <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={exportBookingsCsv}
+                                    className="whitespace-nowrap tracking-[0.14em] transition-colors hover:text-[#d8ff3c]"
+                                >
+                                    EXPORT CSV →
+                                </button>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-xs text-[#f2f0ea]/40 mr-1">Show</span>
+                                    <span className="mr-1 text-[#f2f0ea]/40">Show</span>
                                     {PAGE_SIZE_OPTIONS.map(size => (
                                         <button key={size} onClick={() => setLimit(size)}
-                                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${limit === size ? 'bg-[#d8ff3c] text-[#f2f0ea]' : 'text-[#f2f0ea]/50 hover:text-[#f2f0ea] hover:bg-[#f2f0ea]/[0.06]'}`}>
+                                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${limit === size ? 'bg-[#d8ff3c] text-[#0b0b0c]' : 'text-[#0b0b0c] hover:text-[#0b0b0c] hover:bg-[#f2f0ea]/[0.06]'}`}>
                                             {size}
                                         </button>
                                     ))}
