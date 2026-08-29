@@ -60,6 +60,12 @@ const eslintConfig = defineConfig([
     "public/workbox-*.js",
     "public/sw.js.map",
     "public/workbox-*.js.map",
+
+    // The seeded design canvases and the canvas runtime that renders them.
+    // support.js is generated ("do not edit" on line one) and ships React 17
+    // era calls this config rightly flags — but it is the design tool's code,
+    // not ours, and it never reaches the bundle. Reference material only.
+    ".design/**",
   ]),
 ]);
 

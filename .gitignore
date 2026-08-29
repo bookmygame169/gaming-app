@@ -50,3 +50,7 @@ public/worker-*.js
 # republished. The sources and canvas.json are the parts worth keeping.
 .design/**/*.html
 !.design/**/*.dc.html
+
+# The canvas runtime that renders those sources. Generated, "do not edit" on
+# line one, and re-fetched with the design whenever it is needed.
+.design/**/*.js
