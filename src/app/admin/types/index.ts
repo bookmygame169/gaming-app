@@ -102,6 +102,8 @@ export type AnnouncementRow = {
 export type AuditLogRow = {
   id: string;
   admin_id: string;
+  /** Resolved by the API. Falls back to the id when the admin no longer exists. */
+  admin_name?: string;
   action: string;
   entity_type: string;
   entity_id: string | null;

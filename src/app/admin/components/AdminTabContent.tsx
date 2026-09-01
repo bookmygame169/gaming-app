@@ -2043,6 +2043,7 @@ export function AdminTabContent() {
                     <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                       <tr>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Timestamp</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Admin</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Action</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity</th>
                         <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Entity ID</th>
@@ -2051,12 +2052,16 @@ export function AdminTabContent() {
                     </thead>
                     <tbody className="divide-y divide-white/[0.06]">
                       {loadingData ? (
-                        <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">Loading audit logs…</td></tr>
+                        <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">Loading audit logs…</td></tr>
                       ) : filteredAuditLogs.length === 0 ? (
-                        <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No audit logs found</td></tr>
+                        <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">No audit logs found</td></tr>
                       ) : filteredAuditLogs.map(log => (
                         <tr key={log.id} className="hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3.5 text-xs text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString('en-IN')}</td>
+                          {/* The column this table was missing. A log of what
+                              was done that does not say who did it answers the
+                              easier half of the question. */}
+                          <td className="px-4 py-3.5 text-sm font-medium text-slate-200 whitespace-nowrap">{log.admin_name || '—'}</td>
                           <td className="px-4 py-3.5 text-sm">
                             {['delete','deactivate','disable_maintenance'].includes(log.action)
                               ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">{log.action}</span>

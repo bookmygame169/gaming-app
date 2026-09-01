@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { logAdminAction } from "@/lib/auditLog";
+import { fetchAuditLogs, logAdminAction } from "@/lib/auditLog";
 import { useAdminAuth } from "@/app/admin/hooks/useAdminAuth";
 import { adminPathForTab } from "@/app/admin/navigation";
 import type { AdminRouteTab } from "@/app/admin/navigation";
@@ -648,15 +648,10 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
         setLoadingData(true);
         setError(null);
 
-        const { data, error } = await supabase
-          .from("audit_logs")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(100);
-
-        if (error) throw error;
-
-        setAuditLogs(data || []);
+        // Through the API, because the table's RLS policy asks for an
+        // auth.uid() the admin portal's cookie session does not have. Read
+        // straight from the browser this returned nothing, always.
+        setAuditLogs(await fetchAuditLogs());
       } catch (err) {
         console.error("Error loading audit logs:", err);
         setError("Failed to load audit logs data");
@@ -1742,9 +1737,10 @@ export function useAdminDashboardController(activeTab: AdminRouteTab) {
 
   function downloadAuditCSV() {
     const rows = [
-      ['Timestamp', 'Action', 'Entity Type', 'Entity ID', 'Details'],
+      ['Timestamp', 'Admin', 'Action', 'Entity Type', 'Entity ID', 'Details'],
       ...filteredAuditLogs.map(l => [
         new Date(l.created_at).toLocaleString('en-IN'),
+        l.admin_name || l.admin_id,
         l.action, l.entity_type,
         l.entity_id || '',
         l.details ? JSON.stringify(l.details) : '',

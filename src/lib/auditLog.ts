@@ -1,9 +1,13 @@
 // src/lib/auditLog.ts
 /**
- * Audit logging utility for tracking admin actions
+ * The record of what an admin did.
+ *
+ * Both calls go through /api/admin/audit-logs rather than Supabase directly.
+ * The browser has no Supabase session — the admin portal signs in with its own
+ * HMAC cookie — so a direct read is refused by the table's RLS policy and a
+ * direct write is the call the café's ISP blocks. See the route for the whole
+ * account of it.
  */
-
-import { supabase } from "./supabaseClient";
 
 export type AuditAction =
   | "create"
@@ -26,65 +30,70 @@ export interface AuditLogEntry {
   entityType: EntityType;
   entityId?: string;
   details?: Record<string, unknown>;
+  /**
+   * Kept so the call sites did not all have to change, and deliberately not
+   * sent. Who did it is read from the session cookie on the server: a browser
+   * that can name the admin can name a different one, in the one table whose
+   * entire purpose is saying who did what.
+   */
   adminId?: string | null;
 }
 
+export type AuditLogRecord = {
+  id: string;
+  admin_id: string;
+  admin_name: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
 /**
- * Log an admin action to the audit_logs table.
- * Pass adminId from the useAdminAuth hook — admin uses cookie sessions, not Supabase auth.
+ * Record an admin action.
+ *
+ * Never throws. A café that cannot be deleted because the note about deleting
+ * it could not be written would be the wrong way round — but the failure is
+ * reported to the console rather than swallowed silently, which is how the
+ * previous version stayed broken from the day it was written.
  */
 export async function logAdminAction({
   action,
   entityType,
   entityId,
   details,
-  adminId,
 }: AuditLogEntry): Promise<void> {
-  if (!adminId) return; // skip if no admin session (cookie auth, not Supabase auth)
-
   try {
-    const { error } = await supabase.from("audit_logs").insert({
-      admin_id: adminId,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      details,
+    const res = await fetch("/api/admin/audit-logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ action, entityType, entityId, details }),
     });
 
-    if (error) {
-      console.error("Failed to log audit action:", error);
+    if (!res.ok) {
+      console.error(`Audit entry not recorded (${res.status}):`, action, entityType);
     }
   } catch (err) {
-    console.error("Error logging audit action:", err);
+    console.error("Audit entry not recorded:", err);
   }
 }
 
-/**
- * Fetch recent audit logs
- */
-export async function fetchAuditLogs(limit = 100) {
+/** Recent admin actions, newest first, with the name of whoever did each one. */
+export async function fetchAuditLogs(): Promise<AuditLogRecord[]> {
   try {
-    const { data, error } = await supabase
-      .from("audit_logs")
-      .select(
-        `
-        id,
-        action,
-        entity_type,
-        entity_id,
-        details,
-        created_at,
-        admin_id
-      `
-      )
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    const res = await fetch("/api/admin/audit-logs", { credentials: "include" });
 
-    if (error) throw error;
+    if (!res.ok) {
+      console.error("Could not load audit logs:", res.status);
+      return [];
+    }
 
-    return data || [];
+    const json = await res.json();
+    return (json?.logs as AuditLogRecord[]) || [];
   } catch (err) {
-    console.error("Error fetching audit logs:", err);
+    console.error("Could not load audit logs:", err);
     return [];
   }
 }
