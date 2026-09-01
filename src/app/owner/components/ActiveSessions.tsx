@@ -7,6 +7,7 @@ import { parseTimeToMinutes } from "@/lib/timeUtils";
 import { ConsoleId, CONSOLE_LABELS } from '@/lib/constants';
 import { getBookingItemDurationMinutes, isBookingActiveNow, isBookingItemActiveNow } from '@/lib/bookingFilters';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
+import { useOwnerClock } from '../context/OwnerDashboardContext';
 
 interface SessionEndedInfo {
     customerName: string;
@@ -33,8 +34,14 @@ interface ActiveSessionsProps {
     bookings: any[];
     subscriptions: any[];
     activeTimers: Map<string, any>;
-    timerElapsed: Map<string, number>;
-    currentTime: Date;
+    /**
+     * Left out by callers that let this card keep its own clock, which is the
+     * cheaper arrangement: subscribing here means only this card re-renders
+     * each second instead of everything above it. Passed in only where the
+     * parent already ticks for its own reasons.
+     */
+    timerElapsed?: Map<string, number>;
+    currentTime?: Date;
     onAddTime?: (booking: any) => void;
     onAddItems?: (bookingId: string, customerName: string) => void;
     /** Opens the booking behind this session, as the design's ✎ EDIT does. */
@@ -50,8 +57,8 @@ export function ActiveSessions({
     bookings,
     subscriptions,
     activeTimers,
-    timerElapsed,
-    currentTime,
+    timerElapsed: timerElapsedProp,
+    currentTime: currentTimeProp,
     onAddTime,
     onAddItems,
     onEdit,
@@ -60,6 +67,13 @@ export function ActiveSessions({
     onEndMembership,
     onStationCommand,
 }: ActiveSessionsProps) {
+    // The clock this card counts down by. Subscribing here rather than taking
+    // it from the dashboard context keeps the once-a-second re-render to this
+    // subtree; a caller that already has a clock of its own passes it instead.
+    const clock = useOwnerClock();
+    const currentTime = currentTimeProp ?? clock.currentTime;
+    const timerElapsed = timerElapsedProp ?? clock.timerElapsed;
+
     // Which card is mid-request, so the buttons can be disabled and show progress.
     const [stationBusyId, setStationBusyId] = useState<string | null>(null);
     const endedSessionsRef = useRef<Set<string>>(new Set());

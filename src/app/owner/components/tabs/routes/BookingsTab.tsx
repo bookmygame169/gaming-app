@@ -25,7 +25,6 @@ export function BookingsTab() {
     setViewOrdersModalOpen,
     handleViewCustomer,
     activeTimers,
-    timerElapsed,
     subscriptions,
     bookings,
     setAddItemsBookingId,
@@ -56,7 +55,6 @@ export function BookingsTab() {
         }}
         onViewCustomer={handleViewCustomer}
         activeTimers={activeTimers}
-        timerElapsed={timerElapsed}
         pageSubscriptions={subscriptions}
         pageBookings={bookings}
         onAddItems={(bookingId, customerName) => {

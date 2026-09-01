@@ -18,8 +18,6 @@ export function DashboardTab() {
     ownerSummary,
     subscriptions,
     activeTimers,
-    timerElapsed,
-    currentTime,
     isMobile,
     handleTabChange,
     handleOpenTimeAdjustment,
@@ -152,8 +150,6 @@ export function DashboardTab() {
                   bookings={bookings}
                   subscriptions={subscriptions}
                   activeTimers={activeTimers}
-                  timerElapsed={timerElapsed}
-                  currentTime={currentTime}
                   onAddTime={handleOpenTimeAdjustment}
                   onEdit={handleEditBooking}
                   onStationCommand={handleStationCommand}

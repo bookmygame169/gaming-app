@@ -36,6 +36,9 @@ import {
 
 type OwnerDashboardContextValue = any;
 
+/** How often the expired-booking sweep looks, in milliseconds. */
+const SWEEP_TICK_MS = 30_000;
+
 export const OwnerDashboardContext = createContext<OwnerDashboardContextValue | null>(null);
 
 export function useOwnerDashboard(): OwnerDashboardContextValue {
@@ -44,6 +47,40 @@ export function useOwnerDashboard(): OwnerDashboardContextValue {
     throw new Error("useOwnerDashboard must be used within OwnerDashboardProvider");
   }
   return ctx;
+}
+
+/**
+ * The two values that change every second, kept out of the main context.
+ *
+ * `currentTime` and `timerElapsed` tick once a second so session cards can
+ * count down. While they lived on the main context value, that object was
+ * rebuilt every tick and all twelve consumers re-rendered with it - the whole
+ * dashboard, once a second, whether or not anything on screen showed a clock.
+ * That is what made typing and scrolling feel heavy.
+ *
+ * Split out, the main value stays referentially stable across a tick, so React
+ * re-renders only what actually reads the clock. Read it as deep in the tree as
+ * possible: a component that subscribes here re-renders every second, and takes
+ * its children with it.
+ */
+export interface OwnerClock {
+  currentTime: Date;
+  timerElapsed: Map<string, number>;
+}
+
+const OwnerClockContext = createContext<OwnerClock | null>(null);
+
+/**
+ * Falls back to a still clock rather than throwing, so a card can be rendered
+ * outside the provider (a modal, a test) without needing one wired up.
+ */
+export function useOwnerClock(): OwnerClock {
+  const ctx = useContext(OwnerClockContext);
+  const fallback = useMemo<OwnerClock>(
+    () => ({ currentTime: new Date(), timerElapsed: new Map<string, number>() }),
+    []
+  );
+  return ctx ?? fallback;
 }
 
 export function OwnerDashboardProvider({
@@ -392,6 +429,24 @@ export function OwnerDashboardProvider({
       setCurrentTime(new Date());
     }, 1000);
 
+    return () => clearInterval(timer);
+  }, [activeTab]);
+
+  /**
+   * A coarse tick for work that only needs to notice that time has passed.
+   *
+   * The expired-booking sweep below used to hang off `currentTime`, so it
+   * re-scanned every loaded booking - up to five hundred - once a second, and
+   * could fire PUT requests from inside that loop. It completes bookings whose
+   * end time has gone by, so a booking finishing up to half a minute before
+   * anyone notices is the same outcome; second-level precision bought nothing
+   * and cost a scan a second.
+   */
+  const [sweepTick, setSweepTick] = useState(0);
+  useEffect(() => {
+    if (activeTab !== 'dashboard' && activeTab !== 'bookings') return;
+
+    const timer = setInterval(() => setSweepTick((n) => n + 1), SWEEP_TICK_MS);
     return () => clearInterval(timer);
   }, [activeTab]);
 
@@ -1724,7 +1779,7 @@ export function OwnerDashboardProvider({
       if (!isDayPass || !subscription.timer_active || !activeTimers.has(subscription.id)) return false;
 
       const dayPassEndAt = getDayPassEndAt(subscription.timer_start_time || subscription.purchase_date || subscription.expiry_date);
-      return Boolean(dayPassEndAt && currentTime.getTime() >= dayPassEndAt.getTime());
+      return Boolean(dayPassEndAt && Date.now() >= dayPassEndAt.getTime());
     });
 
     if (expiredDayPasses.length === 0) return;
@@ -1775,7 +1830,7 @@ export function OwnerDashboardProvider({
       });
     });
     // Stable useState setter; naming it changes nothing about when this runs.
-  }, [activeTimers, currentTime, refreshData, subscriptions, setSubscriptions]);
+  }, [activeTimers, sweepTick, refreshData, subscriptions, setSubscriptions]);
 
   // Fetch usage history when viewing a subscription
   useEffect(() => {
@@ -1804,9 +1859,10 @@ export function OwnerDashboardProvider({
     fetchUsageHistory();
   }, [viewingSubscription]);
 
-  // Auto-complete expired bookings client-side (avoids relying on server cron)
+  // Auto-complete expired bookings client-side (avoids relying on server cron).
+  // Driven by the coarse sweep tick, not the one-second clock - see SWEEP_TICK_MS.
   useEffect(() => {
-    const now = currentTime;
+    const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const todayStr = getLocalDateString(now);
     const yesterday = new Date(now);
@@ -1862,7 +1918,7 @@ export function OwnerDashboardProvider({
         setBookings((prev: any[]) => prev.map((x: any) => x.id === b.id ? { ...x, status: 'in-progress' } : x));
       }
     });
-  }, [currentTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sweepTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch customer data when viewing a customer
   useEffect(() => {
@@ -2312,7 +2368,6 @@ export function OwnerDashboardProvider({
       hideDeletedBookingLocally,
       activeTimers,
       setActiveTimers,
-      timerElapsed,
       setTimerElapsed,
       customerSearch,
       setCustomerSearch,
@@ -2409,7 +2464,6 @@ export function OwnerDashboardProvider({
       setSessionEndedPopupOpen,
       sessionEndedInfo,
       setSessionEndedInfo,
-      currentTime,
       setCurrentTime,
       editingStation,
       setEditingStation,
@@ -2502,7 +2556,6 @@ export function OwnerDashboardProvider({
       currentCafeId,
       ownerSummary,
       activeTimers,
-      timerElapsed,
       customerSearch,
       hasSubscription,
       hasMembership,
@@ -2550,7 +2603,6 @@ export function OwnerDashboardProvider({
       viewOrdersCustomerName,
       sessionEndedPopupOpen,
       sessionEndedInfo,
-      currentTime,
       editingStation,
       savingPricing,
       applyToAll,
@@ -2609,9 +2661,19 @@ export function OwnerDashboardProvider({
     ]
   );
 
+  // Rebuilt every tick on purpose - that is the point of it being separate.
+  // `value` above no longer names either of these, so it survives the tick
+  // unchanged and its consumers are left alone.
+  const clock = useMemo<OwnerClock>(
+    () => ({ currentTime, timerElapsed }),
+    [currentTime, timerElapsed]
+  );
+
   return (
     <OwnerDashboardContext.Provider value={value}>
-      {children}
+      <OwnerClockContext.Provider value={clock}>
+        {children}
+      </OwnerClockContext.Provider>
     </OwnerDashboardContext.Provider>
   );
 }

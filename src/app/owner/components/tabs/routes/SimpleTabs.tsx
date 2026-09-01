@@ -26,7 +26,6 @@ export function MembershipsTab() {
         subscriptions={ctx.subscriptions}
         membershipPlans={ctx.membershipPlans}
         activeTimers={ctx.activeTimers}
-        timerElapsed={ctx.timerElapsed}
         onStartTimer={ctx.handleStartTimer}
         onStopTimer={ctx.handleStopTimer}
         onRefresh={() => ctx.refreshData()}

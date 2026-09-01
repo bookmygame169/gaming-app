@@ -17,6 +17,7 @@ import {
 } from './consoleUi';
 import { XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils';
+import { useOwnerClock } from '../context/OwnerDashboardContext';
 
 type MembershipPlanType = 'day_pass' | 'hourly_package';
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -60,7 +61,8 @@ interface MembershipsProps {
     subscriptions: Subscription[];
     membershipPlans: MembershipPlan[];
     activeTimers: Map<string, number>;
-    timerElapsed: Map<string, number>;
+    /** Omitted by callers that let this component keep its own clock. */
+    timerElapsed?: Map<string, number>;
     onStartTimer: (subscriptionId: string) => Promise<void>;
     onStopTimer: (subscriptionId: string) => Promise<void>;
     onRefresh: () => void;
@@ -87,11 +89,15 @@ export function Memberships({
     subscriptions,
     membershipPlans,
     activeTimers,
-    timerElapsed,
+    timerElapsed: timerElapsedProp,
     onStartTimer,
     onStopTimer,
     onRefresh
 }: MembershipsProps) {
+    // Subscribed here rather than passed down, so the once-a-second tick
+    // re-renders this list alone instead of every tab above it.
+    const clock = useOwnerClock();
+    const timerElapsed = timerElapsedProp ?? clock.timerElapsed;
     const [subTab, setSubTab] = useState<'subscriptions' | 'plans'>('subscriptions');
 
     // Subscription Filter States

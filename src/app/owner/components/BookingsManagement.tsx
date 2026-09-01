@@ -11,6 +11,7 @@ import { DeletedBookingsPanel } from './DeletedBookingsPanel';
 import { subscribeToOwnerBookingsChanged } from '@/lib/ownerBookingsSync';
 import { getLocalDateString } from '../utils';
 import { getBookingRevenueTotal } from '@/lib/ownerRevenue';
+import { useOwnerClock } from '../context/OwnerDashboardContext';
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100];
 const EMPTY_BOOKING_SUMMARY = {
@@ -110,7 +111,12 @@ function isActiveSessionBooking(booking: any, todayStr: string, yesterdayStr: st
     return false;
 }
 
-export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onAdjustTime, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed, onStartTimer, onStopTimer, pageSubscriptions, pageBookings, onAddItems, onSessionEnded, onEndCollect, onStationCommand }: BookingsManagementProps) {
+export function BookingsManagement({ cafeId, loading: externalLoading, onUpdateStatus, onEdit, onAdjustTime, onRefresh, onViewOrders, onViewCustomer, onPaymentModeChange, refreshTrigger, activeTimers, timerElapsed: timerElapsedProp, onStartTimer, onStopTimer, pageSubscriptions, pageBookings, onAddItems, onSessionEnded, onEndCollect, onStationCommand }: BookingsManagementProps) {
+    // This screen already ticks once a second for its own countdowns, so
+    // reading the shared clock here costs it nothing extra.
+    const clock = useOwnerClock();
+    const timerElapsed = timerElapsedProp ?? clock.timerElapsed;
+
     const [bookings, setBookings] = useState<any[]>([]);
     const [summary, setSummary] = useState(EMPTY_BOOKING_SUMMARY);
     const [total, setTotal] = useState(0);
