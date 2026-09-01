@@ -1,12 +1,19 @@
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import OwnerDashboardShell from "../OwnerDashboardShell";
-import { isValidOwnerTab, type OwnerRouteTab } from "../navigation";
+import { isValidOwnerTab } from "../navigation";
 
 type PageProps = {
   params: Promise<{ tab: string }>;
 };
 
+/**
+ * Every console tab other than the dashboard.
+ *
+ * Renders nothing: the layout mounts the console once for all of /owner so it
+ * is not torn down and rebuilt on every tab click, and reads the active tab
+ * from the URL. What is left here is the check that the tab exists at all -
+ * OwnerConsoleFrame deliberately falls through to this page for an unknown
+ * segment so that notFound() still answers.
+ */
 export default async function OwnerTabPage({ params }: PageProps) {
   const { tab } = await params;
 
@@ -14,9 +21,5 @@ export default async function OwnerTabPage({ params }: PageProps) {
     notFound();
   }
 
-  // Read before the first paint so the rail does not open and then snap shut.
-  const store = await cookies();
-  const railCollapsed = store.get("bmg_owner_rail")?.value === "1";
-
-  return <OwnerDashboardShell activeTab={tab as OwnerRouteTab} railCollapsed={railCollapsed} />;
+  return null;
 }
