@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Button } from './ui';
-import { Chips, GhostButton, Kpis, WhatToFix, type Insight } from './consoleUi';
+import { Chips, GhostButton, Kpis, SectionBar, WhatToFix, type Insight } from './consoleUi';
 import { CONSOLE_LABELS } from '@/lib/constants';
 import {
     getBookingGamingTotal,
@@ -12,7 +12,7 @@ import {
     isBillableRevenueBooking,
 } from '@/lib/ownerRevenue';
 import { getTimezoneOffset } from '../utils';
-import { fetchInventory, fetchOrdersInRange } from "@/app/owner/ownerLookup";
+import { fetchInventory, fetchOrdersInRange, fetchExpenses } from "@/app/owner/ownerLookup";
 import {
     InventoryItem,
     BookingOrder as InventoryBookingOrder,
@@ -122,6 +122,27 @@ const parseLocalDate = (value: string): Date => {
 /** The design's six tracks for the top-customers table. */
 const TOP_CUSTOMER_COLUMNS = '38px minmax(0,1.2fr) 74px 96px minmax(0,.8fr) 86px';
 
+/**
+ * The periods this page can be read over.
+ *
+ * One list, because the chips and the profit strip both name the range and a
+ * second copy would drift: the chips would say THIS MONTH while the sum below
+ * them said something else.
+ */
+const DATE_RANGES = [
+    { id: 'today', label: 'TODAY' },
+    { id: 'yesterday', label: 'YESTERDAY' },
+    { id: '7d', label: '7 DAYS' },
+    { id: '30d', label: '30 DAYS' },
+    { id: 'month', label: 'THIS MONTH' },
+    { id: '12m', label: '12 MONTHS' },
+    { id: 'all', label: 'ALL' },
+] as const;
+
+const RANGE_LABELS: Record<string, string> = Object.fromEntries(
+    DATE_RANGES.map((range) => [range.id, range.label.toLowerCase()])
+);
+
 export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsProps) {
     const [dateRange, setDateRange] = useState('7d');
     const [nowMs] = useState(() => Date.now());
@@ -129,6 +150,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
     const [customEnd, setCustomEnd] = useState('');
     const [showCustomPicker, setShowCustomPicker] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [expenses, setExpenses] = useState<{ amount: number; category: string }[]>([]);
     const [bookings, setBookings] = useState<BookingData[]>([]);
     const [previousBookings, setPreviousBookings] = useState<PreviousBookingData[]>([]);
     const [peakHoursBookings, setPeakHoursBookings] = useState<BookingData[]>([]);
@@ -284,6 +306,19 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         } finally {
             setSnackLoading(false);
         }
+    }, [cafeId, dateRange, getDateRange]);
+
+    // What the café spent over the same window the takings are measured on.
+    // Any other range would make the profit below a comparison of two different
+    // periods that happened to be on screen together.
+    const fetchExpensesData = useCallback(async () => {
+        if (!cafeId) return;
+        const { startDate, endDate } = getDateRange(dateRange);
+        const rows = await fetchExpenses<{ amount: number | string; category: string }>(cafeId, {
+            from: startDate,
+            to: endDate,
+        });
+        setExpenses(rows.map((row) => ({ amount: Number(row.amount) || 0, category: row.category })));
     }, [cafeId, dateRange, getDateRange]);
 
     // --- Analytics Calculations ---
@@ -508,7 +543,8 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
         fetchCafeHours();
         fetchPeakHoursData();
         fetchSnackData();
-    }, [cafeId, fetchReportsData, fetchCafeHours, fetchPeakHoursData, fetchSnackData]);
+        fetchExpensesData();
+    }, [cafeId, fetchReportsData, fetchCafeHours, fetchPeakHoursData, fetchSnackData, fetchExpensesData]);
 
     // 3. Payment Method Breakdown
     const paymentData = useMemo(() => {
@@ -846,15 +882,7 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                 looking at is lit. */}
             <div className="flex flex-wrap items-center gap-[9px]">
                 <Chips
-                    items={[
-                        { id: 'today', label: 'TODAY' },
-                        { id: 'yesterday', label: 'YESTERDAY' },
-                        { id: '7d', label: '7 DAYS' },
-                        { id: '30d', label: '30 DAYS' },
-                        { id: 'month', label: 'THIS MONTH' },
-                        { id: '12m', label: '12 MONTHS' },
-                        { id: 'all', label: 'ALL' },
-                    ]}
+                    items={DATE_RANGES.map((range) => ({ id: range.id, label: range.label }))}
                     active={dateRange}
                     onPick={setDateRange}
                 />
@@ -939,6 +967,89 @@ export function Reports({ cafeId, cafeName, isMobile, openingHours }: ReportsPro
                     },
                 ]}
             />
+
+            {/* Profit. Revenue has always been on this page; what it cost to
+                earn was not anywhere in the product, so takings were being
+                read as earnings by default. Its own strip rather than a fifth
+                KPI, because the three figures only mean anything read across
+                as one sum. */}
+            {(() => {
+                const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
+                const profit = stats.revenue - spent;
+                const recorded = expenses.length > 0;
+                const margin = stats.revenue > 0 ? (profit / stats.revenue) * 100 : null;
+                const money = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
+                return (
+                    <div className="space-y-2.5">
+                        <SectionBar
+                            title="PROFIT"
+                            note={
+                                <span className="font-mono text-[10px] text-[#f2f0ea]/35">
+                                    {RANGE_LABELS[dateRange] ?? 'this period'}
+                                </span>
+                            }
+                        />
+                        <section className="grid grid-cols-1 gap-px border border-[#f2f0ea]/10 bg-[#f2f0ea]/10 sm:grid-cols-3">
+                            <div className="flex flex-col gap-[9px] bg-[#111113] px-[18px] py-4">
+                                <span className="font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+                                    MONEY IN
+                                </span>
+                                <span className="text-[30px] font-black leading-[0.9] tracking-[-0.025em] text-[#f2f0ea]">
+                                    {money(stats.revenue)}
+                                </span>
+                                <span className="font-mono text-[10.5px] text-[#f2f0ea]/40">takings</span>
+                            </div>
+
+                            <div className="flex flex-col gap-[9px] bg-[#111113] px-[18px] py-4">
+                                <span className="font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+                                    MONEY OUT
+                                </span>
+                                <span
+                                    className="text-[30px] font-black leading-[0.9] tracking-[-0.025em]"
+                                    style={{ color: recorded ? '#ff5c2b' : 'rgba(242,240,234,.35)' }}
+                                >
+                                    {recorded ? money(spent) : '—'}
+                                </span>
+                                <span className="font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {recorded
+                                        ? `${expenses.length} expense${expenses.length === 1 ? '' : 's'} recorded`
+                                        : 'nothing recorded'}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-[9px] bg-[#111113] px-[18px] py-4">
+                                <span className="font-mono text-[9.5px] tracking-[0.18em] text-[#f2f0ea]/[0.42]">
+                                    PROFIT
+                                </span>
+                                {/* Blank rather than equal to revenue when nothing has been
+                                    recorded. A café that has not entered its rent yet has not
+                                    made a profit of exactly its takings, and showing that
+                                    number would be the most confident lie on the page. */}
+                                <span
+                                    className="text-[30px] font-black leading-[0.9] tracking-[-0.025em]"
+                                    style={{
+                                        color: !recorded
+                                            ? 'rgba(242,240,234,.35)'
+                                            : profit >= 0
+                                            ? '#d8ff3c'
+                                            : '#ff5c2b',
+                                    }}
+                                >
+                                    {recorded ? money(profit) : '—'}
+                                </span>
+                                <span className="font-mono text-[10.5px] text-[#f2f0ea]/40">
+                                    {recorded
+                                        ? margin === null
+                                            ? 'no takings this period'
+                                            : `${margin >= 0 ? '' : '-'}${Math.abs(Math.round(margin))}% of takings`
+                                        : 'add expenses to see this'}
+                                </span>
+                            </div>
+                        </section>
+                    </div>
+                );
+            })()}
 
             {/* Charts Section - Row 1 */}
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">

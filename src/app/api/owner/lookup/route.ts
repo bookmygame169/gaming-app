@@ -32,11 +32,18 @@ type Shape =
   | "station-pricing"
   | "booking-updated-at"
   | "booking-customers"
-  | "customer-search";
+  | "customer-search"
+  | "expenses";
 
 /** Rejects anything that is not a sane ISO timestamp before it reaches a filter. */
 function isoOrNull(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 40) return null;
+  return Number.isNaN(Date.parse(value)) ? null : value;
+}
+
+/** Rejects anything that is not a plain calendar date before it reaches a filter. */
+function dateOrNull(value: unknown): string | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   return Number.isNaN(Date.parse(value)) ? null : value;
 }
 
@@ -208,6 +215,33 @@ export async function POST(request: NextRequest) {
           .ilike("customer_name", `%${safe}%`)
           .not("customer_name", "is", null)
           .limit(8);
+
+        if (error) throw error;
+        return NextResponse.json({ rows: data || [] });
+      }
+
+      case "expenses": {
+        // The range is optional so the tab can open on everything, but it is
+        // validated when given: a malformed date reaching a .gte would come
+        // back as a database error the dashboard cannot explain.
+        const from = dateOrNull(body?.from);
+        const to = dateOrNull(body?.to);
+
+        let query = supabase
+          .from("expenses")
+          .select("id, cafe_id, category, description, amount, expense_date, created_at")
+          .eq("cafe_id", cafeId);
+
+        if (from) query = query.gte("expense_date", from);
+        if (to) query = query.lte("expense_date", to);
+
+        // Newest first, and by insertion within a day: several expenses are
+        // usually entered in one sitting and the last one typed is the one
+        // being checked.
+        const { data, error } = await query
+          .order("expense_date", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(1000);
 
         if (error) throw error;
         return NextResponse.json({ rows: data || [] });

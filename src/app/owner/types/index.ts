@@ -92,7 +92,7 @@ export type BookingRow = {
   cafe_name?: string | null;
 };
 
-export type NavTab = 'dashboard' | 'sessions' | 'customers' | 'stations' | 'tournaments' | 'memberships' | 'loyalty' | 'reviews' | 'payments' | 'wallet' | 'coupons' | 'reports' | 'settings' | 'overview' | 'live-status' | 'bookings' | 'cafe-details' | 'analytics' | 'billing' | 'inventory';
+export type NavTab = 'dashboard' | 'sessions' | 'customers' | 'stations' | 'tournaments' | 'memberships' | 'loyalty' | 'reviews' | 'payments' | 'wallet' | 'coupons' | 'reports' | 'settings' | 'overview' | 'live-status' | 'bookings' | 'cafe-details' | 'analytics' | 'billing' | 'inventory' | 'expenses';
 
 export type PricingTier = {
   qty1_30min: number | null;

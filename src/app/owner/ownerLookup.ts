@@ -87,3 +87,16 @@ export function fetchBookingUpdatedAt(cafeId: string, bookingId: string): Promis
 export function fetchBookingCustomers<T>(cafeId: string): Promise<T[]> {
   return lookup<T[]>({ cafeId, shape: "booking-customers" }, rows, []);
 }
+
+/**
+ * What the café spent, newest first.
+ *
+ * The range is optional: the Expenses tab asks for a window, Reports asks for
+ * the one it is already showing, and both are validated on the server.
+ */
+export function fetchExpenses<T>(
+  cafeId: string,
+  range: { from?: string; to?: string } = {}
+): Promise<T[]> {
+  return lookup<T[]>({ cafeId, shape: "expenses", from: range.from, to: range.to }, rows, []);
+}

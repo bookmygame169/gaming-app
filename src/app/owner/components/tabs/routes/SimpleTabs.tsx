@@ -8,6 +8,7 @@ const Memberships = dynamic(() => import("../../Memberships").then((mod) => mod.
 const Coupons = dynamic(() => import("../../Coupons").then((mod) => mod.Coupons), { ssr: false });
 const Reports = dynamic(() => import("../../Reports").then((mod) => mod.Reports), { ssr: false });
 const Inventory = dynamic(() => import("../../Inventory"), { ssr: false });
+const Expenses = dynamic(() => import("../../Expenses"), { ssr: false });
 const OwnerTournaments = dynamic(() => import("../../OwnerTournaments").then((mod) => mod.OwnerTournaments), { ssr: false });
 const OwnerLoyalty = dynamic(() => import("../../OwnerLoyalty").then((mod) => mod.OwnerLoyalty), { ssr: false });
 const OwnerReviews = dynamic(() => import("../../OwnerReviews").then((mod) => mod.OwnerReviews), { ssr: false });
@@ -62,6 +63,15 @@ export function InventoryTab() {
   return (
     <ErrorBoundary>
       <Inventory cafeId={ctx.currentCafeId} />
+    </ErrorBoundary>
+  );
+}
+
+export function ExpensesTab() {
+  const ctx = useOwnerDashboard();
+  return (
+    <ErrorBoundary>
+      <Expenses cafeId={ctx.currentCafeId} />
     </ErrorBoundary>
   );
 }

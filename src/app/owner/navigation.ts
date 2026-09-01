@@ -15,6 +15,7 @@ export const OWNER_ROUTE_TABS = [
   "payments",
   "wallet",
   "inventory",
+  "expenses",
   "coupons",
   "settings",
   "cafe-details",
