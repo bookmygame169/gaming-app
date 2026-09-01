@@ -1060,19 +1060,39 @@ export function Billing({
                             it. This was a card with an icon chip and a title
                             above two fields. */}
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px]">
-                            <input
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                placeholder="Customer name"
-                                className="border border-[#f2f0ea]/[0.14] bg-[#111113] px-3.5 py-3 text-sm font-semibold text-[#f2f0ea] outline-none transition-colors placeholder:font-normal placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
-                            />
-                            <input
-                                value={customerPhone}
-                                onChange={(e) => setCustomerPhone(e.target.value)}
-                                placeholder="Phone"
-                                inputMode="tel"
-                                className="border border-[#f2f0ea]/[0.14] bg-[#111113] px-3.5 py-3 font-mono text-[13px] text-[#f2f0ea] outline-none transition-colors placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
-                            />
+                            {/* Wrapped, because a suggestion list needs
+                                something to hang off. The row that replaced
+                                the old customer card put the two inputs
+                                straight into the grid, and the lookup-as-you-
+                                type they used to carry did not come with
+                                them. */}
+                            <div className="relative">
+                                <input
+                                    value={customerName}
+                                    onChange={(e) => {
+                                        setCustomerName(e.target.value);
+                                        searchCustomers(e.target.value, 'name');
+                                    }}
+                                    onBlur={() => setTimeout(closeSuggestions, 150)}
+                                    placeholder="Customer name"
+                                    className="w-full border border-[#f2f0ea]/[0.14] bg-[#111113] px-3.5 py-3 text-sm font-semibold text-[#f2f0ea] outline-none transition-colors placeholder:font-normal placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
+                                />
+                                {renderSuggestions('name')}
+                            </div>
+                            <div className="relative">
+                                <input
+                                    value={customerPhone}
+                                    onChange={(e) => {
+                                        setCustomerPhone(e.target.value);
+                                        searchCustomers(e.target.value, 'phone');
+                                    }}
+                                    onBlur={() => setTimeout(closeSuggestions, 150)}
+                                    placeholder="Phone"
+                                    inputMode="tel"
+                                    className="w-full border border-[#f2f0ea]/[0.14] bg-[#111113] px-3.5 py-3 font-mono text-[13px] text-[#f2f0ea] outline-none transition-colors placeholder:text-[#f2f0ea]/30 focus:border-[#d8ff3c]"
+                                />
+                                {renderSuggestions('phone')}
+                            </div>
                             {/* The design's third column is a LOOKUP button.
                                 This app already looks the number up as it is
                                 typed, so a button that does it again would do
