@@ -337,17 +337,39 @@ See you soon! 🎯`;
     const handleDelete = async (id: string, e?: React.MouseEvent) => {
         e?.stopPropagation();
         if (!confirm("Are you sure you want to delete this coupon?")) return;
-        await fetch(`/api/owner/coupons?id=${id}`, { method: 'DELETE' });
+
+        // The reply used to be dropped. The list was reloaded either way, so a
+        // delete the server refused looked exactly like one that worked - the
+        // coupon reappeared and read as a refresh glitch.
+        try {
+            await ownerApi(`/api/owner/coupons?id=${id}`, {
+                method: 'DELETE',
+                fallbackMessage: 'Could not delete the coupon',
+            });
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Could not delete the coupon');
+            return;
+        }
+
         fetchCoupons();
         if (selectedCoupon?.id === id) setView('list');
     };
 
     const handleDeactivate = async (coupon: Coupon) => {
-        await fetch('/api/owner/coupons', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: coupon.id, is_active: !coupon.is_active }),
-        });
+        // Same as the delete above, with a sharper edge: the panel below was
+        // flipped to the new state whatever the server said, so a refused
+        // change left the screen reading "active" for a coupon that was not.
+        try {
+            await ownerApi('/api/owner/coupons', {
+                method: 'PATCH',
+                body: { id: coupon.id, is_active: !coupon.is_active },
+                fallbackMessage: `Could not ${coupon.is_active ? 'deactivate' : 'activate'} the coupon`,
+            });
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Could not change the coupon');
+            return;
+        }
+
         fetchCoupons();
         if (selectedCoupon?.id === coupon.id) {
             setSelectedCoupon({ ...coupon, is_active: !coupon.is_active });
