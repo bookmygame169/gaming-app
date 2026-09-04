@@ -18,6 +18,7 @@ import { useToast } from "../hooks/useToast";
 import { useStableHandler } from "../hooks/useStableHandler";
 import { useOwnerSummary } from "../components/NeedsAttention";
 import { ownerPathForTab } from "../navigation";
+import { ownerApi } from "../ownerApi";
 import type { OwnerRouteTab } from "../navigation";
 import {
   debugLog,
@@ -769,18 +770,10 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
       : bookingId;
 
     try {
-      const res = await fetch('/api/owner/stations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ bookingId: trueBookingId, action }),
+      const data = await ownerApi<{ stations?: string[] }>('/api/owner/stations', {
+        body: { bookingId: trueBookingId, action },
+        fallbackMessage: 'Failed to send the command',
       });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send the command');
-      }
 
       const stations = Array.isArray(data.stations) ? data.stations.join(', ') : '';
       toast.success(
@@ -915,11 +908,9 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
       ), 0) || nextDuration;
       const amountToSave = nextBookingItems.reduce((sum: number, item: any) => sum + (Number(item.price) || 0), 0);
 
-      const res = await fetch('/api/owner/billing', {
+      await ownerApi('/api/owner/billing', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           bookingId: booking.id,
           items: nextBookingItems.map((item: any) => ({
             id: item.id,
@@ -933,13 +924,9 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
             duration: bookingDuration,
             status: booking.status || 'in-progress',
           },
-        }),
+        },
+        fallbackMessage: 'Failed to update session time',
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update session time');
-      }
 
       setBookings((prev) => prev.map((entry) => (
         entry.id === booking.id
@@ -1279,10 +1266,9 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
       }
 
       // Update booking via server API route (bypasses ISP block)
-      const res = await fetch('/api/owner/billing', {
+      await ownerApi('/api/owner/billing', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           bookingId: editingBooking.id,
           items: nextBookingItems.map(buildServerItemPayload),
           booking: {
@@ -1295,13 +1281,9 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
             start_time: startTime12h,
             duration: newDuration,
           },
-        }),
+        },
+        fallbackMessage: 'Failed to update booking',
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update booking');
-      }
 
       if (isMembershipBooking && membershipSubscription?.id) {
         const subscriptionUpdates: Record<string, unknown> = {
@@ -1312,20 +1294,14 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
         if (sanitizedCustomerName) subscriptionUpdates.customer_name = sanitizedCustomerName;
         if (sanitizedCustomerPhone) subscriptionUpdates.customer_phone = sanitizedCustomerPhone;
 
-        const subRes = await fetch('/api/owner/subscriptions', {
+        await ownerApi('/api/owner/subscriptions', {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
+          body: {
             id: membershipSubscription.id,
             updates: subscriptionUpdates,
-          }),
+          },
+          fallbackMessage: 'Booking saved but membership amount could not be updated',
         });
-
-        if (!subRes.ok) {
-          const subData = await subRes.json().catch(() => ({}));
-          throw new Error(subData.error || 'Booking saved but membership amount could not be updated');
-        }
 
         setSubscriptions((prev) => prev.map((subscription: any) => (
           subscription.id === membershipSubscription.id
@@ -1408,21 +1384,15 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
           ? Math.max(0, getBookingGamingTotal(editingBooking) - deletedPrice)
           : remainingItems.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
 
-        const res = await fetch('/api/owner/billing', {
+        await ownerApi('/api/owner/billing', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
+          body: {
             bookingId: editingBooking.id,
             specificItemId: editingBookingItemId,
             newTotalAmount,
-          }),
+          },
+          fallbackMessage: 'Failed to delete booking item',
         });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to delete booking item');
-        }
 
         // Update local state
         setBookings((prev) => prev.map((b) => {
@@ -1443,21 +1413,15 @@ function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
         // Delete the entire booking (soft-delete)
         const bookingItemIds = allItems.map(item => item.id);
 
-        const res = await fetch('/api/owner/billing', {
+        await ownerApi('/api/owner/billing', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
+          body: {
             bookingId: editingBooking.id,
             bookingItemIds,
             deleted_remark: deleteRemark.trim() || null,
-          }),
+          },
+          fallbackMessage: 'Failed to delete booking',
         });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to delete booking');
-        }
 
         // Remove from local state (soft-deleted = hidden from normal view)
         hideDeletedBookingLocally(editingBooking.id);
