@@ -34,7 +34,22 @@ import {
   type TimeAdjustmentTarget,
 } from "../utils/dashboardHelpers";
 
-type OwnerDashboardContextValue = any;
+/**
+ * What the console's context actually holds.
+ *
+ * Read off the value the provider builds rather than written out by hand. The
+ * value carries a little over three hundred fields, and a hand-kept interface
+ * that long drifts the first time somebody adds one: it would go stale
+ * silently, which is worse than the `any` this replaces, because it would look
+ * checked. Derived, it cannot disagree with what is really there, and adding a
+ * field to the value is all anybody has to do.
+ *
+ * This was `any` until now, which meant none of those fields were checked at
+ * any of the twelve places that read them - a renamed or removed field showed
+ * up as `undefined` at runtime on a café's screen rather than as a red line
+ * here.
+ */
+export type OwnerDashboardContextValue = ReturnType<typeof useOwnerDashboardValue>["value"];
 
 /** How often the expired-booking sweep looks, in milliseconds. */
 const SWEEP_TICK_MS = 30_000;
@@ -83,13 +98,15 @@ export function useOwnerClock(): OwnerClock {
   return ctx ?? fallback;
 }
 
-export function OwnerDashboardProvider({
-  activeTab,
-  children,
-}: {
-  activeTab: OwnerRouteTab;
-  children: ReactNode;
-}) {
+/**
+ * Builds everything the console shares, and the clock it ticks by.
+ *
+ * Split from the provider component below so its return type can be read -
+ * TypeScript cannot name the type of a value declared inside a component, and
+ * this is what lets OwnerDashboardContextValue be derived instead of guessed.
+ * The provider is what renders; this is what it renders with.
+ */
+function useOwnerDashboardValue({ activeTab }: { activeTab: OwnerRouteTab }) {
   const router = useRouter();
 
   const { allowed, checkingRole } = useOwnerAuth();
@@ -2668,6 +2685,18 @@ export function OwnerDashboardProvider({
     () => ({ currentTime, timerElapsed }),
     [currentTime, timerElapsed]
   );
+
+  return { value, clock };
+}
+
+export function OwnerDashboardProvider({
+  activeTab,
+  children,
+}: {
+  activeTab: OwnerRouteTab;
+  children: ReactNode;
+}) {
+  const { value, clock } = useOwnerDashboardValue({ activeTab });
 
   return (
     <OwnerDashboardContext.Provider value={value}>
