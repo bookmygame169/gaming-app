@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Gift, Plus, Pencil, Loader2, X, EyeOff, Eye, Coffee, Clock, Percent } from 'lucide-react';
+import { ownerApi } from '../ownerApi';
 
 export type RewardKind = 'free_minutes' | 'free_item' | 'discount';
 
@@ -99,11 +100,8 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
 
         setSaving(true);
         try {
-            const res = await fetch('/api/owner/loyalty/rewards', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            await ownerApi('/api/owner/loyalty/rewards', {
+                body: {
                     cafeId,
                     id: form.id || undefined,
                     name: form.name,
@@ -111,11 +109,9 @@ export function LoyaltyRewardsMenu({ cafeId, onChanged }: LoyaltyRewardsMenuProp
                     pointsCost: Number(form.pointsCost),
                     kind: form.kind,
                     value: Number(form.value),
-                }),
+                },
+                fallbackMessage: 'Could not save',
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not save');
-
             setShowForm(false);
             setForm(emptyForm);
             setError(null);

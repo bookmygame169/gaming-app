@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { InventoryItem, InventoryCategory, CartItem, CATEGORY_LABELS } from "@/types/inventory";
 import { fetchInventory, searchCustomersByName } from "@/app/owner/ownerLookup";
+import { ownerApi } from '../ownerApi';
 
 interface SnackSaleModalProps {
   isOpen: boolean;
@@ -175,10 +176,8 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
   async function submitSale() {
     setSaving(true);
     try {
-      const res = await fetch("/api/owner/snack-sale", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await ownerApi("/api/owner/snack-sale", {
+        body: {
           cafeId,
           customerName: isOwnerUse ? "Owner" : (customerName.trim() || null),
           customerPhone: isOwnerUse ? null : (customerPhone.trim() || null),
@@ -191,12 +190,9 @@ export default function SnackSaleModal({ isOpen, onClose, cafeId, onSaleComplete
             unit_price: c.unit_price,
             total_price: c.total_price,
           })),
-        }),
+        },
+        fallbackMessage: 'Failed',
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed");
-      }
       setDone(true);
       setTimeout(() => {
         onSaleComplete();

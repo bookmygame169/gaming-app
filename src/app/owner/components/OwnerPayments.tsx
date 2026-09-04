@@ -14,6 +14,7 @@ import {
     TableRow,
     Tag,
 } from './consoleUi';
+import { ownerApi } from '../ownerApi';
 
 type Claim = {
     id: string;
@@ -143,15 +144,11 @@ export function OwnerPayments({ cafeId, upiId, upiDisplayName, cafeName }: Owner
         setActioningId(claimId);
         setNotice(null);
         try {
-            const res = await fetch('/api/owner/payments', {
+            await ownerApi('/api/owner/payments', {
                 method: 'PUT',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cafeId, claimId, action }),
+                body: { cafeId, claimId, action },
+                fallbackMessage: 'Could not save',
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not save');
-
             setNotice(
                 action === 'verify'
                     ? 'Payment confirmed. The booking is live and the machine will unlock at its start time.'

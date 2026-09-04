@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Chips, GhostButton, Panel, PrimaryButton, Tag } from './consoleUi';
+import { ownerApi } from '../ownerApi';
 
 type Review = {
     id: string;
@@ -77,15 +78,11 @@ export function OwnerReviews({ cafeId }: OwnerReviewsProps) {
 
         setSavingId(reviewId);
         try {
-            const res = await fetch('/api/owner/reviews', {
+            await ownerApi('/api/owner/reviews', {
                 method: 'PUT',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cafeId, reviewId, ...changes }),
+                body: { cafeId, reviewId, ...changes },
+                fallbackMessage: 'Could not save',
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not save');
-
             setReplyingTo(null);
             setReplyText('');
             setError(null);

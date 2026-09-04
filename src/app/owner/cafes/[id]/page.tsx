@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { uploadCafeImage } from "../../utils/uploads";
 import { useOwnerAuth } from "@/app/owner/hooks/useOwnerAuth";
 import { colors, fonts } from "@/lib/constants";
+import { ownerApi } from '../../ownerApi';
 
 type CafeFormData = {
   name: string;
@@ -263,17 +264,10 @@ export default function OwnerCafeEditPage() {
     );
 
     try {
-      const response = await fetch("/api/owner/console-pricing", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cafeId, consoleType, quantity, duration, price }),
+      await ownerApi("/api/owner/console-pricing", {
+        body: { cafeId, consoleType, quantity, duration, price },
+        fallbackMessage: 'Failed to update pricing',
       });
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to update pricing");
-      }
 
       setConsolePricing((prev) =>
         existing
@@ -405,17 +399,11 @@ export default function OwnerCafeEditPage() {
     if (!confirm("Are you sure you want to delete this image?")) return;
 
     try {
-      const response = await fetch("/api/owner/cafe-images", {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageId }),
+      await ownerApi("/api/owner/cafe-images", {
+        method: 'DELETE',
+        body: { imageId },
+        fallbackMessage: 'Failed to delete image',
       });
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete image");
-      }
 
       setCafeImages((prev) => prev.filter((img) => img.id !== imageId));
       setSuccessMessage("Image deleted successfully!");

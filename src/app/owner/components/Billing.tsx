@@ -17,6 +17,7 @@ import type { InventoryItem } from '@/types/inventory';
 import { getLocalDateString, normaliseConsoleType, buildWhatsAppUrl, buildBookingTicketMessage, formatDurationLabel } from '../utils';
 import { fetchInventory } from '../ownerLookup';
 import { calcBillingPrice, type ConsolePricingMap } from '../utils/pricing';
+import { ownerApi } from '../ownerApi';
 
 interface MembershipPlan {
     id: string;
@@ -711,11 +712,8 @@ export function Billing({
 
         setMemSubmitting(true);
         try {
-            const res = await fetch('/api/owner/membership-checkout', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            await ownerApi('/api/owner/membership-checkout', {
+                body: {
                     cafe_id: cafeId,
                     customer_name: customerName.trim(),
                     customer_phone: customerPhone.trim(),
@@ -725,11 +723,9 @@ export function Billing({
                     })),
                     final_amount: memTotalAmount,
                     payment_mode: memPaymentMode,
-                }),
+                },
+                fallbackMessage: 'Failed to add membership',
             });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to add membership');
-
             setCustomerName('');
             setCustomerPhone('');
             setMemItems([]);

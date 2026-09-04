@@ -24,6 +24,7 @@ import {
   CartItem,
   CATEGORY_LABELS,
 } from "@/types/inventory";
+import { ownerApi } from '../ownerApi';
 
 interface AddItemsModalProps {
   isOpen: boolean;
@@ -152,23 +153,16 @@ export default function AddItemsModal({
     try {
       setSaving(true);
 
-      const res = await fetch("/api/owner/booking-orders", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await ownerApi("/api/owner/booking-orders", {
+        body: {
           bookingId,
           items: cart.map((item) => ({
             inventory_item_id: item.inventory_item_id,
             quantity: item.quantity,
           })),
-        }),
+        },
+        fallbackMessage: 'Failed to add items',
       });
-
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(result.error || "Failed to add items");
-      }
 
       setCart([]);
       await loadInventory();

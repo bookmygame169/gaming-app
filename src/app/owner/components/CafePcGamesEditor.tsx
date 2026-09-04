@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Gamepad2, Plus, Save, Trash2 } from 'lucide-react';
+import { ownerApi } from '../ownerApi';
 
 type GameRow = {
   id?: string;
@@ -75,11 +76,9 @@ export function CafePcGamesEditor({ cafeId }: CafePcGamesEditorProps) {
     setSuccess(null);
 
     try {
-      const res = await fetch('/api/owner/cafe-games', {
+      await ownerApi('/api/owner/cafe-games', {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           cafeId,
           games: games.map((game, index) => ({
             name: game.name,
@@ -88,12 +87,9 @@ export function CafePcGamesEditor({ cafeId }: CafePcGamesEditorProps) {
             process_name: game.process_name || null,
             sort_order: index + 1,
           })),
-        }),
+        },
+        fallbackMessage: 'Could not save games',
       });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Could not save games');
-
       setSuccess('Saved. Restart the lock app on each PC (or reboot) to refresh the game menu.');
       await load();
     } catch (err) {
