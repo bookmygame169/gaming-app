@@ -18,6 +18,7 @@ import {
 import { XCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils';
 import { useOwnerClock } from '../context/OwnerDashboardContext';
+import { ownerApi } from '../ownerApi';
 
 type MembershipPlanType = 'day_pass' | 'hourly_package';
 const DAY_PASS_END_LABEL = '10:00 PM';
@@ -135,12 +136,10 @@ export function Memberships({
 
         setEditSaving(true);
         try {
-            const res = await fetch('/api/owner/subscriptions', {
+            await ownerApi('/api/owner/subscriptions', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: editWho.id, updates: { customer_name: name, customer_phone: phone } }),
+                body: { id: editWho.id, updates: { customer_name: name, customer_phone: phone } },
             });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
             onRefresh();
             setEditWho(null);
         } catch (error: unknown) {
@@ -161,12 +160,10 @@ export function Memberships({
         const newHours = Math.max(0, adjustHoursSub.current + delta);
         setAdjustHoursSaving(true);
         try {
-            const res = await fetch('/api/owner/subscriptions', {
+            await ownerApi('/api/owner/subscriptions', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: adjustHoursSub.id, updates: { hours_remaining: newHours } }),
+                body: { id: adjustHoursSub.id, updates: { hours_remaining: newHours } },
             });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
             onRefresh();
             setAdjustHoursSub(null);
             setAdjustHoursDelta('');
@@ -399,13 +396,10 @@ export function Memberships({
                 ? { id: editingPlan.id, ...planData }
                 : { ...planData, cafe_id: cafeId };
 
-            const res = await fetch('/api/owner/membership-plans', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
+            await ownerApi('/api/owner/membership-plans', {
+                body: requestBody,
+                fallbackMessage: 'Failed to save plan',
             });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to save plan');
 
             setShowPlanModal(false);
             setEditingPlan(null);
@@ -473,21 +467,17 @@ export function Memberships({
             if (!cafeId) throw new Error('No cafe selected');
 
             const amountPaid = parseFloat(subAmountPaid) || selectedPlan.price;
-            const res = await fetch('/api/owner/membership-checkout', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            await ownerApi('/api/owner/membership-checkout', {
+                body: {
                     cafe_id: cafeId,
                     customer_name: subCustomerName,
                     customer_phone: subCustomerPhone,
                     items: [{ planId: subSelectedPlanId, quantity: 1 }],
                     final_amount: amountPaid,
                     payment_mode: subPaymentMode,
-                }),
+                },
+                fallbackMessage: 'Failed to create membership booking',
             });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to create membership booking');
 
             alert('Membership booking created successfully!');
             setShowAddSubModal(false);
@@ -508,9 +498,10 @@ export function Memberships({
         if (!confirm(`Delete subscription for ${customerName}? This cannot be undone.`)) return;
 
         try {
-            const res = await fetch(`/api/owner/subscriptions?id=${subId}`, { method: 'DELETE' });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to delete subscription');
+            await ownerApi(`/api/owner/subscriptions?id=${subId}`, {
+                method: 'DELETE',
+                fallbackMessage: 'Failed to delete subscription',
+            });
             onRefresh();
         } catch (error: unknown) {
             alert('Error deleting subscription: ' + getErrorMessage(error));

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { getLocalDateString } from '../utils';
+import { ownerApi } from '../ownerApi';
 
 interface Coupon {
     id: string;
@@ -293,13 +294,10 @@ See you soon! 🎯`;
                 is_active: formData.isActive,
             };
 
-            const res = await fetch('/api/owner/coupons', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(selectedCoupon ? { id: selectedCoupon.id, ...payload } : payload),
+            await ownerApi('/api/owner/coupons', {
+                body: selectedCoupon ? { id: selectedCoupon.id, ...payload } : payload,
+                fallbackMessage: 'Failed to save coupon',
             });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to save coupon');
 
             fetchCoupons();
             setView('list');

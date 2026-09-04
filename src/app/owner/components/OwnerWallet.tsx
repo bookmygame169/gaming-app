@@ -12,6 +12,7 @@ import {
     TableHead,
     TableRow,
 } from './consoleUi';
+import { ownerApi } from '../ownerApi';
 
 type Holder = {
     phone: string;
@@ -84,11 +85,10 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
 
         setLoading(true);
         try {
-            const res = await fetch(`/api/owner/wallet?cafeId=${encodeURIComponent(cafeId)}`, {
-                credentials: 'include',
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not load wallets');
+            const data = await ownerApi<{ holders?: unknown; recent?: unknown; totalHeld?: unknown }>(
+                `/api/owner/wallet?cafeId=${encodeURIComponent(cafeId)}`,
+                { method: 'GET', fallbackMessage: 'Could not load wallets' }
+            );
 
             setHolders(Array.isArray(data.holders) ? data.holders : []);
             setRecent(Array.isArray(data.recent) ? data.recent : []);
@@ -141,11 +141,8 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
         setSaving(true);
         setNotice(null);
         try {
-            const res = await fetch('/api/owner/wallet', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const data = await ownerApi<{ duplicate?: boolean; balance?: number }>('/api/owner/wallet', {
+                body: {
                     cafeId,
                     phone,
                     amount: Number(amount),
@@ -155,10 +152,9 @@ export function OwnerWallet({ cafeId }: OwnerWalletProps) {
                     // A tablet on a bad connection retries; the same key makes
                     // the retry land once rather than credit twice.
                     idempotencyKey: `${cafeId}:${phone}:${amount}:${mode}:${Math.floor(Date.now() / 1000)}`,
-                }),
+                },
+                fallbackMessage: 'Could not save',
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not save');
 
             setNotice(
                 data.duplicate

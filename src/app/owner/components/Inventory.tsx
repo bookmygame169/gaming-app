@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "./consoleUi";
 import { fetchInventory, fetchOrdersInRange } from "@/app/owner/ownerLookup";
+import { ownerApi } from "@/app/owner/ownerApi";
 import {
   InventoryItem,
   InventoryCategory,
@@ -216,22 +217,19 @@ export default function Inventory({ cafeId }: InventoryProps) {
         is_available: formData.is_available,
       };
 
-      const res = editingItem
-        ? await fetch("/api/owner/inventory", {
-            method: "PUT",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ itemId: editingItem.id, ...itemData }),
-          })
-        : await fetch("/api/owner/inventory", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cafeId, ...itemData }),
-          });
-
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.error || "Failed to save item");
+      // Nothing reads the reply; ownerApi throws if the save was refused.
+      if (editingItem) {
+        await ownerApi("/api/owner/inventory", {
+          method: "PUT",
+          body: { itemId: editingItem.id, ...itemData },
+          fallbackMessage: "Failed to save item",
+        });
+      } else {
+        await ownerApi("/api/owner/inventory", {
+          body: { cafeId, ...itemData },
+          fallbackMessage: "Failed to save item",
+        });
+      }
 
       setShowModal(false);
       loadItems();
@@ -245,12 +243,10 @@ export default function Inventory({ cafeId }: InventoryProps) {
   async function handleDelete(item: InventoryItem) {
     if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/owner/inventory?itemId=${encodeURIComponent(item.id)}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.error || "Failed to delete item");
+      const result = await ownerApi<{ disabled?: boolean }>(
+        `/api/owner/inventory?itemId=${encodeURIComponent(item.id)}`,
+        { method: "DELETE", fallbackMessage: "Failed to delete item" }
+      );
       if (result.disabled) {
         alert("Item marked as unavailable (it has sales history).");
       }
@@ -266,18 +262,14 @@ export default function Inventory({ cafeId }: InventoryProps) {
     if (!quickName.trim() || !Number.isFinite(price)) return;
     setQuickSaving(true);
     try {
-      const res = await fetch("/api/owner/inventory", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await ownerApi("/api/owner/inventory", {
+        body: {
           cafeId, name: quickName.trim(), category: quickCat,
           price, cost_price: parseNonNegativeNumber(quickCost, 0) || null,
           stock_quantity: quantity, is_available: true,
-        }),
+        },
+        fallbackMessage: "Failed to add item",
       });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.error || "Failed to add item");
       setQuickName(""); setQuickPrice(""); setQuickQty(""); setQuickCost("");
       setAddOpen(false);
       loadItems();
@@ -290,14 +282,11 @@ export default function Inventory({ cafeId }: InventoryProps) {
 
   async function toggleAvailability(item: InventoryItem) {
     try {
-      const res = await fetch("/api/owner/inventory", {
+      await ownerApi("/api/owner/inventory", {
         method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: item.id, is_available: !item.is_available }),
+        body: { itemId: item.id, is_available: !item.is_available },
+        fallbackMessage: "Failed to update item",
       });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.error || "Failed to update item");
       loadItems();
     } catch (err) {
       console.error("Error toggling availability:", err);
@@ -309,16 +298,14 @@ export default function Inventory({ cafeId }: InventoryProps) {
     const optimistic = Math.max(0, item.stock_quantity + change);
     setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: optimistic } : i));
     try {
-      const res = await fetch("/api/owner/inventory/stock", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: item.id, amount: change }),
+      const result = await ownerApi<{ stock_quantity?: number }>("/api/owner/inventory/stock", {
+        body: { itemId: item.id, amount: change },
+        fallbackMessage: "Failed to update stock",
       });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.error || "Failed to update stock");
-      if (typeof result.stock_quantity === "number" && result.stock_quantity !== optimistic) {
-        setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: result.stock_quantity } : i));
+      // Held in a const so the narrowing survives into the callback below.
+      const confirmed = result.stock_quantity;
+      if (typeof confirmed === "number" && confirmed !== optimistic) {
+        setItems(cur => cur.map(i => i.id === item.id ? { ...i, stock_quantity: confirmed } : i));
       }
     } catch (err) {
       console.error("Stock update error:", err);

@@ -12,6 +12,7 @@ import {
     TableHead,
     TableRow,
 } from './consoleUi';
+import { ownerApi } from '../ownerApi';
 
 type Tournament = {
     id: string;
@@ -79,11 +80,10 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
 
         setLoading(true);
         try {
-            const res = await fetch(`/api/owner/tournaments?cafeId=${encodeURIComponent(cafeId)}`, {
-                credentials: 'include',
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not load tournaments');
+            const data = await ownerApi<{ tournaments?: unknown }>(
+                `/api/owner/tournaments?cafeId=${encodeURIComponent(cafeId)}`,
+                { method: 'GET', fallbackMessage: 'Could not load tournaments' }
+            );
 
             setTournaments(Array.isArray(data.tournaments) ? data.tournaments : []);
             setError(null);
@@ -154,15 +154,11 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
         };
 
         try {
-            const res = await fetch('/api/owner/tournaments', {
+            await ownerApi('/api/owner/tournaments', {
                 method: editingId ? 'PUT' : 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editingId ? { tournamentId: editingId, ...payload } : { cafeId, ...payload }),
+                body: editingId ? { tournamentId: editingId, ...payload } : { cafeId, ...payload },
+                fallbackMessage: 'Could not save',
             });
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not save');
 
             setShowForm(false);
             load();
@@ -182,12 +178,10 @@ export function OwnerTournaments({ cafeId }: OwnerTournamentsProps) {
         if (!confirm(message)) return;
 
         try {
-            const res = await fetch(`/api/owner/tournaments?tournamentId=${encodeURIComponent(tournament.id)}`, {
+            await ownerApi(`/api/owner/tournaments?tournamentId=${encodeURIComponent(tournament.id)}`, {
                 method: 'DELETE',
-                credentials: 'include',
+                fallbackMessage: 'Could not delete',
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Could not delete');
 
             load();
         } catch (err) {
