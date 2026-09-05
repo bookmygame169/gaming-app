@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        The whole point of the app: when paid time runs out it has to put
+        itself back on screen while the TV is showing the PS5 on HDMI. From
+        Android 10 an app cannot start an activity from the background without
+        this. It is granted by hand once per TV, in Settings, and the setup
+        screen checks for it and says so if it is missing.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- A TV has no touchscreen; without this the Play Store and some
+         launchers treat the app as phone-only and refuse to show it. -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="true" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_launcher"
+        android:banner="@drawable/banner"
+        android:label="@string/app_name"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.TvAgent">
+
+        <!--
+            LEANBACK_LAUNCHER is how it appears on the TV home row.
+            singleTask so bringing it back to the front at lock time reuses the
+            one instance rather than stacking a second locked screen behind the
+            first.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".EnrollActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <!--
+            Holds the MQTT connection and the heartbeat. A foreground service
+            because the TV will be showing the PS5 on HDMI for hours at a time,
+            and a backgrounded app gets its sockets closed - which would mean
+            the lock command never arrives and the session never ends.
+        -->
+        <service
+            android:name=".AgentService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

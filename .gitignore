@@ -54,3 +54,10 @@ public/worker-*.js
 # The canvas runtime that renders those sources. Generated, "do not edit" on
 # line one, and re-fetched with the design whenever it is needed.
 .design/**/*.js
+
+# Android TV agent build output
+ps5-tv-agent/.gradle/
+ps5-tv-agent/build/
+ps5-tv-agent/app/build/
+ps5-tv-agent/local.properties
+ps5-tv-agent/.idea/

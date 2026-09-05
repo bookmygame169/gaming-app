@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        No action bar and no window background of its own: the locked screen
+        paints the whole surface itself, and a title bar on a TV looks like a
+        misbehaving app rather than a kiosk.
+    -->
+    <style name="Theme.TvAgent" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">#0b0b0c</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>
