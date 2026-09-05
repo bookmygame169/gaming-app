@@ -28,6 +28,8 @@ type Member = {
     name: string | null;
     balance: number;
     earned: number;
+    /** Points collected in the last 30 days; redemptions do not reduce it. */
+    earned30d: number;
     redeemed: number;
     worthRupees: number;
     lastActivity: string;
@@ -223,13 +225,13 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
             ? Math.ceil(cheapestReward / settings.pointsPerDay)
             : 0;
 
-    const COLUMNS = 'minmax(140px,1.4fr) minmax(110px,1fr) 96px 110px 132px';
+    const COLUMNS = 'minmax(140px,1.4fr) minmax(110px,1fr) 96px 104px 104px 132px';
 
     const exportLoyaltyCsv = () => {
-        const header = ['Member', 'Phone', 'Balance', 'Worth', 'Earned', 'Redeemed', 'Last seen'];
+        const header = ['Member', 'Phone', 'Balance', 'Worth', 'Earned', 'Earned 30d', 'Redeemed', 'Last seen'];
         const rows = visibleMembers.map((m) => [
             m.name || '', m.phone, String(m.balance), String(m.worthRupees),
-            String(m.earned), String(m.redeemed), m.lastActivity || '',
+            String(m.earned), String(m.earned30d), String(m.redeemed), m.lastActivity || '',
         ]);
         const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
         const csv = [header, ...rows].map((cols) => cols.map(escape).join(',')).join('\n');
@@ -407,7 +409,8 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                     <span>MEMBER</span>
                     <span>BALANCE</span>
                     <span className="text-right">WORTH</span>
-                    <span className="text-right">LAST SEEN</span>
+                    <span className="text-right">EARNED 30D</span>
+                    <span className="text-right">EXPIRES</span>
                     <span className="text-right">ACTIONS</span>
                 </TableHead>
 
@@ -471,8 +474,26 @@ export function OwnerLoyalty({ cafeId }: OwnerLoyaltyProps) {
                                     ₹{member.worthRupees.toLocaleString('en-IN')}
                                 </span>
 
-                                <span className="whitespace-nowrap text-right font-mono text-[10.5px] text-[#f2f0ea]/40">
-                                    {member.lastActivity ? formatDate(member.lastActivity).toUpperCase() : '—'}
+                                {/* Points collected in the last 30 days. Redemptions do not
+                                    count against it: somebody who earns and then spends is
+                                    the cafe's best customer, not a lapsed one. */}
+                                <span
+                                    className="whitespace-nowrap text-right text-[13.5px] font-bold"
+                                    style={{ color: member.earned30d > 0 ? '#f2f0ea' : 'rgba(242,240,234,.35)' }}
+                                >
+                                    {member.earned30d > 0 ? `+${member.earned30d.toLocaleString('en-IN')}` : '—'}
+                                </span>
+
+                                {/* Points do not expire. There is no expiry column on the
+                                    ledger and no setting for one, so this says so plainly
+                                    rather than showing a date nothing enforces. Adding a
+                                    real expiry would start deleting points customers have
+                                    already earned, which is the owner's call to make. */}
+                                <span
+                                    className="whitespace-nowrap text-right font-mono text-[10.5px] text-[#f2f0ea]/35"
+                                    title="Points do not expire"
+                                >
+                                    NEVER
                                 </span>
 
                                 <div className="flex justify-end gap-[5px]">

@@ -7,6 +7,7 @@ import {
   getLoyaltySettings,
   type LoyaltySettings,
 } from "@/lib/loyalty";
+import { summariseLoyaltyLedger } from "@/lib/ledgerTotals";
 
 export const dynamic = "force-dynamic";
 
@@ -68,32 +69,11 @@ export async function GET(request: NextRequest) {
 
   const rows = (data ?? []) as LedgerRow[];
 
-  // Balances are summed here rather than in SQL: the ledger for a single café
-  // is small, and this keeps the migration free of views to maintain.
-  const byPhone = new Map<
-    string,
-    { phone: string; balance: number; earned: number; redeemed: number; lastActivity: string }
-  >();
-
-  for (const row of rows) {
-    const entry = byPhone.get(row.customer_phone) ?? {
-      phone: row.customer_phone,
-      balance: 0,
-      earned: 0,
-      redeemed: 0,
-      lastActivity: row.created_at,
-    };
-
-    const points = Number(row.points) || 0;
-    entry.balance += points;
-    if (points >= 0) entry.earned += points;
-    else entry.redeemed += -points;
-
-    // Rows arrive newest first, so the first one seen is the latest.
-    if (row.created_at > entry.lastActivity) entry.lastActivity = row.created_at;
-
-    byPhone.set(row.customer_phone, entry);
-  }
+  // Summed here rather than in SQL: the ledger for a single café is small, and
+  // this keeps the migration free of views to maintain. The arithmetic itself
+  // lives in lib/ledgerTotals so it can be tested - neither ledger has ever had
+  // a row in production, so tests are the only check this has had.
+  const byPhone = summariseLoyaltyLedger(rows);
 
   const members = [...byPhone.values()]
     .map((entry) => ({

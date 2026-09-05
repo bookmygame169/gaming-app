@@ -8,6 +8,7 @@ import {
   WALLET_SETUP_MESSAGE,
   type WalletReason,
 } from "@/lib/wallet";
+import { summariseWalletLedger } from "@/lib/ledgerTotals";
 
 export const dynamic = "force-dynamic";
 
@@ -116,18 +117,10 @@ export async function GET(request: NextRequest) {
 
   if (movesError) return walletError(movesError.message);
 
-  const totalsByPhone = new Map<string, { toppedUp: number; spent: number; lastAt: string | null }>();
-  for (const move of allMoves ?? []) {
-    const key = phoneKey(move.customer_phone as string | null);
-    if (!key) continue;
-    const entry = totalsByPhone.get(key) ?? { toppedUp: 0, spent: 0, lastAt: null };
-    const amount = Number(move.amount) || 0;
-    if (amount > 0) entry.toppedUp += amount;
-    else entry.spent += Math.abs(amount);
-    const at = move.created_at as string | null;
-    if (at && (!entry.lastAt || at > entry.lastAt)) entry.lastAt = at;
-    totalsByPhone.set(key, entry);
-  }
+  // Same arithmetic as the loyalty screen, and tested in one place - see
+  // lib/ledgerTotals. wallet_ledger has never had a row in production, so
+  // those tests are the only verification this has had.
+  const totalsByPhone = summariseWalletLedger(allMoves ?? []);
 
   const holders = [...balances.entries()]
     .filter(([, balance]) => balance !== 0)
