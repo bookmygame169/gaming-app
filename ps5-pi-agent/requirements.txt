@@ -1,0 +1,7 @@
+# On the Pi only. The relay and display need hardware; the tests do not need
+# any of this, which is how the switching logic is tested off-Pi.
+gpiozero==2.0.1
+lgpio==0.2.2.0
+paho-mqtt==1.6.1
+requests==2.32.3
+qrcode[pil]==7.4.2

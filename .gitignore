@@ -61,3 +61,10 @@ ps5-tv-agent/build/
 ps5-tv-agent/app/build/
 ps5-tv-agent/local.properties
 ps5-tv-agent/.idea/
+
+# PS5 Pi agent — secrets and local state
+ps5-pi-agent/config.json
+ps5-pi-agent/station.json
+ps5-pi-agent/switch-state.json
+ps5-pi-agent/__pycache__/
+ps5-pi-agent/**/__pycache__/

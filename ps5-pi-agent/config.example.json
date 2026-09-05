@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Copy to config.json and edit. config.json is git-ignored.",
+    "Only the hardware and the site live here. The station identity, broker",
+    "password and heartbeat token are NOT in this file - they arrive from",
+    "/api/stations/enroll when you redeem a setup code, and are written to",
+    "station.json. That way this repo carries no secrets and one SD card image",
+    "works for every station."
+  ],
+
+  "relay": {
+    "_comment": "BCM pin numbering, not physical pin position.",
+    "pin": 17,
+    "active_high": false
+  },
+
+  "site_origin": "https://www.bookmygame.co.in",
+
+  "display": {
+    "_comment": "Set false when running headless over SSH for a wiring test.",
+    "enabled": true,
+    "fullscreen": true
+  }
+}
